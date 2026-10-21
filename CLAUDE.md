@@ -170,7 +170,8 @@ open, or explicitly withdraw obsolete ones with a reason before ending their pan
 
 ## Architecture
 
-See [Project architecture and structure](docs/project-structure.md) for components and dependencies.
+See [Project architecture and structure](docs/project-structure.md) for components and dependencies,
+and [business logic](docs/business-logic.md) for each domain's entities, states and permissions.
 
 ## Code Conventions
 
@@ -189,6 +190,8 @@ See [Project architecture and structure](docs/project-structure.md) for componen
 
 ### Both
 - Files ≤ 300 lines, functions ≤ 50 lines
+- Investigations go in `docs/internal/investigation-*.md`, which is gitignored and never
+  tracked; record lasting contracts in the tracked doc that owns them
 
 ### Verification tiers for every component
 
@@ -221,7 +224,7 @@ the changed paths:
 | T2 | One screen's views | Build, `HiBossTests`, the UI test classes for that screen, and a simulator screenshot of the screen |
 | T3 | Shared components, navigation, deep links, demo routing, `project.yml`, or `HibossKit/` | Build, `HiBossTests`, and the UI test classes that exercise the changed component (find them by searching the UI tests for its screens and accessibility identifiers); `cd macos && swift build` when `HibossKit/` changed |
 | T4 | A merge into `main` | No full run. Build and `HiBossTests` on `main` when the merge resolved conflicts in shared or generated files (`Localizable.xcstrings`, `project.pbxproj`); otherwise nothing beyond the branches' own evidence |
-| T5 | A release (TestFlight/App Store), or the boss asks for it | One full unit and UI run, skipping only `UXTourUITests`, at most once per batch of merges |
+| T5 | A release (TestFlight/App Store), or a full run is requested | One full unit and UI run, skipping only `UXTourUITests`, at most once per batch of merges |
 | — | A device install of a commit that was already tested | Build only |
 
 - Iterate on the focused tests and run the tier's suites once, on the final commit.
@@ -239,8 +242,7 @@ the changed paths:
 ### macOS verification tiers
 
 Many `HibossIslandTests` classes open real windows on the desktop of the Mac that runs them, and
-that Mac is the boss's working machine. Every window-test run interrupts the boss, so run the
-smallest tier that covers the change. `macos/scripts/verify-tier.sh` computes the tier from the
+every window-test run takes over that desktop, so run the smallest tier that covers the change. `macos/scripts/verify-tier.sh` computes the tier from the
 changed paths and prints the exact command; it splits window classes from logic-only classes.
 Pick the tier from the changed paths:
 
@@ -251,7 +253,7 @@ Pick the tier from the changed paths:
 | M2 | One screen's views | `swift build`, the M1 classes, and the window classes for that screen; one screenshot of the screen in light and dark mode |
 | M3 | Shared UI (`MainView`, `Overview/`, toolbar, `DesignTokens`, `TodayStyle`), `Package.swift`, or `HibossKit/` | `swift build`, and the logic and window classes that reference the changed types; `swift test --filter` for the changed `HibossKit/` types; screenshots of each affected screen |
 | M4 | A merge into `main` | No test run. `swift build` plus the classes for the conflicted files when the merge resolved a conflict in `macos/` or `HibossKit/`; otherwise nothing beyond the branches' own evidence |
-| M5 | A release (Sparkle/notarized build), or the boss asks for it | One full `HibossIslandTests` run, at most once per batch of merges |
+| M5 | A release (Sparkle/notarized build), or a full run is requested | One full `HibossIslandTests` run, at most once per batch of merges |
 | — | Installing a commit that was already tested | `scripts/build-app.sh` only; check the installed app with a screenshot instead of rerunning tests |
 
 Run limits, so the desktop is not taken over:
@@ -273,32 +275,9 @@ Run limits, so the desktop is not taken over:
 
 ## Reference
 
-Detailed docs moved to `.aid/knowledge/`:
+Detailed docs live in [`docs/reference/`](docs/reference/README.md):
 - **API Reference** — all endpoints, request/response formats
 - **CLI Reference** — complete command reference with examples
 - **Message Delivery** — delivery architecture, channel resolution, hooks
 - **Roadmap History** — version history v0.1 through v1.4
 - **Architecture Decisions** — agent-as-boss, autonomy, multi-agent design
-
-<!-- aid:start -->
-## aid orchestration
-
-This project uses [aid](https://github.com/agent-tools-org/ai-dispatch) for AI task orchestration.
-
-- **Project**: hiboss
-- **Profile**: production
-- **Language**: rust, typescript
-- **Verify**: `cd cli && cargo check && cd ../server && npm test`
-
-### Rules
-- All new functions must have at least one test
-- No unwrap() in Rust production code
-- Files ≤ 300 lines, functions ≤ 50 lines
-- Code changes require review before merge
-
-### Usage
-- Dispatch work: `aid run <agent> "<prompt>" --dir .`
-- Review output: `aid show <id> --diff`
-- Batch dispatch: `aid batch <file> --parallel`
-- Project config: `.aid/project.toml`
-<!-- aid:end -->

@@ -1,303 +1,203 @@
-# hiboss
+# HiBoss
 
-**AI Agent <-> Boss Communication Tool**
+**Decisions, progress and shared context between AI agents and the people they work for.**
 
 Website: [hiboss.org](https://hiboss.org/) · [Privacy](https://hiboss.org/privacy/) · [Support](https://hiboss.org/support/)
+· [Changelog](CHANGELOG.md) · [Roadmap](docs/roadmap.md)
 
-[Product roadmap](docs/roadmap.md) · [Version history](.aid/knowledge/roadmap-history.md)
+HiBoss is a self-hosted server, a CLI for agents, and native apps for the human ("the
+boss"). An agent that needs a decision, wants to report a result, or has something worth
+watching uses the `hiboss` CLI. The boss answers from the iPhone or Mac app, the web
+console, Telegram or Discord, and the answer flows back to the agent.
 
-hiboss lets AI agents send messages to their human boss and receive replies through
-familiar channels like Discord and Telegram. When an agent needs approval, wants to
-report progress, or has a question, it calls `hiboss send` or `hiboss ask` -- the
-message lands in your chat app, and your reply flows back to the agent.
+- **Decisions.** `hiboss ask` sends a question with up to five choices and waits for one
+  durable answer. A timeout default is recorded as `auto_default`, never as a human choice.
+- **Messages.** `hiboss send` delivers progress and results; `hiboss inbox` and
+  `hiboss reply` carry the boss's messages back to the right agent session.
+- **Progress feed.** `hiboss progress post` adds screenshots and clips to a per-project
+  timeline that never notifies.
+- **Live panels.** `hiboss panel` publishes a card that keeps updating: a test run, a
+  benchmark sweep, a monitor. `hiboss request` adds a typed questionnaire to a panel.
+- **Box.** The boss's shared text, links and media, which agents can search and add to,
+  with optional expiring public share links.
+- **Teams.** Several bosses with `admin`, `manager` and `viewer` roles, per-agent access
+  grants, and agents that act as bosses for other agents.
 
-Agents can also act as bosses for other agents, enabling autonomous multi-agent
-workflows where a human can still step in at any time.
+How the pieces fit is described in [business logic](docs/business-logic.md).
 
-Agents prefer HiBoss for progress and result delivery: `hiboss panel` for persistent
-task/report cards, and `hiboss request` for durable intake questionnaires and typed
-answers. A completed report does not need a blocking question.
-Install the agent entry point with `hiboss setup agents`, then read
-`hiboss panel guide`. See the [agent delivery guide](cli/resources/panel-agent-guide.md)
-and [v2 implementation / rollout status](docs/live-panels/implementation.md).
+## Components
 
-## Architecture
+| Path | What it is |
+| --- | --- |
+| [`server/`](server/) | Cloudflare Worker (Hono, D1, R2, Durable Objects): the API, delivery and live relay |
+| [`cli/`](cli/) | `hiboss`, the Rust CLI used by agents, hooks and setup |
+| [`mcp/`](mcp/) | MCP server for Claude Code (Bun): HiBoss tools plus pushed messages |
+| [`ios/`](ios/) | iPhone app: attention inbox, decisions, progress, panels, Box, Live Activities |
+| [`macos/`](macos/) | Mac app "HiBoss Island": dashboard, decisions, history, panels, Box |
+| [`HibossKit/`](HibossKit/) | Swift package shared by the iOS and Mac apps |
+| [`web/`](web/) | Web console (SvelteKit static build): agents, bosses, notifications, projects |
+| [`panel-runtime/`](panel-runtime/) | Shared panel definition schema, validation and fixtures |
+| [`site/`](site/) | Static public website |
+| [`terminal/`](terminal/) | ESP-IDF configuration defaults for an ESP32 terminal |
+| [`docs/`](docs/) | Contracts and references; start with [business logic](docs/business-logic.md) |
 
-```
-                              +---------------------+
-  Claude Code <--MCP--> mcp/ |                     |
-                              |  hiboss-server      |     Discord / Telegram
-  hiboss CLI (Rust)  <--HTTP->|  (Cloudflare Worker) |<--->  Boss (human or AI)
-                              |  D1 + R2 storage    |
-                              +---------------------+
-```
+## External services
 
-The server runs on Cloudflare Workers with D1 for persistence and R2 for file
-attachments. Channels are pluggable adapters -- configure one or more, and messages
-route through whichever you choose.
+HiBoss runs entirely on your Cloudflare account (Workers, D1, R2, Durable Objects).
+Everything else is optional and used only when you configure it:
+
+- **Apple Push Notification service**, for iPhone notifications and Live Activities.
+- **Telegram Bot API**, for a Telegram channel.
+- **Discord API**, for a Discord channel and interactive buttons.
+
+The server sends no telemetry.
 
 ## Quick Start
 
 ### Prerequisites
 
-- [Rust](https://rustup.rs/) (for the CLI)
-- [Node.js](https://nodejs.org/) >= 18 (for the server)
-- [Bun](https://bun.sh/) (for the MCP channel plugin, optional)
-- A [Cloudflare](https://dash.cloudflare.com/) account with Workers, D1, and R2 enabled
+- A [Cloudflare](https://dash.cloudflare.com/) account with Workers, D1 and R2 enabled
+- [Node.js](https://nodejs.org/) 20 or later
+- [Rust](https://rustup.rs/) 1.85 or later (the CLI uses the 2024 edition)
+- The HiBoss iPhone app or the Mac app, to approve machines and answer decisions
 
 ### 1. Deploy the server
 
 ```bash
 cp server/wrangler.toml.example server/wrangler.toml
-npm ci                                # install the server and panel-runtime workspaces
+npm ci                                       # server and panel-runtime workspaces
 cd server
-npx wrangler d1 create hiboss-db          # create the D1 database
-# Update wrangler.toml with the returned database_id
+npx wrangler d1 create hiboss-db             # copy the returned database_id into wrangler.toml
 npx wrangler r2 bucket create hiboss-attachments
-npm run deploy                          # apply remote D1 migrations, then deploy the Worker
+npx wrangler secret put BOOTSTRAP_SECRET     # a long random value; keep it private
+npm run deploy                               # apply D1 migrations, then deploy the Worker
 ```
 
-`npm run deploy` stops if a migration fails. Apply migrations before publishing
-the Worker: dashboard queries require the indexes created by migration 0048.
+`npm run deploy` stops if a migration fails. `server/wrangler.toml.example` documents
+every other variable: `DESTINATIONS_MODE`, the web console origin, and the optional
+Telegram, Discord and APNs settings.
 
-### 2. Build the CLI
+### 2. Install the CLI
 
 ```bash
-cd cli
-cargo build --release
-cp target/release/hiboss ~/.cargo/bin/
-hiboss setup agents    # install/refresh Codex and Claude global delivery and questionnaire guidance
+cargo install --locked --path cli
 ```
 
-### 3. Add a machine
+### 3. Create the boss and enrol the first machine
 
-On a configured machine, run `hiboss device invite` to get an **Add a machine** prompt.
-Use `--copy` to copy it. Paste the prompt into an AI agent on the new machine: it installs the CLI if needed,
-runs setup, shows a six-digit code, and waits for approval in HiBoss on iPhone/Mac or in Telegram.
+On the first machine, with the bootstrap secret in the environment so it is not stored
+in your shell history:
 
 ```bash
-hiboss setup --server https://hiboss-server.<you>.workers.dev --invite <invite>
+export HIBOSS_BOOTSTRAP_SECRET='<the BOOTSTRAP_SECRET value>'
+hiboss setup --server https://hiboss-server.<account>.workers.dev --boss-name "<your name>"
 ```
 
-One approval sets up the machine's profiles in a v2 config under `~/Library/Application Support/hiboss/config.json` on macOS or `${XDG_CONFIG_HOME:-~/.config}/hiboss/config.json`
-on Linux. Set `HIBOSS_CONFIG` for a different file; `hiboss whoami --json` shows the local identity.
-Use `hiboss setup --check` to verify all profiles, or repeated `--profile` flags and `--label` to customize setup.
-If setup stops before approval, run `hiboss setup` again to resume the same request; `hiboss setup --abandon` discards it.
-Hooks and guidance honor `CLAUDE_CONFIG_DIR` and `CODEX_HOME`; Gemini uses `~/.gemini/GEMINI.md`.
+On a server with no boss yet, setup creates you as the `admin` boss and prints a
+`hiboss://pair` link, its QR code and a single-use code that expires after five minutes.
+It then sends this machine's join request and waits for approval.
 
-### 4. Configure a channel
+### 4. Pair the app and approve the machine
 
-```bash
-# Telegram
-hiboss channel set telegram --bot-token <BOT_TOKEN> --chat-id <CHAT_ID>
+1. Pair the app with the printed link or code: scan it with the iPhone app, or open
+   HiBoss Island on the Mac and choose **Pair with Code…**.
+2. Approve the machine's request. On iPhone it is under **Settings → Devices → Device
+   Requests**; the Mac app shows it as a request sheet. Approve only if the request shows
+   the same six-digit code as the terminal.
 
-# Discord (bot mode)
-hiboss channel set discord --bot-token <BOT_TOKEN> --channel-id <CHANNEL_ID>
+Setup then writes the machine's profiles to `~/Library/Application Support/hiboss/config.json`
+on macOS or `${XDG_CONFIG_HOME:-~/.config}/hiboss/config.json` on Linux (or `$HIBOSS_CONFIG`).
+If setup stops before approval, run the same command again to resume; `hiboss setup --abandon`
+discards the request. `hiboss setup --check` verifies every profile.
 
-# Discord (webhook mode, no bot required)
-hiboss channel set discord --webhook-url <WEBHOOK_URL>
-```
-
-### 5. Send your first message
+### 5. Connect your agents
 
 ```bash
+hiboss setup agents          # global Codex and Claude Code instructions for HiBoss
+hiboss setup hooks --global  # Claude Code hooks: unread messages at start, delivery during work
 hiboss send "Hello boss!"
 ```
 
-### Optional: macOS Island client
+### 6. Add more machines
 
-The native client in [`macos/`](macos/) shows `hiboss ask --option` choices in
-either a compact top-screen island or a standard window. It connects directly
-to the existing Boss SSE and reply APIs. See the
-[`macOS setup guide`](macos/README.md) for build and Boss Token instructions.
+On an enrolled machine, `hiboss device invite --copy` copies an **Add a machine**
+prompt. Paste it into an agent on the new machine: it installs the CLI if needed, runs
+`hiboss setup --invite …`, and waits for your approval in the app.
 
-### Optional: iOS boss client
+### Optional: Telegram or Discord
 
-The native client in [`ios/`](ios/) provides the attention inbox, push-notification
-deep links, Live Activities, Dynamic Island choices, and one-time QR pairing from the
-Mac client. See the [`iOS setup guide`](ios/README.md) for build and signing details.
-
-## Contributing and security
-
-See [Contributing](CONTRIBUTING.md) for development checks and pull requests.
-Report vulnerabilities through the private contact in [Security](SECURITY.md).
-
-## Features
-
-### Messaging
+Channel configuration needs an agent profile with administrative capability; profiles
+enrolled during the first install have it.
 
 ```bash
-hiboss send "Deployment complete"                  # async message
-hiboss send --priority high "Build failed"         # urgent message
-hiboss ask "Option A or B?" --timeout 60           # blocking, wait for reply
-hiboss ask --option "A" --option "B" --option "C" "Pick one" # quick replies
-hiboss ask --action "Approve=make deploy" --action "Reject=echo no" "Deploy?"
-hiboss send --file ./screenshot.png "See attached" # file attachment
-hiboss send --type task_update "Build deployed"    # typed messages
+npx wrangler secret put TELEGRAM_WEBHOOK_SECRET          # in server/
+hiboss setup telegram --webhook-secret '<same value>'     # guided bot and chat setup
+
+hiboss setup discord                                      # guided Discord bot setup
 ```
 
-`--option` and `--action` are repeatable singular flags. The removed plural forms
-are rejected with migration guidance because comma-separated values cannot safely
-represent option text that itself contains commas.
+Discord interactions also need `DISCORD_PUBLIC_KEY` in `server/wrangler.toml`.
 
-### Action Buttons
+### Optional: iPhone push
 
-Repeat `--action "LABEL=COMMAND"` to associate a command with a Telegram/Discord
-choice. The CLI displays the returned command for the calling agent; it does not
-execute it. Automatic timeout defaults are explicitly marked and do not expose an
-action command. Use `hiboss ask --json` to inspect the outcome before acting.
+Push notifications require APNs configuration on the server (`APNS_KEY_ID`,
+`APNS_TEAM_ID` and the `APNS_AUTH_KEY` secret); see
+[push privacy and isolation](docs/push-privacy-and-isolation.md).
+
+### Optional: web console
+
+See [web/README.md](web/README.md) to build and deploy the console, then set
+`CONSOLE_ORIGIN` in `server/wrangler.toml`.
+
+## Using HiBoss from an agent
 
 ```bash
-hiboss ask --action "Merge=git merge feature" --action "Reject=echo no" "Merge this PR?"
-# Boss taps "Merge" → CLI displays the associated action for the caller to handle
+hiboss send "Deployment complete"
+hiboss send --priority high --file ./failure.png "Build failed"
+hiboss ask --option "Ship" --option "Hold" --default "Hold" --timeout 600 "Release 2.3?"
+hiboss ask --json --option "A" --option "B" "Pick one"   # inspect "outcome" before acting
+hiboss inbox
+hiboss reply <message-id> "Done"
+hiboss progress post "New onboarding flow" --image ./onboarding.png
+hiboss panel guide                                       # how to publish a live panel
+hiboss box latest --kind image --by boss
 ```
 
-### Channel Routing
+`--option` and `--action` are repeatable. An `--action "LABEL=COMMAND"` is shown to the
+agent when the boss chooses it; HiBoss never executes it. Peer sessions on the same
+project can coordinate with `hiboss send --to <name>` and `hiboss send --broadcast`.
 
-Route messages to different channels based on priority:
+The [CLI reference](docs/reference/cli-reference.md) lists every command, and the
+[API reference](docs/reference/api-reference.md) every endpoint.
+
+### Claude Code MCP server
+
+The MCP server in `mcp/` gives Claude Code HiBoss tools (`send`, `ask`, `reply`, `react`,
+`inbox`, `search`, `send_file` and others). It needs [Bun](https://bun.sh/) and reads the `claude`
+profile from the CLI config (or `HIBOSS_PROFILE`); it never writes credentials.
 
 ```bash
-hiboss agent config --channel-routing "normal=discord,high=telegram,critical=telegram"
+cd mcp && bun install
+claude mcp add hiboss -- bun "$PWD/server.ts"
 ```
 
-Resolution order: `--channel` flag > server `channel_routing` > first configured channel.
+`HIBOSS_SERVER` and `HIBOSS_KEY`, set together, supply ephemeral credentials instead of
+the config file.
 
-### Inbox & Replies
+## Security
 
-```bash
-hiboss inbox                              # unread messages from boss
-hiboss inbox --priority critical,high     # urgent only
-hiboss read <id>                          # message with reply chain
-hiboss reply <id> "Done"                  # reply to boss
-hiboss react <id> "✅"                   # emoji reaction (Telegram)
-```
+- Agent keys, boss tokens, pairing codes, invites and share links are stored as hashes.
+- Agent keys and boss tokens are separate credential types with separate routes.
+- Every boss read and write is scoped by role and per-agent grant; viewers are read-only.
+- A new machine joins only with an invite (or the bootstrap secret on an empty server)
+  and a boss's approval.
+- Messages and boss replies can be signed with device-held ES256 keys.
 
-### Multi-Boss Teams
+Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
-```bash
-hiboss boss update <boss-id> --telegram-user-id 12345
-hiboss boss grant <boss-id> <agent-id>    # grant agent access
-hiboss boss list                          # list bosses with roles
-```
+## Contributing
 
-Roles: `admin` (access all agents), `manager` (explicit grants only), `viewer` (read-only).
-
-### Agent-as-Boss
-
-An agent can act as boss for other agents -- enabling autonomous orchestration:
-
-```bash
-# Link an existing boss to an agent
-hiboss boss update <boss-id> --agent-id <orchestrator-key-id>
-
-# The orchestrator reads sub-agent messages and replies
-hiboss boss inbox
-hiboss boss reply <id> "Approved, proceed"
-```
-
-### Agent Groups & Routing
-
-```bash
-hiboss group create dev-team                       # create group
-hiboss group add-member <group-id> <agent-id>      # add member
-hiboss group broadcast <group-id> "Stop all work"  # broadcast
-
-hiboss route add --channel telegram --pattern "deploy.*" --target <agent-id>
-```
-
-### Session Isolation
-
-Each Claude Code session gets a unique session ID. Messages are scoped per session --
-`hiboss inbox` only shows messages from the current session. Boss-initiated messages
-(not replies) are visible across all sessions.
-
-### Claude Code Integration
-
-**MCP Channel Plugin (recommended)** -- real-time message delivery via the Model Context Protocol:
-
-```bash
-claude --channels plugin:hiboss    # launch with hiboss channel
-/hiboss:configure status           # inspect local configuration
-```
-
-The MCP plugin connects via SSE for instant message delivery. Messages appear as
-native `<channel>` notifications, and Claude uses MCP tools (send, ask, reply,
-react, inbox) directly -- no shell commands needed.
-
-**Hook-based (fallback)** -- for environments without MCP plugin support:
-
-```bash
-hiboss setup hooks           # install SessionStart + PostToolUse hooks
-hiboss setup hooks --global  # install for all projects
-hiboss doctor                # validate config, connectivity, channel routing
-```
-
-Hooks inject unread messages at session start and poll for urgent messages
-during work.
-
-### Discord Bidirectional
-
-Boss can send messages and click buttons from Discord:
-
-```bash
-hiboss channel discord-setup --app-id <id> --bot-token <token>  # register /msg command
-```
-
-Boss uses `/msg <message>` in Discord to send messages to agents.
-
-## MCP Channel Plugin
-
-The MCP plugin runs as a local Bun process that bridges Claude Code to the hiboss
-server via SSE streaming. It provides real-time message delivery and native MCP tools.
-
-**Tools:** `send`, `ask`, `reply`, `react`, `inbox`
-
-**Setup (manual):**
-
-```json
-{
-  "mcpServers": {
-    "hiboss": {
-      "command": "bun",
-      "args": ["start"],
-      "cwd": "/path/to/hiboss/mcp",
-      "env": {
-        "HIBOSS_SERVER": "https://hiboss-server.<you>.workers.dev",
-        "HIBOSS_KEY": "hb_your_api_key"
-      }
-    }
-  }
-}
-```
-
-The environment pair is ephemeral and never reads or writes the shared config.
-For saved credentials, use the CLI's v2 config and select the `claude` profile
-(or set `HIBOSS_PROFILE`). Do not hand-write a separate MCP config file.
-A migrated v1 file contains `default`; set `HIBOSS_PROFILE=default` to use it in MCP.
-
-## Security & Performance
-
-v1.2 includes a comprehensive business logic audit with 16 Critical+High severity fixes:
-
-- **Auth isolation** -- boss API uses boss tokens, sessions enforce cross-agent protection, groups scoped by owner
-- **Webhook hardening** -- channel validation, idempotency dedup, enabled-flag filtering
-- **SQL safety** -- ESCAPE clauses on all LIKE queries, atomic bootstrap, exact ID matching
-- **Delivery reliability** -- failure persistence, Discord replay protection
-- **Hook performance** -- PostToolUse hook runs in ~4ms (was 600ms), all HTTP moved to async background process
-
-## Self-Hosted
-
-hiboss is fully self-hosted. The server runs on your own Cloudflare account, data
-lives in your own D1 database, and channel credentials stay under your control.
-No external services, no telemetry, no third-party dependencies beyond Cloudflare.
-
-## Project Structure
-
-```
-cli/           Rust CLI binary (clap, reqwest, tokio)
-server/        Cloudflare Worker (Hono, D1, R2)
-mcp/           Claude Code channel plugin (Bun, MCP, SSE bridge)
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local development and each component's tests.
 
 ## License
 

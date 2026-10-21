@@ -1,7 +1,7 @@
 # HiBoss product roadmap
 
 Updated: 2026-10-04. This is the current product index. The
-[version history](../.aid/knowledge/roadmap-history.md) records earlier changes;
+[version history](reference/roadmap-history.md) records earlier changes;
 individual design contracts define behavior in detail.
 
 Statuses describe source capability, not installation or production rollout.
@@ -13,11 +13,11 @@ number assigned yet.
 
 | Surface | Implemented behavior | Evidence / contract |
 | --- | --- | --- |
-| Agent CLI | Messages, blocking choices, progress posts, panels, durable questionnaires, project identities and key lifecycle; per-runtime profiles, invite-based `hiboss setup` with resumable approval, per-profile session state and dispatched mode | [CLI reference](../.aid/knowledge/cli-reference.md), [questionnaires](live-panels/questionnaires.md), [projects](projects-rollout.md), [multi-profile onboarding](multi-profile-onboarding.md) |
+| Agent CLI | Messages, blocking choices, progress posts, panels, durable questionnaires, project identities and key lifecycle; per-runtime profiles, invite-based `hiboss setup` with resumable approval, per-profile session state and dispatched mode | [CLI reference](reference/cli-reference.md), [questionnaires](live-panels/questionnaires.md), [projects](projects.md), [multi-profile onboarding](multi-profile-onboarding.md) |
 | Mac | Dashboard, attention categories, history, shared reply drafts, Island/window presentation, panels, pairing (issue and redeem codes), device-request approval and passive message notifications | [Mac setup](../macos/README.md), [overview](macos-information-redesign.md), [notifications](macos-message-notifications.md) |
-| iOS | Home attention merges decisions and questionnaires; conversation-oriented session transcripts, message browsing, native localization and widget choices; timeout auto-selections are labelled as such, one reply admission point per decision, pairing and device-request approval | [attention model](native-client-attention-model.md), `ios/App/Home/HomeView.swift`, `ios/App/Shell/RootTabView.swift`, [2026-10 UX investigation](investigation-ios-ux-2026-10.md) |
+| iOS | Home attention merges decisions and questionnaires; conversation-oriented session transcripts, message browsing, native localization and widget choices; timeout auto-selections are labelled as such, one reply admission point per decision, pairing and device-request approval | [attention model](native-client-attention-model.md), `ios/App/Home/HomeView.swift`, `ios/App/Shell/RootTabView.swift` |
 | Panel lifecycle | Independent task/placement states, leases, expiry, durable submissions and live wall discovery | [implementation](live-panels/implementation.md) |
-| Delivery model | Boss clients, projects, providers/destinations and credential identities | [entity model](entity-model-redesign.md), [destination modes](destinations-rollout.md) |
+| Delivery model | Boss clients, projects, providers/destinations and credential identities | [business logic](business-logic.md), [destination modes](delivery-destinations.md) |
 
 The old iOS Home dashboard contract describes a retired UI surface. The current
 shell, rather than that document or the July iOS audit, defines navigation.
@@ -89,7 +89,7 @@ affect their exit status; the CLI reference describes the current classifier.
 
 See [remaining panel scope](live-panels/implementation.md#remaining-product-scope),
 [questionnaire boundaries](live-panels/questionnaires.md#verification-and-remaining-scope)
-and [destination behavior](destinations-rollout.md). These dependencies do not
+and [destination behavior](delivery-destinations.md). These dependencies do not
 block local command-discovery or native navigation improvements.
 
 ## Verification boundaries

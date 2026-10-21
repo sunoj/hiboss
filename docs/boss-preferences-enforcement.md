@@ -1,15 +1,18 @@
 # Deferred: enforcing boss preferences at delivery time
 
-**Status: not implemented. Deliberately deferred.**
+**Status: quiet hours are enforced; routing and weekday fields are not.**
 
 The macOS client writes `routing` and `quiet_hours` into the free-form
-`bosses.preferences` JSON blob via the pre-existing `GET/PUT /api/boss/me/preferences`.
-The server **stores** them and **nothing reads them at delivery time**. The two Settings
-panes that own these values say so on screen (`SettingsNotAppliedNotice`).
+`bosses.preferences` JSON blob via `GET/PUT /api/boss/me/preferences`.
+Quiet-hours start, end and timezone are read at delivery time on both delivery paths
+(`server/src/routes/quiet-hours.ts`, `server/src/delivery/destinations.ts`; see
+[delivery destinations](delivery-destinations.md)). On the legacy path, matching bosses
+share the agent's channel, so delivery waits for the latest quiet-hours end among them.
+The `routing` matrix and weekday selection are stored but never read. Invalid times are
+ignored and an invalid timezone falls back to UTC.
 
-An implementation of the enforcement side was written and then removed before merge after
-an adversarial audit returned BLOCK. This document records why, so the next attempt starts
-from the findings rather than rediscovering them.
+An implementation of routing enforcement at message-send time was removed before merge.
+The rest of this document records the reasons.
 
 ## Why the first attempt failed
 

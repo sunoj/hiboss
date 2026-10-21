@@ -42,9 +42,8 @@ The renderer column is a contract, not an implementation note. A component marke
 `web leaf` is display only: it receives state and reports content height, and it never
 carries an input, an action, or any part of an answer. A component marked `native` is
 never rendered as web content. Adding a component requires choosing its column under the
-same rule, and moving one across is a gate with its own evidence — see the
-[renderer decision](phase0-renderer-decision.md) and the recorded exception in the
-[macOS native contract](../macos-design-v2.md).
+same rule, and moving one across requires its own evidence — see the recorded
+exception in the [macOS native contract](../macos-design-v2.md).
 
 Every custom name and prop above needs a HiBoss implementation; they are not a
 claim that json-render ships this exact catalog. The catalog defines field labels,

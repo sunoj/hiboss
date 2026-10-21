@@ -163,9 +163,6 @@ covering waits, denial, failures, empty requests and retained approval details.
 | Notification controls | Long-page controls | Overview |
 | Large-text channel summary | Not captured | Complete values and menu indicators |
 
-Commands, iteration counts and final suite evidence are in
-[verification](ios-settings-v2-verification.md).
-
 No capability was removed. No shared component, HibossKit, server route, CLI or
 macOS behavior changed. The existing registered-device inventory was moved intact.
 Open product questions are whether a one-night mute action or per-device urgent

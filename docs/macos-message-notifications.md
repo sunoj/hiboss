@@ -31,28 +31,6 @@ The app must be running to consume the feed. No server or APNs changes are requi
 
 ## Verification
 
-- `cd HibossKit && swift test`: 105 passed (104 XCTest plus 1 Swift Testing), 0 failures.
-  The feed transport test verifies the authenticated URL, inbox decoding, and delivery
-  while the SSE connection remains open. Two decoder tests cover filtering and metadata.
-- `cd macos && swift test --skip 'E2E|AttentionLayoutTests'`: 117 passed, 0 failures.
-  Eleven notification tests cover option exclusion, direction, duplicate IDs, formatting,
-  Unicode truncation, disabled-state suppression, authorization, reconnects, and cancellation.
-- `cd macos && swift build`: passed.
-- `HIBOSS_SIGNING_IDENTITY='Apple Development: Ming Sun (234582ZA6V)' bash macos/scripts/build-app.sh`:
-  passed; produced `macos/dist/HiBoss Island.app` in this worktree. The bundle identifier
-  is `ai.hiboss.island`. `codesign --verify --deep --strict` passed for the bundle and
-  its nested components. Signing verifies packaging, not banner delivery.
-- The complete macOS `swift test` command was not run: 41 E2E/UI tests are excluded by
-  the mandatory remote-only execution rule. `the Linux build box` did not resolve;
-  `the Linux build box` was reachable but reported Linux and had no Swift executable.
-- A live `hiboss send "ping"` banner and notification-click UI were not observed.
-  The authorized remote hosts cannot run this macOS UI check. The built app was not
-  launched locally, installed into `/Applications`, or substituted for the running app.
-
-Build logs and test logs for this execution are in `/tmp/hiboss-kit-tests.log`,
-`/tmp/hiboss-macos-tests.log`, `/tmp/hiboss-macos-build.log`, and
-`/tmp/hiboss-bundle-build.log` on the development Mac. These are local artifacts.
-
 The delivery adapter uses Apple's [notification center delegate](https://developer.apple.com/documentation/usernotifications/unusernotificationcenterdelegate)
 for foreground presentation and notification responses. Unit tests inject a fake center
 and never request OS authorization or post real notifications.

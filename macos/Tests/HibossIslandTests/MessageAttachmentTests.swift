@@ -8,7 +8,7 @@ import XCTest
 
 final class MessageAttachmentTests: XCTestCase {
     func testImageAttachmentSurvivesLongHistoryPreviewAndAttentionConversion() {
-        let message = message(fileURL: "https://hiboss.mings.work/api/attachments/example.png",
+        let message = message(fileURL: "https://hiboss.example/api/attachments/example.png",
             body: String(repeating: "Result. ", count: 200))
         let content = HistoryReadingContent(message: message)
         XCTAssertTrue(content.isLong)

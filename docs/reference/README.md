@@ -1,4 +1,4 @@
-# hiboss — Project Knowledge
+# HiBoss reference
 
 - [api-reference.md](api-reference.md) — Full API contract: all endpoints, request/response formats
 - [cli-reference.md](cli-reference.md) — Complete CLI command reference with examples

@@ -1,7 +1,0 @@
-# Ignore generated web dependencies, build output, and the wrapped app.
-/web/node_modules/
-/web/dist/
-/.build/
-/dist/
-/Resources/Web/
-/Resources/Fixtures/

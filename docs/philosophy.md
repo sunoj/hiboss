@@ -133,7 +133,7 @@ note sent as `ask` is an interruption with nothing to decide.
 
 | Rule | Enforcement |
 |---|---|
-| One answer wins | Atomic conditional update on option selection (`.aid/knowledge/architecture-decisions.md`) |
+| One answer wins | Atomic conditional update on option selection ([architecture decisions](reference/architecture-decisions.md)) |
 | Silence is not consent | `auto_default` marker on timeout replies; `hiboss ask --json` `outcome` |
 | Provenance | Box `added_by`, agent-only edits of own items (`docs/hiboss-box-design.md`) |
 | No invented precision | Panel contract: `null` gaps, real denominators (`docs/live-panels/`) |

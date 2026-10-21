@@ -11,12 +11,12 @@ final class MessageAttachmentTests: XCTestCase {
 
     func testUploadedImageDecodesAsImageAttachment() throws {
         let decoded = try metadata(
-            #"{"file_url":"https://hiboss.mings.work/api/attachments/ac2d4528.png"}"#
+            #"{"file_url":"https://hiboss.example/api/attachments/ac2d4528.png"}"#
         )
         let attachment = try XCTUnwrap(decoded.attachment)
         XCTAssertEqual(attachment.kind, .image)
         XCTAssertEqual(attachment.filename, "ac2d4528.png")
-        XCTAssertEqual(attachment.url.absoluteString, "https://hiboss.mings.work/api/attachments/ac2d4528.png")
+        XCTAssertEqual(attachment.url.absoluteString, "https://hiboss.example/api/attachments/ac2d4528.png")
     }
 
     func testNonImageDecodesAsFileAttachment() throws {

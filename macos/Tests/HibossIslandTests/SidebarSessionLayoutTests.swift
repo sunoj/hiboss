@@ -11,7 +11,7 @@ import XCTest
 @MainActor
 final class SidebarSessionLayoutTests: XCTestCase {
     private let longLabel = "house/codex/site-retained-vegetation"
-    private let fullAgent = "ming-claude@Mings-Mac-Mini"
+    private let fullAgent = "dev-claude@Studio-Mac-Host"
 
     func testLabelsAndAgentsKeepFullDescriptionWhileShorteningVisibleNames() throws {
         let snapshot = snapshot()
@@ -19,7 +19,7 @@ final class SidebarSessionLayoutTests: XCTestCase {
         let text = SidebarSessionText(session: session, facts: inventory[0])
         XCTAssertEqual(text.label, longLabel)
         XCTAssertEqual(text.nickname, " · squid")
-        XCTAssertEqual(text.agent, "ming-claude")
+        XCTAssertEqual(text.agent, "dev-claude")
         XCTAssertEqual(text.fullDescription, longLabel + " · squid · " + fullAgent)
         let fallback = SidebarSessionText(session: session, facts: nil)
         XCTAssertNil(fallback.nickname)

@@ -2,7 +2,7 @@
 
 Status: original proposal, partially implemented. Date: 2026-09-07.
 Parent: [Product design](../live-panels-design.md).
-Wire semantics: [Protocol](protocol.md). Validation gates: [Delivery plan](rollout.md).
+Wire semantics: [Protocol](protocol.md).
 The [lifecycle contract](lifecycle.md) specializes this baseline with expiring leases,
 observation freshness, durable completion, and recovery. See [implementation status](implementation.md)
 for the supported v2 surface; durable request delivery and APNs projection remain planned.
