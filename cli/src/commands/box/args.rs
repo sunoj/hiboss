@@ -1,4 +1,4 @@
-// Purpose: clap layout for Box ingestion, scoped reads and author-owned deletion.
+// Purpose: clap layout for Box ingestion, scoped reads, author-owned deletion and share links.
 // Exports: BoxArgs, BoxCommand and typed options; depends on clap and BoxKind.
 use crate::box_types::{BoxBy, BoxFilter, BoxKind};
 use clap::{Args, Subcommand};
@@ -26,6 +26,16 @@ pub enum BoxCommand {
     Rm(RmArgs),
     #[command(about = "List Box collections with item counts")]
     Collections(super::collections::CollectionArgs),
+    #[command(
+        about = "Create a public share link for a Box item and print its URL",
+        long_about = "Create a public share link for a Box item and print its URL.\n\
+            Anyone with the link can view the item until it expires or is revoked."
+    )]
+    Share(super::share::ShareArgs),
+    #[command(about = "List the share links of a Box item")]
+    Shares(super::share::SharesArgs),
+    #[command(about = "Revoke a Box share link")]
+    Unshare(super::share::UnshareArgs),
 }
 
 #[derive(Debug, Args)]
@@ -45,6 +55,19 @@ pub struct AddArgs {
     pub tag: Vec<String>,
     #[arg(long, help = "Existing collection name or ID (repeatable)")]
     pub collection: Vec<String>,
+    #[arg(
+        long,
+        help = "Also create a public share link; anyone with the link can view the item \
+            until it expires or is revoked"
+    )]
+    pub share: bool,
+    #[arg(
+        long,
+        requires = "share",
+        value_parser = super::share::ttl::parse,
+        help = "Share link lifetime: <n>h, <n>d or seconds, 1h..30d (default 7d)"
+    )]
+    pub ttl: Option<u64>,
     #[arg(long)]
     pub json: bool,
 }

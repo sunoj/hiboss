@@ -1,4 +1,4 @@
-// Purpose: Dispatch Box ingestion, reads, media saving and deletion.
+// Purpose: Dispatch Box ingestion, reads, media saving, deletion and share links.
 // Exports: BoxArgs, BoxCommand, run; depends on the existing client and configuration.
 mod args;
 pub(crate) mod collections;
@@ -11,6 +11,7 @@ mod media;
 #[cfg(test)]
 mod mock;
 mod output;
+pub(crate) mod share;
 #[cfg(test)]
 mod tests;
 
@@ -29,7 +30,18 @@ pub async fn run(args: &BoxArgs, config: &Config, client: &HiBossClient) -> Resu
         BoxCommand::Add(args) => {
             let item = add(args, client).await?;
             let collections = collections::for_items(std::slice::from_ref(&item), args.json, client).await?;
-            output::print_item(&item, None, args.json, &collections)
+            output::print_item(&item, None, args.json, &collections)?;
+            if !args.share {
+                return Ok(());
+            }
+            share::create(client, &item.id, args.ttl, args.json, true)
+                .await
+                .map_err(|err| {
+                    Box::<dyn Error>::from(format!(
+                        "item {} was added, but sharing it failed: {err}",
+                        output::single_line(&item.id)
+                    ))
+                })
         }
         BoxCommand::Latest(args) => {
             let item = client.latest_box_item(&args.filters.filter()).await?;
@@ -46,6 +58,9 @@ pub async fn run(args: &BoxArgs, config: &Config, client: &HiBossClient) -> Resu
             eprintln!("Deleted");
             Ok(())
         }
+        BoxCommand::Share(args) => share::create(client, &args.id, args.ttl, args.json, false).await,
+        BoxCommand::Shares(args) => share::list(args, client).await,
+        BoxCommand::Unshare(args) => share::revoke(args, client).await,
     }
 }
 
