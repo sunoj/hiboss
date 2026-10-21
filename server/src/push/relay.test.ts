@@ -29,7 +29,7 @@ it('selects direct before relay, defaults to relay, and permits disabling it', (
     APNS_AUTH_KEY: 'key' })).toBe('direct');
 });
 
-function decode(value: string): Uint8Array {
+function decode(value: string): Uint8Array<ArrayBuffer> {
   const padded = value.replace(/-/g, '+').replace(/_/g, '/');
   return Uint8Array.from(atob(padded.padEnd(Math.ceil(padded.length / 4) * 4, '=')), c => c.charCodeAt(0));
 }

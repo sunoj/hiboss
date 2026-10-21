@@ -10,11 +10,11 @@ export function isRelaySecret(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(value);
 }
 
-function decode(value: string): Uint8Array {
+function decode(value: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/') + '='), c => c.charCodeAt(0));
 }
 
-function trimmedPayload(payload: ApnsPayload): Uint8Array {
+function trimmedPayload(payload: ApnsPayload): Uint8Array<ArrayBuffer> {
   const copy = structuredClone(payload);
   const size = () => encoder.encode(JSON.stringify(copy));
   if (size().length <= MAX_PLAINTEXT) return size();
