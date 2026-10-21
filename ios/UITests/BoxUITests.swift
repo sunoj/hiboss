@@ -204,7 +204,15 @@ extension BoxUITests {
         XCTAssertFalse(app.buttons["Retry"].exists)
     }
 
-    func testImageDetailSharesOriginalDownloadedFile() { assertMediaDetailSharesFile("image") }
+    func testImageDetailSharesOriginalDownloadedFile() {
+        assertMediaDetailSharesFile("image")
+        let sheet = app.otherElements["ActivityListView"]
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+        let title = sheet.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ OR label == %@", "Layout reference", "Layout reference.png")).firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        screenshot("box-image-share-human-filename")
+    }
 
     func testVideoDetailSharesOriginalDownloadedFile() { assertMediaDetailSharesFile("video") }
 
