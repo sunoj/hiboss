@@ -50,12 +50,12 @@ async fn enroll(
     config: &config::Config,
 ) -> Result<Option<selection::Plan>, Box<dyn Error>> {
     let plan = selection::build_plan(args, config)?;
+    bootstrap::pair_boss(&plan.server, args).await?;
     if plan.profiles.is_empty() {
         println!("No new profiles to enroll; use --profile <name> or install a supported runtime");
         return Ok(None);
     }
     confirm(&plan, args.yes)?;
-    bootstrap::pair_boss(&plan.server, args).await?;
     let joined = api::join(&api::http()?, &plan, args).await?;
     if joined.request_id.is_empty() || joined.poll_token.is_empty() {
         return Err("Invalid join receipt".into());

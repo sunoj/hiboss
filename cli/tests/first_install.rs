@@ -126,3 +126,36 @@ fn bootstrap_error_does_not_echo_response_credentials_or_continue_join() {
     assert_no_secrets(&output, &["synthetic-reflected-secret"]);
     assert_eq!(server.requests().len(), 1);
 }
+
+#[test]
+fn first_install_pairs_the_boss_even_without_a_detected_runtime() {
+    let sandbox = Sandbox::new();
+    let server = Http::start(|_| {
+        Response::json(
+            201,
+            json!({
+                "code":"ABCD1234", "expires_at":"2030-01-01T00:00:00Z"
+            }),
+        )
+    });
+    let output = sandbox.run_input(
+        &[
+            "setup",
+            "--server",
+            &server.url,
+            "--bootstrap-secret",
+            "synthetic-install-secret",
+            "--boss-name",
+            "Synthetic Boss",
+            "--yes",
+        ],
+        "",
+        &[("NO_PROXY", "127.0.0.1"), ("PATH", "")],
+    );
+    assert_eq!(output.code, 0, "{}", output.stderr);
+    assert_pairing_output(&output, &server.url);
+    assert_no_secrets(&output, &["synthetic-install-secret"]);
+    let requests = server.requests();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path, "/api/bootstrap/boss");
+}
