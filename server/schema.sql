@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0057; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0058; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -293,9 +293,14 @@ CREATE TABLE IF NOT EXISTS boss_devices (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
-  client_id TEXT REFERENCES boss_clients(id)
+  client_id TEXT REFERENCES boss_clients(id),
+  relay_handle TEXT,
+  push_key TEXT
 );
 CREATE INDEX idx_boss_devices_client ON boss_devices(client_id);
+
+-- Relay capabilities are unique per registered installation.
+CREATE UNIQUE INDEX idx_boss_devices_relay_handle ON boss_devices(relay_handle);
 
 CREATE INDEX IF NOT EXISTS idx_boss_devices_boss ON boss_devices(boss_id, last_seen_at DESC);
 

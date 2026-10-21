@@ -33,6 +33,9 @@ new_sqlite_classes = ["PanelRoom"]
 crons = ["*/5 * * * *"]
 
 [vars]
+# Relay used only without APNs credentials; "off" disables relay push.
+PUSH_RELAY_URL = "https://push.hiboss.org"
+
 # Web console origin allowed by CORS (exact host + its preview subdomains).
 # Leave unset to allow only localhost dev origins.
 CONSOLE_ORIGIN = "https://your-console.pages.dev"

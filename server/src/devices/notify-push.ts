@@ -2,8 +2,8 @@
 // Exports pushJoinRequest and joinRequestPayload; best effort per device, prunes dead tokens.
 // Depends on the shared APNs sender and boss_devices registrations.
 import type { Env } from '../types';
-import { hasApnsConfig, sendPush, type ApnsEnvironment, type ApnsPayload } from '../apns';
-import { deleteBossDevice } from '../push/devices';
+import { pushMode, sendDevicePush, type PushDevice } from '../push/send';
+import type { ApnsPayload } from '../apns';
 
 export interface JoinNotice {
   requestId: string;
@@ -37,15 +37,15 @@ export function joinRequestPayload(notice: JoinNotice): ApnsPayload {
 }
 
 export async function pushJoinRequest(env: Env, notice: JoinNotice): Promise<void> {
-  if (!hasApnsConfig(env)) return;
-  const devices = await env.DB.prepare(`SELECT d.boss_id, d.device_token, d.bundle_id, d.environment FROM boss_devices d
+  if (pushMode(env) === 'none') return;
+  const devices = await env.DB.prepare(`SELECT d.boss_id, d.device_token, d.bundle_id, d.environment,
+    d.relay_handle, d.push_key FROM boss_devices d
     JOIN bosses b ON b.id = d.boss_id WHERE b.role = 'admin' AND b.archived_at IS NULL`)
-    .all<{ boss_id: string; device_token: string; bundle_id: string; environment: ApnsEnvironment }>();
+    .all<PushDevice>();
   const payload = joinRequestPayload(notice);
   for (const device of devices.results ?? []) {
     try {
-      const result = await sendPush(env, device.device_token, device.environment, device.bundle_id, payload, '10');
-      if (result.prune) await deleteBossDevice(env, device.boss_id, device.device_token);
+      await sendDevicePush(env, device, payload, '10');
     } catch {
       // Best effort per device: one failed push must not block the others.
     }
