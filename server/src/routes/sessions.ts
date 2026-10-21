@@ -6,10 +6,10 @@ import { parseProject, resolveProject, type Project } from '../projects';
 import { SESSION_LABEL_SQL, mapSessionProject, type SessionProjectRow } from '../projects/session-label';
 import { isRecord } from './progress-helpers';
 import { Hono, type Context } from 'hono';
-import type { Env } from '../types';
+import type { Env, MessageRow } from '../types';
 import { dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
 import { getAccessibleAgentIds } from './boss-api';
-import { expireSessionAsks } from '../abandoned-asks';
+import { announceSessionAsks, expireSessionAsks, sessionAsksExpiry } from '../abandoned-asks';
 import { ADMITTED_PARENT_SQL, parseSessionIdentity, type SessionIdentity } from './session-identity';
 import { parseSessionNickname, SESSION_NICKNAME_SQL } from './session-nickname';
 
@@ -78,6 +78,8 @@ routes.post('/', async (c) => {
     }
     return c.text('failed to persist session', 500);
   }
+  // A completed session has no agent left to read an answer, whichever route completed it.
+  if (status === 'completed') await expireSessionAsks(c.env, agentId, id);
   const parentRejected = identity.parentSessionId !== null
     && result.parent_session_id !== identity.parentSessionId;
   const details = await c.env.DB.prepare('SELECT display_name, avatar_url FROM projects WHERE id = ?')
@@ -207,25 +209,28 @@ routes.patch('/:id', async (c) => {
   return c.json({ ok: true, nickname: result.nickname });
 });
 
-// DELETE /api/sessions/:id — deregister
+// DELETE /api/sessions/:id — deregister. One batch, so a failure leaves the session and its
+// asks untouched. A session that panels reference stays as a completed row: the panels keep
+// their history and session label, and their lifecycle stays with the panel lease.
 routes.delete('/:id', async (c) => {
   if (isBossAuth(c)) return c.text('agent required', 403);
   const agentId = getAgentId(c);
   const sessionId = c.req.param('id');
+  const db = c.env.DB;
   const ownedSession = 'SELECT id FROM sessions WHERE id = ? AND agent_id = ?';
-  await expireSessionAsks(c.env, agentId, sessionId);
-  await c.env.DB.batch([
-    c.env.DB.prepare(`DELETE FROM session_events WHERE session_id IN (${ownedSession})`)
-      .bind(sessionId, agentId),
-    c.env.DB.prepare(`DELETE FROM destination_routes WHERE session_id IN (${ownedSession})`)
-      .bind(sessionId, agentId),
-    c.env.DB.prepare('UPDATE sessions SET telegram_topic_id = NULL WHERE id = ? AND agent_id = ?')
+  const [expired] = await db.batch([
+    sessionAsksExpiry(db, agentId, sessionId),
+    db.prepare(`DELETE FROM session_events WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),
+    db.prepare(`DELETE FROM destination_routes WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),
+    db.prepare("UPDATE sessions SET telegram_topic_id = NULL, status = 'completed' WHERE id = ? AND agent_id = ?")
       .bind(sessionId, agentId),
     // A child must not keep pointing at an id that a later registration could claim.
-    c.env.DB.prepare(`UPDATE sessions SET parent_session_id = NULL
+    db.prepare(`UPDATE sessions SET parent_session_id = NULL
       WHERE parent_session_id IN (${ownedSession})`).bind(sessionId, agentId),
-    c.env.DB.prepare('DELETE FROM sessions WHERE id = ? AND agent_id = ?').bind(sessionId, agentId),
+    db.prepare(`DELETE FROM sessions WHERE id = ? AND agent_id = ?
+      AND NOT EXISTS (SELECT 1 FROM panels WHERE panels.session_id = sessions.id)`).bind(sessionId, agentId),
   ]);
+  await announceSessionAsks(c.env, (expired.results ?? []) as MessageRow[]);
   return c.json({ ok: true });
 });
 

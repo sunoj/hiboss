@@ -77,7 +77,7 @@ describe('decision integrity: scheduled and webhook paths', () => {
     const target = await option(fresh('f19-target'), true);
     await env.DB.prepare(`UPDATE messages SET expires_at = datetime('now', '-1 minute') WHERE id = ?`)
       .bind(target.id).run();
-    // Queued rows always come from an enabled channel_configs row (discord/telegram/email only).
+    // Queued rows always come from an enabled channel_configs row (discord/telegram only).
     const config = JSON.stringify({ chat_id: fresh('f19-chat'), bot_token: 'synthetic' });
     await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'telegram', ?)")
       .bind(fresh('f19-config'), agent, config).run();
@@ -89,8 +89,9 @@ describe('decision integrity: scheduled and webhook paths', () => {
     expect(await answerCount(target.id)).toBe(0);
     await handleScheduled(env as Env);
     expect(await answerCount(target.id)).toBe(1);
-    expect((await env.DB.prepare('SELECT status FROM delivery_queue WHERE message_id = ?').bind(target.id)
-      .first<{ status: string }>())?.status).toBe('delivered');
+    // The ask resolved before its queued send, so the drain skips it instead of delivering.
+    expect(await env.DB.prepare('SELECT status, error FROM delivery_queue WHERE message_id = ?').bind(target.id)
+      .first()).toEqual({ status: 'failed', error: 'ask closed before delivery' });
     const firstStatus = (await env.DB.prepare('SELECT status FROM messages WHERE id = ?').bind(target.id)
       .first<{ status: string }>())?.status;
     await handleScheduled(env as Env);

@@ -8,6 +8,7 @@ import { apiAuth, getAgentId } from '../middleware/auth';
 import { agentAdmin } from '../middleware/agent-admin';
 import { createAgent } from '../agent-keys';
 import { logAudit } from '../audit';
+import { channelWriteError } from './channel-names';
 import { getChannelStatsResponse } from './admin-channel-stats';
 
 const router = new Hono<{ Bindings: Env }>({});
@@ -61,9 +62,10 @@ router.get('/channels/stats', async (c) => {
 
 router.put('/channels/:channel', async (c) => {
   const agentId = getAgentId(c);
+  const channelError = channelWriteError(c.req.param('channel'), ['discord', 'telegram'], 'invalid channel');
   const channel = normalizeChannel(c.req.param('channel'));
-  if (!channel) {
-    return c.text('invalid channel', 400);
+  if (channelError || !channel) {
+    return c.text(channelError ?? 'invalid channel', 400);
   }
   const payload = await c.req.json<unknown>();
   if (!isPlainObject(payload)) {
@@ -92,7 +94,7 @@ router.put('/channels/:channel', async (c) => {
 export const adminRouter = router;
 
 function normalizeChannel(value: string | null): Channel | null {
-  if (value === 'discord' || value === 'telegram' || value === 'email') {
+  if (value === 'discord' || value === 'telegram') {
     return value;
   }
   return null;

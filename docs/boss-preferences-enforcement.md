@@ -1,18 +1,28 @@
-# Deferred: enforcing boss preferences at delivery time
+# Boss preferences at delivery time: quiet hours enforced, routing deferred
 
-**Status: quiet hours are enforced; routing and weekday fields are not.**
+**Status: quiet hours are enforced; the per-priority `routing` matrix is not.**
 
 The macOS client writes `routing` and `quiet_hours` into the free-form
-`bosses.preferences` JSON blob via `GET/PUT /api/boss/me/preferences`.
-Quiet-hours start, end and timezone are read at delivery time on both delivery paths
-(`server/src/routes/quiet-hours.ts`, `server/src/delivery/destinations.ts`; see
-[delivery destinations](delivery-destinations.md)). On the legacy path, matching bosses
-share the agent's channel, so delivery waits for the latest quiet-hours end among them.
-The `routing` matrix and weekday selection are stored but never read. Invalid times are
-ignored and an invalid timezone falls back to UTC.
+`bosses.preferences` JSON blob via the pre-existing `GET/PUT /api/boss/me/preferences`.
+Delivery reads part of that blob:
 
-An implementation of routing enforcement at message-send time was removed before merge.
-The rest of this document records the reasons.
+- **Quiet hours.** On the legacy send path, `getAgentQuietHoursEnd`
+  (`server/src/routes/quiet-hours.ts`) finds the latest quiet-hours end among the bosses who can
+  see the agent; a `normal` or `low` agent-to-boss send is queued in `delivery_queue` until then,
+  and the cron drain delivers it with the same boss-agent callback and push an immediate send
+  gets. On the destinations path, `destinationQuietEnd` (`server/src/delivery/destinations.ts`)
+  defers each boss destination that honours quiet hours. Both read the flat
+  `quiet_hours_start/end` and the nested `quiet_hours { start, end, timezone, enabled }` shapes,
+  skip `enabled: false`, and never defer `high` or `critical`.
+- **Push presentation.** `prepareBossPush` (`server/src/push/boss-payload.ts`) reads
+  `decision_alerts`, `private_push` and the push-tier overrides per device.
+- **Routing.** Nothing reads the `routing` matrix. The Settings pane that owns it says so on
+  screen (`SettingsNotAppliedNotice`).
+
+A routing implementation was written and then removed before merge after an adversarial
+audit returned BLOCK. The rest of this document records why, so the next attempt starts from
+the findings rather than rediscovering them. Findings 3–6 were written about that attempt's
+quiet-hours design; the enforcement above is the separate, narrower one that shipped.
 
 ## Why the first attempt failed
 
@@ -34,7 +44,8 @@ per-boss notification policy has nowhere correct to live. **Fix this before anyt
 
 ### 2. `api` is not a real channel
 
-`channel_configs` accepts only `discord`, `telegram`, `email` (`migrations/0001_init.sql`).
+`channel_configs` writes accept only `discord` and `telegram`; `email` had no delivery adapter
+and was removed as a channel (`migrations/0058_drop_email_channels.sql`).
 The design's API column therefore had no backing row: selecting `api` alone left
 `messages.channel = NULL`, and *deselecting* it disabled `notifyBossAgents`, killing
 boss-agent callbacks and iOS/APNs push. Native-client delivery needs to be a first-class

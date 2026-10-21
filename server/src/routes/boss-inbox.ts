@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env, MessageRow, Priority, Status } from '../types';
-import { OPEN_MESSAGE_STATUS } from '../message-status';
+import { OPEN_MESSAGE_STATUS, RECEIPT_STATUS_SET_SQL } from '../message-status';
 import { apiAuth, getAgentId, getAgentKeyId } from '../middleware/auth';
 import { actionContent, authenticateAgentMessage, bearerApiMetadata } from '../message-security';
 import { mapMessageRow, parsePriorityFilter, priorityOptions, clampNumber, validateOption, replyTargetSession } from './message-helpers';
@@ -211,7 +211,7 @@ routes.patch('/:id', async (c) => {
     return c.text('no access to this agent', 403);
   }
   const updated = await c.env.DB
-    .prepare(`UPDATE messages SET status = ?, updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING *`)
+    .prepare(`UPDATE messages SET ${RECEIPT_STATUS_SET_SQL}, updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING *`)
     .bind(status, messageId)
     .first<MessageRow>();
   if (!updated) {

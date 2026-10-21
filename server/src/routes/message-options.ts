@@ -58,28 +58,35 @@ export async function expireMessageOptions(env: Env, agentId: string, message: M
   await expireWithoutDefault(env, agentId, message);
 }
 
+/** SET clause that expires an open ask without recording any choice. */
+export const EXPIRE_ASK_SET_SQL = `status = 'expired', metadata = json_remove(json_set(
+  ${MESSAGE_METADATA_OBJECT_SQL}, '$.options_expired', json('true')), '$.actions'),
+  updated_at = datetime('now')`;
+
 /**
  * Expires an open ask without answering it: nobody chose, so nothing is recorded as a
  * choice. Returns false when the ask was already resolved. Channel cleanup is best-effort.
  */
 export async function expireWithoutDefault(env: Env, agentId: string, message: MessageRow): Promise<boolean> {
-  const meta = parseMetadata(message.metadata);
-  meta['options_expired'] = true;
-  delete meta['actions'];
   const claimed = await env.DB
-    .prepare(`UPDATE messages SET status = 'expired', metadata = json_remove(json_set(
-      ${MESSAGE_METADATA_OBJECT_SQL},
-      '$.options_expired', json('true')), '$.actions'),
-      updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING id`)
+    .prepare(`UPDATE messages SET ${EXPIRE_ASK_SET_SQL} WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING id`)
     .bind(message.id)
     .first<{ id: string }>();
   if (!claimed) return false;
+  await announceExpiredAsk(env, agentId, message);
+  return true;
+}
+
+/** Best-effort chat edit for an ask already expired without an answer. */
+export async function announceExpiredAsk(env: Env, agentId: string, message: MessageRow): Promise<void> {
+  const meta = parseMetadata(message.metadata);
+  meta['options_expired'] = true;
+  delete meta['actions'];
   try {
     await editExpiredChannelMessage(env, agentId, message, meta, '⏰ Options expired');
   } catch {
     // swallow: the expiry is persisted; a chat edit (missing config, network) is best-effort
   }
-  return true;
 }
 
 /** Unparseable metadata must not keep an ask open forever; expire it with a fresh object. */
@@ -259,7 +266,7 @@ export function resolveChannelRouting(routingJson: string, priority: string): Ch
   try {
     const routing = JSON.parse(routingJson) as Record<string, string>;
     const ch = routing[priority];
-    if (ch && ['discord', 'telegram', 'email', 'api'].includes(ch)) {
+    if (ch && ['discord', 'telegram', 'api'].includes(ch)) {
       return ch as Channel;
     }
   } catch { /* ignore */ }

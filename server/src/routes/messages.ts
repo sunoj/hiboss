@@ -7,7 +7,7 @@ import { logAudit } from '../audit';
 import { apiAuth, createAuthValidator, getAgentId, getAgentKeyId } from '../middleware/auth';
 import { actionContent, agentRequiresSignature, authenticateAgentMessage } from '../message-security';
 import type { Direction, Env, MessageRow, Status } from '../types';
-import { OPEN_MESSAGE_STATUS } from '../message-status';
+import { OPEN_MESSAGE_STATUS, RECEIPT_STATUS_SET_SQL } from '../message-status';
 import { propagateMessageEdit } from './message-edit';
 import { forwardMessage, validateForwardChannel } from './message-forward';
 import {
@@ -221,7 +221,7 @@ async function updateMessage(c: Context<{ Bindings: Env }>, existing: MessageRow
     if (!allowed || !allowed.includes(status)) {
       return c.text(`invalid status transition from ${existing.status} to ${status}`, 400);
     }
-    updates.push('status = ?');
+    updates.push(RECEIPT_STATUS_SET_SQL);
     binds.push(status);
   }
 

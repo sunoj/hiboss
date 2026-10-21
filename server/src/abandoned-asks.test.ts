@@ -56,6 +56,15 @@ describe('stale sweep', () => {
     expect(await state(replied)).toEqual({ status: 'replied', replies: 0 });
   });
 
+  it('expires every stale ask in one sweep, beyond one batch of 50', async () => {
+    const prefix = unique('bulk');
+    for (let i = 0; i < 60; i += 1) await ask(`${prefix}-${i}`, { created: hoursAgo(30) });
+    await expireStaleAsks(env);
+    const open = await env.DB.prepare("SELECT COUNT(*) AS n FROM messages WHERE id LIKE ? AND status != 'expired'")
+      .bind(`${prefix}-%`).first<{ n: number }>();
+    expect(open?.n).toBe(0);
+  });
+
   it('drops a stale ask from pending inputs before the sweep runs', async () => {
     const stale = unique('listed'); const fresh = unique('listed-fresh');
     await ask(stale, { created: hoursAgo(26) });

@@ -140,7 +140,8 @@ describe('validateChannel', () => {
   it('returns valid channels', () => {
     expect(validateChannel('discord')).toBe('discord');
     expect(validateChannel('telegram')).toBe('telegram');
-    expect(validateChannel('email')).toBe('email');
+    expect(validateChannel('api')).toBe('api');
+    expect(validateChannel('email')).toBeUndefined();
   });
 
   it('returns undefined for invalid channel', () => {
@@ -551,7 +552,7 @@ describe('selectChannelConfig', () => {
   });
 
   it('falls back to most recent when requested channel not found', async () => {
-    const result = await selectChannelConfig(env as any, agentId, 'email');
+    const result = await selectChannelConfig(env as any, agentId, 'api');
     // discord was inserted with later created_at, so it should be the fallback
     expect(result.channel).toBe('discord');
   });
