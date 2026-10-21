@@ -59,16 +59,18 @@ public struct QuietHours: Codable, Equatable, Sendable {
         self.criticalBypass = criticalBypass
     }
 
-    /// Tolerant decode: the server only guarantees start/end, so fill the rest
-    /// with sane defaults rather than failing the whole preferences payload.
     public init(from decoder: Decoder) throws {
-        let v = try decoder.container(keyedBy: CodingKeys.self)
-        enabled = try v.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
-        start = try v.decodeIfPresent(String.self, forKey: .start) ?? "22:00"
-        end = try v.decodeIfPresent(String.self, forKey: .end) ?? "08:00"
-        timezone = try v.decodeIfPresent(String.self, forKey: .timezone) ?? TimeZone.current.identifier
-        days = try v.decodeIfPresent([Int].self, forKey: .days) ?? [0, 1, 2, 3, 4, 5, 6]
-        criticalBypass = try v.decodeIfPresent(Bool.self, forKey: .criticalBypass) ?? true
+        try self.init(values: decoder.container(keyedBy: CodingKeys.self))
+    }
+
+    init(values: KeyedDecodingContainer<CodingKeys>?, start: String? = nil,
+         end: String? = nil, timezone: String? = nil) throws {
+        enabled = try values?.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        self.start = try start ?? values?.decodeIfPresent(String.self, forKey: .start) ?? ""
+        self.end = try end ?? values?.decodeIfPresent(String.self, forKey: .end) ?? ""
+        self.timezone = try values?.decodeIfPresent(String.self, forKey: .timezone) ?? timezone ?? "UTC"
+        days = try values?.decodeIfPresent([Int].self, forKey: .days) ?? [0, 1, 2, 3, 4, 5, 6]
+        criticalBypass = try values?.decodeIfPresent(Bool.self, forKey: .criticalBypass) ?? true
     }
 }
 
@@ -107,6 +109,9 @@ public struct BossPreferences: Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case routing
         case quietHours = "quiet_hours"
+        case quietStart = "quiet_hours_start"
+        case quietEnd = "quiet_hours_end"
+        case timezone
         case push
         case privatePush = "private_push"
         case decisionAlerts = "decision_alerts"
@@ -129,7 +134,7 @@ public struct BossPreferences: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        quietHours = try values.decodeIfPresent(QuietHours.self, forKey: .quietHours)
+        quietHours = try Self.decodeQuietHours(values: values)
         let decodedRouting = try Self.decodeRouting(from: values)
         routing = decodedRouting.typed
         preservedRouting = decodedRouting.raw
@@ -151,6 +156,20 @@ public struct BossPreferences: Codable, Equatable, Sendable {
         lhs.routing == rhs.routing && lhs.quietHours == rhs.quietHours
             && lhs.push == rhs.push && lhs.privatePush == rhs.privatePush
             && lhs.decisionAlerts == rhs.decisionAlerts
+    }
+
+    private static func decodeQuietHours(
+        values: KeyedDecodingContainer<CodingKeys>
+    ) throws -> QuietHours? {
+        let start = try values.decodeIfPresent(String.self, forKey: .quietStart)
+        let end = try values.decodeIfPresent(String.self, forKey: .quietEnd)
+        let hasNested = try values.contains(.quietHours) && !values.decodeNil(forKey: .quietHours)
+        guard hasNested || start != nil || end != nil else { return nil }
+        let nested = try hasNested
+            ? values.nestedContainer(keyedBy: QuietHours.CodingKeys.self, forKey: .quietHours)
+            : nil
+        return try QuietHours(values: nested, start: start, end: end,
+            timezone: values.decodeIfPresent(String.self, forKey: .timezone))
     }
 
     private static func decodePush(

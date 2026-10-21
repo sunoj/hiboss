@@ -3,7 +3,7 @@
 // Depends on the Worker (SELF) send route, seeded D1, and handleScheduled.
 
 import { env, SELF } from 'cloudflare:test';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedDatabase } from './test-helpers';
 import { hashApiKey } from './middleware/auth';
 import { handleScheduled } from './scheduled';
@@ -20,13 +20,16 @@ beforeAll(async () => {
     .bind(AGENT, AGENT, await hashApiKey(KEY)).run();
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash, callback_url) VALUES (?, ?, ?, ?)')
     .bind(BOSS_AGENT, BOSS_AGENT, await hashApiKey(`${KEY}-boss`), CALLBACK).run();
-  await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, 'api', '{}', 1)")
-    .bind(`cfg-${AGENT}`, AGENT).run();
   await env.DB.prepare("INSERT OR REPLACE INTO bosses (id, name, role, agent_id, preferences) VALUES (?, ?, 'manager', ?, ?)")
     .bind('quiet-drain-boss', 'Quiet Drain Boss', BOSS_AGENT,
       JSON.stringify({ quiet_hours_start: utcTime(-1), quiet_hours_end: utcTime(1), timezone: 'UTC' })).run();
   await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind('quiet-drain-boss', AGENT).run();
+});
+
+beforeEach(async () => {
+  await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, 'api', '{}', 1)")
+    .bind(`cfg-${AGENT}`, AGENT).run();
 });
 
 afterEach(() => {
@@ -62,6 +65,14 @@ async function queueRow(messageId: string): Promise<{ status: string; error: str
 }
 
 describe('quiet-hours drain', () => {
+  it('holds and drains boss notifications without legacy channels', async () => {
+    await env.DB.prepare('DELETE FROM channel_configs WHERE agent_id = ?').bind(AGENT).run();
+    const id = await queuedSend({ body: 'native-only quiet hours' });
+    const notified = await drain();
+    expect((await queueRow(id))?.status).toBe('delivered');
+    expect(notified).toContain(id);
+  });
+
   it('notifies boss agents when a queued message is finally delivered', async () => {
     const id = await queuedSend({ body: 'quiet-drain:later' });
     const notified = await drain();

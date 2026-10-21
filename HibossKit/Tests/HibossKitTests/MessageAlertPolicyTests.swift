@@ -53,6 +53,17 @@ final class MessageAlertPolicyTests: XCTestCase {
         XCTAssertFalse(MessageAlertPolicy.isQuiet(same, at: noon))
     }
 
+    func testQuietHoursHoldNonUrgentDecisions() {
+        let preferences = BossPreferences(quietHours: QuietHours(enabled: true,
+            start: "00:00", end: "23:59", timezone: "UTC", days: [], criticalBypass: true))
+        for priority in ["normal", "low"] {
+            XCTAssertNil(MessageAlertPolicy.decisionAlert(priority: priority, preferences: preferences, now: noon))
+        }
+        for priority in ["high", "critical"] {
+            XCTAssertNotNil(MessageAlertPolicy.decisionAlert(priority: priority, preferences: preferences, now: noon))
+        }
+    }
+
     func testDecisionAlertsAreLoudUnlessTurnedOff() {
         XCTAssertEqual(MessageAlertPolicy.decisionAlert(priority: "low", preferences: BossPreferences()),
                        MessageAlert(sound: true, level: .active))

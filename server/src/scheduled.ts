@@ -202,9 +202,10 @@ async function retryFailedQueueItems(env: Env, now: string): Promise<void> {
 async function markQueueProcessing(env: Env, queueId: string, now: string): Promise<boolean> {
   const result = await env.DB
     .prepare(`UPDATE delivery_queue SET status = 'processing', attempts = attempts + 1, scheduled_at = ?, error = NULL
-      WHERE id = ? AND status = 'pending' AND EXISTS (
+      WHERE id = ? AND status = 'pending' AND (
+        (channel = 'api' AND json_extract(config, '$.native_only') = 1) OR EXISTS (
         SELECT 1 FROM channel_configs WHERE agent_id = delivery_queue.agent_id
-        AND channel = delivery_queue.channel AND enabled = 1)`)
+        AND channel = delivery_queue.channel AND enabled = 1))`)
     .bind(now, queueId)
     .run();
   return (result.meta.changes ?? 0) > 0;

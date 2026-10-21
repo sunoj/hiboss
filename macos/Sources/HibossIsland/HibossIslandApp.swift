@@ -128,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         Task { await notifications.prepareAuthorization() }
         observePresentationPreferences()
         panelController = IslandPanelController(flow: flow, settings: settings, overview: overview,
-            decisionAlerts: preferencesStore.$preferences.map { $0.decisionAlerts != false }.eraseToAnyPublisher())
+            preferences: preferencesStore.$preferences.eraseToAnyPublisher())
         observeJoinRequests()
         observePanels()
         Task { [weak self] in

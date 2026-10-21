@@ -47,6 +47,32 @@ final class BossPreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.decisionAlerts, false)
     }
 
+    func testQuietHoursDecodeServerDefaultsAndFlatPrecedence() throws {
+        let nested = try decodePreferences(#"{"quiet_hours":{"start":"11:00","end":"13:00"}}"#)
+        XCTAssertEqual(nested.quietHours?.enabled, true)
+        XCTAssertEqual(nested.quietHours?.timezone, "UTC")
+        let flat = try decodePreferences(
+            #"{"quiet_hours_start":"10:00","quiet_hours_end":"14:00","timezone":"Asia/Bangkok"}"#)
+        XCTAssertEqual(flat.quietHours?.start, "10:00")
+        XCTAssertEqual(flat.quietHours?.end, "14:00")
+        XCTAssertEqual(flat.quietHours?.timezone, "Asia/Bangkok")
+        let mixed = try decodePreferences(
+            """
+            {"quiet_hours_start":"10:00","timezone":"Asia/Bangkok",
+             "quiet_hours":{"start":"11:00","end":"13:00","timezone":"UTC","enabled":false}}
+            """)
+        XCTAssertEqual(mixed.quietHours?.start, "10:00")
+        XCTAssertEqual(mixed.quietHours?.end, "13:00")
+        XCTAssertEqual(mixed.quietHours?.timezone, "UTC")
+        XCTAssertEqual(mixed.quietHours?.enabled, false)
+    }
+
+    func testIncompleteQuietHoursDoNotInventAWindow() throws {
+        let preferences = try decodePreferences(#"{"quiet_hours":{"start":"11:00"}}"#)
+        XCTAssertFalse(MessageAlertPolicy.isQuiet(preferences.quietHours,
+            at: Date(timeIntervalSince1970: 1_792_584_000)))
+    }
+
     func testDecodesEmptyPayload() throws {
         let preferences = try decodePreferences("{}")
 

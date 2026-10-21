@@ -50,12 +50,17 @@ final class IslandAttention: ObservableObject {
     /// With decision alerts off the Island stays closed, as iOS then starts no Live Activity.
     nonisolated static func presentation(snapshot: TodaySnapshot, active: OptionMessage?,
                                          state: PresentationState, skipped: Set<MessageID>,
-                                         decisionAlerts: Bool = true) -> IslandPresentation? {
-        guard decisionAlerts else { return nil }
-        if case .resolved = state, let active, !skipped.contains(active.id) {
+                                         preferences: BossPreferences = BossPreferences(),
+                                         now: Date = Date()) -> IslandPresentation? {
+        guard preferences.decisionAlerts != false else { return nil }
+        let held = Set(snapshot.decisions.filter {
+            MessageAlertPolicy.decisionAlert(priority: $0.message.priority,
+                preferences: preferences, now: now) == nil
+        }.map(\.id))
+        if case .resolved = state, let active, !skipped.union(held).contains(active.id) {
             return IslandPresentation(message: active, item: nil)
         }
-        guard let first = snapshot.topDecision(skipping: skipped) else { return nil }
+        guard let first = snapshot.topDecision(skipping: skipped.union(held)) else { return nil }
         return IslandPresentation(message: first.asOptionMessage, item: first)
     }
 

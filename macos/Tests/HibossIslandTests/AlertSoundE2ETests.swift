@@ -36,6 +36,15 @@ final class AlertSoundE2ETests: XCTestCase {
         XCTAssertEqual(player.played, [settings.alertSound, settings.alertSound])
     }
 
+    func testQuietHoursHoldTheDecisionArrivalSound() async throws {
+        let message = OptionMessage.fixture(id: "quiet", options: ["Ship"])
+        let preferences = BossPreferences(quietHours: QuietHours(enabled: true,
+            start: "00:00", end: "23:59", timezone: "UTC", days: [], criticalBypass: true))
+        let (flow, _, player) = makeController(messages: [message], preferences: preferences)
+        try await waitUntil { flow.activeMessage?.id == message.id }
+        XCTAssertTrue(player.played.isEmpty)
+    }
+
     func testStaysSilentWhileTheAlertIsMuted() async throws {
         let message = OptionMessage.fixture(id: "muted", options: ["Ship"])
         let (flow, _, player) = makeController(messages: [message]) { settings in
@@ -58,6 +67,7 @@ final class AlertSoundE2ETests: XCTestCase {
 
     private func makeController(
         messages: [OptionMessage],
+        preferences: BossPreferences = BossPreferences(),
         configure: (AppSettings) -> Void = { _ in }
     ) -> (OptionFlowStore, AppSettings, RecordingSoundPlayer) {
         let suiteName = "AlertSoundE2ETests.\(UUID().uuidString)"
@@ -70,7 +80,8 @@ final class AlertSoundE2ETests: XCTestCase {
         let flow = OptionFlowStore(reconnectDelay: .seconds(60))
         let player = RecordingSoundPlayer()
         let controller = IslandPanelController(flow: flow, settings: settings,
-            overview: islandTestOverview(flow: flow), soundPlayer: player)
+            overview: islandTestOverview(flow: flow), soundPlayer: player,
+            preferences: Just(preferences).eraseToAnyPublisher())
         addTeardownBlock { _ = controller }
         flow.connect(api: ScriptedBossAPI(messages: messages))
         return (flow, settings, player)

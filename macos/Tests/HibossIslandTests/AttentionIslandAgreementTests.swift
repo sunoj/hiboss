@@ -84,7 +84,19 @@ final class AttentionIslandAgreementTests: XCTestCase {
         XCTAssertEqual(island?.message.id, today.topDecision()?.id)
         XCTAssertEqual(island?.message.id, "text")
         XCTAssertNil(IslandAttention.presentation(snapshot: today, active: nil, state: .idle, skipped: [],
-            decisionAlerts: false))
+            preferences: BossPreferences(decisionAlerts: false)))
+    }
+
+    func testQuietHoursHoldNormalAndLowButAllowUrgentDecisions() {
+        let preferences = BossPreferences(quietHours: QuietHours(enabled: true,
+            start: "00:00", end: "23:59", timezone: "UTC", days: [], criticalBypass: true))
+        for priority in ["low", "normal", "high", "critical"] {
+            let today = snapshot(requiredInputs: [ask(id: "quiet", priority: priority, options: ["Yes"])],
+                now: now)
+            let presentation = IslandAttention.presentation(snapshot: today, active: nil, state: .idle,
+                skipped: [], preferences: preferences, now: now)
+            XCTAssertEqual(presentation != nil, priority == "high" || priority == "critical")
+        }
     }
 
     func testServerListedAutoDecisionAppearsWithoutHistory() {
