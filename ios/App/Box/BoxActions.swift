@@ -1,8 +1,9 @@
 // Shared confirmed deletion, native sharing and note editing for every Box destination.
-// Exports BoxDeleteConfirmation, BoxNoteEditor, BoxShareSheet and BoxNoteServing.
-// Dependencies: SwiftUI, UIKit, HibossKit and the Box stores.
+// Exports Box actions, native sharing, note editing and inline file previews.
+// Dependencies: SwiftUI, UIKit, PDFKit, HibossKit and the Box stores.
 
 import HibossKit
+import PDFKit
 import SwiftUI
 import UIKit
 
@@ -133,5 +134,63 @@ extension BoxItem {
         if let resource = media.resources[id] { return [resource.url] }
         if let url = url.flatMap(URL.init(string:)) { return [url] }
         return [text ?? note ?? boxTitle]
+    }
+}
+
+struct BoxFilePreview: View {
+    let item: BoxItem
+    @ObservedObject var media: BoxMediaStore
+    let open: (URL) -> Void
+    @State private var page: UIImage?
+    @State private var invalidPDF = false
+
+    var body: some View {
+        Group {
+            if let resource = media.resources[item.id] {
+                if invalidPDF {
+                    ContentUnavailableView {
+                        Label("Media unavailable", systemImage: "doc")
+                    } actions: {
+                        RetryButton {
+                            media.remove(id: item.id)
+                            await media.retry(item)
+                        }
+                    }
+                } else {
+                    Button { open(resource.url) } label: {
+                        VStack(spacing: 8) {
+                            if let page {
+                                Image(uiImage: page).resizable().scaledToFit()
+                                    .frame(maxWidth: .infinity, maxHeight: 420)
+                                    .border(Theme.ink2.opacity(0.2))
+                            } else if isPDF(resource.url) {
+                                ProgressView()
+                            } else {
+                                BoxThumbnail(item: item, media: media).frame(width: 80, height: 80)
+                            }
+                            Label("Open file", systemImage: "arrow.up.right.square")
+                                .font(.callout).foregroundStyle(Theme.link)
+                        }
+                    }
+                    .buttonStyle(.plain).accessibilityLabel("Open file")
+                    .accessibilityIdentifier("box-file-preview")
+                    .accessibilityValue(Text(verbatim: page == nil ? "" : "PDF"))
+                }
+            } else { BoxMediaWait(item: item, media: media) }
+        }
+        .task(id: media.resources[item.id]?.url) {
+            page = nil
+            invalidPDF = false
+            guard let url = media.resources[item.id]?.url, isPDF(url) else { return }
+            guard let document = PDFDocument(url: url), let first = document.page(at: 0) else {
+                invalidPDF = true
+                return
+            }
+            page = first.thumbnail(of: CGSize(width: 700, height: 900), for: .cropBox)
+        }
+    }
+
+    private func isPDF(_ url: URL) -> Bool {
+        item.mediaType == "application/pdf" || url.pathExtension.lowercased() == "pdf"
     }
 }

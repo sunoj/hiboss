@@ -13,6 +13,7 @@ struct BoxDetail: View {
     @ObservedObject var media: BoxMediaStore
     @State private var previewURL: URL?
     @State private var shareURL: URL?
+    @State private var sharing = false
     @State private var openedMedia: MediaSession?
     @State private var pendingDelete: BoxItem?
     @State private var viewerDelete: BoxItem?
@@ -65,6 +66,7 @@ struct BoxDetail: View {
         )) {
             if let shareURL { BoxShareSheet(items: [shareURL]) }
         }
+        .sheet(isPresented: $sharing) { BoxShareDestination(item: item, media: media) }
         .sheet(isPresented: $choosingCollection) { BoxCollectionSheet(original: item, store: store) }
         .sheet(isPresented: $editing) { BoxNoteEditor(item: item, store: store) }
         .modifier(BoxDeleteConfirmation(item: $pendingDelete, store: store, media: media,
@@ -88,12 +90,15 @@ struct BoxDetail: View {
                 .padding().frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
         case .link:
-            Label { Text(verbatim: item.url ?? "").foregroundStyle(Theme.link) } icon: {
-                Image(systemName: "globe")
-            }.padding().frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+            Button(action: openLink) {
+                Label { Text(verbatim: item.url ?? "").foregroundStyle(Theme.link) } icon: {
+                    Image(systemName: "globe")
+                }.padding().frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+            }.buttonStyle(.plain).accessibilityLabel("Open")
+                .accessibilityValue(Text(verbatim: item.url ?? ""))
         case .file:
-            BoxThumbnail(item: item, media: media).frame(width: 80, height: 80)
+            BoxFilePreview(item: item, media: media, open: openFile)
         }
     }
 
@@ -130,25 +135,12 @@ struct BoxDetail: View {
     private var actions: some View {
         Group {
             BoxLikeButton(item: item, store: store)
+            Button("Share", systemImage: "square.and.arrow.up") { sharing = true }
+                .accessibilityIdentifier("box-detail-share")
             Button("Add to Collection…", systemImage: "rectangle.stack") { choosingCollection = true }
             Button("Copy", systemImage: "doc.on.doc") { item.copyContent(media: media) }
                 .disabled(item.hasMedia && media.resources[item.id] == nil)
             Button("Edit note", systemImage: "square.and.pencil") { editing = true }
-            if item.kind == .link {
-                Button("Open", systemImage: "arrow.up.right.square") {
-                    guard let url = item.url.flatMap(URL.init(string:)),
-                          ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
-                        openingError = true
-                        return
-                    }
-                    openURL(url) { openingError = !($0) }
-                }
-            }
-            if item.kind == .file {
-                Button("Open file", systemImage: "doc") {
-                    if let resource = media.resources[item.id] { openFile(resource.url) }
-                }.disabled(media.resources[item.id] == nil)
-            }
             Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = item }
                 .disabled(store.deleting.contains(item.id))
             if store.deleting.contains(item.id) {
@@ -163,6 +155,15 @@ struct BoxDetail: View {
                          info: { _ in openedMedia = nil }, delete: { _ in viewerDelete = item },
                          likeContent: { _ in AnyView(BoxLikeButton(item: item, store: store)) },
                          errorContent: { AnyView(BoxOrganizationError(store: store)) })
+    }
+
+    private func openLink() {
+        guard let url = item.url.flatMap(URL.init(string:)),
+              ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
+            openingError = true
+            return
+        }
+        openURL(url) { openingError = !($0) }
     }
 
     private func openFile(_ url: URL) {

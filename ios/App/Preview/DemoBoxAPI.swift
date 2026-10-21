@@ -1,9 +1,10 @@
 // Offline Box fixtures served through the same list, download and delete boundary as production.
 // Exports DemoBoxAPI with stable recency pages and media from bundled resources.
-// Dependencies: Foundation, HibossKit and demo grid/video resources.
+// Dependencies: Foundation, UIKit, HibossKit and demo grid/video resources.
 
 import Foundation
 import HibossKit
+import UIKit
 
 actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
     static let shared = DemoBoxAPI()
@@ -14,17 +15,20 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
 
     static var fixtures: [BoxItem] {
         let unsupported = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "unsupported"
+        let pdf = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "pdf"
         let imageFile = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "image"
         let kinds: [BoxItem.Kind] = [.image, .text, .link, .video, .file]
         let titles = [
             "Layout reference", "A passage to keep", "Apple Developer", "Motion reference",
-            imageFile ? "Reference.png" : unsupported ? "Reference.hibossfixture" : "Reference.txt",
+            pdf ? "Reference.pdf" : imageFile ? "Reference.png"
+                : unsupported ? "Reference.hibossfixture" : "Reference.txt",
         ]
         let featured = kinds.enumerated().map { index, kind in
             let mediaType: String? = switch kind {
             case .image: "image/png"
             case .video: "video/mp4"
-            case .file: imageFile ? "image/png" : unsupported ? "application/octet-stream" : "text/plain"
+            case .file: pdf ? "application/pdf" : imageFile ? "image/png"
+                : unsupported ? "application/octet-stream" : "text/plain"
             default: nil
             }
             return BoxItem(
@@ -33,7 +37,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
                 note: kind == .image ? "Use this layout for the next screen." : nil, project: "hiboss",
                 tags: ["reference"], hasMedia: [.image, .video, .file].contains(kind),
                 mediaType: mediaType,
-                mediaBytes: kind == .file ? "A saved reference file.".utf8.count : nil,
+                mediaBytes: kind == .file ? (pdf ? pdfData.count : "A saved reference file.".utf8.count) : nil,
                 width: 320, height: 200, durationMs: kind == .video ? 1600 : nil,
                 createdAt: Date().addingTimeInterval(Double(-60 * (index + 1)))
                     .ISO8601Format()
@@ -99,6 +103,10 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
         guard let item = items.first(where: { $0.id == id }), item.hasMedia else {
             throw HibossAPIError.requestFailed(status: 404, message: "")
         }
+        if item.mediaType == "application/pdf" {
+            try Self.pdfData.write(to: destination)
+            return
+        }
         if item.kind == .file, item.mediaType != "image/png" {
             try Data("A saved reference file.".utf8).write(to: destination)
             return
@@ -109,6 +117,20 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
             throw HibossAPIError.invalidResponse
         }
         try FileManager.default.copyItem(at: url, to: destination)
+    }
+
+    private static var pdfData: Data {
+        let bounds = CGRect(x: 0, y: 0, width: 360, height: 480)
+        return UIGraphicsPDFRenderer(bounds: bounds).pdfData { context in
+            for title in ["Box PDF reference", "Second reference page"] {
+                context.beginPage()
+                (title as NSString).draw(at: CGPoint(x: 28, y: 40), withAttributes: [
+                    .font: UIFont.systemFont(ofSize: 24), .foregroundColor: UIColor.black,
+                ])
+                ("A real PDF saved in Box." as NSString).draw(
+                    at: CGPoint(x: 28, y: 90), withAttributes: [.font: UIFont.systemFont(ofSize: 16)])
+            }
+        }
     }
 
     func deleteBoxItem(id: String, purge _: Bool) async throws {
