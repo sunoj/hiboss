@@ -1,7 +1,8 @@
 // Pinch and double-tap zoom wrapper used by the shared media viewer.
 // Exports: MediaZoomView.
-// Dependencies: SwiftUI, UIKit, MediaSwipeDismiss.
+// Dependencies: AVKit, SwiftUI, UIKit, MediaSwipeDismiss.
 
+import AVKit
 import SwiftUI
 import UIKit
 
@@ -228,7 +229,13 @@ private final class ZoomScrollView: UIScrollView, UIGestureRecognizerDelegate {
         shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
     ) -> Bool {
         if let tap = gestureRecognizer as? UITapGestureRecognizer, tap.numberOfTapsRequired == 1,
-           other is UITapGestureRecognizer { return true }
+           other is UITapGestureRecognizer {
+            var responder: UIResponder? = other.view
+            while let current = responder {
+                if current is AVPlayerViewController { return true }
+                responder = current.next
+            }
+        }
         return gestureRecognizer == dismissPan && other == panGestureRecognizer
     }
 }
