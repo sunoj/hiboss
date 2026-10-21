@@ -159,3 +159,106 @@ extension BoxV2UITests {
         }
     }
 }
+
+// Regresses grid swipe isolation and equal card surfaces using mixed demo content.
+// Keeps list actions and context menus covered alongside light/dark card captures.
+final class BoxCardSwipeUITests: XCTestCase {
+    private var app: XCUIApplication!
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.configureDemoLaunch(["HIBOSS_DEMO_BOX_V2": "1"])
+        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+    }
+
+    func testCardsIgnoreHorizontalSwipesAndKeepContextActions() {
+        openBox(style: "Cards")
+        let card = app.buttons["box-item-demo-agent-text"]
+        let neighbor = app.buttons["box-item-demo-image"]
+        assertSwipesKeepGrid(card, neighbor: neighbor)
+        card.press(forDuration: 1)
+        for title in ["Like", "Share", "Add to Collection…", "Delete"] {
+            XCTAssertTrue(app.buttons[title].exists, title)
+        }
+    }
+
+    func testMediaGridIgnoresHorizontalSwipesInListStyle() {
+        openBox(style: "List")
+        app.buttons["box-filter-image"].tap()
+        let card = app.buttons["box-item-demo-image"]
+        let neighbor = app.buttons["box-item-demo-grid-1"]
+        XCTAssertTrue(neighbor.waitForExistence(timeout: 5))
+        assertSwipesKeepGrid(card, neighbor: neighbor)
+    }
+
+    func testListRetainsTrailingDeleteAndLeadingLikeShare() {
+        openBox(style: "List")
+        let row = app.buttons["box-item-demo-agent-text"]
+        row.swipeLeft()
+        XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 3))
+        row.swipeRight()
+        row.swipeRight()
+        XCTAssertTrue(app.buttons["Share"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Like"].exists)
+    }
+
+    func testMixedCardsLight() { captureCards(appearance: "Light") }
+    func testMixedCardsDark() { captureCards(appearance: "Dark") }
+
+    private func openBox(style: String) {
+        app.launchConfiguredDemo()
+        XCTAssertTrue(app.tabBars.buttons["Box"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Box"].tap()
+        XCTAssertTrue(app.buttons["box-item-demo-image"].waitForExistence(timeout: 10))
+        app.buttons["box-style-menu"].tap()
+        app.buttons[style].tap()
+        XCTAssertTrue(app.buttons["box-filter-all"].isSelected)
+    }
+
+    private func assertSwipesKeepGrid(_ card: XCUIElement, neighbor: XCUIElement) {
+        let original = card.frame
+        let adjacent = neighbor.frame
+        for left in [true, false] {
+            let start = card.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.9 : 0.1, dy: 0.5))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.02 : 0.98, dy: 0.5))
+            start.press(forDuration: 0.1, thenDragTo: end)
+            XCTAssertFalse(app.scrollViews["box-detail"].exists)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "grid-after-\(left ? "left" : "right")-swipe"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            XCTAssertFalse(app.buttons["Delete"].exists, app.debugDescription)
+            XCTAssertFalse(app.buttons["Share"].exists)
+            XCTAssertFalse(app.buttons["Like"].exists)
+            XCTAssertEqual(card.frame.minX, original.minX, accuracy: 1)
+            XCTAssertEqual(card.frame.minY, original.minY, accuracy: 1)
+            XCTAssertEqual(neighbor.frame.minX, adjacent.minX, accuracy: 1)
+            XCTAssertEqual(neighbor.frame.minY, adjacent.minY, accuracy: 1)
+            XCTAssertTrue(card.isHittable)
+            XCTAssertTrue(neighbor.isHittable)
+        }
+    }
+
+    private func captureCards(appearance: String) {
+        app.launchArguments += ["-AppleInterfaceStyle", appearance]
+        openBox(style: "Cards")
+        let link = app.buttons["box-item-demo-link"]
+        let text = app.buttons["box-item-demo-text"]
+        for _ in 0..<3 where !link.isHittable { app.swipeUp() }
+        XCTAssertTrue(link.isHittable)
+        XCTAssertTrue(text.isHittable)
+        XCTAssertEqual(link.frame.minY, text.frame.minY, accuracy: 1)
+        XCTAssertEqual(link.frame.height, 260, accuracy: 1)
+        XCTAssertEqual(text.frame.height, link.frame.height, accuracy: 1)
+        XCTAssertTrue(link.label.contains("developer.apple.com"))
+        XCTAssertEqual(link.staticTexts["Apple Developer"].frame.minY, link.frame.minY + 66, accuracy: 2)
+        XCTAssertEqual(text.staticTexts["A passage to keep"].frame.minY, text.frame.minY + 12, accuracy: 2)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "box-mixed-cards-\(appearance.lowercased())"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        app.buttons["box-style-menu"].tap()
+        app.buttons["List"].tap()
+    }
+}

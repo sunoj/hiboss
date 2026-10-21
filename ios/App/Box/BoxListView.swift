@@ -74,7 +74,7 @@ struct BoxListView: View {
             BoxOrganizationError(store: store)
             if matches.isEmpty && !store.isLoadingMore { ContentUnavailableView.search(text: search) }
             BoxResultsView(items: matches, filter: filter, style: style, row: { item in
-                row(item)
+                actionableRow(item)
                     .contextMenu {
                         if onSelect == nil {
                             BoxLikeButton(item: item, store: store)
@@ -84,18 +84,6 @@ struct BoxListView: View {
                             }
                             Button("Delete", role: .destructive) { pendingDelete = item }
                                 .disabled(store.deleting.contains(item.id))
-                        }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if onSelect == nil {
-                            Button("Delete", role: .destructive) { pendingDelete = item }
-                                .disabled(store.deleting.contains(item.id))
-                        }
-                    }
-                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                        if onSelect == nil {
-                            BoxLikeButton(item: item, store: store)
-                            Button("Share", systemImage: "square.and.arrow.up") { share(item) }
                         }
                     }
                     .overlay {
@@ -111,6 +99,22 @@ struct BoxListView: View {
     private var matches: [BoxItem] {
         store.items.filter { filter.matches($0, search: search, author: author, liked: liked) &&
             (store.collectionID == nil || $0.collectionIDs.contains(store.collectionID ?? "")) }
+    }
+
+    @ViewBuilder private func actionableRow(_ item: BoxItem) -> some View {
+        if onSelect == nil && style == .list && !filter.isMedia {
+            row(item)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button("Delete", role: .destructive) { pendingDelete = item }
+                        .disabled(store.deleting.contains(item.id))
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    BoxLikeButton(item: item, store: store)
+                    Button("Share", systemImage: "square.and.arrow.up") { share(item) }
+                }
+        } else {
+            row(item)
+        }
     }
 
     private func share(_ item: BoxItem) {
