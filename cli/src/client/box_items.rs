@@ -3,6 +3,8 @@
 // Dependencies: box_types, reqwest, ring, serde, std::path.
 #[path = "../commands/box/collections/transport.rs"]
 mod collection_transport;
+#[path = "../commands/box/share/transport.rs"]
+mod share_transport;
 
 use super::HiBossClient;
 use crate::box_types::{BoxFilter, BoxItem, BoxMetadata, BoxPage};

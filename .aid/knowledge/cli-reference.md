@@ -124,6 +124,14 @@ hiboss react <msg-id> "👀"
 hiboss status <msg-id>
 ```
 
+## Box Share Links
+```bash
+hiboss box share <item-id> [--ttl 12h|7d|<seconds>] [--json]  # URL on stdout, expiry on stderr; 1h..30d, default 7d
+hiboss box add <content> --share [--ttl 2d]   # adds, then prints `share: <url>` last; share failure exits non-zero, item kept
+hiboss box shares <item-id> [--json]           # id, created, expires, views, active (no tokens)
+hiboss box unshare <share-id>                  # revoke; anyone with the link can view until expiry or revocation
+```
+
 ## Agent Config
 ```bash
 hiboss agent config                          # view config
