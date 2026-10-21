@@ -9,11 +9,18 @@ Delivery reads part of that blob:
 - **Quiet hours.** On the legacy send path, `getAgentQuietHoursEnd`
   (`server/src/routes/quiet-hours.ts`) finds the latest quiet-hours end among the bosses who can
   see the agent; a `normal` or `low` agent-to-boss send is queued in `delivery_queue` until then,
-  and the cron drain delivers it with the same boss-agent callback and push an immediate send
-  gets. On the destinations path, `destinationQuietEnd` (`server/src/delivery/destinations.ts`)
+  including sends with no legacy channel config. Those sends use an internal API queue entry;
+  the cron drain delivers the same boss-agent callback and push an immediate send gets.
+  On the destinations path, `destinationQuietEnd` (`server/src/delivery/destinations.ts`)
   defers each boss destination that honours quiet hours. Both read the flat
   `quiet_hours_start/end` and the nested `quiet_hours { start, end, timezone, enabled }` shapes,
   skip `enabled: false`, and never defer `high` or `critical`.
+- **Native clients.** HibossKit decodes both quiet-hours shapes once, with flat start/end
+  taking precedence, nested timezone then top-level timezone then UTC, and missing `enabled`
+  treated as on. Missing start/end do not create a window. Invalid timezones fall back to UTC.
+  Mac Island decisions and sounds hold `normal` and `low` during that window, including with
+  `decision_alerts` on; `high` and `critical` bypass it. `days` and `critical_bypass` do not alter
+  the server's current quiet-hours rule.
 - **Push presentation.** `prepareBossPush` (`server/src/push/boss-payload.ts`) reads
   `decision_alerts`, `private_push` and the push-tier overrides per device.
 - **Routing.** Nothing reads the `routing` matrix. The Settings pane that owns it says so on

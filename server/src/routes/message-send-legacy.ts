@@ -1,5 +1,6 @@
 // Preserves legacy channel fan-out, quiet-hour queuing, and response semantics.
 // Exports deliverLegacySend; depends on shared adapters and message metadata.
+import { destinationsMode } from '../delivery';
 import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
 import { appendOptionDescriptions } from './option-descriptions';
 import type { Context } from 'hono';
@@ -28,10 +29,11 @@ export async function deliverLegacySend(c: Context<{ Bindings: Env }>, inserted:
   const metadata = inserted.metadata ? JSON.parse(inserted.metadata) as Record<string, unknown> : null;
   const isUrgent = priority === 'high' || priority === 'critical';
   let queuedForQuietHours = false;
-  if (channelConfigs.length > 0 && direction === 'agent_to_boss' && !isUrgent) {
+  if (destinationsMode(c.env.DESTINATIONS_MODE) !== 'on' && direction === 'agent_to_boss' && !isUrgent) {
     const quietHoursEnd = await getAgentQuietHoursEnd(c.env, agentId);
     if (quietHoursEnd) {
-      await enqueueDelivery(c.env, inserted.id, agentId, channelConfigs[0].channel, channelConfigs[0].config, quietHoursEnd);
+      const target = channelConfigs[0] ?? { channel: 'api' as const, config: { native_only: true } };
+      await enqueueDelivery(c.env, inserted.id, agentId, target.channel, target.config, quietHoursEnd);
       queuedForQuietHours = true;
     }
   }

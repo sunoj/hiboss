@@ -26,8 +26,11 @@ public enum MessageAlertPolicy {
 
     /// A blocking request: loud while decision alerts are on, otherwise the status tier; the
     /// boss's per-priority override applies either way (server `decisionPushTier`).
-    public static func decisionAlert(priority: String, preferences: BossPreferences) -> MessageAlert? {
+    public static func decisionAlert(
+        priority: String, preferences: BossPreferences, now: Date = Date()
+    ) -> MessageAlert? {
         let parsed = MessagePriority(rawValue: priority)
+        if parsed != .high, parsed != .critical, isQuiet(preferences.quietHours, at: now) { return nil }
         let base: Tier = preferences.decisionAlerts == false ? statusTier(parsed)
             : Tier(deliver: true, sound: true, level: parsed == .critical ? .timeSensitive : .active)
         return applying(parsed.flatMap { preferences.push?[$0] }, to: base)
@@ -41,7 +44,8 @@ public enum MessageAlertPolicy {
             return false
         }
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: quietHours.timezone) ?? TimeZone(identifier: "UTC") ?? .current
+        let timezone = quietHours.timezone.trimmingCharacters(in: .whitespacesAndNewlines)
+        calendar.timeZone = TimeZone(identifier: timezone) ?? TimeZone(identifier: "UTC") ?? .current
         let parts = calendar.dateComponents([.hour, .minute], from: now)
         let current = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
         return start < end ? current >= start && current < end : current >= start || current < end

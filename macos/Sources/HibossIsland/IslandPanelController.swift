@@ -28,8 +28,7 @@ final class IslandPanelController {
     private var islandMeasurement: (MessageID, CGFloat)?
     private var windowMeasurement: (MessageID, CGFloat)?
     private var cancellables: Set<AnyCancellable> = []
-    /// The boss's `decision_alerts`: off, the Island neither opens nor sounds for a decision.
-    private var decisionAlertsOn = true
+    private var bossPreferences = BossPreferences()
     private(set) var dropReveal: IslandDropRevealController?
 
     init(
@@ -41,7 +40,7 @@ final class IslandPanelController {
         pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
         activate: @escaping () -> Void = { NSApp.activate(ignoringOtherApps: true) },
         attention: IslandAttention = .shared,
-        decisionAlerts: AnyPublisher<Bool, Never> = Just(true).eraseToAnyPublisher()
+        preferences: AnyPublisher<BossPreferences, Never> = Just(BossPreferences()).eraseToAnyPublisher()
     ) {
         self.flow = flow
         self.attention = attention
@@ -65,7 +64,7 @@ final class IslandPanelController {
         )
         configurePanel()
         configureWindow()
-        observeFlow(decisionAlerts: decisionAlerts.removeDuplicates().eraseToAnyPublisher())
+        observeFlow(preferences: preferences.removeDuplicates().eraseToAnyPublisher())
     }
 
     /// The surface is always black, so system-drawn parts — caret, selection, placeholders —
@@ -136,16 +135,16 @@ final class IslandPanelController {
         .closeButton, .miniaturizeButton, .zoomButton,
     ]
 
-    private func observeFlow(decisionAlerts: AnyPublisher<Bool, Never>) {
+    private func observeFlow(preferences: AnyPublisher<BossPreferences, Never>) {
         let content = Publishers.CombineLatest4(
             overview.$snapshot, flow.$activeMessage, flow.$presentationState,
             attention.$skippedMessageIDs)
-        decisionAlerts.sink { [weak self] in self?.decisionAlertsOn = $0 }.store(in: &cancellables)
+        preferences.sink { [weak self] in self?.bossPreferences = $0 }.store(in: &cancellables)
         // Use the emitted values: every `@Published` emits before its property changes.
-        let presentations = Publishers.CombineLatest(content, decisionAlerts).map {
+        let presentations = Publishers.CombineLatest(content, preferences).map {
             content, alerts -> IslandPresentation? in
             IslandAttention.presentation(snapshot: content.0.today, active: content.1, state: content.2,
-                skipped: content.3, decisionAlerts: alerts)
+                skipped: content.3, preferences: alerts)
         }
         Publishers.CombineLatest(presentations, settings.$presentationMode)
             .removeDuplicates { previous, next in
@@ -160,8 +159,11 @@ final class IslandPanelController {
         // activeMessage publishes once per question reaching the panel and nil when it clears.
         flow.$activeMessage
             .sink { [weak self] message in
-                guard message != nil else { return }
-                self?.announce()
+                guard let self, let message else { return }
+                let priority = self.overview.snapshot.today.decisions.first {
+                    $0.id == message.id
+                }?.message.priority ?? "normal"
+                self.announce(priority: priority)
             }
             .store(in: &cancellables)
 
@@ -170,8 +172,10 @@ final class IslandPanelController {
             .store(in: &cancellables)
     }
 
-    private func announce() {
-        guard settings.playsSound, decisionAlertsOn else { return }
+    private func announce(priority: String) {
+        guard settings.playsSound, bossPreferences.decisionAlerts != false,
+              MessageAlertPolicy.decisionAlert(priority: priority,
+                  preferences: bossPreferences)?.sound == true else { return }
         soundPlayer.play(settings.alertSound)
     }
 
