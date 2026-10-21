@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "types": [
+      "@cloudflare/workers-types",
+      "@cloudflare/vitest-pool-workers/types",
+      "vitest/globals"
+    ],
+    "skipLibCheck": true
+  },
+  "include": ["src", "test"]
+}

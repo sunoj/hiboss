@@ -1,5 +1,5 @@
 {
   "name": "hiboss-monorepo",
   "private": true,
-  "workspaces": ["server", "panel-runtime"]
+  "workspaces": ["server", "panel-runtime", "relay"]
 }

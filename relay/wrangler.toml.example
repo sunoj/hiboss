@@ -1,0 +1,42 @@
+# HiBoss push relay Worker. Copy to wrangler.toml and fill in the placeholders.
+name = "hiboss-push-relay"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hiboss-push-relay"
+database_id = "<your-d1-database-id>"
+migrations_dir = "migrations"
+
+# Request rates, kept by Cloudflare outside D1. Over the limit: 429, no D1 access.
+# Push key: SHA-256 of the handle, checked after its HANDLE_KEY MAC.
+# Registration keys (POST, PUT, DELETE): the IPv6 /64 or the IPv4 address.
+# namespace_id is any account-unique positive integer.
+[[ratelimits]]
+name = "HANDLE_RATE_LIMITER"
+namespace_id = "7104"
+simple = { limit = 60, period = 60 }
+
+# POST /v1/registrations only.
+[[ratelimits]]
+name = "REGISTRATION_RATE_LIMITER"
+namespace_id = "7102"
+simple = { limit = 5, period = 60 }
+
+# PUT and DELETE /v1/registrations/self.
+[[ratelimits]]
+name = "SELF_RATE_LIMITER"
+namespace_id = "7103"
+simple = { limit = 30, period = 60 }
+
+[triggers]
+# Daily purge of registrations unused for 30 days and of expired rate counters.
+crons = ["17 3 * * *"]
+
+# Secrets (set with `wrangler secret put <NAME>`, never in this file):
+#   APNS_KEY_ID    APNs auth key ID for the ai.hiboss.app team
+#   APNS_TEAM_ID   Apple developer team ID
+#   APNS_AUTH_KEY  APNs .p8 private key (PKCS#8 PEM)
+#   HANDLE_KEY     HMAC key that signs push handles, e.g. `openssl rand -base64 32`;
+#                  rotating it invalidates every handle
