@@ -15,6 +15,60 @@
             "state": "translated",
             "value": "已在 %@ 答复"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ に回答済み"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@에 답변함"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตอบแล้วเมื่อ %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respondido el %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ को जवाब दिया गया"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمت الإجابة في %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respondido em %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Répondu le %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ответ дан %@"
+          }
         }
       }
     },
@@ -31,6 +85,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "已答复"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回答済み"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "답변함"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตอบแล้ว"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respondido"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "जवाब दिया गया"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمت الإجابة"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respondido"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Répondu"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отвечено"
           }
         }
       }
@@ -49,6 +157,60 @@
             "state": "translated",
             "value": "超时后自动选择"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間切れで自動選択"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시간 초과로 자동 선택됨"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกอัตโนมัติเมื่อหมดเวลา"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seleccionado automáticamente al agotarse el tiempo"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "समय समाप्त होने पर अपने-आप चुना गया"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختير تلقائيًا عند انتهاء الوقت"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecionado automaticamente quando o tempo acabou"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionné automatiquement à l’expiration du délai"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрано автоматически по истечении времени"
+          }
         }
       }
     },
@@ -66,6 +228,60 @@
             "state": "translated",
             "value": "已选默认项 · 不代表批准"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デフォルトを選択 · 承認ではありません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본값 선택됨 · 승인 아님"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกค่าเริ่มต้นแล้ว · ไม่ใช่การอนุมัติ"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opción predeterminada · no es aprobación"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "डिफ़ॉल्ट चुना गया · यह मंज़ूरी नहीं है"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختير الافتراضي · ليس موافقة"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padrão escolhido · não é aprovação"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Option par défaut · pas une approbation"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрано по умолчанию · не одобрение"
+          }
         }
       }
     },
@@ -81,6 +297,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "请求加载时间比预期更长。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リクエストの読み込みに予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요청을 로드하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การโหลดคำขอใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las solicitudes están tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अनुरोध लोड होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تحميل الطلبات وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As solicitações estão demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chargement des demandes prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запросы загружаются дольше обычного."
           }
         }
       }
@@ -98,6 +368,60 @@
             "state": "translated",
             "value": "面板加载时间比预期更长。"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パネルの読み込みに予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널을 로드하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การโหลดแผงใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los paneles están tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "पैनल लोड होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تحميل اللوحات وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os painéis estão demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chargement des panneaux prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Панели загружаются дольше обычного."
+          }
         }
       }
     },
@@ -113,6 +437,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "问卷加载时间比预期更长。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アンケートの読み込みに予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설문을 로드하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การโหลดแบบสอบถามใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los cuestionarios están tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "प्रश्नावलियाँ लोड होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تحميل الاستبيانات وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os questionários estão demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chargement des questionnaires prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Анкеты загружаются дольше обычного."
           }
         }
       }
@@ -130,6 +508,60 @@
             "state": "translated",
             "value": "消息加载时间比预期更长。"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メッセージの読み込みに予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메시지를 로드하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การโหลดข้อความใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los mensajes están tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "संदेश लोड होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تحميل الرسائل وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As mensagens estão demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chargement des messages prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сообщения загружаются дольше обычного."
+          }
         }
       }
     },
@@ -145,6 +577,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "会话记录加载时间比预期更长。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録の読み込みに予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록을 로드하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การโหลดบันทึกเซสชันใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La transcripción está tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ट्रांसक्रिप्ट लोड होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تحميل السجل وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A transcrição está demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chargement de la transcription prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Журнал загружается дольше обычного."
           }
         }
       }
@@ -162,6 +648,60 @@
             "state": "translated",
             "value": "偏好设置加载时间比预期更长。"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定の読み込みに予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "환경설정을 로드하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การโหลดค่ากำหนดใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las preferencias están tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "प्राथमिकताएँ लोड होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تحميل التفضيلات وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As preferências estão demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chargement des préférences prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Параметры загружаются дольше обычного."
+          }
         }
       }
     },
@@ -177,6 +717,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "设备请求加载时间比预期更长。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイスのリクエストの読み込みに予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 요청을 로드하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การโหลดคำขอของอุปกรณ์ใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las solicitudes de dispositivos están tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "डिवाइस अनुरोध लोड होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تحميل طلبات الأجهزة وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As solicitações de dispositivos estão demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chargement des demandes d’appareils prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запросы устройств загружаются дольше обычного."
           }
         }
       }
@@ -194,6 +788,60 @@
             "state": "translated",
             "value": "进展加载时间比预期更长。"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "進捗の読み込みに予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "진행 상황을 로드하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การโหลดความคืบหน้าใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El progreso está tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "प्रगति लोड होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تحميل التقدّم وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O progresso está demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chargement de l’avancement prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прогресс загружается дольше обычного."
+          }
         }
       }
     },
@@ -209,6 +857,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "连接所需时间比预期更长。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続に予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การเชื่อมต่อใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La conexión está tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "कनेक्ट होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق الاتصال وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A conexão está demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключение занимает больше времени, чем ожидалось."
           }
         }
       }
@@ -226,6 +928,60 @@
             "state": "translated",
             "value": "显示内容加载时间比预期更长。"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示内容の読み込みに予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "표시 내용을 로드하는 데 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การโหลดการแสดงผลใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La visualización está tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "डिस्प्ले लोड होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تحميل العرض وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A exibição está demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chargement de l’affichage prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отображение загружается дольше обычного."
+          }
         }
       }
     },
@@ -241,6 +997,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "提交回执所需时间比预期更长。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信確認に予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제출 확인에 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การยืนยันการส่งใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La confirmación del envío está tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सबमिशन की पुष्टि में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق إيصال الإرسال وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A confirmação do envio está demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La confirmation de l’envoi prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подтверждение отправки занимает больше времени, чем ожидалось."
           }
         }
       }
@@ -258,6 +1068,60 @@
             "state": "translated",
             "value": "刷新所需时间比预期更长。"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新に予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새로 고침에 예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การรีเฟรชใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La actualización está tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "रीफ़्रेश होने में उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق التحديث وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A atualização está demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’actualisation prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновление занимает больше времени, чем ожидалось."
+          }
         }
       }
     },
@@ -273,6 +1137,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "重试"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再試行"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 시도"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ลองอีกครั้ง"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reintentar"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फिर से कोशिश करें"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعادة المحاولة"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tentar novamente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Повторить"
           }
         }
       }
@@ -290,6 +1208,60 @@
             "state": "translated",
             "value": "这比预期需要更长时间。"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "予想より時間がかかっています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "예상보다 오래 걸리고 있어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้เวลานานกว่าที่คาดไว้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esto está tardando más de lo esperado."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इसमें उम्मीद से ज़्यादा समय लग रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق هذا وقتًا أطول من المتوقع."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Isso está demorando mais do que o esperado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela prend plus de temps que prévu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это занимает больше времени, чем ожидалось."
+          }
         }
       }
     },
@@ -305,6 +1277,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在等待提交确认…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信確認を待っています…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제출 확인을 기다리는 중…"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังรอการยืนยันการส่ง…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esperando la confirmación del envío…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सबमिशन की पुष्टि का इंतज़ार है…"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "في انتظار إيصال الإرسال…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aguardando a confirmação do envio…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En attente de la confirmation de l’envoi…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ожидание подтверждения отправки…"
           }
         }
       }
@@ -322,6 +1348,60 @@
             "state": "translated",
             "value": "答案尚未确认，草稿已保存。请关闭此面板后重新检查提交状态。"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回答はまだ確認されていません。下書きは保存されています。このパネルを閉じて、もう一度確認してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "답변이 아직 확인되지 않았어요. 초안은 저장되었습니다. 이 패널을 닫고 다시 확인하세요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ยังไม่ได้รับการยืนยันคำตอบของคุณ บันทึกฉบับร่างไว้แล้ว ปิดแผงนี้แล้วตรวจสอบอีกครั้ง"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu respuesta no está confirmada. Tu borrador está guardado. Cierra este panel y vuelve a comprobarlo."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "आपके जवाब की पुष्टि नहीं हुई है। आपका ड्राफ़्ट सहेजा गया है। यह पैनल बंद करें और फिर से जाँचें।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لم يتم تأكيد إجابتك. تم حفظ مسودتك. أغلق هذه اللوحة وتحقّق مرة أخرى."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sua resposta não foi confirmada. Seu rascunho está salvo. Feche este painel e verifique novamente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre réponse n’est pas confirmée. Votre brouillon est enregistré. Fermez ce panneau et vérifiez à nouveau."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ответ не подтверждён. Черновик сохранён. Закройте панель и проверьте ещё раз."
+          }
         }
       }
     },
@@ -338,6 +1418,60 @@
             "state": "translated",
             "value": "正在加载图表…"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示内容を読み込み中…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "표시 내용 로드 중…"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังโหลดการแสดงผล…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cargando visualización…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "डिस्प्ले लोड हो रहा है…"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ تحميل العرض…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carregando exibição…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargement de l’affichage…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузка отображения…"
+          }
         }
       }
     },
@@ -353,6 +1487,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "重试加载图表"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示を再読み込み"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "표시 다시 로드"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โหลดการแสดงผลอีกครั้ง"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reintentar visualización"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "डिस्प्ले फिर से लोड करें"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعادة تحميل العرض"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recarregar exibição"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recharger l’affichage"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузить отображение снова"
           }
         }
       }
