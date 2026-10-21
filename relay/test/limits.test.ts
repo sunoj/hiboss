@@ -184,7 +184,7 @@ describe('no registration ceiling', () => {
 });
 
 describe('configured rate-limit bindings', () => {
-  it('limits pushes 60/min per handle, registrations 5/min and /self calls 30/min per address', () => {
+  it('limits pushes 60/min per handle, registrations 5/min and /self calls 30/min per address, 2/min per token', () => {
     const blocks = env.WRANGLER_EXAMPLE.split('[[ratelimits]]').slice(1);
     const parsed = Object.fromEntries(
       blocks.map((block) => {
@@ -197,6 +197,7 @@ describe('configured rate-limit bindings', () => {
       HANDLE_RATE_LIMITER: [60, 60],
       REGISTRATION_RATE_LIMITER: [5, 60],
       SELF_RATE_LIMITER: [30, 60],
+      TOKEN_RATE_LIMITER: [2, 60],
     });
   });
 

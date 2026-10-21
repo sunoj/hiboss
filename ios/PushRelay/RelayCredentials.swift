@@ -49,7 +49,7 @@ struct KeychainRelayCredentialStore: RelayCredentialStoring {
 
     static let accessibility = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String
 
-    /// An item written with an older accessibility class is rewritten with the current one.
+    /// An item written with an older accessibility class is moved to the current one in place.
     func read() throws -> RelayCredentials? {
         var query = baseQuery
         query[kSecReturnData as String] = true
@@ -64,9 +64,16 @@ struct KeychainRelayCredentialStore: RelayCredentialStoring {
         }
         let credentials = try JSONDecoder().decode(RelayCredentials.self, from: data)
         if attributes[kSecAttrAccessible as String] as? String != Self.accessibility {
-            try? write(credentials)
+            try? migrateAccessibility()
         }
         return credentials
+    }
+
+    /// One atomic update, so a process killed mid-migration never loses the item.
+    private func migrateAccessibility() throws {
+        let change = [kSecAttrAccessible as String: Self.accessibility]
+        let status = SecItemUpdate(baseQuery as CFDictionary, change as CFDictionary)
+        guard status == errSecSuccess else { throw RelayCredentialError.keychain(status) }
     }
 
     /// Replaces the item so its accessibility class is always the one set here.

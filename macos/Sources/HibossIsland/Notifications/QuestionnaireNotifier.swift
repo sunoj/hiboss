@@ -56,13 +56,16 @@ final class QuestionnaireNotifier {
         var questionnairePreferences = preferences()
         questionnairePreferences.quietHours = nil
         guard !fresh.isEmpty,
-              let alert = MessageAlertPolicy.decisionAlert(priority: "normal", preferences: questionnairePreferences),
-              await isAuthorized() else { return }
+              let alert = MessageAlertPolicy.decisionAlert(priority: "normal", preferences: questionnairePreferences)
+        else { return }
+        // Reserved before the first await so an overlapping call skips them; released unless shown.
+        let ids = fresh.map(\.requestId)
+        seen.formUnion(ids)
+        guard await isAuthorized() else { seen.subtract(ids); return }
         for questionnaire in fresh {
             do {
                 try await center.postQuestionnaire(QuestionnaireNotice(questionnaire: questionnaire, alert: alert))
-                seen.insert(questionnaire.requestId)
-            } catch { continue }
+            } catch { seen.remove(questionnaire.requestId) }
         }
     }
 }
