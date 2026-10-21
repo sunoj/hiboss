@@ -66,8 +66,13 @@ enum HiBossStore {
     /// assign it, to hold replies; the app always uses the persisted connection.
     @MainActor static var replyAPI: () -> (any BossServing)? = { bossAPI() }
 
-    /// Rebuilds the boss API from persisted server URL + Keychain token.
+    /// The persisted flag of a demo entered from onboarding; `DemoSession` owns it.
+    static let demoActiveKey = "hiboss.demo.active"
+
+    /// Rebuilds the boss API from persisted server URL + Keychain token; never during a demo.
     static func bossAPI() -> HibossAPI? {
+        guard ProcessInfo.processInfo.environment["HIBOSS_DEMO"] != "1",
+              !UserDefaults.standard.bool(forKey: demoActiveKey) else { return nil }
         let server = UserDefaults.standard.string(forKey: AppConstants.Storage.serverURL) ?? ""
         let group = Bundle.main.object(forInfoDictionaryKey: "SharedKeychainAccessGroup") as? String
         let token = (try? KeychainStore(

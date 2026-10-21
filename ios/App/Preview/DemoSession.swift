@@ -9,7 +9,7 @@ import os
 @MainActor
 final class DemoSession: ObservableObject {
     static let shared = DemoSession()
-    nonisolated static let activeKey = "hiboss.demo.active"
+    nonisolated static let activeKey = HiBossStore.demoActiveKey
     nonisolated static let readsSuite = "ai.hiboss.demo.reads"
     /// Questionnaire draft scopes of the demo panel services.
     nonisolated static let draftPrefixes = ["native-demo-", "metric-demo.", "home-demo."]

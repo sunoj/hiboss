@@ -34,11 +34,15 @@ struct PairingScannerView: View {
             title: String(localized: "Scan pairing code"),
             cameraPurpose: String(localized: "Camera access is needed to scan a pairing code.")
         ) { rawValue in
-            guard case let .success(payload) = PairingPayload.parse(rawValue) else {
+            switch PairingPayload.parse(rawValue) {
+            case let .success(payload):
+                onPairingPayload(payload)
+                return .accepted
+            case .failure(.insecureServer):
+                return .rejected(ServerAddressPolicy.message(for: .insecureServer))
+            case .failure:
                 return .rejected(String(localized: "That QR code is not a valid HiBoss pairing code."))
             }
-            onPairingPayload(payload)
-            return .accepted
         }
     }
 

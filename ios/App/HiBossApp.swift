@@ -44,6 +44,7 @@ struct RootView: View {
     @State private var showsClientNotice = false
     @ObservedObject private var authorization = AccountAuthorization.shared
     @ObservedObject private var demo = DemoSession.shared
+    @State private var generation = DemoSession.shared.generation
     @StateObject private var connectedPanels = ConnectedPanelsStore()
     @StateObject private var reads = SessionReadStore(
         defaults: isLaunchDemoMode ? UserDefaults(suiteName: "hiboss.demo.reads.\(UUID())")!
@@ -95,7 +96,11 @@ struct RootView: View {
 
     private var connectedRoot: some View {
         Group {
-            if isDemoMode && ProcessInfo.processInfo.environment["HIBOSS_DEMO_ACTIVITY"] == "1" {
+            if generation != demo.generation {
+                // The session a demo enter or exit replaced renders nothing until it is torn
+                // down, so its ConnectView cannot take a held pairing link.
+                Color.clear
+            } else if isDemoMode && ProcessInfo.processInfo.environment["HIBOSS_DEMO_ACTIVITY"] == "1" {
                 DemoActivityStateView()
             } else if connection.isRestoring && isDemoMode
                 && ProcessInfo.processInfo.environment["HIBOSS_DEMO_RESTORE_DELAY_MS"]?.isEmpty == false {

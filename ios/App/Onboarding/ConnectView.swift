@@ -42,6 +42,7 @@ struct ConnectView: View {
                     Text(verbatim: error)
                         .font(.hbCaption)
                         .foregroundStyle(Theme.negative)
+                        .accessibilityIdentifier("connect-error")
                         .padding(.top, 12)
                 }
 
@@ -83,6 +84,7 @@ struct ConnectView: View {
             openPendingLink()
         }
         .onChange(of: links.pending) { _, _ in openPendingLink() }
+        .onChange(of: links.refusal) { _, _ in openPendingLink() }
     }
 
     private var logo: some View {
@@ -240,7 +242,9 @@ struct ConnectView: View {
 
     /// A tapped `hiboss://pair` link opens the code sheet prefilled; the boss confirms with Pair.
     private func openPendingLink() {
-        guard !connecting, let payload = links.take() else { return }
+        guard !connecting else { return }
+        if let refusal = links.takeRefusal() { error = refusal }
+        guard let payload = links.take() else { return }
         focus = nil
         error = nil
         showingScanner = false

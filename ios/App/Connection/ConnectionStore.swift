@@ -76,8 +76,14 @@ final class ConnectionStore: ObservableObject {
     var isConfigured: Bool { config != nil }
 
     /// Loads a persisted token and, if valid, restores the active config.
+    /// A demo never loads the stored account, so `makeAPI()` stays nil for its whole session.
     func restore() async {
         try? await DemoDelay.wait("RESTORE")
+        guard !isDemoMode else {
+            isRestoring = false
+            StartupLog.record("connection restored")
+            return
+        }
         let keychain = keychain
         let legacy = legacyKeychain
         let signerStore = signerStore

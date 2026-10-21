@@ -77,6 +77,34 @@ final class FirstRunUITests: XCTestCase {
         XCTAssertTrue(app.buttons["pairing-code-submit"].isEnabled)
     }
 
+    func testPairLinkTappedDuringTheDemoOpensThePrefilledSheetAfterExit() throws {
+        launchSignedOut()
+        app.buttons["connect-explore-demo"].tap()
+        let exit = app.buttons["demo-exit"]
+        XCTAssertTrue(exit.waitForExistence(timeout: 10))
+        let link = "hiboss://pair?server=https%3A%2F%2Fhiboss.example.com&code=hb_pair_"
+            + String(repeating: "c", count: 64)
+        app.open(try XCTUnwrap(URL(string: link)))
+        XCTAssertTrue(exit.waitForExistence(timeout: 10), "The demo keeps running until Exit")
+
+        exit.tap()
+        let server = app.textFields["pairing-server-field"]
+        XCTAssertTrue(server.waitForExistence(timeout: 10), "The held link opens after Exit")
+        XCTAssertEqual(server.value as? String, "https://hiboss.example.com")
+    }
+
+    func testPlainHTTPPairLinkShowsTheHTTPSMessage() throws {
+        launchSignedOut()
+        let link = "hiboss://pair?server=http%3A%2F%2Fhiboss.example.com&code=hb_pair_"
+            + String(repeating: "d", count: 64)
+        app.open(try XCTUnwrap(URL(string: link)))
+
+        let message = app.staticTexts["connect-error"]
+        XCTAssertTrue(message.waitForExistence(timeout: 10))
+        XCTAssertTrue(message.label.contains("HTTPS"), message.label)
+        XCTAssertFalse(app.textFields["pairing-server-field"].exists)
+    }
+
     /// Ends a demo a failed earlier run may have left, so every test starts signed out.
     private func launchSignedOut() {
         continueAfterFailure = false

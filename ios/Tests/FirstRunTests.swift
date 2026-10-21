@@ -52,6 +52,19 @@ final class FirstRunTests: XCTestCase {
         XCTAssertNil(inbox.take(), "A link opens the redeem sheet once")
     }
 
+    func testPlainHTTPPairingCodeFromALinkOrTheScannerGetsTheHTTPSMessage() throws {
+        let raw = "hiboss://pair?server=http%3A%2F%2Fa.example&code=hb_pair_" + String(repeating: "a", count: 64)
+        let https = ServerAddressError.requiresHTTPS.localizedDescription
+        let inbox = PairingLinkInbox()
+        inbox.receive(try XCTUnwrap(URL(string: raw)))
+        XCTAssertNil(inbox.pending)
+        XCTAssertEqual(inbox.takeRefusal(), https)
+        XCTAssertNil(inbox.takeRefusal(), "A refusal is shown once")
+
+        let scanner = PairingScannerView { _ in XCTFail("An http:// pairing code must not be accepted") }
+        XCTAssertEqual(scanner.recognize(raw), .rejected(https))
+    }
+
     func testDemoPurgeRemovesReadStateAndDemoDraftsOnly() throws {
         let suite = "FirstRunTests.\(UUID().uuidString)"
         let readsSuite = suite + ".reads"
@@ -73,6 +86,29 @@ final class FirstRunTests: XCTestCase {
         XCTAssertNil(standard.data(forKey: "hiboss.questionnaire.home-demo.demo-boss.intake.1"))
         XCTAssertNotNil(standard.data(forKey: "hiboss.questionnaire.https://a.example.boss.intake.1"),
                         "A real account's draft is not demo residue")
+    }
+
+    func testDemoEnteredAfterAccountRejectionNeverLoadsTheStoredAccount() async throws {
+        let suite = "FirstRunTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        defaults.set("https://hiboss.example.com", forKey: AppConstants.Storage.serverURL)
+        let tokens = MigrationTokenStore("hb_retained_token")
+        DemoSession.shared.enter()
+        addTeardownBlock { await DemoSession.shared.exit() }
+
+        let store = ConnectionStore(defaults: defaults, keychain: tokens, sharedDefaults: nil,
+                                    signerStore: FirstRunSignerStore(), clientsAPI: { _ in
+            XCTFail("A demo must not build a real API")
+            return HibossAPI(config: ConnectionConfig(serverURL: URL(fileURLWithPath: "/"), bossToken: "x"))
+        })
+        await store.restore()
+
+        XCTAssertFalse(store.isConfigured, "A demo session must not hold a real account config")
+        XCTAssertNil(store.makeAPI())
+        XCTAssertFalse(store.isRestoring)
+        XCTAssertEqual(tokens.reads, 0, "A demo must not read the stored token")
+        XCTAssertNil(HiBossStore.bossAPI(), "Push and reply paths must not rebuild the real API in a demo")
     }
 
     func testDemoProgressMediaAreBundledFiles() {
