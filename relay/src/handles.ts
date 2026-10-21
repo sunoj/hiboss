@@ -8,7 +8,7 @@ const ID_BYTES = 16;
 const MAC_BYTES = 16;
 const HANDLE = /^[A-Za-z0-9_-]{43}$/;
 
-async function mac(secret: string, id: Uint8Array): Promise<Uint8Array> {
+async function mac(secret: string, id: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
@@ -19,7 +19,7 @@ async function mac(secret: string, id: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.sign('HMAC', key, id)).slice(0, MAC_BYTES);
 }
 
-function decode(handle: string): Uint8Array | null {
+function decode(handle: string): Uint8Array<ArrayBuffer> | null {
   if (!HANDLE.test(handle)) return null;
   const binary = atob(handle.replace(/-/g, '+').replace(/_/g, '/') + '=');
   const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
