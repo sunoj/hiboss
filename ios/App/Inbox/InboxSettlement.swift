@@ -1,6 +1,6 @@
 // Settled-decision lookup: keep an answered card visible and join session replies.
 // Exports: DecisionSettlement and InboxStore helpers for cards / threads.
-// Dependencies: SwiftUI Text, HibossKit HistoryMessage, SessionGrouping, MessageMeta.
+// Dependencies: SwiftUI Text, HibossKit HistoryMessage, SessionGrouping, AnswerAttribution.
 
 import HibossKit
 import SwiftUI
@@ -13,15 +13,7 @@ struct DecisionSettlement: Equatable {
     var isAutoDefault = false
     var answeredBy: AnsweringDevice? = nil
 
-    var sourceLabel: String? {
-        if let answeredBy {
-            let name = answeredBy.label.trimmingCharacters(in: .whitespacesAndNewlines)
-            return name.isEmpty ? MessageMeta.platformName(answeredBy.kind) : name
-        }
-        return source.map {
-            $0.lowercased() == "api" ? "API" : MessageMeta.platformName($0)
-        }
-    }
+    var sourceLabel: String? { answeredBy?.displayLabel ?? source.map(AnswerSource.label) }
 
     /// True when the answer came from another boss surface, not this iOS client.
     var answeredElsewhere: Bool {
@@ -31,11 +23,8 @@ struct DecisionSettlement: Equatable {
 
     /// Who produced the answer. A timeout default is never worded as the boss's answer.
     var attribution: Text {
-        if isAutoDefault { return Text("Auto-selected when time ran out") }
-        if answeredBy != nil || answeredElsewhere, let sourceLabel {
-            return Text("Answered on \(sourceLabel)")
-        }
-        return Text("Answered")
+        let shown = answeredBy != nil || answeredElsewhere ? sourceLabel : nil
+        return Text(verbatim: AnswerAttribution.text(isAutoDefault: isAutoDefault, sourceLabel: shown))
     }
 
     /// The pending card's auto-select glyph, not the checkmark of a choice someone made.

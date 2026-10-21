@@ -6,16 +6,8 @@ import Combine
 import Foundation
 import HibossKit
 
-/// The answerable rule shared by every iOS decision surface and submission entry point.
-enum DecisionAnswerability: Equatable {
-    case checking, open, closed
-
-    init(id: MessageID, openIDs: Set<MessageID>, loaded: Bool, withdrawn: Set<MessageID> = []) {
-        if withdrawn.contains(id) { self = .closed }
-        else if !loaded { self = .checking }
-        else { self = openIDs.contains(id) ? .open : .closed }
-    }
-
+/// iOS copy for HibossKit's shared answerable rule.
+extension DecisionAnswerability {
     var label: String? {
         switch self {
         case .checking: String(localized: "Checking…")

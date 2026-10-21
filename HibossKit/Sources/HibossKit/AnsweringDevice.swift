@@ -1,6 +1,6 @@
 // Registered device attribution supplied by the server on replies and resolutions.
 // Exports AnsweringDevice and a display label that preserves legacy source fallback.
-// Depends on Foundation Codable and resolutionSourceLabel.
+// Depends on Foundation Codable and AnswerSource.label.
 
 import Foundation
 
@@ -22,12 +22,12 @@ public struct AnsweringDevice: Codable, Equatable, Sendable {
 
     public var displayLabel: String? {
         let name = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        return name.isEmpty ? resolutionSourceLabel(kind) : name
+        return name.isEmpty ? AnswerSource.label(kind) : name
     }
 }
 
 public extension MessageMetadata {
-    var sourceLabel: String? { answeredBy?.displayLabel ?? resolutionSourceLabel(source) }
+    var sourceLabel: String? { answeredBy?.displayLabel ?? source.map(AnswerSource.label) }
 }
 
 public extension ReplyOutcome {

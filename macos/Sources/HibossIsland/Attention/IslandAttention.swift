@@ -53,9 +53,7 @@ final class IslandAttention: ObservableObject {
         if case .resolved = state, let active, !skipped.contains(active.id) {
             return IslandPresentation(message: active, item: nil)
         }
-        guard let first = snapshot.decisions.first(where: { !skipped.contains($0.id) }) else {
-            return nil
-        }
+        guard let first = snapshot.topDecision(skipping: skipped) else { return nil }
         return IslandPresentation(message: first.asOptionMessage, item: first)
     }
 

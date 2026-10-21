@@ -22,7 +22,6 @@
 		648C14F1A285852E736565D9 /* SessionReadStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0DE178574EA72254524AD50 /* SessionReadStoreTests.swift */; };
 		F95918E9C38AE47262458934 /* SessionReadIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD1AC32AAD506AD538D8C725 /* SessionReadIndicator.swift */; };
 		A9DC0A896C82A08E095E52B2 /* SessionReadTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11306883A3F3FB2A88A34C18 /* SessionReadTracking.swift */; };
-		B6F2CF7AA6409E986AA6DA78 /* SessionReadStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508592DBDB50192E3140921D /* SessionReadStore.swift */; };
 		587AA30D6D305C6AE71AD9D0 /* SessionUnreadUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD4E6C4E5F1E6BC3F89244F9 /* SessionUnreadUITests.swift */; };
 		DE68F67D94F6FCDAABC8E91C /* DemoSessionReads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56C482F3D91576910135CAFE /* DemoSessionReads.swift */; };
 		00F582F779BBE0D825994CE7 /* DecisionContextCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1896D64CBDA9A8CFCA2D173F /* DecisionContextCard.swift */; };
@@ -404,7 +403,6 @@
 		B0DE178574EA72254524AD50 /* SessionReadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReadStoreTests.swift; sourceTree = "<group>"; };
 		AD1AC32AAD506AD538D8C725 /* SessionReadIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReads/SessionReadIndicator.swift; sourceTree = "<group>"; };
 		11306883A3F3FB2A88A34C18 /* SessionReadTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReads/SessionReadTracking.swift; sourceTree = "<group>"; };
-		508592DBDB50192E3140921D /* SessionReadStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReads/SessionReadStore.swift; sourceTree = "<group>"; };
 		FD4E6C4E5F1E6BC3F89244F9 /* SessionUnreadUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionUnreadUITests.swift; sourceTree = "<group>"; };
 		56C482F3D91576910135CAFE /* DemoSessionReads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSessionReads.swift; sourceTree = "<group>"; };
 		014E4F17260E1DBC8E935026 /* DemoMessageDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoMessageDetail.swift; sourceTree = "<group>"; };
@@ -1050,7 +1048,6 @@
 				35B18F7757D87683A1F768E5 /* HiBossApp.swift */,
 				AD1AC32AAD506AD538D8C725 /* SessionReadIndicator.swift */,
 				11306883A3F3FB2A88A34C18 /* SessionReadTracking.swift */,
-				508592DBDB50192E3140921D /* SessionReadStore.swift */,
 				CE512B87AB4778E24208134F /* Info.plist */,
 				F51D50828365C286871C0496 /* InfoPlist.xcstrings */,
 				B448CB7C1CB5C5B31FEBB796 /* Localizable.xcstrings */,
@@ -1806,7 +1803,6 @@
 				68AD376877FF3DD3FBEB641F /* HiBossApp.swift in Sources */,
 				F95918E9C38AE47262458934 /* SessionReadIndicator.swift in Sources */,
 				A9DC0A896C82A08E095E52B2 /* SessionReadTracking.swift in Sources */,
-				B6F2CF7AA6409E986AA6DA78 /* SessionReadStore.swift in Sources */,
 				91C53F41DB2DA754B602864B /* HiBossBrandIcon.swift in Sources */,
 				761FC4F0D1827BBB9BFCD0F7 /* HistoryRow.swift in Sources */,
 				3DE96A602F86EB16504B8F54 /* HomeAttentionModel.swift in Sources */,

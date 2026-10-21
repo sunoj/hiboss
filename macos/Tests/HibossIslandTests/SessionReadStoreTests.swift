@@ -1,6 +1,6 @@
 // Verifies unread cutoffs, direction filtering, local account isolation, and bounded retention.
 // Exports: SessionReadStoreTests using isolated preferences and deterministic timestamps.
-// Dependencies: XCTest, HibossKit, and the macOS-only session read store.
+// Dependencies: XCTest, HibossKit's shared session read store, and the Mac overview snapshot.
 
 import HibossKit
 import XCTest
@@ -40,12 +40,12 @@ final class SessionReadStoreTests: XCTestCase {
     func testAgentMessagesMustBeStrictlyNewerThanBaselineAndLastRead() throws {
         let snapshot = snapshot([message(at: 10)])
         let session = try XCTUnwrap(snapshot.today.sessionDirectory.working.first)
-        XCTAssertTrue(isUnread(session: session, messages: snapshot.history, lastRead: nil, baseline: now))
-        XCTAssertFalse(isUnread(session: session, messages: snapshot.history,
+        XCTAssertTrue(SessionUnread.isUnread(sessionID: session.id, messages: snapshot.history, lastRead: nil, baseline: now))
+        XCTAssertFalse(SessionUnread.isUnread(sessionID: session.id, messages: snapshot.history,
             lastRead: now.addingTimeInterval(10), baseline: now))
-        XCTAssertTrue(isUnread(session: session, messages: snapshot.history,
+        XCTAssertTrue(SessionUnread.isUnread(sessionID: session.id, messages: snapshot.history,
             lastRead: now.addingTimeInterval(9), baseline: now))
-        XCTAssertFalse(isUnread(session: session, messages: [message(at: -1)],
+        XCTAssertFalse(SessionUnread.isUnread(sessionID: session.id, messages: [message(at: -1)],
             lastRead: now.addingTimeInterval(-20), baseline: now))
     }
 
@@ -53,11 +53,24 @@ final class SessionReadStoreTests: XCTestCase {
         let session = try XCTUnwrap(snapshot([message(at: 0)]).today.sessionDirectory.working.first)
         let malformed = HistoryMessage(id: "invalid", body: "No timestamp", direction: "agent_to_boss",
             status: "delivered", priority: "normal", createdAt: "invalid", sessionId: "session")
-        XCTAssertFalse(isUnread(session: session,
+        XCTAssertFalse(SessionUnread.isUnread(sessionID: session.id,
             messages: [message(at: 10, direction: " BOSS_TO_AGENT \n"),
                 message(at: 10, session: "other"), malformed], lastRead: nil, baseline: now))
-        XCTAssertTrue(isUnread(session: session, messages: [message(at: 10, direction: "unknown")],
+        XCTAssertFalse(SessionUnread.isUnread(sessionID: session.id, messages: [message(at: 10, direction: "unknown")],
             lastRead: nil, baseline: now))
+    }
+
+    func testOnlyAgentToBossRowsMakeSessionUnread() {
+        let (defaults, name) = preferences()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let store = SessionReadStore(defaults: defaults)
+        store.activate(account("one"), now: now)
+        let read = message(at: -5)
+        for direction in ["agent_to_agent", "unknown", "boss_to_agent"] {
+            XCTAssertTrue(store.unreadSessionIDs(in: snapshot([read, message(at: 10, direction: direction)]))
+                .isEmpty, direction)
+        }
+        XCTAssertEqual(store.unreadSessionIDs(in: snapshot([read, message(at: 10)])), ["session"])
     }
 
     func testNeedsYouTakesPriorityAndReadIdleHasNoIndicatorLabel() {

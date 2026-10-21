@@ -1,13 +1,9 @@
 // Applies the answerable rule to every macOS decision and reply entry point.
-// Exports: AnswerableDecisions and DecisionAnswerState, derived from required-input coverage.
+// Exports: AnswerableDecisions, applying HibossKit's DecisionAnswerability to required inputs.
 // Dependencies: HibossKit history, thread outcomes, and the shared Today projection.
 
 import Foundation
 import HibossKit
-
-enum DecisionAnswerState {
-    case checking, open, closed
-}
 
 struct AnswerableDecisions {
     let isLoaded: Bool
@@ -16,10 +12,8 @@ struct AnswerableDecisions {
 
     static let loading = Self(isLoaded: false, openIDs: [])
 
-    func state(for id: MessageID) -> DecisionAnswerState {
-        if closedIDs.contains(id) { return .closed }
-        guard isLoaded else { return .checking }
-        return openIDs.contains(id) ? .open : .closed
+    func state(for id: MessageID) -> DecisionAnswerability {
+        DecisionAnswerability(id: id, openIDs: openIDs, loaded: isLoaded, withdrawn: closedIDs)
     }
 
     func permitsReply(to message: HistoryMessage) -> Bool {

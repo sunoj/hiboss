@@ -28,7 +28,7 @@ struct HistoryReplies: View {
     private func attribution(_ reply: HistoryMessage) -> some View {
         HStack(spacing: 6) {
             if reply.metadata?.isAutoDefault == true {
-                Label(L("Auto-selected when time ran out"), systemImage: "clock.arrow.circlepath")
+                Label(AnswerAttribution.autoSelected, systemImage: "clock.arrow.circlepath")
             } else {
                 Text(L("Me"))
             }
@@ -38,7 +38,7 @@ struct HistoryReplies: View {
                     .frame(width: 160, alignment: .leading)
             }
             if let source = reply.metadata?.answeredBy?.displayLabel
-                ?? reply.metadata?.source.flatMap(AnswerSource.visibleLabel),
+                ?? AnswerSource.visibleLabel(reply.metadata?.source, hiding: "macos"),
                !source.isEmpty {
                 Text(verbatim: source)
             }

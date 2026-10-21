@@ -74,7 +74,7 @@ struct MessageDetailsCard: View {
         }
         if let channel = trimmed(message.channel) {
             AttributeRow(icon: MessageAttributeStyle.channel(channel), label: "Channel") {
-                Text(verbatim: MessageMeta.platformName(channel))
+                Text(verbatim: AnswerSource.label(channel))
             }
         }
         let status = MessageAttributeStyle.status(message.status)

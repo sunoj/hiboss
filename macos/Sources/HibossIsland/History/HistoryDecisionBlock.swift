@@ -13,7 +13,7 @@ struct HistoryDecisionBlock: View {
     @State private var sendingOption: String?
 
     private var message: HistoryMessage { thread.message }
-    private var answerState: DecisionAnswerState { answerability.state(for: message.id) }
+    private var answerState: DecisionAnswerability { answerability.state(for: message.id) }
     private var displayedOutcome: ThreadOutcome { answerability.outcome(for: thread, at: .now) }
     private var isOpen: Bool { answerState == .open }
     private var isSubmitting: Bool { reply.submitting.contains(message.id) || sendingOption != nil }
@@ -89,12 +89,12 @@ struct HistoryDecisionBlock: View {
     private var settlement: some View {
         switch displayedOutcome {
         case .autoSelected:
-            Label(L("Auto-selected when time ran out"), systemImage: "clock.arrow.circlepath")
+            Label(AnswerAttribution.autoSelected, systemImage: "clock.arrow.circlepath")
                 .font(.caption).foregroundStyle(.secondary)
         case let .chosen(_, source):
             if let label = thread.newestReply?.metadata?.answeredBy?.displayLabel
-                ?? source.flatMap(AnswerSource.visibleLabel) {
-                Text(L("Answered on \(label)"))
+                ?? AnswerSource.visibleLabel(source, hiding: "macos") {
+                Text(AnswerAttribution.answeredOn(label))
                     .font(.caption).foregroundStyle(.secondary)
             }
         case .expired:

@@ -8,20 +8,6 @@ import SwiftUI
 enum MessageMeta {
     enum Density { case selected, detail }
 
-    static func platformName(_ raw: String) -> String {
-        switch raw.lowercased() {
-        case "ios": "iOS"
-        case "ipados": "iPadOS"
-        case "macos": "macOS"
-        case "watchos": "watchOS"
-        case "cli": "CLI"
-        case "web": "Web"
-        case "telegram": "Telegram"
-        case "discord": "Discord"
-        default: raw.capitalized
-        }
-    }
-
     /// Selected: notable type, urgent priority, blocking, plus mode/channel/files.
     /// Detail is the full labeled set for the message sheet.
     static func items(for message: HistoryMessage, density: Density) -> [MessageMetaItem] {
@@ -111,7 +97,7 @@ enum MessageMeta {
         }
         if let channel = message.channel, !channel.isEmpty {
             items.append(MessageMetaItem(id: "channel", icon: MessageAttributeStyle.channel(channel),
-                                         label: String(localized: "Channel"), value: platformName(channel)))
+                                         label: String(localized: "Channel"), value: AnswerSource.label(channel)))
         }
         let files = message.metadata?.files ?? []
         if !files.isEmpty {

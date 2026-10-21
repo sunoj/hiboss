@@ -36,7 +36,7 @@ final class RequiredInputRefreshTests: XCTestCase {
     func testRefreshKeepsLoadedDecisionsAnswerableUntilReplacementArrives() async throws {
         let (inputs, overview, api, question) = try await loadedStore()
         defer { inputs.disconnect() }
-        var states: [DecisionAnswerState] = []
+        var states: [DecisionAnswerability] = []
         let observation = overview.$snapshot.sink { states.append($0.answerability.state(for: question.id)) }
         defer { observation.cancel() }
         await api.blockFetch()
@@ -59,7 +59,7 @@ final class RequiredInputRefreshTests: XCTestCase {
         let resolved = AttentionTestSupport.ask(id: "resolved", options: ["Hold"], now: .now)
         await api.send(.message(resolved))
         try await waitForCondition { inputs.state.messages.count == 2 }
-        var states: [DecisionAnswerState] = []
+        var states: [DecisionAnswerability] = []
         let observation = overview.$snapshot.sink { states.append($0.answerability.state(for: question.id)) }
         defer { observation.cancel() }
         // A fetch in flight whose (older) result still lists the soon-resolved decision.
@@ -83,7 +83,7 @@ final class RequiredInputRefreshTests: XCTestCase {
             let (inputs, overview, api, question) = try await loadedStore(
                 reconnectDelay: .milliseconds(20), staleListDelay: .milliseconds(150))
             defer { inputs.disconnect() }
-            var states: [DecisionAnswerState] = []
+            var states: [DecisionAnswerability] = []
             let observation = overview.$snapshot.sink {
                 states.append($0.answerability.state(for: question.id))
             }

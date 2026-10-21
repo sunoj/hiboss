@@ -104,12 +104,22 @@ final class HomeAttentionModelTests: XCTestCase {
         ]
         let snapshot = TodaySnapshot(history: [], requiredInputs: messages, health: .live(checkedAt: now),
                                      coverageComplete: true, now: now)
-        let home = snapshot.decisions.filter { !$0.options.isEmpty }.map(\.id)
-        XCTAssertEqual(home, ["auto", "blocked", "priority"])
+        let home = snapshot.decisions.map(\.id)
+        XCTAssertEqual(home.filter { $0 != "text" }, ["auto", "blocked", "priority"])
         XCTAssertEqual(DecisionActivityManager.rankedMessages(from: messages, now: now).map(\.id), home)
         let later = now.addingTimeInterval(60)
-        XCTAssertEqual(DecisionActivityManager.rankedMessages(from: messages, now: later).map(\.id),
-                       ["blocked", "priority"])
+        XCTAssertEqual(DecisionActivityManager.rankedMessages(from: messages, now: later).map(\.id)
+            .filter { $0 != "text" }, ["blocked", "priority"])
+    }
+
+    /// The Live Activity carries the same top decision as the Mac Island, text-reply asks included.
+    @MainActor
+    func testLiveActivityTopDecisionIncludesTextAsks() {
+        let messages = [message("option", priority: "low"), message("text", priority: "critical", options: [])]
+        XCTAssertEqual(DecisionActivityManager.rankedMessages(from: messages, now: now).first?.id, "text")
+        let snapshot = TodaySnapshot(history: [], requiredInputs: messages, health: .live(checkedAt: now),
+                                     coverageComplete: true, now: now)
+        XCTAssertEqual(snapshot.topDecision()?.id, "text")
     }
 
     @MainActor
