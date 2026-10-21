@@ -2,13 +2,8 @@
 // Exports agent callbacks and boss message/questionnaire push delivery.
 // Depends on D1 for callback lookup and global fetch for delivery.
 
-import {
-  hasApnsConfig,
-  sendPush,
-  type ApnsEnvironment,
-} from './apns';
+import { pushMode, sendDevicePush, type PushDevice } from './push/send';
 import { prepareBossPush, type BossPushSession, type PreparedBossPush } from './push/boss-payload';
-import { deleteBossDevice } from './push/devices';
 import { prepareRequestPush } from './push/request-payload';
 import type { Questionnaire } from './panels/requests/types';
 import type { Env, MessageRow } from './types';
@@ -19,12 +14,7 @@ interface BossRecipientRow {
   preferences: string | null;
 }
 
-interface BossDeviceRow {
-  boss_id: string;
-  device_token: string;
-  bundle_id: string;
-  environment: ApnsEnvironment;
-}
+type BossDeviceRow = PushDevice;
 
 export async function notifyAgentCallback(env: Env, agentId: string, message: MessageRow, markDelivered = false): Promise<void> {
   try {
@@ -86,11 +76,12 @@ async function notifyBossDevices(
   subAgentId: string,
   message: MessageRow,
 ): Promise<void> {
-  if (message.direction !== 'agent_to_boss' || bosses.length === 0 || !hasApnsConfig(env)) return;
+  if (message.direction !== 'agent_to_boss' || bosses.length === 0 || pushMode(env) === 'none') return;
   const bossIds = bosses.map((boss) => boss.id);
   const placeholders = bossIds.map(() => '?').join(', ');
   const devices = await env.DB
-    .prepare(`SELECT boss_id, device_token, bundle_id, environment FROM boss_devices WHERE boss_id IN (${placeholders})`)
+    .prepare(`SELECT boss_id, device_token, bundle_id, environment, relay_handle, push_key
+      FROM boss_devices WHERE boss_id IN (${placeholders})`)
     .bind(...bossIds)
     .all<BossDeviceRow>();
   if (!devices.results?.length) return;
@@ -106,7 +97,7 @@ async function notifyBossDevices(
 }
 
 export async function notifyBossRequest(env: Env, panelId: string, requestId: string, form: Questionnaire): Promise<void> {
-  if (!form.blocking || env.DESTINATIONS_MODE === 'on' || !hasApnsConfig(env)) return;
+  if (!form.blocking || env.DESTINATIONS_MODE === 'on' || pushMode(env) === 'none') return;
   try {
     const panel = await env.DB.prepare(`SELECT p.target_boss_id, p.agent_id, p.title, b.preferences
       FROM panels p JOIN bosses b ON b.id = p.target_boss_id WHERE p.panel_id = ? AND b.archived_at IS NULL`).bind(panelId)
@@ -116,7 +107,8 @@ export async function notifyBossRequest(env: Env, panelId: string, requestId: st
     const prepared = prepareRequestPush({ panelId, requestId, bossId: panel.target_boss_id, agentName,
       panelTitle: panel.title, title: form.title, priority: form.priority }, panel.preferences);
     if (!prepared) return;
-    const devices = await env.DB.prepare('SELECT boss_id, device_token, bundle_id, environment FROM boss_devices WHERE boss_id = ?')
+    const devices = await env.DB.prepare(`SELECT boss_id, device_token, bundle_id, environment, relay_handle, push_key
+      FROM boss_devices WHERE boss_id = ?`)
       .bind(panel.target_boss_id).all<BossDeviceRow>();
     for (const device of devices.results ?? []) await sendBossDevicePush(env, device, prepared);
   } catch {
@@ -126,17 +118,12 @@ export async function notifyBossRequest(env: Env, panelId: string, requestId: st
 
 async function sendBossDevicePush(env: Env, device: BossDeviceRow, prepared: PreparedBossPush): Promise<void> {
   try {
-    const result = await sendPush(
+    await sendDevicePush(
       env,
-      device.device_token,
-      device.environment,
-      device.bundle_id,
+      device,
       prepared.payload,
       prepared.apnsPriority,
     );
-    if (result.prune) {
-      await deleteBossDevice(env, device.boss_id, device.device_token);
-    }
   } catch {
     // Best-effort per device.
   }

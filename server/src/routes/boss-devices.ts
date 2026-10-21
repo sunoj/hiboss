@@ -6,12 +6,15 @@ import { Hono } from 'hono';
 import type { Env } from '../types';
 import { bossAuth, getBossId, getClientId } from '../middleware/auth';
 import type { ApnsEnvironment } from '../apns';
+import { isRelaySecret } from '../push/relay';
 import { deleteBossDevice } from '../push/devices';
 
 type BossDevicePlatform = 'ios';
 
 interface BossDeviceRequest {
   token: string;
+  relayHandle: string | null;
+  pushKey: string | null;
   bundleId: string;
   environment: ApnsEnvironment;
   platform: BossDevicePlatform;
@@ -35,24 +38,29 @@ routes.post('/', async (c) => {
   ).bind(bossId, payload.token, bossId);
   const upsert = c.env.DB
     .prepare(
-      `INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, client_id)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, client_id,
+        relay_handle, push_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(device_token) DO UPDATE SET
          boss_id = excluded.boss_id,
          client_id = excluded.client_id,
+         relay_handle = excluded.relay_handle,
+         push_key = excluded.push_key,
          bundle_id = excluded.bundle_id,
          environment = excluded.environment,
          platform = excluded.platform,
          updated_at = datetime('now'),
          last_seen_at = datetime('now')`
     )
-    .bind(bossId, payload.token, payload.bundleId, payload.environment, payload.platform, getClientId(c));
+    .bind(bossId, payload.token, payload.bundleId, payload.environment, payload.platform, getClientId(c),
+      payload.relayHandle, payload.pushKey);
   const [auditResult] = await c.env.DB.batch([audit, upsert]);
   return c.json({ ok: true, ...(auditResult.meta.changes > 0 ? { reparented: true } : {}) });
 });
 
 routes.delete('/:token', async (c) => {
-  await deleteBossDevice(c.env, getBossId(c), c.req.param('token').toLowerCase());
+  await deleteBossDevice(c.env, getBossId(c), c.req.param('token').startsWith('relay:')
+    ? c.req.param('token') : c.req.param('token').toLowerCase());
   return c.json({ ok: true });
 });
 
@@ -63,11 +71,18 @@ function parseBossDeviceRequest(value: unknown): BossDeviceRequest | null {
   const bundleId = typeof record.bundleId === 'string' ? record.bundleId.trim() : '';
   const environment = record.environment;
   const platform = record.platform;
-  if (!/^[0-9a-fA-F]+$/.test(token) || token.length === 0 || token.length % 2 !== 0) return null;
+  const relay = record.relayHandle !== undefined || record.pushKey !== undefined;
+  if (relay) {
+    if (record.token !== undefined || !isRelaySecret(record.relayHandle) || !isRelaySecret(record.pushKey)) {
+      return null;
+    }
+  } else if (!/^[0-9a-fA-F]+$/.test(token) || token.length % 2 !== 0) return null;
   if (!bundleId) return null;
   if (environment !== 'sandbox' && environment !== 'production') return null;
   if (platform !== 'ios') return null;
-  return { token: token.toLowerCase(), bundleId, environment, platform };
+  return { token: relay ? `relay:${record.relayHandle}` : token.toLowerCase(), bundleId, environment,
+    platform, relayHandle: relay ? record.relayHandle as string : null,
+    pushKey: relay ? record.pushKey as string : null };
 }
 
 export const bossDevicesRouter = routes;

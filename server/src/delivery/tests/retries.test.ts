@@ -103,6 +103,7 @@ it('sends APNs only to the resolved live device and keeps native eligibility que
   await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, kind, client_id, target, label) VALUES
     ('push', 'retry-boss', 'apns', 'phone', '{"device_id":"device"}', 'Push'),
     ('native', 'retry-boss', 'native_live', 'phone', '{}', 'Native')`).run();
+  vi.spyOn(push, 'hasApnsConfig').mockReturnValue(true);
   const spy = vi.spyOn(push, 'sendPush').mockResolvedValue({ ok: true, prune: false });
   const row = await message();
   await dispatchDestinations(on, { ...row, priority: 'low' });

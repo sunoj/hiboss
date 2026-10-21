@@ -8,6 +8,7 @@ import { bossAuth, getBossId, getBossRole, getBossName, getBossTokenId } from '.
 import { mapMessageRow, validateOption, priorityOptions } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
+import { pushMode } from '../push/send';
 import { logAudit } from '../audit';
 import { bossMessagesRouter } from './boss-api-messages';
 import { bossStreamRouter } from './boss-api-stream';
@@ -56,7 +57,8 @@ routes.get('/me', async (c) => {
     .first<Record<string, unknown>>();
   if (!boss) return c.text('not found', 404);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
-  return c.json({ ...boss, token_id: getBossTokenId(c), preferences: safeParse(boss.preferences as string | null), agent_ids: agentIds });
+  return c.json({ ...boss, pushMode: pushMode(c.env), token_id: getBossTokenId(c),
+    preferences: safeParse(boss.preferences as string | null), agent_ids: agentIds });
 });
 
 /** GET /api/boss/overview — dashboard KPIs, priority distribution, session status, channel health */

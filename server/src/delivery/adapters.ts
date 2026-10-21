@@ -5,8 +5,7 @@ import type { Env, MessageRow } from '../types';
 import { deliverToChannelWithOptions } from '../routes/delivery';
 import { parseOptionMedia } from '../routes/option-media';
 import { buildInlineKeyboard } from '../routes/message-options';
-import { deleteBossDevice } from '../push/devices';
-import { sendPush, type ApnsEnvironment } from '../apns';
+import { sendDevicePush, type PushDevice } from '../push/send';
 import { prepareBossPush } from '../push/boss-payload';
 import { jsonObject, type ResolvedDestination } from './types';
 
@@ -36,10 +35,11 @@ export async function sendDestination(env: Env, destination: ResolvedDestination
 
 async function sendApns(env: Env, destination: ResolvedDestination, message: MessageRow, agent: string,
   session: { label: string | null; branch: string | null } | null): Promise<null> {
-  const device = await env.DB.prepare(`SELECT device_token, bundle_id, environment FROM boss_devices
+  const device = await env.DB.prepare(`SELECT boss_id, device_token, bundle_id, environment, relay_handle, push_key
+      FROM boss_devices
     WHERE id = ? AND boss_id = ? AND client_id IS ?`)
     .bind(destination.config.device_id, destination.boss_id, destination.client_id)
-    .first<{ device_token: string; bundle_id: string; environment: ApnsEnvironment }>();
+    .first<PushDevice>();
   if (!device) throw new Error('push device unavailable');
   const preferences = jsonObject(destination.preferences);
   // Destination thresholds own eligibility; retain privacy and presentation preferences.
@@ -48,8 +48,7 @@ async function sendApns(env: Env, destination: ResolvedDestination, message: Mes
   const prepared = prepareBossPush(message, agent, session, destination.boss_id,
     JSON.stringify({ ...preferences, push: { ...push, [message.priority]: { ...tier, deliver: true } } }));
   if (!prepared) throw new Error('push payload unavailable');
-  const result = await sendPush(env, device.device_token, device.environment, device.bundle_id, prepared.payload, prepared.apnsPriority);
-  if (result.prune) await deleteBossDevice(env, destination.boss_id, device.device_token);
+  const result = await sendDevicePush(env, device, prepared.payload, prepared.apnsPriority);
   if (!result.ok) throw new Error(result.reason);
   return null;
 }
