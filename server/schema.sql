@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0057; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0058; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -358,7 +358,8 @@ CREATE TABLE IF NOT EXISTS join_requests (
   verification_code TEXT,
   delivery TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  bootstrap_admin INTEGER NOT NULL DEFAULT 0 CHECK (bootstrap_admin IN (0, 1))
 );
 
 

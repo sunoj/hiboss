@@ -9,7 +9,7 @@ import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
 import { identityConflict } from './boss-external-accounts';
 import { archiveBoss, restoreBoss } from './boss-archive';
-import { buildBossUpdate } from './boss-updates';
+import { buildBossUpdate, isLastAdminError, lastAdminGuard } from './boss-updates';
 import { issueBossToken } from '../boss-token';
 import { inFlightDeliveryGuard, isDeliveryInProgressError, preserveMergedDeliveries } from '../delivery/delete-destination';
 
@@ -145,7 +145,13 @@ routes.patch('/:id', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();
   const result = await buildBossUpdate(c.env, boss, payload);
   if (!result.ok) return c.text(result.error, result.status);
-  await c.env.DB.batch(result.writes);
+  try { await c.env.DB.batch(result.writes); }
+  catch (error) {
+    if (isLastAdminError(error)) {
+      return c.text('cannot remove the last live admin', 409);
+    }
+    throw error;
+  }
   const updated = await findBoss(c.env, boss.id);
   if (!updated) {
     return c.text('not found', 404);
@@ -163,7 +169,7 @@ routes.delete('/:id', async (c) => {
   const destinations = await c.env.DB.prepare('SELECT id FROM boss_destinations WHERE boss_id = ?')
     .bind(bossId).all<{ id: string }>();
   const removingIds = destinations.results.map(row => row.id);
-  const statements: D1PreparedStatement[] = [];
+  const statements: D1PreparedStatement[] = [lastAdminGuard(c.env, bossId)];
   if (removingIds.length) {
     statements.push(inFlightDeliveryGuard(c.env, removingIds));
     for (const id of removingIds) statements.push(...await preserveMergedDeliveries(c.env, id, removingIds));
@@ -172,6 +178,9 @@ routes.delete('/:id', async (c) => {
   let result: D1Result;
   try { result = (await c.env.DB.batch(statements)).at(-1)!; }
   catch (error) {
+    if (isLastAdminError(error)) {
+      return c.text('cannot remove the last live admin', 409);
+    }
     if (isDeliveryInProgressError(error)) return c.json({ error: 'delivery in progress, retry' }, 409);
     throw error;
   }

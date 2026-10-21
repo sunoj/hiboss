@@ -169,6 +169,9 @@ fn path_detection_uses_config_server_and_skips_existing_profiles_without_prompti
 fn immediate_bootstrap_approval_saves_keys_without_polling() {
     let sandbox = Sandbox::new();
     let server = Http::start(|request| {
+        if request.path == "/api/bootstrap/boss" {
+            return Response::json(409, json!({"error":"boss already exists"}));
+        }
         let mut response = approval("approved", &request.body["profiles"]);
         response["request_id"] = json!("synthetic-request");
         response["poll_token"] = json!("synthetic-poll");
@@ -194,6 +197,9 @@ fn immediate_bootstrap_approval_saves_keys_without_polling() {
         "synthetic-key-aid"
     );
     assert!(!output.stdout.contains("VERIFICATION CODE"));
-    assert_eq!(server.requests().len(), 1);
+    let requests = server.requests();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[0].path, "/api/bootstrap/boss");
+    assert_eq!(requests[1].path, "/api/join");
     assert_no_secrets(&output, &["synthetic-secret", "synthetic-key-aid"]);
 }

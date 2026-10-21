@@ -31,7 +31,7 @@ pub(super) async fn run_discord_setup(
 
     // Step 3: Register slash commands
     let base = server_url.trim_end_matches('/');
-    register_commands(&http, base, &app_id, &bot_token).await?;
+    register_commands(client, &app_id, &bot_token).await?;
 
     // Step 4: Save config
     eprint!("  Saving channel config... ");
@@ -115,24 +115,40 @@ async fn channel_id(
 }
 
 async fn register_commands(
-    http: &reqwest::Client,
-    base: &str,
+    client: &HiBossClient,
     app_id: &str,
     bot_token: &str,
 ) -> Result<(), Box<dyn Error>> {
     eprint!("\nStep 3: Registering /msg slash command... ");
-    let reg_resp = http
-        .post(format!(
-            "{}/api/webhooks/discord-interactions/register-commands",
-            base
-        ))
-        .json(&json!({ "app_id": app_id, "bot_token": bot_token }))
-        .send()
-        .await?;
-    if reg_resp.status().is_success() {
-        eprintln!("OK");
-    } else {
-        eprintln!("FAILED ({})", reg_resp.text().await.unwrap_or_default());
-    }
+    client.register_discord_commands(app_id, bot_token).await?;
+    eprintln!("OK");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    #[tokio::test]
+    async fn registration_failure_is_an_error() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("mock listener");
+        let base = format!("http://{}", listener.local_addr().expect("address"));
+        let worker = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut bytes = [0; 8192];
+            let count = stream.read(&mut bytes).expect("request");
+            let request = String::from_utf8_lossy(&bytes[..count]).to_ascii_lowercase();
+            stream
+                .write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
+                .expect("response");
+            request
+        });
+        let client = HiBossClient::new(&base, "synthetic-agent-key");
+        let result = register_commands(&client, "app", "synthetic-bot").await;
+        let request = worker.join().expect("worker");
+        assert!(result.is_err());
+        assert!(request.contains("authorization: bearer synthetic-agent-key"));
+    }
 }

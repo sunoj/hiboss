@@ -34,7 +34,7 @@ router.post('/', async (c) => {
   if (conflicts.length) return c.json({ error: 'agent name already exists', conflicts }, 409);
   const invite = needsInvite && payload.invite ? await consumeInvite(c.env.DB, payload.invite) : null;
   if (needsInvite && !invite) return c.json({ error: INVITE_DEAD }, 403);
-  const created = await createJoinRequest(c.env.DB, payload, { deviceId, invite });
+  const created = await createJoinRequest(c.env.DB, payload, { deviceId, invite, bootstrapAdmin: empty });
   const names = payload.profiles.map(p => p.name).join(', ');
   c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.create', 'join_request', created.requestId, names));
   c.executionCtx.waitUntil(notifyJoinRequest(c.env, { requestId: created.requestId, deviceLabel: created.deviceLabel,

@@ -38,7 +38,8 @@ export async function approveJoin(db: D1Database, requestId: string, actor: KeyA
     ...(row.device_id ? [] : [db.prepare(`INSERT INTO devices (id, label, host) SELECT ?, ?, ? WHERE ${CLAIMED}`)
       .bind(deviceId, row.device_label, row.device_host, requestId, deliveryJson)]),
     db.prepare('UPDATE join_requests SET device_id = ? WHERE id = ? AND delivery = ?').bind(deviceId, requestId, deliveryJson),
-    ...agents.flatMap(agent => agentStatements(db, agent, deviceId, actor, options.approverBossId, [requestId, deliveryJson])),
+    ...agents.flatMap(agent => agentStatements(db, agent, deviceId, actor, options.approverBossId,
+      [requestId, deliveryJson], row.bootstrap_admin === 1)),
   ];
   try {
     const [claim] = await db.batch(statements);
@@ -61,11 +62,11 @@ export async function rejectJoin(db: D1Database, requestId: string): Promise<{ o
 }
 
 function agentStatements(db: D1Database, agent: PreparedAgent, deviceId: string, actor: KeyActor,
-  approverBossId: string | undefined, claim: [string, string]): D1PreparedStatement[] {
+  approverBossId: string | undefined, claim: [string, string], admin: boolean): D1PreparedStatement[] {
   // Plain INSERT: a taken name raises UNIQUE and rolls the whole batch back.
   const list = [
-    db.prepare(`INSERT INTO api_keys (id, name, device_id) SELECT ?, ?, ? WHERE ${CLAIMED}`)
-      .bind(agent.agent_id, agent.name, deviceId, ...claim),
+    db.prepare(`INSERT INTO api_keys (id, name, device_id, is_admin) SELECT ?, ?, ?, ? WHERE ${CLAIMED}`)
+      .bind(agent.agent_id, agent.name, deviceId, Number(admin), ...claim),
     agent.keyStatement,
     db.prepare(`INSERT INTO audit_log (actor_type, actor_id, action, resource_type, resource_id, details)
       SELECT ?, ?, 'agent_key.mint', 'agent_key', ?, ? WHERE ${CLAIMED}`)

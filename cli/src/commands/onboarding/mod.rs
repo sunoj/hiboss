@@ -3,6 +3,7 @@
 // Dependencies: typed enrollment API, config v2, existing Claude hooks and agent guidance.
 
 pub(crate) mod api;
+mod bootstrap;
 mod pending;
 mod persistence;
 mod poll;
@@ -54,6 +55,7 @@ async fn enroll(
         return Ok(None);
     }
     confirm(&plan, args.yes)?;
+    bootstrap::pair_boss(&plan.server, args).await?;
     let joined = api::join(&api::http()?, &plan, args).await?;
     if joined.request_id.is_empty() || joined.poll_token.is_empty() {
         return Err("Invalid join receipt".into());

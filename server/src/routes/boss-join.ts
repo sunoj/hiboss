@@ -16,7 +16,8 @@ routes.get('/join-requests', async (c) => {
   const query = c.env.DB.prepare(status
     ? `SELECT ${LIST_COLUMNS} FROM join_requests WHERE status = ? ORDER BY created_at DESC`
     : `SELECT ${LIST_COLUMNS} FROM join_requests ORDER BY created_at DESC`);
-  const rows = await (status ? query.bind(status) : query).all<Omit<JoinRequestRow, 'delivery' | 'invite_id'>>();
+  const rows = await (status ? query.bind(status) : query)
+    .all<Omit<JoinRequestRow, 'delivery' | 'invite_id' | 'bootstrap_admin'>>();
   const requests = (rows.results ?? []).map(row => ({ ...row, profiles: parseStoredProfiles(row.profiles) }));
   return c.json({ requests });
 });

@@ -133,7 +133,17 @@ routes.patch('/agents/:id/config', async (c) => {
   if (!scope.ok) return scope.response;
   const agentId = c.req.param('id');
   if (!scope.agentIds.includes(agentId)) return c.text('agent not accessible', 403);
-  const parsed = parseAgentConfig(await c.req.json<JsonObject>());
+  const payload = await c.req.json<JsonObject>();
+  if ('admin' in payload) {
+    if (getBossRole(c) !== 'admin') return c.text('admin required', 403);
+    if (typeof payload.admin !== 'boolean') return c.text('admin must be a boolean', 400);
+    if (Object.keys(payload).length !== 1) return c.text('admin must be updated separately', 400);
+    await c.env.DB.prepare('UPDATE api_keys SET is_admin = ? WHERE id = ?')
+      .bind(Number(payload.admin), agentId).run();
+    audit(c, scope.bossId, 'agent.admin', 'api_key', agentId, JSON.stringify({ admin: payload.admin }));
+    return c.json({ admin: payload.admin });
+  }
+  const parsed = parseAgentConfig(payload);
   if (!parsed.ok) return c.text(parsed.error, 400);
   await c.env.DB.prepare(`UPDATE api_keys SET ${parsed.updates.join(', ')} WHERE id = ?`).bind(...parsed.binds, agentId).run();
   const updated = await c.env.DB.prepare('SELECT default_priority, rate_limit, channel_routing FROM api_keys WHERE id = ?').bind(agentId).first<AgentConfigRow>();
