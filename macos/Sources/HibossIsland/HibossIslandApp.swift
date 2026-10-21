@@ -151,10 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     private func connectIfConfigured() {
-        if case let .success(config) = settings.connectionConfig() {
-            didPair(config)
-            Task { await panels.load() }
-        }
+        if case let .success(config) = settings.connectionConfig() { didPair(config) }
     }
 
     /// Starts every stream for a config that was just stored; preferences come from the server.
