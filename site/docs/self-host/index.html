@@ -131,7 +131,9 @@ hiboss setup discord</code></pre>
         <p>When the Telegram wizard uses a webhook secret, it reminds you to store the same value on the server: <code>npx wrangler secret put TELEGRAM_WEBHOOK_SECRET</code>.</p>
 
         <h2 id="push">Push notifications</h2>
-        <p>Push notifications to iPhone require Apple Push Notification service (APNs) credentials configured on the server.</p>
+        <p>Push to the App Store iPhone app works out of the box. A server without its own Apple Push Notification service (APNs) key sends notifications through the HiBoss push relay at <code>push.hiboss.org</code>, which holds the app's APNs key.</p>
+        <p>The content stays end-to-end encrypted between your server and your iPhone: the iPhone app creates a key and gives it only to your server, and the relay and Apple see a generic alert and ciphertext. The relay sees your server's IP address, the install's random handle and the timing of each push.</p>
+        <p>To turn the relay off, set <code>PUSH_RELAY_URL = "off"</code> in <code>[vars]</code> of <code>server/wrangler.toml</code>; the iPhone app then says push is unavailable for this server. To push directly instead, set <code>APNS_KEY_ID</code>, <code>APNS_TEAM_ID</code> and the <code>APNS_AUTH_KEY</code> secret. A server with its own key never uses the relay. A direct key must belong to the Apple team that signs the app, so it fits a build of your own. With the relay, Live Activities update while the app is open.</p>
 
         <h2 id="update">Updating</h2>
         <pre><code>git pull

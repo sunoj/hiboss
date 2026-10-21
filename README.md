@@ -138,10 +138,14 @@ hiboss setup discord                                      # guided Discord bot s
 
 Discord interactions also need `DISCORD_PUBLIC_KEY` in `server/wrangler.toml`.
 
-### Optional: iPhone push
+### iPhone push
 
-Push notifications require APNs configuration on the server (`APNS_KEY_ID`,
-`APNS_TEAM_ID` and the `APNS_AUTH_KEY` secret); see
+Push to the App Store app works without configuration. A server without an APNs key
+sends through the HiBoss push relay (`https://push.hiboss.org`), and the content stays
+end-to-end encrypted between the server and the iPhone; see
+[push relay](docs/push-relay.md). Set `PUSH_RELAY_URL = "off"` in `server/wrangler.toml`
+to disable the relay, or set `APNS_KEY_ID`, `APNS_TEAM_ID` and the `APNS_AUTH_KEY` secret
+to push directly with a key of the app's signing team; see
 [push privacy and isolation](docs/push-privacy-and-isolation.md).
 
 ### Optional: web console

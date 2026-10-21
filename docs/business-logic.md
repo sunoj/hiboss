@@ -169,7 +169,6 @@ Owner docs: [Box design](hiboss-box-design.md), [Box v2](box-v2.md),
 - `audit_log` records the actor, action and resource of administrative writes.
 - Ordinary attachment uploads are agent-only and downloads are public by object URL.
   Box media is authorized separately.
-- `/updates/macos/*` serves the Sparkle feed publicly; uploads need `RELEASE_UPLOAD_SECRET`.
 
 ## Known limitations
 

@@ -1,0 +1,1 @@
+ai agent,claude code,codex,coding agent,approval,decision,inbox,self-hosted,developer,terminal

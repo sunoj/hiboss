@@ -1,7 +1,9 @@
 # Releasing HiBoss Island (macOS)
 
 In-app updates use [Sparkle](https://sparkle-project.org) with an EdDSA-signed
-appcast served from the hiboss Worker (R2) under `/updates/macos/`. Sparkle
+appcast at `https://hiboss.org/updates/macos/appcast.xml`, the default `SUFeedURL`.
+The appcast is a static file of the public site (`site/updates/macos/appcast.xml`),
+and each build is a zip attached to the GitHub Release `macos-v<version>`. Sparkle
 verifies each build's signature before installing, so the artifacts are public.
 
 ## One-time setup
@@ -16,20 +18,7 @@ verifies each build's signature before installing, so the artifacts are public.
    secret (it only verifies signatures) but is deployment-specific, so it is
    injected at build time rather than committed.
 
-2. **Set the upload secret on the Worker** (any strong random string):
-   ```sh
-   cd ../server && npx wrangler secret put RELEASE_UPLOAD_SECRET
-   ```
-   Use this same value as `UPLOAD_SECRET` when running `release.sh`.
-
-3. **Deploy the server** so `/updates/macos/*` is live:
-   ```sh
-   cd server && npm run deploy
-   ```
-   This applies pending remote D1 migrations before publishing the Worker and
-   stops on migration failure. Dashboard queries require migration 0048's indexes.
-
-4. **Store notary credentials** (only needed to notarize; the profile name is
+2. **Store notary credentials** (only needed to notarize; the profile name is
    what `NOTARY_PROFILE` refers to). The App Store Connect API key belongs to
    team `<APPLE_TEAM_ID>`:
    ```sh
@@ -44,22 +33,31 @@ verifies each build's signature before installing, so the artifacts are public.
 
 From `macos/`:
 ```sh
-UPLOAD_SECRET=<worker RELEASE_UPLOAD_SECRET> \
-HIBOSS_UPDATES_BASE=https://<your-server>/updates/macos \
 HIBOSS_SPARKLE_PUBKEY=<public key from step 1> \
 [HIBOSS_SIGNING_IDENTITY="Developer ID Application: … (JHH9GC8Y8C)"] \
 [NOTARY_PROFILE=hiboss-notary] \
-./scripts/release.sh 0.2.0 "What changed in this version."
+./scripts/release.sh 1.0.0 "What changed in this version."
 ```
 
-`release.sh` builds the versioned, Sparkle-embedded `.app`, zips it, EdDSA-signs
-the zip, writes a one-item `appcast.xml`, and PUTs both to the Worker. Running
-clients pick the update up within `SUScheduledCheckInterval` (24 h) or via
-**Settings → About → Check for Updates…**.
+`release.sh` builds the versioned, Sparkle-embedded `.app`, notarizes and staples
+it when a notary profile is set, zips it to
+`.build/release-artifacts/HiBoss-Island-<version>.zip` after `security-guard` scans the
+signed bundle (when installed), EdDSA-signs the zip, and
+writes a one-item appcast to `site/updates/macos/appcast.xml` whose enclosure
+points at the GitHub Release asset. It uploads nothing, so every run is a dry run
+until you publish:
 
-Add `SKIP_PUBLISH=1` to build and sign everything without uploading — the zip
-and `appcast.xml` land in `.build/release-artifacts/` for inspection before they
-go public. `UPLOAD_SECRET` is not required in that mode.
+1. Create the GitHub Release with the command the script prints
+   (`gh release create macos-v<version> …/HiBoss-Island-<version>.zip …`).
+2. Commit `site/updates/macos/appcast.xml` and deploy the site (`site/README.md`).
+
+Publish in that order: an appcast that goes live before its zip exists offers an
+update that fails to download. Running clients pick the update up within
+`SUScheduledCheckInterval` (24 h) or via **Settings → About → Check for Updates…**.
+
+`HIBOSS_SPARKLE_KEY_FILE` points `sign_update` at an exported private key instead
+of the login Keychain. `HIBOSS_RELEASE_REPO` (default `sunoj/hiboss`) names the
+repository whose release hosts the zip.
 
 - Without `HIBOSS_SIGNING_IDENTITY`: ad-hoc signed — fine for personal installs,
   but Gatekeeper warns on first launch for other machines.
@@ -71,10 +69,12 @@ required by notarization — whenever the identity starts with `Developer ID`.
 The local development identity keeps the fast, offline `--timestamp=none` path,
 so ordinary builds do not need the network.
 
-## Builds without an update feed
+## Builds without an update key
 
-Anything not built through `release.sh` has no `SUFeedURL`/`SUPublicEDKey`, so
-the app runs with **no updater at all** — it never checks and never alerts.
+Anything not built through `release.sh` (or `build-app.sh` with
+`HIBOSS_SPARKLE_PUBKEY`) has no `SUPublicEDKey`, so the app runs with **no updater
+at all** — it never checks and never alerts, even though the tracked
+`Resources/Info.plist` carries the default `SUFeedURL`.
 Do not put placeholder values in `Resources/Info.plist`: Sparkle treats an empty
 `SUPublicEDKey` as *invalid* rather than absent and refuses to start, which
 surfaces as a modal "Unable to Check For Updates" on every launch.

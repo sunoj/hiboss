@@ -1,0 +1,9 @@
+HiBoss is a client for a self-hosted server. It has no account system and no developer-hosted service for messages: each user deploys the open-source HiBoss server (https://github.com/sunoj/hiboss) to their own Cloudflare account and connects the app to it by scanning a pairing code or entering a server URL and Boss Token. For that reason we cannot provide a demo account.
+
+To review every feature without a server, tap "Explore the demo" on the first screen. The demo uses built-in sample data and never contacts a server. It shows Today, decisions with options and deadlines, session threads, live panels and questionnaires, the Progress timeline, the Box and Settings. Leave it with "Exit demo" in the bar at the top or in Settings.
+
+Permissions:
+- Camera: used only to scan a pairing QR code; the code is processed on the device. Without camera access, the server URL and Boss Token can be entered by hand.
+- Notifications: alerts for agent questions, with answer buttons. Servers without their own APNs key deliver through our push relay (push.hiboss.org); the notification content is end-to-end encrypted between the user's server and the app, which decrypts it in its notification service extension.
+
+The app contains no in-app purchases, advertising, analytics or tracking. Self-host guide: https://hiboss.org/docs/self-host/. Contact: hi@hiboss.org.

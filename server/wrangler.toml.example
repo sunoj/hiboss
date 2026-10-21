@@ -57,4 +57,3 @@ DESTINATIONS_MODE = "off"
 #   TELEGRAM_WEBHOOK_SECRET X-Telegram-Bot-Api-Secret-Token for the Telegram webhook
 #   DISCORD_WEBHOOK_SECRET  X-Webhook-Secret for POST /api/webhooks/discord
 #   APNS_AUTH_KEY           contents of the APNs .p8 private key (PEM), with APNS_KEY_ID and APNS_TEAM_ID
-#   RELEASE_UPLOAD_SECRET   Bearer token for PUT /updates/macos/* (macOS Sparkle release upload)
