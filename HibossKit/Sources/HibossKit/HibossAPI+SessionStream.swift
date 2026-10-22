@@ -92,7 +92,7 @@ public struct SessionSSEDecoder {
         guard line.hasPrefix("data:") else { return nil }
         let data = line.dropFirst(5).drop(while: { $0 == " " })
         dataLines.append(String(data))
-        return nil
+        return finish()
     }
 
     public mutating func finish() -> SessionStreamFrame? {

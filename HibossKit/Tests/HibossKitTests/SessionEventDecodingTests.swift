@@ -46,16 +46,15 @@ final class SessionEventDecodingTests: XCTestCase {
 
         XCTAssertNil(sse.consume(line: "id: 3"))
         XCTAssertNil(sse.consume(line: "event: session_event"))
-        XCTAssertNil(sse.consume(line: #"data: {"id":"e3","session_id":"s","sequence":3,"kind":"message","created_at":"2026-08-14T09:00:00Z"}"#))
-        guard case let .event(event)? = sse.consume(line: "") else {
+        guard case let .event(event)? = sse.consume(line: #"data: {"id":"e3","session_id":"s","sequence":3,"kind":"message","created_at":"2026-08-14T09:00:00Z"}"#) else {
             return XCTFail("expected session_event frame")
         }
         XCTAssertEqual(event.sequence, 3)
 
         XCTAssertNil(sse.consume(line: "event: resync"))
-        XCTAssertNil(sse.consume(line: #"data: {"resync":true}"#))
-        guard case .resync? = sse.consume(line: "") else {
+        guard case .resync? = sse.consume(line: #"data: {"resync":true}"#) else {
             return XCTFail("expected resync frame")
         }
+        XCTAssertNil(sse.consume(line: ""))
     }
 }
