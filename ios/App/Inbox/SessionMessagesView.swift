@@ -115,7 +115,8 @@ struct SessionMessagesView: View {
 
     private var content: some View {
         ListStateView(
-            isLoading: !stream.usesHistory && (!hasLoaded || stream.isLoading), error: stream.loadError,
+            isLoading: !stream.usesHistory && (!hasLoaded || stream.isLoading),
+            error: stream.loadError ?? (stream.usesHistory ? nil : stream.connectionState.detail),
             isEmpty: transcriptEvents.isEmpty && !stream.usesHistory,
             emptyIcon: "text.alignleft", emptyTitle: String(localized: "No events yet"),
             emptyDetail: String(localized: "This session has no transcript events yet."),

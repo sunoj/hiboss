@@ -107,6 +107,8 @@ public struct SessionEventsPage: Codable, Equatable, Sendable {
 }
 
 public enum SessionStreamFrame: Equatable, Sendable {
+    /// The server accepted the stream; only this or an event proves the connection is live.
+    case open
     case event(SessionEvent)
     case resync
 }

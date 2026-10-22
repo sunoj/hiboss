@@ -59,6 +59,7 @@ extension HibossAPI: SessionStreamServing {
         }
         let (bytes, response) = try await session.bytes(for: request)
         try await validate(response)
+        continuation.yield(.open)
         var decoder = SessionSSEDecoder(decoder: self.decoder)
         for try await line in bytes.lines {
             if let frame = decoder.consume(line: line) {

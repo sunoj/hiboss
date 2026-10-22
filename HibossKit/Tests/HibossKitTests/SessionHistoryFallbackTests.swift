@@ -80,6 +80,24 @@ final class SessionHistoryFallbackTests: XCTestCase {
         observation.cancel()
     }
 
+    func testStreamFailureSurvivesReconnectAttemptsUntilServerAcceptsStream() async {
+        let api = UnavailableSessionAPI(failure: .requestFailed(status: 503, message: "offline"),
+                                        streamFails: true)
+        let store = SessionStreamStore(sessionID: "session", batchMilliseconds: 1,
+                                       reconnectDelay: .milliseconds(10))
+        var states: [ConnectionState] = []
+        let observation = store.$connectionState.sink { states.append($0) }
+        store.start(api: api)
+        let deadline = Date().addingTimeInterval(2)
+        while await api.counts.stream < 4, Date() < deadline { try? await Task.sleep(for: .milliseconds(5)) }
+        store.stop()
+        observation.cancel()
+        let afterFailure = states.drop { $0.detail == nil }
+        XCTAssertFalse(afterFailure.isEmpty)
+        XCTAssertTrue(afterFailure.allSatisfy { $0.detail != nil || $0 == .disconnected },
+                      "A retry attempt must not read as connected before the stream opens: \(states)")
+    }
+
     func testEmptyHistoryStreamFailureRetainsFailureUntilRetry() async {
         let api = UnavailableSessionAPI(failure: .requestFailed(status: 503, message: "offline"),
                                         streamFails: true)
