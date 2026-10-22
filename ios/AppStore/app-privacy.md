@@ -1,14 +1,23 @@
 # App Privacy answers (App Store Connect)
 
-These answers match `ios/App/PrivacyInfo.xcprivacy`, `ios/Widgets/PrivacyInfo.xcprivacy` and
-`ios/HiBossShare/PrivacyInfo.xcprivacy`: `NSPrivacyTracking` is false, there are no tracking
-domains and no collected data types.
+These answers match the privacy manifests. In every target `NSPrivacyTracking` is false and
+there are no tracking domains. `ios/App/PrivacyInfo.xcprivacy` declares one collected data type,
+Device ID (`NSPrivacyCollectedDataTypeDeviceID`): not linked, not tracking, purpose App
+Functionality. The widget, share and notification service extensions collect nothing.
 
 ## Data collection
 
-**Do you or your third-party partners collect data from this app?** No.
+**Do you or your third-party partners collect data from this app?** Yes.
 
-Resulting label: **Data Not Collected**.
+| Data type | Use | Linked to the user | Used for tracking |
+|---|---|---|---|
+| Identifiers → Device ID | App Functionality | No | No |
+
+Resulting label: **Data Not Linked to You: Identifiers**.
+
+The Device ID is the APNs device token that the push relay stores when the user's server
+delivers notifications through it (see below). Everything else stays out of the label: data
+sent to the user's own server is not collected by the developer.
 
 ## Why
 
@@ -24,7 +33,7 @@ Resulting label: **Data Not Collected**.
   the relay handle and device secret, and registration timestamps, solely to deliver the
   notifications the user's server requests. It never receives notification content, which is
   encrypted with a key that exists only on the device and the user's server. It keeps no IP
-  addresses and no logs of tokens or payloads, and deletes registrations unused for 90 days.
+  addresses and no logs of tokens or payloads, and deletes registrations unused for 30 days.
   The relay links no data to a user identity and uses none for tracking or advertising.
 
 ## Tracking
