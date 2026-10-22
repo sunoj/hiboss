@@ -46,10 +46,11 @@ struct HomeContent: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             CompactRefreshNotice(isRefreshing: isRefreshingKnownContent,
-                                 error: hasCompletedCoverage && hasCoverageFailure ? attentionStatus : nil,
+                                 error: hasCompletedCoverage && hasCoverageFailure && !connectionLost
+                                     ? attentionStatus : nil,
                                  title: attentionStatus ?? String(localized: "Refreshing…"),
                                  onRetry: { await retryCoverage() },
-                                 statusIdentifier: "home-connection-status")
+                                 statusIdentifier: "home-connection-status", revealsWhenSlow: true)
         }
     }
 
@@ -69,42 +70,65 @@ struct HomeContent: View {
             now: now, panelNow: { panels.serverNow(for: $0) }
         )
         let onRetry: (() async -> Void)? = inbox.isReady ? { await retryCoverage() } : nil
+        let isAllClear = (today.isAllClear || (hasCompletedCoverage && today.decisions.isEmpty))
+            && attention.questionnaires.isEmpty && !connectionLost
         return VStack(spacing: 22) {
             TodayHeader(snapshot: today, requestCount: attention.count,
-                        inputsLoaded: inbox.requiredInputLoaded, isRefreshing: refreshing,
+                        inputsLoaded: inbox.requiredInputLoaded || !inbox.isReady, isRefreshing: refreshing,
                         now: now, onSettings: openSettings)
-            HomeAttentionSection(
-                snapshot: attention, hasPanels: !panels.visibleTiles.isEmpty,
-                isAllClear: (today.isAllClear || (hasCompletedCoverage && today.decisions.isEmpty))
-                    && attention.questionnaires.isEmpty,
-                reservesAllClearSpace: attention.count == 0,
-                isRefreshing: refreshing, status: refreshing ? nil : attentionStatus,
-                statusIsFailure: hasCoverageFailure,
-                onRetry: onRetry, onSettings: openSettings,
-                replying: inbox.replying,
-                verifying: inbox.replyGate.verifying,
-                verificationTimedOut: inbox.replyGate.verificationTimedOut,
-                answerability: Dictionary(uniqueKeysWithValues: today.decisions.map {
-                    ($0.id, inbox.answerability(for: $0.id, now: now))
-                }), inputsLoaded: inbox.requiredInputLoaded, onChoose: handleReply,
-                onOpenPanel: openPanel, onOpenSession: { sessionRoute = $0 },
-                onOpenDecision: {
-                    decisionID = $0
-                    showingDecision = true
-                }
-            )
+            // An empty section under a failure would still take two stack gaps from the results.
+            if attention.count > 0 || isAllClear || !blocksCoverage {
+                HomeAttentionSection(
+                    snapshot: attention, hasPanels: !panels.visibleTiles.isEmpty,
+                    isAllClear: isAllClear,
+                    reservesAllClearSpace: attention.count == 0 && !blocksCoverage,
+                    isRefreshing: refreshing, status: refreshing ? nil : attentionStatus,
+                    statusIsFailure: hasCoverageFailure,
+                    onRetry: onRetry, onSettings: openSettings,
+                    replying: inbox.replying,
+                    verifying: inbox.replyGate.verifying,
+                    verificationTimedOut: inbox.replyGate.verificationTimedOut,
+                    answerability: Dictionary(uniqueKeysWithValues: today.decisions.map {
+                        ($0.id, inbox.answerability(for: $0.id, now: now))
+                    }), inputsLoaded: inbox.requiredInputLoaded, onChoose: handleReply,
+                    onOpenPanel: openPanel, onOpenSession: { sessionRoute = $0 },
+                    onOpenDecision: {
+                        decisionID = $0
+                        showingDecision = true
+                    }
+                )
+            }
+            // A failure owns the space under the header: recovery must not sit below the results.
+            if blocksCoverage { coverageStatus(placeholder: false) }
             TodayResults(snapshot: today)
             if !panels.tiles.isEmpty { HomePanelWall(model: panels) }
-            if !hasCompletedCoverage, let attentionStatus {
-                PendingStateView(title: attentionStatus,
-                                 showsPlaceholder: attention.count == 0 && panels.tiles.isEmpty
-                                     && today.working.isEmpty && today.delivered.isEmpty,
-                                 isFailure: hasCoverageFailure,
-                                 statusIdentifier: "home-connection-status",
-                                 onRetry: { await retryCoverage() }, onSettings: openSettings)
-                    .padding(.horizontal, 16)
+            if !blocksCoverage {
+                coverageStatus(placeholder: attention.count == 0 && panels.tiles.isEmpty
+                    && today.working.isEmpty && today.delivered.isEmpty)
             }
         }
+    }
+
+    /// Coverage wait or failure before the first complete check, or a lost connection at any
+    /// time. Retry needs a started connection; without one only Settings can recover.
+    @ViewBuilder private func coverageStatus(placeholder: Bool) -> some View {
+        if !hasCompletedCoverage || connectionLost, let attentionStatus {
+            PendingStateView(title: attentionStatus, showsPlaceholder: placeholder,
+                             isFailure: blocksCoverage,
+                             statusIdentifier: "home-connection-status",
+                             onRetry: inbox.isReady ? { await retryCoverage() } : nil,
+                             onSettings: openSettings)
+                .padding(.horizontal, 16)
+        }
+    }
+
+    /// Nothing more will load until the boss acts: not connected, or a check failed.
+    private var blocksCoverage: Bool { !inbox.isReady || hasCoverageFailure }
+
+    /// A dead connection cannot vouch for an earlier check, which a reconnect attempt may
+    /// have marked complete during its brief connected state.
+    private var connectionLost: Bool {
+        !inbox.isReady || HomeConnectionStatus.isFailure(inbox.connectionState)
     }
 
     private var isRefreshingKnownContent: Bool {
