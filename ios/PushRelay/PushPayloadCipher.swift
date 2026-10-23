@@ -6,14 +6,16 @@ import CryptoKit
 import Foundation
 
 /// The relay picks only the generic loc-key from the kind; the AAD binds it to the content.
+/// `resolved` is a silent background push with no alert, so it has no loc-key.
 enum PushKind: String, CaseIterable, Sendable {
-    case decision, message, system
+    case decision, message, system, resolved
 
-    var locKey: String {
+    var locKey: String? {
         switch self {
         case .decision: "HIBOSS_PUSH_DECISION"
         case .message: "HIBOSS_PUSH_MESSAGE"
         case .system: "HIBOSS_PUSH_SYSTEM"
+        case .resolved: nil
         }
     }
 

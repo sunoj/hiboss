@@ -1,6 +1,6 @@
-// UIApplication delegate bridging APNs registration callbacks to PushManager.
+// UIApplication delegate bridging APNs registration callbacks and silent pushes.
 // Exports: AppDelegate, attached via @UIApplicationDelegateAdaptor.
-// Dependencies: UIKit, PushManager.
+// Dependencies: UIKit, PushManager, ResolutionPush, KeychainRelayCredentialStore.
 
 import UIKit
 import os
@@ -29,5 +29,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) {
         pushLog.error("APNs registration failed: \(error.localizedDescription)")
         Task { @MainActor in PushManager.shared.registrationFailed(error) }
+    }
+
+    /// A silent resolution push retracts the ask on this phone; anything else is not ours.
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+    ) {
+        let key = (try? KeychainRelayCredentialStore().read()).flatMap { Base64URL.decode($0.pushKey) }
+        let notice = ResolutionPush.decode(userInfo, pushKey: key)
+        Task { @MainActor in
+            let handled = await ResolutionPush.handle(notice, effects: SystemResolutionEffects())
+            completionHandler(handled ? .newData : .noData)
+        }
     }
 }

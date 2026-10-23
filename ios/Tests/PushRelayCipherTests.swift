@@ -21,7 +21,7 @@ final class PushRelayCipherTests: XCTestCase {
     }
 
     /// The generic alert exactly as the relay sends it.
-    private func relayContent(_ ciphertext: String, locKey: String = PushKind.decision.locKey)
+    private func relayContent(_ ciphertext: String, locKey: String = "HIBOSS_PUSH_DECISION")
         -> UNMutableNotificationContent
     {
         let content = UNMutableNotificationContent()
@@ -59,7 +59,7 @@ final class PushRelayCipherTests: XCTestCase {
             XCTAssertEqual($0 as? PushPayloadCipher.Failure, .authentication)
         }
         XCTAssertNil(RelayNotificationContent.rewrite(
-            relayContent(ciphertext, locKey: PushKind.message.locKey), pushKey: key))
+            relayContent(ciphertext, locKey: "HIBOSS_PUSH_MESSAGE"), pushKey: key))
         XCTAssertNil(RelayNotificationContent.rewrite(relayContent(ciphertext, locKey: "OTHER"), pushKey: key))
     }
 

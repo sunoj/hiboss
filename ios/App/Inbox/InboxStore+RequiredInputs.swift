@@ -69,12 +69,14 @@ extension InboxStore {
                 if !Task.isCancelled, !startedReady, requiredInputReady { reconcileRequiredInputs() }
             }
         }
+        let readAt = Date()
         do {
             let messages = try await service.fetchRequiredInputs()
             guard !Task.isCancelled, epoch == requiredEpoch,
                   version == requiredFetchVersion else { return }
             installRequiredSnapshot(messages, startedReady: startedReady)
             await syncDecisionActivity()
+            await reconcileDeliveredNotifications(readAt: readAt)
         } catch {
             guard !Task.isCancelled, epoch == requiredEpoch,
                   version == requiredFetchVersion else { return }
@@ -127,11 +129,7 @@ extension InboxStore {
                 requiredFetchResolutions.remove(message.id)
             }
         case let .resolved(id):
-            requiredInputs.removeAll { $0.id == id }
-            if requiredInputRefreshing {
-                requiredFetchResolutions.insert(id)
-                requiredFetchUpdates.removeValue(forKey: id)
-            }
+            applyResolution(id)
         }
     }
 

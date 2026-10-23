@@ -1,6 +1,6 @@
 // Starts, refreshes, and ends decision Live Activities from the app.
-// Exports: DecisionActivityManager.sync, rankedMessages and topMessage (shared top decision).
-// Dependencies: ActivityKit, HibossKit HistoryMessage, shared attributes.
+// Exports: DecisionActivityManager.sync, end, rankedMessages and topMessage (shared top decision).
+// Dependencies: ActivityKit, HibossKit HistoryMessage, shared attributes, LiveActivityTokenRegistrar.
 
 import ActivityKit
 import Foundation
@@ -44,6 +44,10 @@ enum DecisionActivityManager {
         }
 
         guard let top else { return }
+        let registrar = LiveActivityTokenRegistrar.shared
+        for activity in running where activity.attributes.messageID == top.id.rawValue {
+            registrar.observe(activity)
+        }
 
         let state = DecisionActivityAttributes.ContentState(
             body: top.body, options: top.options, priority: top.priority,
@@ -55,14 +59,33 @@ enum DecisionActivityManager {
             messageID: top.id.rawValue, project: top.project ?? top.displayName,
             agentName: top.displayName, meta: top.metaLine
         )
+        let content = ActivityContent(state: state, staleDate: top.expirationDate)
         do {
-            let activity = try Activity.request(
-                attributes: attributes,
-                content: ActivityContent(state: state, staleDate: top.expirationDate)
-            )
+            let activity = try request(attributes, content: content, pushType: registrar.pushType)
+            registrar.observe(activity)
             laLog.info("started Live Activity \(activity.id) for \(top.id.rawValue)")
         } catch {
             laLog.error("Activity.request failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// A token-push request the system refuses still gets a local-only activity.
+    private static func request(
+        _ attributes: DecisionActivityAttributes,
+        content: ActivityContent<DecisionActivityAttributes.ContentState>, pushType: PushType?
+    ) throws -> Activity<DecisionActivityAttributes> {
+        if pushType != nil,
+           let activity = try? Activity.request(attributes: attributes, content: content, pushType: pushType) {
+            return activity
+        }
+        return try Activity.request(attributes: attributes, content: content, pushType: nil)
+    }
+
+    /// Ends one ask's activity at once, e.g. when a resolution push says it closed elsewhere.
+    nonisolated static func end(messageID: String) async {
+        for activity in Activity<DecisionActivityAttributes>.activities
+        where activity.attributes.messageID == messageID {
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
 

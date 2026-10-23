@@ -119,6 +119,9 @@ targets:
     platform: iOS
     sources:
       - path: Tests
+      - path: ../docs/fixtures/live-activity-end-state.json
+        buildPhase: resources
+        group: Fixtures
     dependencies:
       - target: HiBoss
     settings:
