@@ -2,6 +2,7 @@
 // Order: size → body → handle MAC → per-handle rate (no D1) → lookup → per-device limits → APNs.
 // A request that reaches D1 carries a genuine handle. There is no relay-wide push ceiling. Device
 // counters are keyed on SHA-256 of the APNs token, so re-registering a token does not reset them.
+// `resolved` pushes count in their own device bucket with the same limits as alerts.
 
 import { Hono } from 'hono';
 import { sendApns } from './apns';
@@ -28,22 +29,18 @@ push.post('/', async (c) => {
   const now = Date.now();
   const row = await findByHandle(db, body.handle);
   if (!row) return gone(c);
-  const scope = `token:${await sha256Hex(row.apns_token)}`;
+  const digest = await sha256Hex(row.apns_token);
+  const scope = body.kind === 'resolved' ? `resolved:token:${digest}` : `token:${digest}`;
   const deviceChecks = [
     { scope, periodMs: HOUR_MS, max: LIMITS.devicePerHour },
     { scope, periodMs: DAY_MS, max: LIMITS.devicePerDay },
   ];
   if (await overLimit(db, deviceChecks, now)) return tooMany(c);
-  const outcome = await sendApns(c.env, {
-    apnsToken: row.apns_token,
-    environment: row.environment,
-    kind: body.kind,
-    ciphertext: body.ciphertext,
-    collapseId: body.collapseId,
-    priority: body.priority,
-    interruption: body.interruption,
-    sound: body.sound,
-  });
+  const target = { apnsToken: row.apns_token, environment: row.environment };
+  const outcome = await sendApns(c.env, body.kind === 'resolved'
+    ? { ...target, kind: body.kind, ciphertext: body.ciphertext, priority: body.priority }
+    : { ...target, kind: body.kind, ciphertext: body.ciphertext, collapseId: body.collapseId,
+        priority: body.priority, interruption: body.interruption, sound: body.sound });
   if (outcome === 'gone') {
     await deleteRegistration(db, row.handle_hash);
     return gone(c);

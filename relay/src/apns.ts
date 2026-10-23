@@ -1,15 +1,15 @@
-// APNs sender for the relay: provider JWT (ES256), one alert push per call, and the background
-// push that proves APNs accepts a token before it is stored. The alert is generic and chosen by
-// kind only; the ciphertext rides in custom key `e`. Priority, interruption level and sound come
-// verbatim from the Server's delivery level.
+// APNs sender for the relay: provider JWT (ES256), one push per call, and the background push
+// that proves APNs accepts a token before it is stored. An alert is generic and chosen by kind
+// only; `resolved` is a background push. The ciphertext rides in custom key `e`. An alert's
+// priority, interruption level and sound come verbatim from the Server's delivery level.
 // Depends on Workers WebCrypto, fetch and the APNS_* Worker secrets.
 
 import { base64UrlBytes } from './crypto';
-import type { ApnsEnvironment, DeliveryLevel, Env, PushKind, TokenBody } from './types';
+import type { AlertKind, AlertPush, ApnsEnvironment, Env, ResolvedPush, TokenBody } from './types';
 
 export const BUNDLE_ID = 'ai.hiboss.app';
 export const TITLE_LOC_KEY = 'HIBOSS_PUSH_TITLE';
-const BODY_LOC_KEYS: Record<PushKind, string> = {
+const BODY_LOC_KEYS: Record<AlertKind, string> = {
   decision: 'HIBOSS_PUSH_DECISION',
   message: 'HIBOSS_PUSH_MESSAGE',
   system: 'HIBOSS_PUSH_SYSTEM',
@@ -22,13 +22,10 @@ export const VERIFY_TIMEOUT_MS = 5_000;
 const BACKGROUND_PAYLOAD = JSON.stringify({ aps: { 'content-available': 1 } });
 const BACKGROUND_HEADERS = { 'apns-push-type': 'background', 'apns-priority': '5' };
 
-export interface RelayPush extends DeliveryLevel {
+export type RelayPush = (AlertPush | ResolvedPush) & {
   apnsToken: string;
   environment: ApnsEnvironment;
-  kind: PushKind;
-  ciphertext: string;
-  collapseId?: string;
-}
+};
 
 interface JwtCache {
   token: string;
@@ -40,6 +37,7 @@ let jwtCache: JwtCache | null = null;
 const JWT_TTL_MS = 50 * 60 * 1000;
 
 export function buildPayload(push: RelayPush): Record<string, unknown> {
+  if (push.kind === 'resolved') return { aps: { 'content-available': 1 }, e: push.ciphertext };
   const aps: Record<string, unknown> = {
     alert: { 'title-loc-key': TITLE_LOC_KEY, 'loc-key': BODY_LOC_KEYS[push.kind] },
     'interruption-level': push.interruption,
@@ -52,10 +50,10 @@ export function buildPayload(push: RelayPush): Record<string, unknown> {
 
 export async function sendApns(env: Env, push: RelayPush): Promise<ApnsOutcome> {
   const headers: Record<string, string> = {
-    'apns-push-type': 'alert',
+    'apns-push-type': push.kind === 'resolved' ? 'background' : 'alert',
     'apns-priority': String(push.priority),
   };
-  if (push.collapseId) headers['apns-collapse-id'] = push.collapseId;
+  if (push.kind !== 'resolved' && push.collapseId) headers['apns-collapse-id'] = push.collapseId;
   const response = await postApns(env, push, headers, JSON.stringify(buildPayload(push)));
   if (!response) return 'unconfigured';
   if (response.ok) return 'sent';

@@ -2,14 +2,14 @@
 // Bodies are size-capped before and while reading; every parser rejects unknown fields,
 // wrong types and out-of-range values with null.
 
-import type { ApnsEnvironment, ApnsPriority, InterruptionLevel, PushBody, PushKind, TokenBody } from './types';
+import type { AlertKind, ApnsEnvironment, ApnsPriority, InterruptionLevel, PushBody, TokenBody } from './types';
 
 export const MAX_BODY_CHARS = 8192;
 export const MAX_CIPHERTEXT_BYTES = 2048;
 /** nonce(12) + AES-GCM tag(16): anything shorter cannot be a valid ciphertext. */
 export const MIN_CIPHERTEXT_BYTES = 28;
 
-const KINDS: readonly PushKind[] = ['decision', 'message', 'system'];
+const ALERT_KINDS: readonly AlertKind[] = ['decision', 'message', 'system'];
 const PRIORITIES: readonly ApnsPriority[] = [5, 10];
 const INTERRUPTIONS: readonly InterruptionLevel[] = ['passive', 'active', 'time-sensitive'];
 const ENVIRONMENTS: readonly ApnsEnvironment[] = ['sandbox', 'production'];
@@ -85,16 +85,30 @@ export function base64UrlDecodedLength(text: string): number | null {
 }
 
 const PUSH_KEYS = ['handle', 'kind', 'ciphertext', 'collapseId', 'priority', 'interruption', 'sound'];
+const RESOLVED_KEYS = ['handle', 'kind', 'ciphertext', 'priority'];
+
+function ciphertextOk(ciphertext: unknown): ciphertext is string {
+  if (typeof ciphertext !== 'string') return false;
+  const size = base64UrlDecodedLength(ciphertext);
+  return size !== null && size >= MIN_CIPHERTEXT_BYTES && size <= MAX_CIPHERTEXT_BYTES;
+}
+
+/** `resolved` is a background push: priority 5 only, and no alert-only fields. */
+function parseResolvedBody(obj: JsonObject): PushBody | null {
+  if (!hasOnlyKeys(obj, RESOLVED_KEYS)) return null;
+  const { handle, ciphertext, priority } = obj;
+  if (typeof handle !== 'string' || priority !== 5 || !ciphertextOk(ciphertext)) return null;
+  return { handle, kind: 'resolved', ciphertext, priority };
+}
 
 export function parsePushBody(obj: JsonObject): PushBody | null {
+  if (obj.kind === 'resolved') return parseResolvedBody(obj);
   if (!hasOnlyKeys(obj, PUSH_KEYS)) return null;
   const { handle, kind, ciphertext, collapseId, priority, interruption, sound } = obj;
-  if (typeof handle !== 'string' || !isOneOf(kind, KINDS)) return null;
+  if (typeof handle !== 'string' || !isOneOf(kind, ALERT_KINDS)) return null;
   if (!PRIORITIES.some((p) => p === priority) || !isOneOf(interruption, INTERRUPTIONS)) return null;
   if (typeof sound !== 'boolean') return null;
-  if (typeof ciphertext !== 'string') return null;
-  const size = base64UrlDecodedLength(ciphertext);
-  if (size === null || size < MIN_CIPHERTEXT_BYTES || size > MAX_CIPHERTEXT_BYTES) return null;
+  if (!ciphertextOk(ciphertext)) return null;
   const body: PushBody = { handle, kind, ciphertext, priority: priority as ApnsPriority, interruption, sound };
   if (collapseId === undefined) return body;
   if (typeof collapseId !== 'string' || !COLLAPSE_ID.test(collapseId)) return null;
