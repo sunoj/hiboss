@@ -20,8 +20,11 @@ final class ProjectIdentityUITests: XCTestCase {
         let transcript = app.scrollViews["session-transcript"]
         let composer = app.descendants(matching: .any)["session-reply-composer"]
         // Hittability can include content behind the composer; scroll the entire button clear.
-        for _ in 0..<8 where !all.isHittable || all.frame.maxY > composer.frame.minY - 8 {
-            transcript.swipeUp()
+        // A swipe's momentum carries the button past the short visible band at this text size,
+        // so step with drags that stop where they end.
+        let anchor = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        for _ in 0..<12 where !all.isHittable || all.frame.maxY > composer.frame.minY - 8 {
+            anchor.press(forDuration: 0.1, thenDragTo: anchor.withOffset(CGVector(dx: 0, dy: -120)))
         }
         XCTAssertTrue(all.isHittable)
         all.tap()

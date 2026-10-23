@@ -51,6 +51,25 @@ final class RequiredInputLivenessTests: XCTestCase {
                       "a clean server rotation must not show a reconnect state: \(states)")
     }
 
+    func testFailedMessageStreamStaysFailedUntilAReconnectHolds() async {
+        let api = ControlledInputAPI()
+        await api.failMessageStreams(true)
+        let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false)
+        var states: [ConnectionState] = []
+        let observation = store.$connectionState.sink { states.append($0) }
+        store.start(api: api)
+        defer { store.stop() }
+        await wait(0.5)
+        let afterFailure = states.drop { if case .failed = $0 { false } else { true } }
+        XCTAssertFalse(afterFailure.isEmpty, "the stream failure must be shown: \(states)")
+        XCTAssertTrue(afterFailure.allSatisfy { if case .failed = $0 { true } else { false } },
+                      "a reconnect attempt must not flash connecting or connected: \(states)")
+        await api.failMessageStreams(false)
+        await wait(0.8)
+        XCTAssertEqual(store.connectionState, .connected, "a quiet stream that holds is connected")
+        withExtendedLifetime(observation) {}
+    }
+
     private func loaded(_ store: InboxStore) async {
         let loaded = expectation(description: "required-input snapshot")
         let observation = store.$requiredInputLoaded.filter { $0 }.prefix(1).sink { _ in loaded.fulfill() }

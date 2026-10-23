@@ -14,11 +14,13 @@ struct CompactRefreshNotice: View {
     var statusIdentifier = "refresh-status"
     var retryIdentifier = "pending-retry"
     var retryTitle: LocalizedStringKey = "Retry"
+    /// For surfaces that already show refresh progress: the row appears only at escalation.
+    var revealsWhenSlow = false
     @ScaledMetric(relativeTo: .footnote) private var rowHeight: CGFloat = 44
     @State private var visible = false
     @State private var slow = false
 
-    private var active: Bool { error != nil || (isRefreshing && visible) }
+    private var active: Bool { error != nil || (isRefreshing && (revealsWhenSlow ? slow : visible)) }
 
     var body: some View {
         Color.clear.frame(height: rowHeight)
