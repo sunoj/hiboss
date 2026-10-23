@@ -47,8 +47,14 @@ struct IslandGeometry: Equatable {
         )
     }
 
+    /// A notched display reveals the drop target from the notch alone; others use the bar.
     var hotZone: CGRect {
-        notchFrame.map { collapsedFrame.union($0) } ?? collapsedFrame
+        notchFrame ?? collapsedFrame
+    }
+
+    /// Once shown, the whole drop target (which covers the notch) keeps it revealed.
+    func revealZone(dropTargetShown: Bool) -> CGRect {
+        dropTargetShown ? collapsedFrame : hotZone
     }
 
     func expandedFrame(contentHeight: CGFloat) -> CGRect {

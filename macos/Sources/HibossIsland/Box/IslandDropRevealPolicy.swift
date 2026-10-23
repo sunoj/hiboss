@@ -7,7 +7,7 @@ import Foundation
 struct IslandDropRevealPolicy {
     enum Visibility: Equatable { case hidden, dropTarget, question }
     enum Event {
-        case pointer(inHotZone: Bool, dragging: Bool)
+        case pointer(inHotZone: Bool)
         case activity(popover: Bool, uploading: Bool)
         case presentation(island: Bool, question: Bool)
         case deadline
@@ -34,14 +34,13 @@ struct IslandDropRevealPolicy {
             }
             self.island = island
             self.question = question
-        case let .pointer(inHotZone, dragging):
+        case let .pointer(inHotZone):
             guard island, !question else { return }
             if inHotZone && !inside { enteredAt = now }
             if !inHotZone && inside { leftAt = now }
             inside = inHotZone
             if inside {
                 leftAt = nil
-                if dragging { revealed = true }
             } else {
                 enteredAt = nil
             }

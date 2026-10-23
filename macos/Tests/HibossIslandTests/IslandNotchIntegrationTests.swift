@@ -10,7 +10,7 @@ import XCTest
 
 @MainActor
 final class IslandNotchIntegrationTests: XCTestCase {
-    func testDraggingIntoSecondaryNotchRevealsBarAndMovingToPlainScreenRestoresOldGeometry() throws {
+    func testDraggingIntoSecondaryNotchRevealsBarAndMovingToPlainScreenRestoresOldGeometry() async throws {
         let notch = IslandNotchFixtures.secondary
         let plain = IslandNotchFixtures.plain
         var point = CGPoint(x: notch.screenFrame.midX, y: notch.screenFrame.maxY - 1)
@@ -18,19 +18,19 @@ final class IslandNotchIntegrationTests: XCTestCase {
         defer { controller.panel.close() }
         let reveal = try XCTUnwrap(controller.dropReveal)
         let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
-        reveal.pointerMoved(to: point, dragging: true)
-        XCTAssertTrue(controller.panel.isVisible)
+        reveal.pointerMoved(to: point)
+        try await waitForCondition { controller.panel.isVisible }
         XCTAssertEqual(controller.panel.frame, notch.collapsedFrame)
         XCTAssertEqual(host.rootView.topInset, 32)
         XCTAssertEqual(host.sizingOptions, [])
 
         point = CGPoint(x: plain.screenFrame.midX, y: plain.screenFrame.maxY - 1)
-        reveal.pointerMoved(to: point, dragging: true)
+        reveal.pointerMoved(to: point)
         XCTAssertEqual(controller.panel.frame, plain.collapsedFrame)
         XCTAssertEqual(host.rootView.topInset, 0)
 
         point = CGPoint(x: notch.screenFrame.midX, y: notch.screenFrame.maxY - 50)
-        reveal.pointerMoved(to: point, dragging: true)
+        reveal.pointerMoved(to: point)
         XCTAssertEqual(controller.panel.frame, notch.collapsedFrame)
         XCTAssertEqual(host.rootView.topInset, 32)
     }
@@ -41,15 +41,15 @@ final class IslandNotchIntegrationTests: XCTestCase {
         let controller = try controller(screens: [notch], pointer: { point })
         defer { controller.panel.close() }
         let reveal = try XCTUnwrap(controller.dropReveal)
-        reveal.pointerMoved(to: point, dragging: false)
+        reveal.pointerMoved(to: point)
         XCTAssertFalse(controller.panel.isVisible)
         try await waitForCondition { controller.panel.isVisible }
         XCTAssertEqual(controller.panel.frame, notch.collapsedFrame)
         point.y = notch.collapsedFrame.minY + 10
-        reveal.pointerMoved(to: point, dragging: false)
+        reveal.pointerMoved(to: point)
         XCTAssertTrue(controller.panel.isVisible)
         point.y = notch.collapsedFrame.minY - 1
-        reveal.pointerMoved(to: point, dragging: false)
+        reveal.pointerMoved(to: point)
         try await waitForCondition { !controller.panel.isVisible }
     }
 
@@ -76,18 +76,19 @@ final class IslandNotchIntegrationTests: XCTestCase {
 
         let originalFrame = controller.panel.frame
         point = CGPoint(x: plain.screenFrame.midX, y: plain.screenFrame.maxY - 1)
-        controller.dropReveal?.pointerMoved(to: point, dragging: false)
+        controller.dropReveal?.pointerMoved(to: point)
         try await settle(controller.panel)
         XCTAssertEqual(controller.panel.frame, originalFrame)
         XCTAssertEqual(host.rootView.topInset, 32)
-        controller.dropReveal?.pointerMoved(to: point, dragging: true)
+        controller.dropReveal?.pointerMoved(to: point)
         XCTAssertEqual(controller.panel.frame, originalFrame)
         XCTAssertEqual(host.rootView.topInset, 32)
 
         flow.skip()
         try await waitForCondition { flow.activeMessage == nil }
         XCTAssertFalse(controller.panel.isVisible)
-        controller.dropReveal?.pointerMoved(to: point, dragging: true)
+        controller.dropReveal?.pointerMoved(to: point)
+        try await waitForCondition { controller.panel.isVisible }
         XCTAssertEqual(controller.panel.frame, plain.collapsedFrame)
         XCTAssertEqual(host.rootView.topInset, 0)
     }
@@ -111,7 +112,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
         try await waitForCondition { flow.activeMessage?.id == message.id }
         try await settle(controller.panel)
         point = CGPoint(x: plain.screenFrame.midX, y: plain.screenFrame.midY)
-        controller.dropReveal?.pointerMoved(to: point, dragging: false)
+        controller.dropReveal?.pointerMoved(to: point)
         let resized = IslandGeometry(screenFrame: CGRect(x: -1728, y: 300, width: 1512, height: 982),
             safeAreaTop: 32,
             auxiliaryTopLeftArea: CGRect(x: 0, y: 950, width: 651, height: 32),
@@ -152,7 +153,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
         try await waitForCondition { flow.activeMessage?.id == message.id }
         try await settle(controller.panel)
         point = CGPoint(x: plain.screenFrame.midX, y: plain.screenFrame.midY)
-        controller.dropReveal?.pointerMoved(to: point, dragging: false)
+        controller.dropReveal?.pointerMoved(to: point)
         let resized = IslandGeometry(screenFrame: CGRect(x: -1512, y: 0, width: 1512, height: 982),
             safeAreaTop: 32, displayID: 42)
         let replacement = IslandGeometry(screenFrame: frame, displayID: 43)
@@ -200,7 +201,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
         try assertReplyFits(controller.optionWindow, below: 0)
     }
 
-    func testScreenParameterChangeRefreshesGeometryWithoutPointerMovement() throws {
+    func testScreenParameterChangeRefreshesGeometryWithoutPointerMovement() async throws {
         let notch = IslandNotchFixtures.macBook14
         let plain = IslandGeometry(screenFrame: notch.screenFrame)
         var screens = [notch]
@@ -209,7 +210,8 @@ final class IslandNotchIntegrationTests: XCTestCase {
         let controller = IslandPanelController(flow: OptionFlowStore(), settings: settings,
             screens: { screens }, pointerLocation: { point })
         defer { controller.panel.close() }
-        controller.dropReveal?.pointerMoved(to: point, dragging: true)
+        controller.dropReveal?.pointerMoved(to: point)
+        try await waitForCondition { controller.panel.isVisible }
         XCTAssertEqual(controller.panel.frame, notch.collapsedFrame)
         screens = [plain]
         NotificationCenter.default.post(
