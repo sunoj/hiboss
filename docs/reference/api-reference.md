@@ -349,8 +349,9 @@ stale-sweep expiry, or the end of its session — the server fans out once per a
 change commits. The audience is every push device of the bosses who received the ask's push
 (admins and bosses with access to the agent, not archived). The push is silent and only removes,
 so quiet hours, priority and private-push preferences do not suppress it, and the device that
-answered is included. Failures are swallowed and never undo or delay the transition: request
-routes send the fan-out after the response (`waitUntil`). A scheduled run sends the fan-out after
+answered is included. Failures are swallowed and never undo or delay the transition. Boss reply,
+inbox and Discord/Telegram interaction routes send the fan-out after the response (`waitUntil`);
+session close routes and the Discord message webhook send it before responding. A scheduled run sends the fan-out after
 its sweeps, for at most 50 closed asks (newest first) and 6 asks at a time; the rest get no push
 and are left to the app's launch reconciliation.
 
