@@ -46,16 +46,15 @@ final class LiveActivityTokenRegistrarTests: XCTestCase {
         XCTAssertEqual(count, 3)
     }
 
-    func testConflictStopsRegistering() async {
+    func testConflictEndsOnlyThatTokensRegistration() async {
         let api = RecordingTokenAPI(failures: 1, status: 409)
         let registrar = registrar(mode: .direct, api: api)
         let first = await registrar.register(token: Data([3]), messageID: "m1")
         let second = await registrar.register(token: Data([4]), messageID: "m2")
         XCTAssertFalse(first)
-        XCTAssertFalse(second)
-        XCTAssertTrue(registrar.refused)
-        let count = await api.calls.count
-        XCTAssertEqual(count, 1)
+        XCTAssertTrue(second)
+        let calls = await api.calls
+        XCTAssertEqual(calls, ["m1|03|sandbox", "m2|04|sandbox"])
     }
 }
 

@@ -25,15 +25,13 @@ final class LiveActivityTokenRegistrar {
     /// Waits before each retry after the first attempt fails.
     var retryDelays: [Duration] = [.seconds(2), .seconds(10), .seconds(60)]
     private var observed: Set<String> = []
-    /// Set when the server answers 409 (not in direct mode): registration stops for this run.
-    private(set) var refused = false
 
     /// Only a server with its own APNs key can push to an activity token; relay mode stays local.
     var pushType: PushType? { mode() == .direct ? .token : nil }
 
     /// Registers every token the activity reports, once per activity.
     func observe(_ activity: Activity<DecisionActivityAttributes>) {
-        guard mode() == .direct, !refused, observed.insert(activity.id).inserted else { return }
+        guard mode() == .direct, observed.insert(activity.id).inserted else { return }
         let messageID = activity.attributes.messageID
         let activityID = activity.id
         Task { [weak self] in
@@ -45,10 +43,10 @@ final class LiveActivityTokenRegistrar {
     }
 
     /// True once the server accepted the token; retries transient failures with backoff.
-    /// A client error is final; 409 also stops every later registration.
+    /// A client error (409 included) is final for this token only.
     @discardableResult
     func register(token: Data, messageID: String) async -> Bool {
-        guard mode() == .direct, !refused, let api = api() else { return false }
+        guard mode() == .direct, let api = api() else { return false }
         let hex = token.map { String(format: "%02x", $0) }.joined()
         let environment = environment()
         for delay in [Duration.zero] + retryDelays {
@@ -61,7 +59,6 @@ final class LiveActivityTokenRegistrar {
                 return true
             } catch let HibossAPIError.requestFailed(status, _) where (400..<500).contains(status) {
                 tokenLog.error("Live Activity token registration rejected (HTTP \(status))")
-                if status == 409 { refused = true }
                 return false
             } catch {
                 tokenLog.error("Live Activity token registration failed")
