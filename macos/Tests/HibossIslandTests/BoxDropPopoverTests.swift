@@ -107,10 +107,13 @@ final class BoxDropPopoverTests: XCTestCase {
         addTeardownBlock { defaults.removePersistentDomain(forName: name) }
         let settings = AppSettings(defaults: defaults, keychain: DropNoTokenStore())
         settings.playsSound = false
-        let controller = IslandPanelController(flow: OptionFlowStore(), settings: settings)
-        XCTAssertFalse(controller.panel.isVisible)
         let screen = try XCTUnwrap(NSScreen.screens.first)
-        controller.dropReveal?.pointerMoved(to: NSPoint(x: screen.frame.midX, y: screen.frame.maxY - 10))
+        let point = NSPoint(x: screen.frame.midX, y: screen.frame.maxY - 10)
+        let controller = IslandPanelController(
+            flow: OptionFlowStore(), settings: settings, pointerLocation: { point }
+        )
+        XCTAssertFalse(controller.panel.isVisible)
+        controller.dropReveal?.pointerMoved(to: point)
         try await waitForCondition { controller.panel.isVisible }
         return controller
     }

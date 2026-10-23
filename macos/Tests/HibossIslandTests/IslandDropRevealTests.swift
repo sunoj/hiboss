@@ -131,6 +131,8 @@ final class IslandDropRevealPolicyTests: XCTestCase {
 
 @MainActor
 final class IslandDropRevealIntegrationTests: XCTestCase {
+    private var pointer = NSPoint.zero
+
     func testIdlePanelIsOrderedOutAndHostingSizingRemainsDisabled() throws {
         let (controller, _) = try controller()
         defer { controller.panel.close() }
@@ -199,13 +201,14 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         let (controller, settings) = try controller()
         defer { controller.panel.close() }
         let reveal = try XCTUnwrap(controller.dropReveal)
-        reveal.pointerMoved(to: try hotPoint())
+        pointer = try hotPoint()
+        reveal.pointerMoved(to: pointer)
         XCTAssertFalse(controller.panel.isVisible)
         try await waitForCondition { controller.panel.isVisible }
         XCTAssertEqual(controller.panel.frame.size, NSSize(width: 184, height: 36))
         XCTAssertTrue(controller.panel.contentView is BoxDropHostingView)
         settings.presentationMode = .window
-        reveal.pointerMoved(to: try hotPoint())
+        reveal.pointerMoved(to: pointer)
         XCTAssertFalse(controller.panel.isVisible)
         XCTAssertFalse(controller.optionWindow.isVisible)
     }
@@ -215,16 +218,16 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         defer { controller.panel.close() }
         let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
         let reveal = try XCTUnwrap(controller.dropReveal)
-        var point = try hotPoint()
-        reveal.pointerMoved(to: point)
+        pointer = try hotPoint()
+        reveal.pointerMoved(to: pointer)
         try await waitForCondition { controller.panel.isVisible }
         let pasteboard = NSPasteboard(name: .init(UUID().uuidString))
         defer { pasteboard.releaseGlobally() }
         pasteboard.setString("A reference", forType: .string)
         host.receive(pasteboard)
         XCTAssertTrue(host.popover.isShown)
-        point.y -= 100
-        reveal.pointerMoved(to: point)
+        pointer.y -= 100
+        reveal.pointerMoved(to: pointer)
         try await Task.sleep(for: .milliseconds(1100))
         XCTAssertTrue(controller.panel.isVisible)
         host.popover.close()
@@ -266,7 +269,7 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         let settings = AppSettings(defaults: defaults, keychain: RevealTokenStore())
         settings.playsSound = false
         return (IslandPanelController(flow: flow, settings: settings,
-            overview: islandTestOverview(flow: flow)), settings)
+            overview: islandTestOverview(flow: flow), pointerLocation: { [unowned self] in pointer }), settings)
     }
 }
 

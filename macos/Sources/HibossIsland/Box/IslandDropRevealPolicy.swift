@@ -8,6 +8,8 @@ struct IslandDropRevealPolicy {
     enum Visibility: Equatable { case hidden, dropTarget, question }
     enum Event {
         case pointer(inHotZone: Bool)
+        /// Another display starts from hidden and needs its own dwell unless Box activity holds the bar.
+        case displayChanged
         case activity(popover: Bool, uploading: Bool)
         case presentation(island: Bool, question: Bool)
         case deadline
@@ -44,6 +46,11 @@ struct IslandDropRevealPolicy {
             } else {
                 enteredAt = nil
             }
+        case .displayChanged:
+            inside = false
+            enteredAt = nil
+            leftAt = nil
+            if !held { revealed = false }
         case let .activity(popover, uploading):
             held = popover || uploading
         case .deadline:

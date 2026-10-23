@@ -57,6 +57,26 @@ struct IslandGeometry: Equatable {
         dropTargetShown ? collapsedFrame : hotZone
     }
 
+    /// AppKit reports a pointer pinned against the top edge at `maxY`, so that row counts as inside.
+    func revealZoneContains(_ point: CGPoint, dropTargetShown: Bool) -> Bool {
+        Self.topEdgeInclusive(revealZone(dropTargetShown: dropTargetShown), contains: point)
+    }
+
+    /// Prefers the screen that strictly contains the point, then one whose top edge it is pinned to.
+    static func screen(containing point: CGPoint, in screens: [IslandGeometry]) -> IslandGeometry? {
+        screens.first { $0.screenFrame.contains(point) }
+            ?? screens.first { topEdgeInclusive($0.screenFrame, contains: point) }
+    }
+
+    func isSameDisplay(as other: IslandGeometry) -> Bool {
+        if let displayID { return displayID == other.displayID }
+        return screenFrame.origin == other.screenFrame.origin
+    }
+
+    private static func topEdgeInclusive(_ rect: CGRect, contains point: CGPoint) -> Bool {
+        rect.contains(point) || (point.y == rect.maxY && point.x >= rect.minX && point.x < rect.maxX)
+    }
+
     func expandedFrame(contentHeight: CGFloat) -> CGRect {
         topFrame(
             width: max(AppConstants.Island.width, collapsedFrame.width),

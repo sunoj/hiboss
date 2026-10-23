@@ -61,15 +61,19 @@ final class IslandDropRevealController {
     }
 
     func pointerMoved(to point: NSPoint) {
-        let target = screens().first { $0.screenFrame.contains(point) }
+        let target = IslandGeometry.screen(containing: point, in: screens())
         pointerIsInside = false
         if geometry != target {
-            send(.pointer(inHotZone: false))
+            if let geometry, let target, geometry.isSameDisplay(as: target) {
+                send(.pointer(inHotZone: false))
+            } else {
+                send(.displayChanged)
+            }
             geometry = target
             if let target { screenDidChange(target) }
         }
         let shown = policy.visibility == .dropTarget
-        pointerIsInside = target?.revealZone(dropTargetShown: shown).contains(point) == true
+        pointerIsInside = target?.revealZoneContains(point, dropTargetShown: shown) == true
         send(.pointer(inHotZone: pointerIsInside))
     }
 

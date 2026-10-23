@@ -280,7 +280,7 @@ final class IslandPanelController {
                 return $0.screenFrame.origin == questionScreen.screenFrame.origin
             }) ?? available.first
         }
-        return available.first(where: { $0.screenFrame.contains(pointerLocation()) }) ?? available.first
+        return IslandGeometry.screen(containing: pointerLocation(), in: available) ?? available.first
     }
 }
 
