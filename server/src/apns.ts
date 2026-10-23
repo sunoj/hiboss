@@ -1,5 +1,5 @@
 // APNs HTTP/2-over-fetch sender for Cloudflare Workers.
-// Exports config detection, payload/result types, and sendPush.
+// Exports config detection, payload/result types, sendPush and the generic sendApnsRequest.
 // Depends on Workers WebCrypto, fetch, and APNs env secrets.
 
 import type { Env } from './types';
@@ -46,6 +46,22 @@ export async function sendPush(
   payload: ApnsPayload,
   apnsPriority: ApnsPriority = '10',
 ): Promise<ApnsSendResult> {
+  return sendApnsRequest(env, { token: deviceToken, environment, topic: bundleId, pushType: 'alert',
+    priority: apnsPriority, body: JSON.stringify(payload) });
+}
+
+/** One APNs request of any push type; alert, background and Live Activity pushes share it. */
+export interface ApnsRequest {
+  token: string;
+  environment: ApnsEnvironment;
+  topic: string;
+  pushType: 'alert' | 'background' | 'liveactivity';
+  priority: ApnsPriority;
+  body: string;
+  signal?: AbortSignal;
+}
+
+export async function sendApnsRequest(env: Env, request: ApnsRequest): Promise<ApnsSendResult> {
   const keyId = env.APNS_KEY_ID;
   const teamId = env.APNS_TEAM_ID;
   const authKey = env.APNS_AUTH_KEY;
@@ -53,17 +69,18 @@ export async function sendPush(
     return { ok: false, prune: false, reason: 'missing APNs config' };
   }
   const jwt = await getProviderJwt(keyId, teamId, authKey);
-  const host = environment === 'production' ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
-  const response = await fetch(`https://${host}/3/device/${deviceToken}`, {
+  const host = request.environment === 'production' ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
+  const response = await fetch(`https://${host}/3/device/${request.token}`, {
     method: 'POST',
     headers: {
       authorization: `bearer ${jwt}`,
       'content-type': 'application/json',
-      'apns-topic': bundleId,
-      'apns-push-type': 'alert',
-      'apns-priority': apnsPriority,
+      'apns-topic': request.topic,
+      'apns-push-type': request.pushType,
+      'apns-priority': request.priority,
     },
-    body: JSON.stringify(payload),
+    body: request.body,
+    signal: request.signal,
   });
   if (response.ok) {
     return { ok: true, prune: false };

@@ -160,8 +160,8 @@ describe('handleScheduled', () => {
     await handleScheduled(env as never);
 
     expect(mockedExpire).toHaveBeenCalledTimes(2);
-    expect(mockedExpire).toHaveBeenCalledWith(env, 'agent-a', row1);
-    expect(mockedExpire).toHaveBeenCalledWith(env, 'agent-b', row2);
+    expect(mockedExpire).toHaveBeenCalledWith(env, 'agent-a', row1, expect.any(Function));
+    expect(mockedExpire).toHaveBeenCalledWith(env, 'agent-b', row2, expect.any(Function));
   });
 
   it('expires sent a2a option messages', async () => {
@@ -170,7 +170,7 @@ describe('handleScheduled', () => {
 
     await handleScheduled(env as never);
 
-    expect(mockedExpire).toHaveBeenCalledWith(env, 'agent-peer', row);
+    expect(mockedExpire).toHaveBeenCalledWith(env, 'agent-peer', row, expect.any(Function));
   });
 
   it('does nothing when no expired messages', async () => {
@@ -216,7 +216,7 @@ describe('handleScheduled', () => {
     await handleScheduled(env as never);
 
     expect(mockedExpire).toHaveBeenCalledTimes(2);
-    expect(mockedExpire).toHaveBeenCalledWith(env, 'agent-b', row2);
+    expect(mockedExpire).toHaveBeenCalledWith(env, 'agent-b', row2, expect.any(Function));
   });
 
   it('drains due delivery queue items and updates the message', async () => {

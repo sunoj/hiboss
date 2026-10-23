@@ -13,6 +13,8 @@ import { expireStaleAsks } from './abandoned-asks';
 import { notifyBossAgents } from './notify';
 import { parseOptionMedia } from './routes/option-media';
 import { destinationsMode, drainDestinationDeliveries } from './delivery';
+import { purgeLiveActivityTokens } from './push/live-activity';
+import { ResolutionSweep, type Announce } from './push/resolution';
 
 const BATCH_SIZE = 50;
 const MAX_QUEUE_ATTEMPTS = 3;
@@ -36,26 +38,33 @@ interface QueuedMessageRow extends MessageRow {
 export async function handleScheduled(env: Env): Promise<void> {
   const now = new Date().toISOString();
   await cleanupPairingCodes(env, now);
-  await expireDueOptions(env, now);
-  // Hourly is enough for a one-day rule (pending inputs already exclude stale asks), and
-  // the sweep query scans messages; isolate it so a failure never blocks delivery.
-  if (new Date().getUTCMinutes() < 5) {
-    try {
-      await expireStaleAsks(env);
-    } catch {
-      console.error('Failed to sweep abandoned asks');
+  // Resolutions go out last and capped, so their pushes never spend the transitions' budget.
+  const resolutions = new ResolutionSweep();
+  try {
+    await expireDueOptions(env, now, resolutions.announce);
+    // Hourly is enough for a one-day rule (pending inputs already exclude stale asks), and
+    // the sweep query scans messages; isolate it so a failure never blocks delivery.
+    if (new Date().getUTCMinutes() < 5) {
+      try {
+        await expireStaleAsks(env, resolutions.announce);
+      } catch {
+        console.error('Failed to sweep abandoned asks');
+      }
     }
+    if (destinationsMode(env.DESTINATIONS_MODE) === 'on') await drainDestinationDeliveries(env);
+    else await drainDeliveryQueue(env, now);
+  } finally {
+    await resolutions.flush(env);
   }
-  if (destinationsMode(env.DESTINATIONS_MODE) === 'on') await drainDestinationDeliveries(env);
-  else await drainDeliveryQueue(env, now);
 }
 
 async function cleanupPairingCodes(env: Env, now: string): Promise<void> {
   await env.DB.prepare('DELETE FROM boss_pairing_codes WHERE expires_at <= ?').bind(now).run();
   await env.DB.prepare('DELETE FROM signin_requests WHERE expires_at <= ?').bind(now).run();
+  await purgeLiveActivityTokens(env);
 }
 
-async function expireDueOptions(env: Env, now: string): Promise<void> {
+async function expireDueOptions(env: Env, now: string, announce: Announce): Promise<void> {
   const rows = await env.DB
     .prepare(
       `SELECT * FROM messages WHERE expires_at IS NOT NULL AND expires_at < ?
@@ -67,7 +76,7 @@ async function expireDueOptions(env: Env, now: string): Promise<void> {
 
   for (const row of rows.results ?? []) {
     try {
-      await expireMessageOptions(env, row.agent_id, row);
+      await expireMessageOptions(env, row.agent_id, row, announce);
     } catch {
       console.error(`Failed to expire message ${row.id}`);
     }

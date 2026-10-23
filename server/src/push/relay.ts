@@ -1,8 +1,15 @@
 // Encrypts existing APNs userInfo for the opaque push relay transport.
-// Exports credential validation and relay delivery; depends on WebCrypto and fetch.
+// Exports credential validation, alert and resolution relay delivery; depends on WebCrypto and fetch.
 import type { ApnsPayload, ApnsPriority, ApnsSendResult } from '../apns';
 
-export type PushKind = 'decision' | 'message' | 'system';
+export type AlertKind = 'decision' | 'message' | 'system';
+export type PushKind = AlertKind | 'resolved';
+
+/** An ask that closed: its message id and terminal status. */
+export interface Resolution {
+  id: string;
+  status: 'replied' | 'expired';
+}
 const encoder = new TextEncoder();
 const MAX_PLAINTEXT = 2048 - 12 - 16;
 
@@ -46,22 +53,39 @@ function trimmedPayload(payload: ApnsPayload): Uint8Array<ArrayBuffer> {
   return size();
 }
 
-export async function sendRelay(url: string, handle: string, pushKey: string,
-  payload: ApnsPayload, kind: PushKind, priority: ApnsPriority = '10'): Promise<ApnsSendResult> {
+/** AES-GCM with the kind as AAD: nonce(12) || ciphertext || tag, as unpadded base64url. */
+async function seal(pushKey: string, kind: PushKind, plaintext: Uint8Array<ArrayBuffer>): Promise<string> {
   const key = await crypto.subtle.importKey('raw', decode(pushKey), 'AES-GCM', false, ['encrypt']);
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce,
-    additionalData: encoder.encode(`hiboss-push-v1|${kind}`) }, key, trimmedPayload(payload));
+    additionalData: encoder.encode(`hiboss-push-v1|${kind}`) }, key, plaintext);
   const bytes = new Uint8Array(12 + encrypted.byteLength);
   bytes.set(nonce);
   bytes.set(new Uint8Array(encrypted), 12);
-  const ciphertext = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-')
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-')
     .replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function postRelay(url: string, body: Record<string, unknown>,
+  signal?: AbortSignal): Promise<ApnsSendResult> {
   const response = await fetch(`${url.replace(/\/$/, '')}/v1/push`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ handle, kind, ciphertext, priority: Number(priority),
-      interruption: payload.aps['interruption-level'], sound: payload.aps.sound === 'default' }),
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal,
   });
   return response.ok ? { ok: true, prune: false }
     : { ok: false, prune: response.status === 410, reason: `relay ${response.status}` };
+}
+
+export async function sendRelay(url: string, handle: string, pushKey: string,
+  payload: ApnsPayload, kind: AlertKind, priority: ApnsPriority = '10'): Promise<ApnsSendResult> {
+  const ciphertext = await seal(pushKey, kind, trimmedPayload(payload));
+  return postRelay(url, { handle, kind, ciphertext, priority: Number(priority),
+    interruption: payload.aps['interruption-level'], sound: payload.aps.sound === 'default' });
+}
+
+/** A `resolved` background push: priority 5 and no alert fields; plaintext is only id and status. */
+export async function sendRelayResolution(url: string, handle: string, pushKey: string,
+  resolution: Resolution, signal?: AbortSignal): Promise<ApnsSendResult> {
+  const plaintext = encoder.encode(JSON.stringify({ id: resolution.id, status: resolution.status }));
+  const ciphertext = await seal(pushKey, 'resolved', plaintext);
+  return postRelay(url, { handle, kind: 'resolved', ciphertext, priority: 5 }, signal);
 }

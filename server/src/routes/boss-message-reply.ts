@@ -15,6 +15,7 @@ import { createMessageId } from '../session-events';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
+import { deferredAnnounce, type Announce } from '../push/resolution';
 import { getAccessibleAgentIds } from './boss-api';
 import { escapeLike } from './bosses';
 import { mapMessageRow, replyTargetSession } from './message-helpers';
@@ -42,7 +43,8 @@ async function handleReply(c: BossContext): Promise<Response> {
   if (duplicate) return c.json(mapMessageRow(duplicate));
   if (!await isDecisionAnswerable(c.env, parent.id)) return c.text('decision no longer open', 409);
   const provenance = await stampAnsweredBy(c.env, bossId, getClientId(c), authenticated.value.provenance);
-  const optionClaim = await insertReply(c.env, parent, { ...authenticated.value, provenance });
+  const optionClaim = await insertReply(c.env, parent, { ...authenticated.value, provenance },
+    deferredAnnounce(c.executionCtx));
   if (optionClaim.kind === 'resolved') return c.text('decision no longer open', 409);
   if (optionClaim.kind === 'failed' || optionClaim.kind === 'invalid_choice') return c.text('failed to persist', 500);
   finishReply(c, parent, optionClaim.reply, optionClaim.kind, bossId, getBossName(c));
@@ -90,6 +92,7 @@ async function insertReply(
   env: Env,
   parent: MessageRow,
   authenticated: { body: string; idempotencyKey: string | null; provenance: Record<string, unknown> },
+  announce: Announce,
 ): Promise<OptionClaimResult> {
   const targetSession = replyTargetSession(parent);
   return persistOptionReply(
@@ -105,6 +108,7 @@ async function insertReply(
       authenticated.body, 'sent', 'normal', parent.id, authenticated.idempotencyKey,
       JSON.stringify(authenticated.provenance), targetSession],
     targetSession,
+    { announce },
   );
 }
 

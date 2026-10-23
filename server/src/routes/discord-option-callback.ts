@@ -7,6 +7,7 @@ import { logAudit } from '../audit';
 import { notifyAgentCallback } from '../notify';
 import type { Env, MessageRow } from '../types';
 import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
+import { deferredAnnounce, type Announce } from '../push/resolution';
 import { withdrawResolvedOptions } from './message-options';
 import { checkBossPermission, findDiscordAgent } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
@@ -40,7 +41,8 @@ export async function handleDiscordOptionCallback(
   if (!parent) return c.text('message not found', 404);
   if (parent.status === 'expired') return expiredResponse(c);
 
-  const claim = await insertReply(c.env, parent, selection.option, agentRow.agent_id, permission.boss, userId);
+  const claim = await insertReply(c.env, parent, selection.option, agentRow.agent_id, permission.boss, userId,
+    deferredAnnounce(c.executionCtx));
   if (claim.kind === 'invalid_choice') return c.text('invalid selection', 400);
   if (claim.kind === 'resolved') return resolvedResponse(c, payload.message?.content);
   if (claim.kind === 'failed') return c.text('failed to persist', 500);
@@ -86,6 +88,7 @@ async function insertReply(
   agentId: string,
   boss: { id: string; name: string } | null,
   externalUserId: string | undefined,
+  announce: Announce,
 ): Promise<OptionClaimResult> {
   const metadata = getActionMetadata(parent.metadata, option, boss, externalUserId);
   return persistOptionReply(
@@ -96,6 +99,7 @@ async function insertReply(
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
     [createMessageId(), agentId, 'boss_to_agent', 'async', 'discord', option, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent)],
     replyTargetSession(parent),
+    { announce },
   );
 }
 

@@ -1,10 +1,11 @@
 // Inserts one answer to an open ask, then marks that ask replied in one D1 batch.
 // Exports: persistOptionReply and its explicit result union.
-// Depends on D1, session events, MessageRow metadata, and server time.
+// Depends on D1, session events, MessageRow metadata, server time and the resolution fan-out.
 
 import type { Env, MessageRow } from '../types';
 import { insertMessageWithEvent, messageEventStatement } from '../session-events';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
+import { announceResolution, type Announce } from '../push/resolution';
 
 export type OptionClaimResult =
   | { kind: 'not_option'; reply: MessageRow }
@@ -13,7 +14,14 @@ export type OptionClaimResult =
   | { kind: 'failed' }
   | { kind: 'resolved' };
 
-type OptionReplyParent = Pick<MessageRow, 'id' | 'metadata' | 'direction' | 'mode'>;
+type OptionReplyParent = Pick<MessageRow,
+  'id' | 'agent_id' | 'metadata' | 'direction' | 'mode' | 'priority' | 'created_at'>;
+
+/**
+ * `allowExpired` admits an ask past its deadline (the timeout default). `announce` receives the
+ * committed resolution: request routes pass deferredAnnounce, the cron sweep its collector.
+ */
+export interface ClaimOptions { allowExpired?: boolean; announce?: Announce }
 
 /**
  * Persists an ask answer only if its conditional insert wins.
@@ -32,7 +40,7 @@ export async function persistOptionReply(
   insertSql: string,
   insertBinds: readonly unknown[],
   sessionId: string | null,
-  allowExpired = false,
+  { allowExpired = false, announce = announceResolution }: ClaimOptions = {},
 ): Promise<OptionClaimResult> {
   const options = parseOptions(parent.metadata);
   if (options && !allowFreeText && !options.includes(choice)) return { kind: 'invalid_choice' };
@@ -60,7 +68,11 @@ export async function persistOptionReply(
   if (sessionId) statements.push(messageEventStatement(env, sessionId, String(insertBinds[0])));
   const results = await env.DB.batch(statements);
   const reply = results[0]?.results[0] as MessageRow | undefined;
-  if (reply) return { kind: 'claimed', reply };
+  if (reply) {
+    // Every path that answers an ask claims it here, after the batch committed.
+    await announce(env, parent, 'replied');
+    return { kind: 'claimed', reply };
+  }
   const stillOpen = await env.DB.prepare(`SELECT 1 AS open FROM messages parent WHERE ${openAsk}`)
     .bind(parent.id, allowExpired ? 1 : 0, now).first<{ open: number }>();
   return stillOpen ? { kind: 'failed' } : { kind: 'resolved' };
@@ -88,9 +100,10 @@ export async function persistChannelText(
   insertSql: string,
   insertBinds: readonly unknown[],
   sessionId: string | null,
+  announce?: Announce,
 ): Promise<MessageRow | null> {
   if (!parent) return insertMessageWithEvent(env, insertSql, insertBinds, sessionId);
-  const result = await persistOptionReply(env, parent, body, true, insertSql, insertBinds, sessionId);
+  const result = await persistOptionReply(env, parent, body, true, insertSql, insertBinds, sessionId, { announce });
   if (result.kind === 'claimed' || result.kind === 'not_option') return result.reply;
   if (result.kind !== 'resolved') return null;
   // Each channel insert statement binds reply_to at index 8.

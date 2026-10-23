@@ -12,6 +12,7 @@ import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 import { createMessageId } from '../session-events';
 import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
+import { deferredAnnounce, type Announce } from '../push/resolution';
 import { withdrawResolvedOptions } from './message-options';
 
 const MAX_LIMIT = 100;
@@ -158,7 +159,7 @@ routes.post('/:id/reply', async (c) => {
     content: actionContent({ kind: 'boss_reply', message_id: parent.id }, body),
   });
   if (!auth.ok) return c.text(auth.error, auth.status);
-  const result = await insertInboxReply(c.env, parent, boss, agentId, body);
+  const result = await insertInboxReply(c.env, parent, boss, agentId, body, deferredAnnounce(c.executionCtx));
   if (result.kind === 'resolved') return c.text('option already resolved', 409);
   if (result.kind === 'failed' || result.kind === 'invalid_choice') return c.text('failed to persist', 500);
   const inserted = result.reply;
@@ -172,7 +173,7 @@ routes.post('/:id/reply', async (c) => {
 });
 
 async function insertInboxReply(
-  env: Env, parent: MessageRow, boss: BossRecord, actorAgentId: string, body: string,
+  env: Env, parent: MessageRow, boss: BossRecord, actorAgentId: string, body: string, announce: Announce,
 ): Promise<OptionClaimResult> {
   const metadata = JSON.stringify(bearerApiMetadata(
     { id: boss.id, name: boss.name }, actorAgentId,
@@ -182,6 +183,7 @@ async function insertInboxReply(
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
     [createMessageId(), parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent)],
     replyTargetSession(parent),
+    { announce },
   );
 }
 

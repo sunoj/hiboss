@@ -19,6 +19,7 @@ import { createMessageId } from '../session-events';
 import { systemMetadata } from '../message-security';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { persistOptionReply } from './boss-option-reply';
+import { announceResolution, type Announce } from '../push/resolution';
 
 const MAX_MESSAGE_OPTIONS = 5;
 const OPTIONS_ERROR = 'options must be an array of 1 to 5 non-empty unique strings';
@@ -47,15 +48,16 @@ export function buildInlineKeyboard(messageId: string, options: string[]): { tex
   return options.map((opt) => [{ text: opt, callback_data: `${messageId.slice(0, 12)}:${opt}` }]);
 }
 
-export async function expireMessageOptions(env: Env, agentId: string, message: MessageRow): Promise<void> {
+export async function expireMessageOptions(env: Env, agentId: string, message: MessageRow,
+  announce: Announce = announceResolution): Promise<void> {
   // 1. Update DB: set status to expired, mark options_expired in metadata
   const meta = message.metadata ? JSON.parse(message.metadata) as Record<string, unknown> : {};
   const defaultOption = getDefaultOption(meta);
   if (defaultOption) {
-    await autoResolveDefaultOption(env, agentId, message, meta, defaultOption);
+    await autoResolveDefaultOption(env, agentId, message, meta, defaultOption, announce);
     return;
   }
-  await expireWithoutDefault(env, agentId, message);
+  await expireWithoutDefault(env, agentId, message, announce);
 }
 
 /** SET clause that expires an open ask without recording any choice. */
@@ -67,18 +69,21 @@ export const EXPIRE_ASK_SET_SQL = `status = 'expired', metadata = json_remove(js
  * Expires an open ask without answering it: nobody chose, so nothing is recorded as a
  * choice. Returns false when the ask was already resolved. Channel cleanup is best-effort.
  */
-export async function expireWithoutDefault(env: Env, agentId: string, message: MessageRow): Promise<boolean> {
+export async function expireWithoutDefault(env: Env, agentId: string, message: MessageRow,
+  announce: Announce = announceResolution): Promise<boolean> {
   const claimed = await env.DB
     .prepare(`UPDATE messages SET ${EXPIRE_ASK_SET_SQL} WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING id`)
     .bind(message.id)
     .first<{ id: string }>();
   if (!claimed) return false;
-  await announceExpiredAsk(env, agentId, message);
+  await announceExpiredAsk(env, agentId, message, announce);
   return true;
 }
 
-/** Best-effort chat edit for an ask already expired without an answer. */
-export async function announceExpiredAsk(env: Env, agentId: string, message: MessageRow): Promise<void> {
+/** Best-effort chat edit and resolution fan-out for an ask already expired without an answer. */
+export async function announceExpiredAsk(env: Env, agentId: string, message: MessageRow,
+  announce: Announce = announceResolution): Promise<void> {
+  await announce(env, message, 'expired');
   const meta = parseMetadata(message.metadata);
   meta['options_expired'] = true;
   delete meta['actions'];
@@ -116,6 +121,7 @@ async function autoResolveDefaultOption(
   message: MessageRow,
   meta: Record<string, unknown>,
   defaultOption: string,
+  announce: Announce,
 ): Promise<void> {
   meta['options_expired'] = true;
   delete meta['actions'];
@@ -127,7 +133,7 @@ async function autoResolveDefaultOption(
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
     [createMessageId(), agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify(systemMetadata({ auto_default: true })), replyTargetSession(message)],
     replyTargetSession(message),
-    true,
+    { allowExpired: true, announce },
   );
   if (outcome.kind !== 'claimed') return;
   const inserted = outcome.reply;
