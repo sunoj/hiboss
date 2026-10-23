@@ -64,7 +64,7 @@ final class PushManager: NSObject, ObservableObject {
     @Published private(set) var pushMode: PushMode?
     private let relay = PushRelayRegistrar()
 
-    private var environment: String {
+    var environment: String {
         #if DEBUG
         "sandbox"
         #else

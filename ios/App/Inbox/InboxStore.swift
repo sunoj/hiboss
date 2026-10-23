@@ -69,6 +69,7 @@ final class InboxStore: ObservableObject {
     private var expiryTasks: [MessageID: Task<Void, Never>] = [:]
     private var decisionAlertsEnabled: Bool
     private let decisionActivitySync: @MainActor ([HistoryMessage], Bool) async -> Void
+    var deliveredNotifications: any DeliveredNotificationCenter = SystemDeliveredNotificationCenter()
 
     init(
         reconnectDelay: Duration = AppConstants.API.reconnectDelay,
@@ -124,6 +125,7 @@ final class InboxStore: ObservableObject {
     func start(api: any BossServing) {
         stop()
         self.api = api
+        Self.current = self
         agentAvatars.connect(api: api as? any AgentsServing)
         connectionState = .connecting
         streamTask = Task { [weak self] in await self?.consume(api) }
