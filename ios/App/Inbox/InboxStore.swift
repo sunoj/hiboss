@@ -20,7 +20,8 @@ final class InboxStore: ObservableObject {
     @Published var requiredInputRefreshing = false
     @Published var requiredInputReady = false
     @Published var requiredNeedsReadyRead = false
-    @Published private(set) var connectionState: ConnectionState = .disconnected
+    /// Set by the stream loop in InboxStore+Stream.
+    @Published var connectionState: ConnectionState = .disconnected
     @Published var loadError: String?
     /// False until the first history fetch completes, so views can show a spinner
     /// instead of flashing an empty state on cold launch.
@@ -210,48 +211,7 @@ final class InboxStore: ObservableObject {
         if let error { loadError = error }
     }
 
-    private func consume(_ api: any BossServing) async {
-        var failures = 0
-        while !Task.isCancelled {
-            if connectionState != .connected { connectionState = .connecting }
-            let stream = await api.messageStream()
-            connectionState = .connected
-            agentAvatars.refresh()
-            var endedCleanly = false
-            do {
-                for try await event in stream {
-                    failures = 0            // a live stream delivering data
-                    handle(event)
-                }
-                endedCleanly = true
-            } catch where !Task.isCancelled {
-                if (error as? HibossAPIError)?.isAuthFailure == true {
-                    // A rejected token won't fix itself — stop reconnecting and
-                    // surface it instead of retrying forever every few seconds.
-                    rejectAuthorization(error)
-                    return
-                }
-                connectionState = .failed(error.localizedDescription)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            // The server rotates the stream every few minutes: a clean end stays connected
-            // and reconnects promptly. Only an error backs off and shows a reconnect state.
-            if endedCleanly {
-                failures = 0
-                try? await Task<Never, Never>.sleep(for: reconnectDelay)
-                continue
-            }
-            failures += 1
-            // Capped exponential backoff so a persistent outage doesn't hammer
-            // the server / drain the battery at a fixed cadence.
-            let backoff = min(reconnectDelay * (1 << min(failures, 5)), .seconds(60))
-            try? await Task<Never, Never>.sleep(for: backoff)
-        }
-    }
-
-    private func handle(_ event: BossEvent) {
+    func handle(_ event: BossEvent) {
         switch event {
         case .message:
             requestHistorySync(debounced: true)

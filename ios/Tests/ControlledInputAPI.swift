@@ -38,11 +38,13 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
     }
 
     private var messageStreamEndsCleanly = false
+    private var messageStreamFails = false
 
     func requiredFetchCount() -> Int { fetchCount }
 
     func setResponse(_ messages: [HistoryMessage]) { response = messages }
     func endMessageStreamsCleanly() { messageStreamEndsCleanly = true }
+    func failMessageStreams(_ fails: Bool) { messageStreamFails = fails }
     func failNextFetch(status: Int = 503) {
         fail = true
         failureStatus = status
@@ -119,6 +121,7 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
 
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
         if messageStreamEndsCleanly { return AsyncThrowingStream { $0.finish() } }
+        if messageStreamFails { return AsyncThrowingStream { $0.finish(throwing: URLError(.cannotConnectToHost)) } }
         return AsyncThrowingStream { $0.onTermination = { _ in } }
     }
 
