@@ -1,5 +1,6 @@
 // Server side of push delivery: the server's push mode and relay device registration.
-// Exports: PushMode and HibossAPI.fetchPushMode, registerRelayDevice and deleteDevice.
+// Exports: PushMode and HibossAPI.fetchPushMode, registerRelayDevice, registerLiveActivityToken
+// and deleteDevice.
 // Dependencies: Foundation and HibossAPI's authorized request helpers.
 
 import Foundation
@@ -40,6 +41,17 @@ extension HibossAPI {
         try await validate(response)
     }
 
+    /// Registers a decision Live Activity's APNs push token so the server can end it (direct mode).
+    public func registerLiveActivityToken(messageID: String, token: String, environment: String) async throws {
+        let url = apiURL.appendingPathComponent("devices").appendingPathComponent("live-activities")
+        var request = authorizedRequest(url: url, method: "POST")
+        request.httpBody = try JSONEncoder().encode(LiveActivityTokenRegistration(
+            messageId: messageID, activityToken: token, environment: environment
+        ))
+        let (_, response) = try await session.data(for: request)
+        try await validate(response)
+    }
+
     /// Deletes one device row; a relay device is addressed as `relay:<handle>`.
     public func deleteDevice(id: String) async throws {
         try await send("DELETE", url: apiURL.appendingPathComponent("devices").appendingPathComponent(id))
@@ -56,4 +68,10 @@ private struct RelayDeviceRegistration: Encodable {
     let environment: String
     let platform: String
     let bundleId: String
+}
+
+private struct LiveActivityTokenRegistration: Encodable {
+    let messageId: String
+    let activityToken: String
+    let environment: String
 }
