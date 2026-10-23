@@ -47,8 +47,29 @@ struct IslandGeometry: Equatable {
         )
     }
 
+    /// A notched display reveals the drop target from the notch alone; others use the bar.
     var hotZone: CGRect {
-        notchFrame.map { collapsedFrame.union($0) } ?? collapsedFrame
+        notchFrame ?? collapsedFrame
+    }
+
+    /// Once shown, the whole drop target (which covers the notch) keeps it revealed.
+    func revealZone(dropTargetShown: Bool) -> CGRect {
+        dropTargetShown ? collapsedFrame : hotZone
+    }
+
+    /// AppKit reports a pointer pinned against the top edge at `maxY`, so that row counts as inside.
+    func revealZoneContains(_ point: CGPoint, dropTargetShown: Bool) -> Bool {
+        Self.topEdgeInclusive(revealZone(dropTargetShown: dropTargetShown), contains: point)
+    }
+
+    /// Prefers the screen that strictly contains the point, then one whose top edge it is pinned to.
+    static func screen(containing point: CGPoint, in screens: [IslandGeometry]) -> IslandGeometry? {
+        screens.first { $0.screenFrame.contains(point) }
+            ?? screens.first { topEdgeInclusive($0.screenFrame, contains: point) }
+    }
+
+    private static func topEdgeInclusive(_ rect: CGRect, contains point: CGPoint) -> Bool {
+        rect.contains(point) || (point.y == rect.maxY && point.x >= rect.minX && point.x < rect.maxX)
     }
 
     func expandedFrame(contentHeight: CGFloat) -> CGRect {

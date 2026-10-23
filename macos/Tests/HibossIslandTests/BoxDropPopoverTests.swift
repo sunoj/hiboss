@@ -11,7 +11,7 @@ import XCTest
 @MainActor
 final class BoxDropPopoverTests: XCTestCase {
     func testIdleIslandAcceptsPasteboardAndPreservesDraftOnAnotherDrop() async throws {
-        let controller = try controller()
+        let controller = try await controller()
         defer { controller.panel.close() }
         XCTAssertTrue(controller.panel.isVisible)
         let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
@@ -45,7 +45,7 @@ final class BoxDropPopoverTests: XCTestCase {
     }
 
     func testFivePasteboardItemsShowRejectionInsteadOfTruncating() async throws {
-        let controller = try controller()
+        let controller = try await controller()
         defer { controller.panel.close() }
         let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
         defer { host.popover.close() }
@@ -65,7 +65,7 @@ final class BoxDropPopoverTests: XCTestCase {
     }
 
     func testNativeDragCallbacksAcceptCopyAndDeliverOneDrop() async throws {
-        let controller = try controller()
+        let controller = try await controller()
         defer { controller.panel.close() }
         let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
         defer { host.popover.close() }
@@ -100,20 +100,21 @@ final class BoxDropPopoverTests: XCTestCase {
         XCTAssertFalse(store.noteLocked)
     }
 
-    private func controller() throws -> IslandPanelController {
+    private func controller() async throws -> IslandPanelController {
         _ = NSApplication.shared
         let name = "BoxDropPopoverTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         addTeardownBlock { defaults.removePersistentDomain(forName: name) }
         let settings = AppSettings(defaults: defaults, keychain: DropNoTokenStore())
         settings.playsSound = false
-        let controller = IslandPanelController(flow: OptionFlowStore(), settings: settings)
-        XCTAssertFalse(controller.panel.isVisible)
         let screen = try XCTUnwrap(NSScreen.screens.first)
-        controller.dropReveal?.pointerMoved(
-            to: NSPoint(x: screen.frame.midX, y: screen.frame.maxY - 10), dragging: true
+        let point = NSPoint(x: screen.frame.midX, y: screen.frame.maxY - 10)
+        let controller = IslandPanelController(
+            flow: OptionFlowStore(), settings: settings, pointerLocation: { point }
         )
-        XCTAssertTrue(controller.panel.isVisible)
+        XCTAssertFalse(controller.panel.isVisible)
+        controller.dropReveal?.pointerMoved(to: point)
+        try await waitForCondition { controller.panel.isVisible }
         return controller
     }
 

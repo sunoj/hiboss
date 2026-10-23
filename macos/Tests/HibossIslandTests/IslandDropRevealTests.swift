@@ -1,5 +1,5 @@
 // Exercises the pure reveal policy and native hidden-panel integration.
-// Covers dwell, drag, holds, presentation overrides and multi-screen geometry.
+// Covers hover and drag dwell, holds, presentation overrides and multi-screen geometry.
 // Dependencies: XCTest, AppKit and the Island drop reveal types.
 
 import AppKit
@@ -12,7 +12,7 @@ import XCTest
 final class IslandDropRevealPolicyTests: XCTestCase {
     func testDwellRevealsOnlyAfterThreeTenthsOfASecond() {
         var policy = idle()
-        policy.send(.pointer(inHotZone: true, dragging: false), at: 10)
+        policy.send(.pointer(inHotZone: true), at: 10)
         XCTAssertEqual(policy.visibility, .hidden)
         XCTAssertEqual(policy.nextDeadline, 10.3)
         policy.send(.deadline, at: 10.29)
@@ -24,33 +24,44 @@ final class IslandDropRevealPolicyTests: XCTestCase {
 
     func testQuickPassThroughCancelsDwellAndNextEntryStartsAgain() {
         var policy = idle()
-        policy.send(.pointer(inHotZone: true, dragging: false), at: 10)
-        policy.send(.pointer(inHotZone: false, dragging: false), at: 10.2)
+        policy.send(.pointer(inHotZone: true), at: 10)
+        policy.send(.pointer(inHotZone: false), at: 10.2)
         policy.send(.deadline, at: 11)
         XCTAssertEqual(policy.visibility, .hidden)
         XCTAssertNil(policy.nextDeadline)
-        policy.send(.pointer(inHotZone: true, dragging: false), at: 12)
+        policy.send(.pointer(inHotZone: true), at: 12)
         XCTAssertEqual(policy.nextDeadline, 12.3)
     }
 
-    func testDragRevealsImmediatelyAndReleaseDoesNotHideInside() {
+    func testDragThroughZoneShorterThanDwellNeverReveals() {
         var policy = idle()
-        policy.send(.pointer(inHotZone: true, dragging: true), at: 10)
-        XCTAssertEqual(policy.visibility, .dropTarget)
+        policy.send(.pointer(inHotZone: true), at: 10)
+        XCTAssertEqual(policy.visibility, .hidden)
+        policy.send(.pointer(inHotZone: true), at: 10.2)
+        policy.send(.pointer(inHotZone: false), at: 10.29)
+        policy.send(.deadline, at: 11)
+        XCTAssertEqual(policy.visibility, .hidden)
         XCTAssertNil(policy.nextDeadline)
-        policy.send(.pointer(inHotZone: true, dragging: false), at: 10.01)
+    }
+
+    func testDragDwellingInZoneRevealsAfterDwell() {
+        var policy = idle()
+        policy.send(.pointer(inHotZone: true), at: 10)
+        XCTAssertEqual(policy.visibility, .hidden)
+        XCTAssertEqual(policy.nextDeadline, 10.3)
+        policy.send(.deadline, at: 10.3)
         XCTAssertEqual(policy.visibility, .dropTarget)
     }
 
     func testDelayedHideAndReentryCancelsHide() {
         var policy = revealed()
-        policy.send(.pointer(inHotZone: false, dragging: false), at: 11)
+        policy.send(.pointer(inHotZone: false), at: 11)
         policy.send(.deadline, at: 11.99)
         XCTAssertEqual(policy.visibility, .dropTarget)
         XCTAssertEqual(policy.nextDeadline, 12)
-        policy.send(.pointer(inHotZone: true, dragging: false), at: 11.99)
+        policy.send(.pointer(inHotZone: true), at: 11.99)
         XCTAssertNil(policy.nextDeadline)
-        policy.send(.pointer(inHotZone: false, dragging: false), at: 13)
+        policy.send(.pointer(inHotZone: false), at: 13)
         policy.send(.deadline, at: 14)
         XCTAssertEqual(policy.visibility, .hidden)
         XCTAssertNil(policy.nextDeadline)
@@ -59,7 +70,7 @@ final class IslandDropRevealPolicyTests: XCTestCase {
     func testPopoverAndUploadEachKeepBarUntilBothEnd() {
         var policy = revealed()
         policy.send(.activity(popover: true, uploading: false), at: 10)
-        policy.send(.pointer(inHotZone: false, dragging: false), at: 11)
+        policy.send(.pointer(inHotZone: false), at: 11)
         policy.send(.deadline, at: 12)
         XCTAssertEqual(policy.visibility, .dropTarget)
         XCTAssertNil(policy.nextDeadline)
@@ -71,7 +82,7 @@ final class IslandDropRevealPolicyTests: XCTestCase {
 
     func testEndingHoldBeforeHideDeadlinePreservesRemainingDelay() {
         var policy = revealed()
-        policy.send(.pointer(inHotZone: false, dragging: false), at: 11)
+        policy.send(.pointer(inHotZone: false), at: 11)
         policy.send(.activity(popover: true, uploading: true), at: 11.1)
         policy.send(.activity(popover: false, uploading: false), at: 11.5)
         XCTAssertEqual(policy.visibility, .dropTarget)
@@ -80,15 +91,15 @@ final class IslandDropRevealPolicyTests: XCTestCase {
 
     func testQuestionOverridesDwellAndHideThenClearsToHidden() {
         var policy = idle()
-        policy.send(.pointer(inHotZone: true, dragging: false), at: 10)
+        policy.send(.pointer(inHotZone: true), at: 10)
         policy.send(.presentation(island: true, question: true), at: 10.1)
-        policy.send(.pointer(inHotZone: false, dragging: false), at: 11)
+        policy.send(.pointer(inHotZone: false), at: 11)
         XCTAssertEqual(policy.visibility, .question)
         XCTAssertNil(policy.nextDeadline)
         policy.send(.presentation(island: true, question: false), at: 12)
         XCTAssertEqual(policy.visibility, .hidden)
         policy = revealed()
-        policy.send(.pointer(inHotZone: false, dragging: false), at: 11)
+        policy.send(.pointer(inHotZone: false), at: 11)
         policy.send(.presentation(island: true, question: true), at: 11.1)
         policy.send(.deadline, at: 12)
         XCTAssertEqual(policy.visibility, .question)
@@ -97,7 +108,7 @@ final class IslandDropRevealPolicyTests: XCTestCase {
     func testWindowModeNeverRevealsAndSwitchingBackStartsHidden() {
         var policy = revealed()
         policy.send(.presentation(island: false, question: true), at: 11)
-        policy.send(.pointer(inHotZone: true, dragging: true), at: 12)
+        policy.send(.pointer(inHotZone: true), at: 12)
         XCTAssertEqual(policy.visibility, .hidden)
         XCTAssertNil(policy.nextDeadline)
         policy.send(.presentation(island: true, question: false), at: 13)
@@ -112,13 +123,16 @@ final class IslandDropRevealPolicyTests: XCTestCase {
 
     private func revealed() -> IslandDropRevealPolicy {
         var policy = idle()
-        policy.send(.pointer(inHotZone: true, dragging: true), at: 10)
+        policy.send(.pointer(inHotZone: true), at: 10)
+        policy.send(.deadline, at: 10.3)
         return policy
     }
 }
 
 @MainActor
 final class IslandDropRevealIntegrationTests: XCTestCase {
+    private var pointer = NSPoint.zero
+
     func testIdlePanelIsOrderedOutAndHostingSizingRemainsDisabled() throws {
         let (controller, _) = try controller()
         defer { controller.panel.close() }
@@ -150,7 +164,7 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         defer { controller.panel.close() }
         let reveal = try XCTUnwrap(controller.dropReveal)
         let start = ProcessInfo.processInfo.systemUptime
-        for _ in 0..<10_000 { reveal.pointerMoved(to: .zero, dragging: false) }
+        for _ in 0..<10_000 { reveal.pointerMoved(to: .zero) }
         let elapsed = ProcessInfo.processInfo.systemUptime - start
         XCTAssertFalse(controller.panel.isVisible)
         print("Island idle pointer cost: \(elapsed * 1000) ms / 10000 events; "
@@ -167,14 +181,14 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         )
         reveal.setPresentation(island: true, question: false)
         let start = ProcessInfo.processInfo.systemUptime
-        reveal.pointerMoved(to: point, dragging: false)
+        reveal.pointerMoved(to: point)
         XCTAssertFalse(controller.panel.isVisible)
         try await waitForCondition { controller.panel.isVisible }
         let dwell = ProcessInfo.processInfo.systemUptime - start
         XCTAssertGreaterThanOrEqual(dwell, 0.3)
         point.y -= 100
         let left = ProcessInfo.processInfo.systemUptime
-        reveal.pointerMoved(to: point, dragging: false)
+        reveal.pointerMoved(to: point)
         XCTAssertTrue(controller.panel.isVisible)
         try await waitForCondition { !controller.panel.isVisible }
         let hide = ProcessInfo.processInfo.systemUptime - left
@@ -183,19 +197,18 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         XCTAssertFalse(controller.panel.isVisible)
     }
 
-    func testDragOrdersNativeDropHostImmediatelyAndWindowModeStaysHidden() throws {
+    func testDragDwellOrdersNativeDropHostAndWindowModeStaysHidden() async throws {
         let (controller, settings) = try controller()
         defer { controller.panel.close() }
         let reveal = try XCTUnwrap(controller.dropReveal)
-        let start = ProcessInfo.processInfo.systemUptime
-        reveal.pointerMoved(to: try hotPoint(), dragging: true)
-        let elapsed = ProcessInfo.processInfo.systemUptime - start
-        XCTAssertTrue(controller.panel.isVisible)
+        pointer = try hotPoint()
+        reveal.pointerMoved(to: pointer)
+        XCTAssertFalse(controller.panel.isVisible)
+        try await waitForCondition { controller.panel.isVisible }
         XCTAssertEqual(controller.panel.frame.size, NSSize(width: 184, height: 36))
         XCTAssertTrue(controller.panel.contentView is BoxDropHostingView)
-        print("Island drag reveal native ordering: \(elapsed * 1000) ms")
         settings.presentationMode = .window
-        reveal.pointerMoved(to: try hotPoint(), dragging: true)
+        reveal.pointerMoved(to: pointer)
         XCTAssertFalse(controller.panel.isVisible)
         XCTAssertFalse(controller.optionWindow.isVisible)
     }
@@ -205,15 +218,16 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         defer { controller.panel.close() }
         let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
         let reveal = try XCTUnwrap(controller.dropReveal)
-        var point = try hotPoint()
-        reveal.pointerMoved(to: point, dragging: true)
+        pointer = try hotPoint()
+        reveal.pointerMoved(to: pointer)
+        try await waitForCondition { controller.panel.isVisible }
         let pasteboard = NSPasteboard(name: .init(UUID().uuidString))
         defer { pasteboard.releaseGlobally() }
         pasteboard.setString("A reference", forType: .string)
         host.receive(pasteboard)
         XCTAssertTrue(host.popover.isShown)
-        point.y -= 100
-        reveal.pointerMoved(to: point, dragging: false)
+        pointer.y -= 100
+        reveal.pointerMoved(to: pointer)
         try await Task.sleep(for: .milliseconds(1100))
         XCTAssertTrue(controller.panel.isVisible)
         host.popover.close()
@@ -228,7 +242,7 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
             flow.disconnect()
             controller.panel.close()
         }
-        controller.dropReveal?.pointerMoved(to: try hotPoint(), dragging: false)
+        controller.dropReveal?.pointerMoved(to: try hotPoint())
         let message = OptionMessage.fixture(id: "reveal-question", options: ["Done"])
         flow.connect(api: ScriptedBossAPI(messages: [message]))
         try await waitForCondition { flow.activeMessage?.id == message.id }
@@ -255,7 +269,7 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         let settings = AppSettings(defaults: defaults, keychain: RevealTokenStore())
         settings.playsSound = false
         return (IslandPanelController(flow: flow, settings: settings,
-            overview: islandTestOverview(flow: flow)), settings)
+            overview: islandTestOverview(flow: flow), pointerLocation: { [unowned self] in pointer }), settings)
     }
 }
 

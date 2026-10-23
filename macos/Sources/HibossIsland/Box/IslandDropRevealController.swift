@@ -31,11 +31,11 @@ final class IslandDropRevealController {
         self.screenDidChange = screenDidChange
         panel.acceptsMouseMovedEvents = true
         let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .leftMouseUp]
-        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
-            self?.pointerMoved(to: pointerLocation(), dragging: event.type == .leftMouseDragged)
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] _ in
+            self?.pointerMoved(to: pointerLocation())
         }) { monitors.append(global) }
         if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
-            self?.pointerMoved(to: pointerLocation(), dragging: event.type == .leftMouseDragged)
+            self?.pointerMoved(to: pointerLocation())
             return event
         }) { monitors.append(local) }
         host.activityDidChange = { [weak self] popover, uploading in
@@ -53,23 +53,24 @@ final class IslandDropRevealController {
     }
 
     func refreshPointer() {
-        pointerMoved(to: pointerLocation(), dragging: false)
+        pointerMoved(to: pointerLocation())
     }
 
     static func hotZone(on screen: NSRect) -> NSRect {
         IslandGeometry(screenFrame: screen).hotZone
     }
 
-    func pointerMoved(to point: NSPoint, dragging: Bool) {
-        let target = screens().first { $0.screenFrame.contains(point) }
+    func pointerMoved(to point: NSPoint) {
+        let target = IslandGeometry.screen(containing: point, in: screens())
         pointerIsInside = false
         if geometry != target {
-            send(.pointer(inHotZone: false, dragging: false))
+            send(.pointer(inHotZone: false))
             geometry = target
             if let target { screenDidChange(target) }
         }
-        pointerIsInside = target?.hotZone.contains(point) == true
-        send(.pointer(inHotZone: pointerIsInside, dragging: dragging))
+        let shown = policy.visibility == .dropTarget
+        pointerIsInside = target?.revealZoneContains(point, dropTargetShown: shown) == true
+        send(.pointer(inHotZone: pointerIsInside))
     }
 
     private func send(_ event: IslandDropRevealPolicy.Event) {

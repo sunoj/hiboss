@@ -19,11 +19,11 @@ extension IslandDropRevealIntegrationTests {
             controller.optionWindow.close()
         }
         let reveal = try XCTUnwrap(controller.dropReveal)
-        reveal.pointerMoved(to: point, dragging: false)
+        reveal.pointerMoved(to: point)
         try await waitForCondition { controller.panel.isVisible }
         XCTAssertEqual(controller.panel.frame.width, screen.islandGeometry.collapsedFrame.width)
         point.y -= 100
-        reveal.pointerMoved(to: point, dragging: false)
+        reveal.pointerMoved(to: point)
         try await waitForCondition { !controller.panel.isVisible }
         let message = OptionMessage.fixture(id: "after-drop-hide", options: ["Ship", "Hold"])
         flow.connect(api: ScriptedBossAPI(messages: [message]))

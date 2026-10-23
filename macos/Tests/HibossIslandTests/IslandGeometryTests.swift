@@ -17,6 +17,7 @@ final class IslandGeometryTests: XCTestCase {
             XCTAssertEqual(geometry.collapsedFrame,
                 CGRect(x: frame.midX - 92, y: frame.maxY - 36, width: 184, height: 36))
             XCTAssertEqual(geometry.hotZone, geometry.collapsedFrame)
+            XCTAssertEqual(geometry.revealZone(dropTargetShown: true), geometry.collapsedFrame)
             XCTAssertEqual(geometry.expandedFrame(contentHeight: 300),
                 CGRect(x: frame.midX - 210, y: frame.maxY - 300, width: 420, height: 300))
         }
@@ -96,6 +97,62 @@ final class IslandGeometryTests: XCTestCase {
         XCTAssertEqual(geometry.collapsedFrame.height, 68)
     }
 
+    func testDragBesideOrBelowNotchNeverReveals() throws {
+        for geometry in [IslandNotchFixtures.macBook14, IslandNotchFixtures.macBook16] {
+            let notch = try XCTUnwrap(geometry.notchFrame)
+            for point in [CGPoint(x: notch.minX - 1, y: notch.midY),
+                CGPoint(x: notch.maxX + 1, y: notch.midY), CGPoint(x: notch.midX, y: notch.minY - 1)] {
+                XCTAssertTrue(geometry.collapsedFrame.contains(point))
+                var policy = Self.idlePolicy()
+                policy.send(.pointer(inHotZone: geometry.hotZone.contains(point)), at: 10)
+                policy.send(.deadline, at: 11)
+                XCTAssertEqual(policy.visibility, .hidden)
+            }
+        }
+    }
+
+    func testMovingFromNotchOntoRevealedDropTargetKeepsItShown() throws {
+        let geometry = IslandNotchFixtures.macBook14
+        let notch = try XCTUnwrap(geometry.notchFrame)
+        var policy = Self.idlePolicy()
+        func move(to point: CGPoint, at time: TimeInterval) {
+            let zone = geometry.revealZone(dropTargetShown: policy.visibility == .dropTarget)
+            policy.send(.pointer(inHotZone: zone.contains(point)), at: time)
+        }
+        move(to: CGPoint(x: notch.midX, y: notch.midY), at: 10)
+        policy.send(.deadline, at: 10.3)
+        XCTAssertEqual(policy.visibility, .dropTarget)
+        let bar = geometry.collapsedFrame
+        for (index, point) in [CGPoint(x: bar.minX + 1, y: bar.minY + 1),
+            CGPoint(x: bar.maxX - 1, y: notch.midY), CGPoint(x: notch.midX, y: bar.minY + 1)].enumerated() {
+            move(to: point, at: 11 + Double(index))
+            XCTAssertEqual(policy.visibility, .dropTarget)
+            XCTAssertNil(policy.nextDeadline)
+        }
+        move(to: CGPoint(x: notch.midX, y: bar.minY - 1), at: 20)
+        policy.send(.deadline, at: 21)
+        XCTAssertEqual(policy.visibility, .hidden)
+    }
+
+    func testPointerPinnedToTopEdgeSelectsScreenAndCountsAsInside() throws {
+        let geometry = IslandNotchFixtures.macBook14
+        let notch = try XCTUnwrap(geometry.notchFrame)
+        let above = IslandGeometry(screenFrame: CGRect(x: 0, y: 982, width: 1440, height: 900))
+        let pinned = CGPoint(x: notch.midX, y: geometry.screenFrame.maxY)
+        XCTAssertEqual(IslandGeometry.screen(containing: pinned, in: [geometry]), geometry)
+        XCTAssertEqual(IslandGeometry.screen(containing: pinned, in: [geometry, above]), above)
+        XCTAssertTrue(geometry.revealZoneContains(pinned, dropTargetShown: false))
+        XCTAssertTrue(geometry.revealZoneContains(pinned, dropTargetShown: true))
+        XCTAssertFalse(geometry.revealZoneContains(CGPoint(x: notch.minX - 1, y: notch.maxY),
+            dropTargetShown: false))
+    }
+
+    private static func idlePolicy() -> IslandDropRevealPolicy {
+        var policy = IslandDropRevealPolicy()
+        policy.send(.presentation(island: true, question: false), at: 0)
+        return policy
+    }
+
     private func assertNotchClearance(_ geometry: IslandGeometry) throws {
         let notch = try XCTUnwrap(geometry.notchFrame)
         let bar = geometry.collapsedFrame
@@ -103,10 +160,10 @@ final class IslandGeometryTests: XCTestCase {
         XCTAssertEqual(notch.minY - bar.minY, AppConstants.Island.collapsedHeight)
         XCTAssertGreaterThanOrEqual(notch.minX - bar.minX, 18)
         XCTAssertGreaterThanOrEqual(bar.maxX - notch.maxX, 18)
-        XCTAssertTrue(geometry.hotZone.contains(notch))
-        XCTAssertTrue(geometry.hotZone.contains(bar))
-        XCTAssertTrue(geometry.hotZone.contains(CGPoint(x: notch.midX, y: notch.maxY - 1)))
-        XCTAssertFalse(geometry.hotZone.contains(CGPoint(x: bar.midX, y: bar.minY - 1)))
+        XCTAssertEqual(geometry.hotZone, notch)
+        XCTAssertEqual(geometry.revealZone(dropTargetShown: false), notch)
+        XCTAssertEqual(geometry.revealZone(dropTargetShown: true), bar)
+        XCTAssertTrue(bar.contains(notch))
     }
 }
 
