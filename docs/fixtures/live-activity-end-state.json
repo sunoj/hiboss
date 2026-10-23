@@ -1,0 +1,5 @@
+{
+  "replied": {"body": "", "options": [], "priority": "normal", "completion": {"answeredElsewhere": {"_0": "Ship"}}},
+  "auto_default": {"body": "", "options": [], "priority": "normal", "completion": {"autoSelected": {"_0": "Hold"}}},
+  "expired": {"body": "", "options": [], "priority": "normal"}
+}
