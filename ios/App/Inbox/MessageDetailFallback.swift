@@ -46,6 +46,9 @@ extension MessageDetailView {
         } actions: {
             RetryButton(action: restartLookup)
         }
+        // Without its own mode the bar adopts the tab's large title only on a later redraw,
+        // such as a Retry tap, moving the centred result by half the title's height.
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func restartLookup() async {
