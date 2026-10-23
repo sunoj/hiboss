@@ -29,3 +29,40 @@ extension OptionFlowStore {
     }
 
 }
+
+extension OptionFlowStore {
+    /// Asks the server about every shown or queued option on each stream (re)connect. The
+    /// stream replays only recent resolutions and history keeps only the newest rows, so an
+    /// ask that closed while this client was offline would otherwise stay until its deadline.
+    func reconcileShownAsks() {
+        guard let api else { return }
+        let ids = (activeMessage.map { [$0.id] } ?? []) + queuedMessages.map(\.id)
+        guard !ids.isEmpty else { return }
+        let version = historyVersion
+        Task { [weak self] in
+            for id in ids {
+                // An unreachable lookup keeps the ask; its local deadline still bounds it.
+                guard let detail = try? await api.fetchMessage(id) else { continue }
+                guard let self, version == self.historyVersion else { return }
+                guard let resolution = Self.closedResolution(detail) else { continue }
+                if self.activeMessage?.id == id, case .resolved = self.presentationState { continue }
+                self.resolve(resolution)
+            }
+        }
+    }
+
+    /// The resolution a message detail implies, or nil while the ask is still open.
+    nonisolated static func closedResolution(_ detail: MessageDetail, now: Date = .now) -> OptionResolution? {
+        let message = detail.message
+        if message.status == "replied" {
+            let reply = detail.replies.first {
+                $0.direction == "boss_to_agent" && $0.replyTo == message.id.rawValue
+            }
+            return OptionResolution(id: message.id, status: .replied, answer: reply?.body,
+                                    source: reply?.metadata?.source, answeredBy: reply?.metadata?.answeredBy)
+        }
+        let expired = message.status == "expired" || message.metadata?.isExpired == true
+            || message.expirationDate.map { $0 <= now } == true
+        return expired ? OptionResolution(id: message.id, status: .expired) : nil
+    }
+}

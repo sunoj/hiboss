@@ -167,6 +167,7 @@ public final class OptionFlowStore: ObservableObject {
             // Reconcile on every (re)connect: a resolution that happened while we
             // were between 5-minute stream cycles is otherwise never delivered.
             refreshHistoryInBackground()
+            reconcileShownAsks()
             do {
                 for try await event in stream {
                     receive(event)
