@@ -64,11 +64,7 @@ final class IslandDropRevealController {
         let target = IslandGeometry.screen(containing: point, in: screens())
         pointerIsInside = false
         if geometry != target {
-            if let geometry, let target, geometry.isSameDisplay(as: target) {
-                send(.pointer(inHotZone: false))
-            } else {
-                send(.displayChanged)
-            }
+            send(.pointer(inHotZone: false))
             geometry = target
             if let target { screenDidChange(target) }
         }

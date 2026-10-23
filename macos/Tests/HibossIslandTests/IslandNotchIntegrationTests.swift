@@ -26,17 +26,13 @@ final class IslandNotchIntegrationTests: XCTestCase {
 
         point = CGPoint(x: plain.screenFrame.midX, y: plain.screenFrame.maxY - 1)
         reveal.pointerMoved(to: point)
-        XCTAssertFalse(controller.panel.isVisible)
-        XCTAssertEqual(host.rootView.topInset, 0)
-        try await waitForCondition { controller.panel.isVisible }
         XCTAssertEqual(controller.panel.frame, plain.collapsedFrame)
+        XCTAssertEqual(host.rootView.topInset, 0)
 
         point = CGPoint(x: notch.screenFrame.midX, y: notch.screenFrame.maxY - 50)
         reveal.pointerMoved(to: point)
-        XCTAssertFalse(controller.panel.isVisible)
+        XCTAssertEqual(controller.panel.frame, notch.collapsedFrame)
         XCTAssertEqual(host.rootView.topInset, 32)
-        try await Task.sleep(for: .milliseconds(400))
-        XCTAssertFalse(controller.panel.isVisible)
     }
 
     func testPointerPinnedToNotchedTopEdgeRevealsAfterDwell() async throws {

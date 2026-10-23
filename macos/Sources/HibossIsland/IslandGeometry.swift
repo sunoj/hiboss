@@ -68,11 +68,6 @@ struct IslandGeometry: Equatable {
             ?? screens.first { topEdgeInclusive($0.screenFrame, contains: point) }
     }
 
-    func isSameDisplay(as other: IslandGeometry) -> Bool {
-        if let displayID { return displayID == other.displayID }
-        return screenFrame.origin == other.screenFrame.origin
-    }
-
     private static func topEdgeInclusive(_ rect: CGRect, contains point: CGPoint) -> Bool {
         rect.contains(point) || (point.y == rect.maxY && point.x >= rect.minX && point.x < rect.maxX)
     }

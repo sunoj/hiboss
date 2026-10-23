@@ -147,22 +147,6 @@ final class IslandGeometryTests: XCTestCase {
             dropTargetShown: false))
     }
 
-    func testDisplayChangeHidesAndRequiresFreshDwellUnlessHeld() {
-        var policy = Self.idlePolicy()
-        policy.send(.pointer(inHotZone: true), at: 10)
-        policy.send(.deadline, at: 10.3)
-        XCTAssertEqual(policy.visibility, .dropTarget)
-        policy.send(.displayChanged, at: 11)
-        XCTAssertEqual(policy.visibility, .hidden)
-        policy.send(.pointer(inHotZone: true), at: 11)
-        XCTAssertEqual(policy.visibility, .hidden)
-        policy.send(.deadline, at: 11.3)
-        XCTAssertEqual(policy.visibility, .dropTarget)
-        policy.send(.activity(popover: true, uploading: false), at: 12)
-        policy.send(.displayChanged, at: 12)
-        XCTAssertEqual(policy.visibility, .dropTarget)
-    }
-
     private static func idlePolicy() -> IslandDropRevealPolicy {
         var policy = IslandDropRevealPolicy()
         policy.send(.presentation(island: true, question: false), at: 0)
