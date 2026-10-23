@@ -16,7 +16,9 @@ export interface Env {
 export type AppEnv = { Bindings: Env };
 
 export type ApnsEnvironment = 'sandbox' | 'production';
-export type PushKind = 'decision' | 'message' | 'system';
+export type AlertKind = 'decision' | 'message' | 'system';
+/** `resolved` retracts an ask's notifications with a background push; the others are alerts. */
+export type PushKind = AlertKind | 'resolved';
 export type ApnsPriority = 5 | 10;
 export type InterruptionLevel = 'passive' | 'active' | 'time-sensitive';
 
@@ -32,12 +34,20 @@ export interface TokenBody {
   environment: ApnsEnvironment;
 }
 
-export interface PushBody extends DeliveryLevel {
-  handle: string;
-  kind: PushKind;
+export interface AlertPush extends DeliveryLevel {
+  kind: AlertKind;
   ciphertext: string;
   collapseId?: string;
 }
+
+/** A background push: fixed priority 5, no interruption level, sound or collapse id. */
+export interface ResolvedPush {
+  kind: 'resolved';
+  ciphertext: string;
+  priority: 5;
+}
+
+export type PushBody = (AlertPush | ResolvedPush) & { handle: string };
 
 export interface Registration {
   handle_hash: string;

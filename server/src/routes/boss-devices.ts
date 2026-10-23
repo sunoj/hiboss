@@ -1,4 +1,4 @@
-// Boss device registration API for iOS APNs tokens.
+// Boss device registration API for iOS APNs tokens and Live Activity push tokens.
 // Exports bossDevicesRouter mounted at /api/boss/devices.
 // Depends on boss bearer auth and D1 boss_devices/audit_log storage.
 
@@ -8,6 +8,7 @@ import { bossAuth, getBossId, getClientId } from '../middleware/auth';
 import type { ApnsEnvironment } from '../apns';
 import { isRelaySecret } from '../push/relay';
 import { deleteBossDevice } from '../push/devices';
+import { registerLiveActivity } from './boss-live-activities';
 
 type BossDevicePlatform = 'ios';
 
@@ -36,6 +37,9 @@ routes.post('/', async (c) => {
      SELECT 'boss', ?, 'device.reparent', 'device', id, json_object('old_boss_id', boss_id)
      FROM boss_devices WHERE device_token = ? AND boss_id != ?`
   ).bind(bossId, payload.token, bossId);
+  // A device that changes owner keeps its row id; its activity tokens belong to the old owner's asks.
+  const dropActivities = c.env.DB.prepare(`DELETE FROM live_activity_tokens WHERE device_id IN
+    (SELECT id FROM boss_devices WHERE device_token = ? AND boss_id != ?)`).bind(payload.token, bossId);
   const upsert = c.env.DB
     .prepare(
       `INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, client_id,
@@ -54,9 +58,11 @@ routes.post('/', async (c) => {
     )
     .bind(bossId, payload.token, payload.bundleId, payload.environment, payload.platform, getClientId(c),
       payload.relayHandle, payload.pushKey);
-  const [auditResult] = await c.env.DB.batch([audit, upsert]);
+  const [auditResult] = await c.env.DB.batch([audit, dropActivities, upsert]);
   return c.json({ ok: true, ...(auditResult.meta.changes > 0 ? { reparented: true } : {}) });
 });
+
+routes.post('/live-activities', registerLiveActivity);
 
 routes.delete('/:token', async (c) => {
   await deleteBossDevice(c.env, getBossId(c), c.req.param('token').startsWith('relay:')

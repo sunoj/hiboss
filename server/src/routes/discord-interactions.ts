@@ -14,6 +14,7 @@ import { replyTargetSession } from './message-helpers';
 import { createMessageId } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
 import { persistChannelText } from './boss-option-reply';
+import { deferredAnnounce } from '../push/resolution';
 
 interface DiscordInteractionPayload { id?: string; type: number; data?: DiscordInteractionData; channel_id?: string; member?: { user?: { id?: string } }; message?: { content?: string } }
 interface DiscordInteractionData { name?: string; options?: DiscordInteractionOption[]; custom_id?: string }
@@ -103,7 +104,8 @@ async function handleApplicationCommand(
   const targetSessionId = pendingMsg ? replyTargetSession(pendingMsg) : null;
   const insertSql = 'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(agent_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING RETURNING *';
   const binds = [createMessageId(), agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', replyTo, JSON.stringify(meta), targetSessionId, interactionKey];
-  const inserted = await persistChannelText(c.env, pendingMsg, message, insertSql, binds, targetSessionId);
+  const inserted = await persistChannelText(c.env, pendingMsg, message, insertSql, binds, targetSessionId,
+    deferredAnnounce(c.executionCtx));
   if (!inserted) return c.json({ type: 4, data: { content: 'Interaction already handled.', flags: 64 } });
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, bossCheck.boss ? 'boss' : 'system', bossCheck.boss?.id ?? 'discord', 'message.send', 'message', inserted.id, 'discord-slash'));

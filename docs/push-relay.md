@@ -44,7 +44,7 @@ Malformed JSON, non-object bodies, wrong types and unknown fields are answered w
 | `POST /v1/registrations` `{ apnsToken, environment }` | 201 `{ handle, deviceSecret }` | 400, 429, 503 (also when `HANDLE_KEY` is not set) |
 | `PUT /v1/registrations/self` `{ apnsToken, environment }` | 204 | 400, 410, 429, 503 |
 | `DELETE /v1/registrations/self` | 204 | 429 |
-| `POST /v1/push` `{ handle, kind, ciphertext, collapseId?, priority, interruption, sound }` | 202 | 400, 410, 429, 502, 503 (APNs key or `HANDLE_KEY` not configured) |
+| `POST /v1/push` `{ handle, kind, ciphertext, collapseId?, priority, interruption, sound }` for kind `decision`, `message` or `system`; `{ handle, kind, ciphertext, priority }` for kind `resolved` | 202 | 400, 410, 429, 502, 503 (APNs key or `HANDLE_KEY` not configured) |
 
 - `apnsToken` is 64–200 hexadecimal characters (stored lower-case); `environment` is `sandbox`
   or `production`. The APNs topic is fixed to `ai.hiboss.app`; clients cannot choose a bundle.
@@ -61,13 +61,16 @@ Malformed JSON, non-object bodies, wrong types and unknown fields are answered w
   token and environment and keeps the handle. `DELETE` removes the registration and is
   idempotent: it answers 204 whether or not the secret matched anything.
 - `POST /v1/push` has no other authentication: the handle is the capability.
-  - `kind` is `decision`, `message` or `system`.
+  - `kind` is `decision`, `message`, `system` (alerts) or `resolved` (a background push that
+    tells the App an ask closed).
   - `ciphertext` is unpadded base64url, 28–2,048 bytes decoded (28 is the nonce plus the GCM tag).
   - `collapseId` is 1–64 characters of `[A-Za-z0-9_-]`.
   - The delivery level is required: `priority` is the number `5` or `10`, `interruption` is
     `passive`, `active` or `time-sensitive`, and `sound` is a boolean. A missing field or any
     other value is answered with 400. These fields are urgency metadata, not content; the Server
     derives them from the payload it would send directly.
+  - For `resolved`, `priority` must be `5`, and `interruption`, `sound` and `collapseId` must be
+    absent; any other body is answered with 400.
 - A handle or secret that is unknown, deleted, malformed, forged or wrong gets exactly the same response:
   410 `{"error":"gone"}` for `PUT` and `POST /v1/push`, 204 for `DELETE`. There is no oracle that
   distinguishes them. On 410 from `/v1/push` the Server drops the handle.
@@ -84,7 +87,7 @@ to the token, which the device does not show:
 
 ### APNs request
 
-For an accepted push the relay sends one APNs alert:
+For an accepted `decision`, `message` or `system` push the relay sends one APNs alert:
 
 - `aps.alert` = `{ "title-loc-key": "HIBOSS_PUSH_TITLE", "loc-key": <by kind> }` with
   `HIBOSS_PUSH_DECISION`, `HIBOSS_PUSH_MESSAGE` or `HIBOSS_PUSH_SYSTEM`. No Server text reaches
@@ -98,6 +101,13 @@ For an accepted push the relay sends one APNs alert:
   410. Any other APNs failure answers 502 and keeps the registration. A relay without APNs
   secrets answers 503 and sends nothing.
 
+For an accepted `resolved` push the relay sends one APNs background push, which shows nothing:
+
+- Body: `{"aps":{"content-available":1},"e":"<ciphertext>"}`.
+- Headers: `apns-topic: ai.hiboss.app`, `apns-push-type: background`, `apns-priority: 5`; no
+  `apns-collapse-id`.
+- The same 410, 502 and 503 rules apply.
+
 ## Ciphertext (Server to App, opaque to the relay and Apple)
 
 ```
@@ -108,6 +118,9 @@ The plaintext is the JSON the App already understands as direct APNs `userInfo` 
 title, body, options, category), trimmed to fit the 2,048-byte limit. The NSE decrypts it and
 rewrites title, body and category; on any failure it leaves the generic alert. The kind is
 authenticated through the AAD, so the relay cannot swap it.
+
+For kind `resolved` the plaintext is only `{"id":"<message id>","status":"replied|expired"}`. The
+App decrypts it in `didReceiveRemoteNotification`; a decryption failure does nothing.
 
 ## Abuse limits
 
@@ -125,12 +138,15 @@ installs.
 | `POST /v1/registrations` per address (`REGISTRATION_RATE_LIMITER`) | 5 per minute | 429, no D1 access |
 | `POST /v1/registrations` per APNs token (`TOKEN_RATE_LIMITER`), before the token check | 2 per minute | 429, no D1 access, no APNs call |
 | `PUT`/`DELETE /v1/registrations/self` per address (`SELF_RATE_LIMITER`) | 30 per minute | 429, no D1 access |
-| Pushes per device (APNs token) | 60 per hour and 500 per day | 429, nothing sent, nothing written |
+| Alert pushes per device (APNs token) | 60 per hour and 500 per day | 429, nothing sent, nothing written |
+| `resolved` pushes per device (APNs token), a separate bucket | 60 per hour and 500 per day | 429, nothing sent, nothing written |
 
 - **Address key.** The IPv6 /64 prefix or the full IPv4 address of `CF-Connecting-IP`, for
   `POST`, `PUT` and `DELETE` on `/v1/registrations`. `CF-Worker` is ignored.
 - **Token key.** SHA-256 of the lower-cased APNs token, for `POST /v1/registrations` only. It
   bounds how fast one real token can mint handles, whatever addresses the caller holds.
+- **Device key.** SHA-256 of the APNs token. Alerts and `resolved` pushes count in separate
+  buckets, so resolutions never consume the alert budget and alerts never starve resolutions.
 - **Handle key.** SHA-256 of the handle, applied only once the MAC has verified. A forged or
   garbled handle is answered 410 before the limiter and before D1.
 - The rate-limit bindings bound request cost, not delivery. Their counters are per Cloudflare
@@ -157,9 +173,9 @@ Totals are per day. "Address" is an IPv6 /64 or an IPv4 address; the zone rule b
 | Register real tokens | One D1 row per token | Rows are bounded by real installs. |
 | `PUT`/`DELETE` with wrong secrets | 43,200 Worker requests and 43,200 D1 reads per address (one indexed read each); no write, no APNs call | 30 per minute per address; the total scales with the addresses the caller holds. |
 | Push with forged or garbled handles | One Worker request and one HMAC each; no D1 access, no limiter, no APNs call | Requests from outside Cloudflare: the zone rule, at most 1,728,000 per IP; blocked requests cost nothing. Requests from a Worker are exempt from that rule and are bounded only by the caller's own request rate; the usage alert covers them. |
-| Push with one genuine handle | At most 86,400 requests reach D1 (one lookup and one guarded counter statement each) | 60 per minute per handle per Cloudflare location; at most 500 APNs alerts and 1,500 D1 row writes (two counters and `last_used_at` per delivered push). |
+| Push with one genuine handle | At most 86,400 requests reach D1 (one lookup and one guarded counter statement each) | 60 per minute per handle per Cloudflare location; at most 500 APNs alerts, 500 background pushes and 3,000 D1 row writes (two counters and `last_used_at` per delivered push). |
 | Push with replaced handles | Each registration of a real token mints a handle whose MAC stays valid after the row is replaced; a push with it costs one D1 read and gets 410, with no write and no APNs call | Minting: 5 registrations per minute per address and 2 per minute per token, so at most 2,880 handles per day per real token. Each handle: 60 requests per minute into D1. |
-| Push to a real device | At most 500 APNs alerts | 60 per hour and 500 per day per device, however many times its token is registered. |
+| Push to a real device | At most 500 APNs alerts and 500 background pushes | 60 per hour and 500 per day per device and bucket, however many times its token is registered. |
 | Deny other installs or servers | Contention for the relay's one D1 database | No shared counter or ceiling exists to exhaust, and D1 growth is bounded by real installs. The two D1 paths an outsider reaches are wrong-secret `/self` requests (30 per minute per address) and replaced handles (60 per minute each, minted as above); their total is bounded only by the addresses and real tokens the caller holds and by D1 throughput. |
 
 - **Token holders.** Whoever holds an install's raw APNs token can register it, which replaces the
@@ -219,9 +235,12 @@ Totals are per day. "Address" is an IPv6 /64 or an IPv4 address; the zone rule b
 - Device registration accepts `{ relayHandle, pushKey, environment }` as an alternative to an APNs
   token, with the usual boss authentication. These are stored per boss device like tokens, and
   deleting the device deletes them.
-- Every push path (notify, delivery adapters, probe, join notify) sends through one function that
+- Every alert path (notify, delivery adapters, probe, join notify) sends through one function that
   picks direct or relay. Quiet hours, priority rules and private-push preferences apply before the
   relay is called. A relay 410 removes the device row.
+- When an agent ask closes, the Server sends each relay device of the ask's bosses one `resolved`
+  push (see [Resolution pushes](reference/api-reference.md#resolution-pushes)). Quiet hours,
+  priority and private-push preferences do not suppress it.
 - The Server never logs handles, push keys or ciphertext.
 
 ## App behaviour
@@ -236,8 +255,9 @@ Totals are per day. "Address" is an IPv6 /64 or an IPv4 address; the zone rule b
   then erases the secret and the key.
 - When the Server reports `none`, Settings → Notifications states that push is unavailable for
   this server and why, and the App does not prompt for notification permission.
-- Live Activity push updates are direct-only in v1 because an NSE cannot decrypt them. With the
-  relay, Live Activities update while the app runs; Settings help states this.
+- Live Activity pushes are not relayed: activity tokens are not APNs-verified registrations, and
+  an NSE cannot decrypt a Live Activity push. With the relay, Live Activities update while the
+  app runs, and a `resolved` push or the next launch ends the activity of a closed ask.
 
 ## Invariants
 

@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0060; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0061; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -303,6 +303,18 @@ CREATE INDEX idx_boss_devices_client ON boss_devices(client_id);
 CREATE UNIQUE INDEX idx_boss_devices_relay_handle ON boss_devices(relay_handle);
 
 CREATE INDEX IF NOT EXISTS idx_boss_devices_boss ON boss_devices(boss_id, last_seen_at DESC);
+
+-- Live Activity push tokens per boss device and ask, ended when the ask closes (direct mode).
+CREATE TABLE live_activity_tokens (
+  device_id TEXT NOT NULL REFERENCES boss_devices(id) ON DELETE CASCADE,
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  activity_token TEXT NOT NULL,
+  environment TEXT NOT NULL CHECK (environment IN ('sandbox', 'production')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (device_id, message_id)
+);
+CREATE INDEX idx_live_activity_tokens_message ON live_activity_tokens(message_id);
+CREATE INDEX idx_live_activity_tokens_updated ON live_activity_tokens(updated_at);
 
 -- Audit history
 

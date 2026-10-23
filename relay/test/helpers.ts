@@ -1,5 +1,5 @@
 // Shared relay test helpers: request builder, APNs fetch mock, fake rate limiters, fixtures, DB reset.
-// The APNs mock answers token checks (background pushes) and alert pushes separately.
+// The APNs mock answers token checks (background pushes without `e`) and pushes separately.
 // Calls the Worker entry directly so the stubbed global fetch is the APNs boundary.
 
 import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
@@ -100,11 +100,19 @@ function reply({ status, reason }: ApnsReply): Response {
   return reason ? Response.json({ reason }, { status }) : new Response(null, { status });
 }
 
-/** Stubs APNs: alert pushes get `status`/`reason`, token checks (background pushes) get `verify`. */
+export type ApnsCallType = 'alert' | 'background' | 'resolved';
+
+/** `background` is a token check; `resolved` is a background push carrying ciphertext `e`. */
+function callType(init: RequestInit | undefined): ApnsCallType {
+  if ((init?.headers as Record<string, string>)['apns-push-type'] === 'alert') return 'alert';
+  const payload = JSON.parse(init?.body as string) as Record<string, unknown>;
+  return 'e' in payload ? 'resolved' : 'background';
+}
+
+/** Stubs APNs: pushes get `status`/`reason`, token checks (background pushes) get `verify`. */
 export function mockApns(status = 200, reason?: string, verify: ApnsReply = { status: 200 }) {
   const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
-    const background = (init?.headers as Record<string, string>)['apns-push-type'] === 'background';
-    return reply(background ? verify : { status, reason });
+    return reply(callType(init) === 'background' ? verify : { status, reason });
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
@@ -113,9 +121,9 @@ export function mockApns(status = 200, reason?: string, verify: ApnsReply = { st
 export type ApnsCall = [string, RequestInit];
 
 /** Recorded APNs calls of one push type, in order. */
-export function apnsCalls(fetchMock: ReturnType<typeof mockApns>, type: 'alert' | 'background'): ApnsCall[] {
+export function apnsCalls(fetchMock: ReturnType<typeof mockApns>, type: ApnsCallType): ApnsCall[] {
   const calls = fetchMock.mock.calls as ApnsCall[];
-  return calls.filter(([, init]) => (init.headers as Record<string, string>)['apns-push-type'] === type);
+  return calls.filter(([, init]) => callType(init) === type);
 }
 
 export async function register(
@@ -130,6 +138,10 @@ export async function register(
 
 export function pushBody(handle: string, extra: Record<string, unknown> = {}) {
   return { handle, kind: 'message', ciphertext: CIPHERTEXT, ...DELIVERY, ...extra };
+}
+
+export function resolvedBody(handle: string, extra: Record<string, unknown> = {}) {
+  return { handle, kind: 'resolved', ciphertext: CIPHERTEXT, priority: 5, ...extra };
 }
 
 export async function resetDb(): Promise<void> {

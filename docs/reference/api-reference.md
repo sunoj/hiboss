@@ -327,8 +327,50 @@ Upserts by device token for the authenticated boss. Returns `{ "ok": true }`.
 Fresh blocking `POST /api/panels/:id/requests` publications send `HIBOSS_REQUEST` to the panel's target boss devices; retries, replace/withdraw, optional requests, `deliver:false`, and `DESTINATIONS_MODE=on` are silent.
 See the [questionnaire push contract](../../docs/live-panels/questionnaires.md#publication-push-contract) for payload, privacy, decision tiers, and best-effort delivery rules.
 
+### POST /api/boss/devices/live-activities
+Registers a decision Live Activity's push token so the server can end the activity when its ask
+closes. Body: `{ "messageId": "<ask id>", "activityToken": "<hex>", "environment": "sandbox"|"production" }`.
+Boss-authenticated. Direct mode only: with the relay or without push the answer is 409. The token
+is stored for the caller's most recently seen direct-mode device (matched by the token's boss
+client), upserted per device and ask, and answered 204. A malformed body (token not even-length
+hex of at most 200 characters, unknown environment, missing message id) is 400; a message the
+boss cannot read is 404; no direct device for the caller, or an ask that is no longer open, is
+409 and stores nothing. Deleting the device or the message deletes its rows, registering the
+device under another boss deletes them too, and the scheduled job purges rows not updated for
+48 hours.
+
 ### DELETE /api/boss/devices/:token
-Unregisters a device token for the authenticated boss.
+Unregisters a device token for the authenticated boss. Its Live Activity tokens are deleted with it.
+
+### Resolution pushes
+Each time an agent ask (`agent_to_boss` with options, or blocking) moves to `replied` or `expired`
+— a boss reply from any client or channel, a boss-agent reply, a timeout default, a deadline or
+stale-sweep expiry, or the end of its session — the server fans out once per ask after the
+change commits. The audience is every push device of the bosses who received the ask's push
+(admins and bosses with access to the agent, not archived). The push is silent and only removes,
+so quiet hours, priority and private-push preferences do not suppress it, and the device that
+answered is included. Failures are swallowed and never undo or delay the transition. Boss reply,
+inbox and Discord/Telegram interaction routes send the fan-out after the response (`waitUntil`);
+session close routes and the Discord message webhook send it before responding. A scheduled run sends the fan-out after
+its sweeps, for at most 50 closed asks (newest first) and 6 asks at a time; the rest get no push
+and are left to the app's launch reconciliation.
+
+- Direct mode, per device token: `apns-push-type: background`, `apns-priority: 5`,
+  `apns-topic` = the device's bundle id (`ai.hiboss.app`), no `apns-collapse-id`; payload
+  `{"aps":{"content-available":1},"hiboss":{"resolved":{"id":"<message id>","status":"replied|expired"}}}`.
+  APNs 410 or `BadDeviceToken` removes the device, as for alerts.
+- Relay mode: `POST /v1/push` with `kind: "resolved"`, `priority: 5` and the ciphertext of
+  `{"id":"<message id>","status":"replied|expired"}`; see [push-relay.md](../push-relay.md).
+- Live Activity end (direct mode only): for every stored activity token of the ask on a device of
+  that audience,
+  `apns-push-type: liveactivity`, `apns-topic: <bundle id>.push-type.liveactivity`,
+  `apns-priority: 10`, payload `{"aps":{"timestamp":<now>,"event":"end","dismissal-date":<now>,"content-state":<state>}}`.
+  `<state>` is `DecisionActivityAttributes.ContentState` with an empty body and options, the ask's
+  priority and the completion (`answeredElsewhere` with the answer, `autoSelected` for a timeout
+  default, none for an expiry); [the shared fixture](../fixtures/live-activity-end-state.json)
+  holds the exact objects. All the ask's token rows are then deleted, including those of devices
+  outside the audience, which get no push.
+- The server never logs device tokens, activity tokens, handles or ciphertext.
 
 ### GET /api/boss/sessions
 Active sessions for accessible agents.

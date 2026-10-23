@@ -8,6 +8,7 @@ import { logAudit } from '../audit';
 import { notifyAgentCallback } from '../notify';
 import type { Env, MessageRow } from '../types';
 import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
+import { deferredAnnounce } from '../push/resolution';
 import { withdrawResolvedOptions } from './message-options';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
@@ -114,6 +115,7 @@ async function handleMessageCallback(
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
     [createMessageId(), configRow.agent_id, 'boss_to_agent', 'async', 'telegram', parsed.selectedOption, 'sent', 'normal', parentMsg.id, queryId ?? null, metadata ? JSON.stringify(metadata) : null, replyTargetSession(parentMsg)],
     replyTargetSession(parentMsg),
+    { announce: deferredAnnounce(c.executionCtx) },
   );
   const rejection = await telegramClaimRejection(c, claim, botToken, queryId, query);
   if (rejection) return rejection;

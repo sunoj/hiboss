@@ -4,6 +4,7 @@
 import type { Env, MessageRow } from './types';
 import { OPEN_MESSAGE_STATUS } from './message-status';
 import { announceExpiredAsk, EXPIRE_ASK_SET_SQL, expireWithoutDefault } from './routes/message-options';
+import { announceResolution, type Announce } from './push/resolution';
 
 const BATCH_SIZE = 50;
 /** Ceiling on stale-sweep batches per cron run; the next run continues from what is left. */
@@ -43,14 +44,14 @@ export async function expireSessionAsks(env: Env, agentId: string, sessionId: st
 }
 
 /** Cron sweep: expires deadline-less asks older than a day, up to MAX_STALE_BATCHES batches. */
-export async function expireStaleAsks(env: Env): Promise<number> {
+export async function expireStaleAsks(env: Env, announce: Announce = announceResolution): Promise<number> {
   let expired = 0;
   for (let batch = 0; batch < MAX_STALE_BATCHES; batch += 1) {
     const rows = (await env.DB
       .prepare(`SELECT * FROM messages WHERE ${OPEN_ASK_SQL} AND ${STALE_ASK_SQL} LIMIT ?`)
       .bind(BATCH_SIZE)
       .all<MessageRow>()).results ?? [];
-    const claimed = await expireAll(env, rows);
+    const claimed = await expireAll(env, rows, announce);
     expired += claimed;
     // A short batch is the last one; a batch that claimed nothing would only repeat itself.
     if (rows.length < BATCH_SIZE || claimed === 0) break;
@@ -58,11 +59,11 @@ export async function expireStaleAsks(env: Env): Promise<number> {
   return expired;
 }
 
-async function expireAll(env: Env, rows: MessageRow[]): Promise<number> {
+async function expireAll(env: Env, rows: MessageRow[], announce: Announce): Promise<number> {
   let expired = 0;
   for (const row of rows) {
     try {
-      if (await expireWithoutDefault(env, row.agent_id, row)) expired += 1;
+      if (await expireWithoutDefault(env, row.agent_id, row, announce)) expired += 1;
     } catch {
       console.error(`Failed to expire abandoned ask ${row.id}`);
     }

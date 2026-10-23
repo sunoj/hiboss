@@ -25,6 +25,7 @@ import type { Env, MessageRow } from '../types';
 import { createMessageId } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
 import { persistChannelText } from './boss-option-reply';
+import { deferredAnnounce } from '../push/resolution';
 
 const router = new Hono<{ Bindings: Env }>({});
 
@@ -157,7 +158,8 @@ async function createTelegramBossMessage(
     .bind(replyTo).first<MessageRow>() : null;
   const insertSql = 'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *';
   const binds = [createMessageId(), agentId, 'boss_to_agent', 'async', 'telegram', body, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), target.targetSessionId];
-  const inserted = await persistChannelText(c.env, parent, body, insertSql, binds, target.targetSessionId);
+  const inserted = await persistChannelText(c.env, parent, body, insertSql, binds, target.targetSessionId,
+    deferredAnnounce(c.executionCtx));
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentId, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.send', 'message', inserted.id, 'telegram'));
