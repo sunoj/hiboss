@@ -1,5 +1,5 @@
-// Covers the shared Box thumbnail generator: 512 px bound, EXIF orientation, poster frames
-// and the 256 KiB quality fallback. Fixtures are synthesized in a temporary directory.
+// Covers the shared Box thumbnail generator: 512 px bound, EXIF orientation, poster frames,
+// flattening onto white and the 256 KiB quality fallback. Fixtures are synthesized in a temporary directory.
 // Dependencies: XCTest, AVFoundation, ImageIO and HibossKit.
 
 @preconcurrency import AVFoundation
@@ -58,6 +58,24 @@ final class BoxThumbnailGeneratorTests: XCTestCase {
         XCTAssertEqual(try size(of: data), CGSize(width: 512, height: 288))
     }
 
+    func testTranslucentImageIsFlattenedOntoWhite() async throws {
+        let url = directory.appendingPathComponent("clear.png")
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(
+            url as CFURL, UTType.png.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try transparent(width: 64, height: 64), nil)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        let data = try await XCTUnwrapAsync(await BoxThumbnailGenerator.thumbnail(for: url, kind: .image))
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        var pixel = [UInt8](repeating: 0, count: 4)
+        let context = try XCTUnwrap(CGContext(
+            data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        context.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        XCTAssertGreaterThan(pixel[0], 240, "half-transparent red over white stays light red")
+        XCTAssertTrue((100...170).contains(pixel[1]) && (100...170).contains(pixel[2]), "\(pixel)")
+    }
+
     private func XCTUnwrapAsync<T>(_ value: T?) async throws -> T { try XCTUnwrap(value) }
 
     private func size(of data: Data) throws -> CGSize {
@@ -76,6 +94,15 @@ final class BoxThumbnailGeneratorTests: XCTestCase {
         CGImageDestinationAddImage(destination, try noise(width: width, height: height), properties)
         XCTAssertTrue(CGImageDestinationFinalize(destination))
         return url
+    }
+
+    private func transparent(width: Int, height: Int) throws -> CGImage {
+        let context = try XCTUnwrap(CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 0.5))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        return try XCTUnwrap(context.makeImage())
     }
 
     private func noise(width: Int, height: Int) throws -> CGImage {
