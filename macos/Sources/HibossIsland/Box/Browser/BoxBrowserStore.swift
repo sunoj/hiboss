@@ -6,7 +6,7 @@ import Combine
 import Foundation
 import HibossKit
 
-protocol BoxBrowsing: BoxServing, BoxCollectionServing {
+protocol BoxBrowsing: BoxThumbnailServing, BoxCollectionServing {
     func patchBoxItem(id: String, patch: BoxPatch) async throws -> BoxItem
     func searchBoxItems(
         query: String, filters: BoxFilters, limit: Int, cursor: String?

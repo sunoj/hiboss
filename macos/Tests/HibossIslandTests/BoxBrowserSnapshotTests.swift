@@ -39,7 +39,7 @@ final class BoxBrowserSnapshotTests: XCTestCase {
         await store.refresh()
         for scheme in [ColorScheme.light, .dark] {
             let bitmap = try await render(store: store, media: media, scheme: scheme, waitsForImage: true)
-            XCTAssertNotNil(media.thumbnails["image"])
+            XCTAssertNotNil(media.thumbnail("image"))
             XCTAssertEqual(store.items.filter { $0.provenance != nil }.count, 2)
             try write(bitmap, name: "box-\(scheme == .light ? "light" : "dark")-native")
         }
@@ -92,7 +92,7 @@ final class BoxBrowserSnapshotTests: XCTestCase {
         window.makeKeyAndOrderFront(nil)
         defer { window.close() }
         try await waitForCondition { mounted && store.didLoad && !store.isLoading && window.toolbar != nil }
-        if waitsForImage { try await waitForCondition { media.thumbnails["image"] != nil } }
+        if waitsForImage { try await waitForCondition { media.thumbnail("image") != nil } }
         var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
         frame.size.height = min(frame.height, screen.height)
         frame.origin = NSPoint(x: screen.minX + 20, y: screen.maxY - frame.height)

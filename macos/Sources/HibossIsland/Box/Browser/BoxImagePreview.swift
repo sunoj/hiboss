@@ -73,7 +73,8 @@ struct BoxImagePreview: View {
 
     private func load() async {
         error = nil
-        guard let url = await media.load(item) else {
+        // A retry downloads again: the cached original may be the copy that failed to decode.
+        guard let url = await (attempt == 0 ? media.load(item) : media.reload(item)) else {
             if !Task.isCancelled { error = media.errors[item.id] ?? L("Couldn't open this item.") }
             return
         }

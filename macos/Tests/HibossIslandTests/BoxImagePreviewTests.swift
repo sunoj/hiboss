@@ -21,7 +21,7 @@ final class BoxImagePreviewTests: XCTestCase {
         store.selection = "image"
         let window = show(store: store, media: media, width: 800, appearance: .aqua)
         defer { window.close() }
-        try await waitForCondition { media.errors["image"] != nil }
+        try await waitForCondition { media.thumbnailErrors["image"] != nil }
         let detail = try await detailWindow(in: window)
         try await openImage(in: detail)
         try await waitForCondition { detail.attachedSheet != nil }
@@ -56,7 +56,7 @@ final class BoxImagePreviewTests: XCTestCase {
         await store.refresh()
         let window = show(store: store, media: media, width: width, appearance: appearance)
         defer { window.close() }
-        try await waitForCondition { media.thumbnails["image"] != nil }
+        try await waitForCondition { media.thumbnail("image") != nil }
         store.selection = "image"
         let detail = try await detailWindow(in: window)
         try await openImage(in: detail)

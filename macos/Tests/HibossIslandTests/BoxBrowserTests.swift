@@ -148,18 +148,19 @@ final class BoxBrowserTests: XCTestCase {
         let api = ScriptedBoxBrowser(media: BoxBrowserFixtures.imageData())
         let media = BoxBrowserMedia { api }
         let item = BoxBrowserFixtures.items[0]
+        await media.loadThumbnail(item)
+        XCTAssertNotNil(media.thumbnail(item.id))
         let downloaded = await media.load(item)
         let file = try XCTUnwrap(downloaded)
         XCTAssertEqual(file.lastPathComponent, "Navigation preview.png")
-        XCTAssertNotNil(media.thumbnails[item.id])
         XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
         let repeated = await media.load(item)
         XCTAssertEqual(repeated, file)
         let count = await api.downloads
-        XCTAssertEqual(count, 1)
+        XCTAssertEqual(count, 2, "the row's original is dropped; the viewer's is kept and reused")
         media.remove(id: item.id)
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
-        XCTAssertNil(media.thumbnails[item.id])
+        XCTAssertNil(media.thumbnail(item.id))
     }
 
     func testFilenameCannotEscapeTemporaryDirectoryAndMimeTypeProvidesExtension() async throws {
@@ -184,9 +185,9 @@ final class BoxBrowserTests: XCTestCase {
         await store.refresh()
         XCTAssertEqual(store.items.map(\.id), ["new", "old"])
         let media = BoxBrowserMedia { api }
-        let result = await media.load(BoxBrowserFixtures.items[0])
-        XCTAssertNil(result)
-        XCTAssertNotNil(media.errors["image"])
-        XCTAssertNil(media.files["image"])
+        await media.loadThumbnail(BoxBrowserFixtures.items[0])
+        XCTAssertNotNil(media.thumbnailErrors["image"])
+        XCTAssertNil(media.thumbnail("image"))
+        XCTAssertNil(media.errors["image"], "the original itself downloaded; only the row image failed")
     }
 }

@@ -40,7 +40,7 @@ enum BoxMainWindowLayoutSupport {
             probe: probe, scheme: scheme, destination: .box)
         try await waitForCondition(timeout: .seconds(5)) {
             probe.anchors["box.list"]?.window === window && !store.isLoading
-                && media.thumbnails[BoxBrowserFixtures.items[0].id] != nil
+                && media.thumbnail(BoxBrowserFixtures.items[0].id) != nil
         }
         try await BoxWindowCaptureSupport.settle(window)
         XCTAssertEqual(window.frame.width, width, accuracy: 1)

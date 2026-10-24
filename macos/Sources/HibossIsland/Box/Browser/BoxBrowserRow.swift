@@ -1,6 +1,6 @@
 // Native Box row showing reference content, metadata and explicit agent provenance.
 // Exports: BoxBrowserRow and localized BoxItem presentation helpers.
-// Dependencies: SwiftUI, HibossKit and authenticated BoxBrowserMedia thumbnails.
+// Dependencies: SwiftUI, HibossKit and BoxBrowserMedia's bounded row thumbnails.
 
 import HibossKit
 import SwiftUI
@@ -43,7 +43,7 @@ struct BoxBrowserRow: View {
     private var thumbnail: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 6).fill(.quaternary)
-            if let image = media.thumbnails[item.id] {
+            if let image = media.thumbnail(item.id) {
                 Image(nsImage: image).resizable().scaledToFill()
                     .frame(width: 44, height: 44)
             } else {
@@ -64,9 +64,8 @@ struct BoxBrowserRow: View {
         .frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 6))
         .layoutProbe("box.thumbnail.\(item.id)")
         .onTapGesture(count: 2) { if item.hasImageMedia { onOpenImage() } }
-        .task(id: item.id) {
-            if item.hasImageMedia || item.kind == .video { _ = await media.load(item) }
-        }
+        // Reruns when the memory cache drops a shown image, which then reloads from disk.
+        .task(id: "\(item.id)|\(media.thumbnail(item.id) == nil)") { await media.show(item) }
     }
 
 }
