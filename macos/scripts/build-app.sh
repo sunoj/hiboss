@@ -34,6 +34,17 @@ case "$SIGNING_IDENTITY" in
     *)               SIGN_FLAGS="--timestamp=none" ;;
 esac
 
+# Apple's timestamp service intermittently answers "not available"; retry with a
+# growing pause before giving up.
+sign() {
+    attempt=1
+    until codesign --force $SIGN_FLAGS --sign "$SIGNING_IDENTITY" "$1"; do
+        [ "$attempt" -ge 5 ] && return 1
+        sleep $((attempt * 10))
+        attempt=$((attempt + 1))
+    done
+}
+
 cd "$PACKAGE_DIR"
 swift build -c release
 BIN_DIR="$(swift build -c release --show-bin-path)"
@@ -94,10 +105,10 @@ fi
 SP="$FRAMEWORKS_DIR/Sparkle.framework"
 find "$SP" \( -name "*.xpc" -o -name "*.app" -o -name "Autoupdate" \) -print0 2>/dev/null |
     while IFS= read -r -d '' nested; do
-        codesign --force $SIGN_FLAGS --sign "$SIGNING_IDENTITY" "$nested"
+        sign "$nested"
     done
-codesign --force $SIGN_FLAGS --sign "$SIGNING_IDENTITY" "$SP"
-codesign --force $SIGN_FLAGS --sign "$SIGNING_IDENTITY" "$CONTENTS_DIR/MacOS/HibossIsland"
-codesign --force $SIGN_FLAGS --sign "$SIGNING_IDENTITY" "$APP_DIR"
+sign "$SP"
+sign "$CONTENTS_DIR/MacOS/HibossIsland"
+sign "$APP_DIR"
 
 echo "$APP_DIR"
