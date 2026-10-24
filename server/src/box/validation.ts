@@ -2,6 +2,7 @@
 // Exports ingestion and patch parsing with byte-based text and media limits.
 import { HTTPException } from 'hono/http-exception';
 import { multipartForm, IMAGE_BYTES, FILE_BYTES } from './multipart';
+import { acceptsThumbnail, checkThumbnail } from './thumbnail';
 import { SOURCES, type BoxContext, type BoxMetadata, type BoxUpload } from './types';
 
 const TEXT_BYTES = 16 * 1024;
@@ -60,18 +61,24 @@ function metadata(value: unknown): BoxMetadata {
   };
 }
 
-async function parseBody(c: BoxContext): Promise<{ value: unknown; file: File | null }> {
+interface ParsedBody { value: unknown; file: File | null; thumbnail: File | null }
+
+async function parseBody(c: BoxContext): Promise<ParsedBody> {
   try {
     if (!(c.req.header('content-type') ?? '').includes('multipart/form-data')) {
-      return { value: await c.req.json<unknown>(), file: null };
+      return { value: await c.req.json<unknown>(), file: null, thumbnail: null };
     }
     const form = await multipartForm(c.req.raw);
     const file = form.get('file');
     const meta = form.get('meta');
+    const thumbnail = form.get('thumbnail');
     if (!(file instanceof File) || typeof meta !== 'string') {
       throw new HTTPException(400, { message: 'meta and file fields are required' });
     }
-    return { value: JSON.parse(meta) as unknown, file };
+    if (thumbnail !== null && !(thumbnail instanceof File)) {
+      throw new HTTPException(400, { message: 'thumbnail must be a file part' });
+    }
+    return { value: JSON.parse(meta) as unknown, file, thumbnail };
   } catch (error: unknown) {
     if (error instanceof HTTPException) throw error;
     throw new HTTPException(400, { message: 'invalid JSON or multipart body' });
@@ -79,19 +86,24 @@ async function parseBody(c: BoxContext): Promise<{ value: unknown; file: File | 
 }
 
 export async function parseUpload(c: BoxContext): Promise<BoxUpload> {
-  const { value, file } = await parseBody(c);
+  const { value, file, thumbnail } = await parseBody(c);
   const meta = metadata(value);
   const boss = optionalText(record(value).boss, 'boss');
   if (!file) {
     if (!meta.url && !meta.text) throw new HTTPException(400, { message: 'url or text is required' });
-    return { meta, file, boss, kind: meta.url ? 'link' : 'text' };
+    return { meta, file, thumbnail: null, boss, kind: meta.url ? 'link' : 'text' };
   }
   const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
   if (file.size > (kind === 'image' ? IMAGE_BYTES : FILE_BYTES)) {
     throw new HTTPException(413, { message: 'file too large' });
   }
   if (!file.size) throw new HTTPException(400, { message: 'empty file' });
-  return { meta, file, boss, kind };
+  if (!thumbnail) return { meta, file, thumbnail: null, boss, kind };
+  if (!acceptsThumbnail(kind, true)) {
+    throw new HTTPException(409, { message: 'only image and video items accept a thumbnail' });
+  }
+  const bytes = new Uint8Array(await thumbnail.arrayBuffer());
+  return { meta, file, thumbnail: checkThumbnail(thumbnail.type, bytes), boss, kind };
 }
 
 export async function parsePatch(c: BoxContext):

@@ -1,5 +1,5 @@
 // Authenticated Box item routes for boss ingestion and scoped reads and edits.
-// Exports boxRouter; delegates validation, storage, search and private media.
+// Exports boxRouter; delegates validation, storage, search, private media and thumbnails.
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { Env } from '../types';
@@ -8,6 +8,7 @@ import { boxWriteScope, canEditItem } from './access';
 import { createItem, deleteItem, findItem, likeItem, replayItem, updateItem } from './store';
 import { parsePatch, parseUpload } from './validation';
 import { boxMedia } from './media';
+import { getThumbnail, putThumbnail } from './thumbnail';
 import { boxList, boxLatest, boxSearch } from './search';
 import { collectionRoutes } from './collections/routes';
 import { itemResponse } from './types';
@@ -55,6 +56,8 @@ routes.get('/items', boxList);
 routes.get('/items/latest', boxLatest);
 routes.get('/items/search', boxSearch);
 routes.on(['GET', 'HEAD'], '/items/:id/media', boxMedia);
+routes.on(['GET', 'HEAD'], '/items/:id/thumbnail', getThumbnail);
+routes.put('/items/:id/thumbnail', putThumbnail);
 routes.get('/items/:id', async (c) => {
   const row = await findItem(c, c.req.param('id'));
   return row ? c.json(itemResponse(row)) : c.text('not found', 404);

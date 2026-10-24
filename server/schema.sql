@@ -677,7 +677,9 @@ CREATE TABLE box_items (
   created_at TEXT NOT NULL,
   deleted_at TEXT,
   agent_id TEXT REFERENCES api_keys(id),
-  liked_at TEXT
+  liked_at TEXT,
+  thumb_key TEXT,
+  thumb_bytes INTEGER
 );
 CREATE INDEX idx_box_items_boss_created ON box_items(boss_id, deleted_at, created_at DESC, id DESC);
 CREATE TABLE box_idempotency (

@@ -5,7 +5,8 @@ import { beforeAll, beforeEach, expect, it } from 'vitest';
 import boxMigration from '../migrations/0050_box_items.sql?raw';
 import collectionMigration from '../migrations/0056_box_collections.sql?raw';
 import agentMigration from '../migrations/0052_box_item_agent.sql?raw';
-import { OWNER, request } from './box-test-helpers';
+import thumbnailMigration from '../migrations/0062_box_thumbnails.sql?raw';
+import { OWNER, applySql, request } from './box-test-helpers';
 import { seedBossToken, seedDatabase } from './test-helpers';
 
 beforeAll(async () => {
@@ -29,6 +30,7 @@ async function applyAgentMigration(): Promise<void> {
   const collections = collectionMigration.replace(/^--.*$/gm, '').split(';')
     .map(sql => sql.trim()).filter(Boolean);
   await env.DB.batch(collections.map(sql => env.DB.prepare(sql)));
+  await applySql(thumbnailMigration);
 }
 
 it('preserves pre-migration boss provenance, retries and nullable fields', async () => {
@@ -43,7 +45,7 @@ it('preserves pre-migration boss provenance, retries and nullable fields', async
   const item = await response.json();
   expect(item).toMatchObject({ id: 'bx_legacy', text: 'legacy reference', added_by: { kind: 'boss' },
     url: null, note: null, project: null, media_type: null, media_bytes: null, width: null,
-    height: null, duration_ms: null, tags: [], has_media: false,
+    height: null, duration_ms: null, tags: [], has_media: false, has_thumbnail: false,
     liked: false, liked_at: null, collection_ids: [] });
   const replay = await request('', 'POST', { text: 'ignored' }, OWNER,
     { 'Idempotency-Key': 'agent:legacy-key' });

@@ -1,10 +1,12 @@
 // Checks declared multipart sizes before buffering files with the Fetch parser.
-// Exports kind limits and parsing with a bounded scan of leading part headers.
+// Exports kind and thumbnail limits and parsing with a bounded scan of leading parts.
 import { HTTPException } from 'hono/http-exception';
 
 export const IMAGE_BYTES = 10 * 1024 * 1024;
 export const FILE_BYTES = 50 * 1024 * 1024;
-const MULTIPART_BYTES = 64 * 1024;
+export const THUMB_BYTES = 256 * 1024;
+// Part headers plus an optional thumbnail part that may precede the file part.
+export const MULTIPART_BYTES = 64 * 1024 + THUMB_BYTES;
 
 function fileType(prefix: string, boundary: string): string | null {
   for (const part of prefix.split(`--${boundary}`).slice(1)) {
