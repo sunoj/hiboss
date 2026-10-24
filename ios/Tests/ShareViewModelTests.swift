@@ -3,6 +3,7 @@
 // Dependencies: XCTest, HibossKit and the HiBoss share core.
 
 import HibossKit
+import UIKit
 import XCTest
 @testable import HiBoss
 
@@ -101,6 +102,35 @@ final class ShareViewModelTests: XCTestCase {
         XCTAssertTrue(refused.failure.contains("50 MB"))
         let count = await api.calls.count
         XCTAssertEqual(count, 2)
+    }
+
+    func testImageUploadCarriesGeneratedThumbnailAndFailedGenerationStillUploads() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("photo.png")
+        try XCTUnwrap(UIGraphicsImageRenderer(size: CGSize(width: 1600, height: 900)).image { context in
+            UIColor.systemTeal.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1600, height: 900))
+        }.pngData()).write(to: url)
+        let item = ShareAttachment(kind: .image, title: "Photo", text: nil, url: nil,
+            media: BoxUpload.Media(fileURL: url, contentType: "image/png"))
+        let api = ShareUploadRecorder(failAt: 0)
+        await ShareViewModel(api: api, attachments: [item, .text("words")]).save()
+        let calls = await api.calls
+        let thumbnail = try XCTUnwrap(calls.first?.upload.thumbnail)
+        XCTAssertEqual(thumbnail.contentType, "image/jpeg")
+        let data = try Data(contentsOf: thumbnail.fileURL)
+        XCTAssertTrue(data.starts(with: [0xFF, 0xD8, 0xFF]))
+        XCTAssertLessThanOrEqual(data.count, 256 * 1024)
+        XCTAssertEqual(UIImage(data: data).map { max($0.size.width * $0.scale, $0.size.height * $0.scale) }, 512)
+        XCTAssertNil(calls.last?.upload.thumbnail)
+        let fallback = ShareViewModel(api: api, attachments: [item], thumbnail: { _, _ in nil })
+        await fallback.save()
+        XCTAssertEqual(fallback.state, .done)
+        let last = await api.calls.last
+        XCTAssertNil(last?.upload.thumbnail)
+        XCTAssertEqual(last?.upload.media?.fileURL, url)
     }
 }
 

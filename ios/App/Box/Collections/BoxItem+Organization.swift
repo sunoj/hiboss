@@ -11,6 +11,6 @@ extension BoxItem {
                 width: width, height: height, durationMs: durationMs, createdAt: createdAt,
                 addedBy: addedBy, liked: liked ?? self.liked,
                 likedAt: liked == false ? nil : (likedAt ?? self.likedAt),
-                collectionIDs: collectionIDs ?? self.collectionIDs)
+                collectionIDs: collectionIDs ?? self.collectionIDs, hasThumbnail: hasThumbnail)
     }
 }

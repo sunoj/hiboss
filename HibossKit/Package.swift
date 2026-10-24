@@ -1,6 +1,6 @@
 // Shared SwiftPM package for the HiBoss native clients (macOS + iOS).
 // Exports: HibossKit — domain models, boss API client, option flow, keychain.
-// Dependencies: Apple Foundation, Combine, and Security frameworks only.
+// Dependencies: Apple Foundation, Combine, Security, ImageIO and AVFoundation frameworks only.
 
 // swift-tools-version: 6.0
 import PackageDescription

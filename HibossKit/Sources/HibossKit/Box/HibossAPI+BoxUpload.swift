@@ -1,4 +1,4 @@
-// Creates Box items with JSON or disk-backed multipart uploads and byte progress.
+// Creates Box items with JSON or disk-backed multipart uploads (file plus optional thumbnail).
 // Exports HibossAPI BoxUploading conformance; retries use the caller's stable key.
 // Dependencies: Foundation URLSession, BoxUpload and existing authentication helpers.
 
@@ -34,16 +34,8 @@ extension HibossAPI: BoxUploading {
 
     private func multipartBody(_ upload: BoxUpload, media: BoxUpload.Media, boundary: String) throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let metadata = try JSONEncoder().encode(upload)
-        let filename = media.fileURL.lastPathComponent
-            .replacingOccurrences(of: "\r", with: "%0D")
-            .replacingOccurrences(of: "\n", with: "%0A")
-            .replacingOccurrences(of: "\"", with: "%22")
-            .replacingOccurrences(of: "\\", with: "%5C")
         var header = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"meta\"\r\n\r\n".utf8)
-        header.append(metadata)
-        header.append(Data(("\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; "
-            + "filename=\"\(filename)\"\r\nContent-Type: \(media.contentType)\r\n\r\n").utf8))
+        header.append(try JSONEncoder().encode(upload))
         #if os(macOS)
         try header.write(to: url, options: .atomic)
         #else
@@ -53,17 +45,33 @@ extension HibossAPI: BoxUploading {
             let output = try FileHandle(forWritingTo: url)
             defer { try? output.close() }
             try output.seekToEnd()
-            let input = try FileHandle(forReadingFrom: media.fileURL)
-            defer { try? input.close() }
-            while let chunk = try input.read(upToCount: 64 * 1024), !chunk.isEmpty {
-                try Task.checkCancellation()
-                try output.write(contentsOf: chunk)
+            try appendPart("file", media: media, boundary: boundary, to: output)
+            if let thumbnail = upload.thumbnail {
+                try appendPart("thumbnail", media: thumbnail, boundary: boundary, to: output)
             }
             try output.write(contentsOf: Data("\r\n--\(boundary)--\r\n".utf8))
             return url
         } catch {
             try? FileManager.default.removeItem(at: url)
             throw error
+        }
+    }
+
+    private func appendPart(
+        _ name: String, media: BoxUpload.Media, boundary: String, to output: FileHandle
+    ) throws {
+        let filename = media.fileURL.lastPathComponent
+            .replacingOccurrences(of: "\r", with: "%0D")
+            .replacingOccurrences(of: "\n", with: "%0A")
+            .replacingOccurrences(of: "\"", with: "%22")
+            .replacingOccurrences(of: "\\", with: "%5C")
+        try output.write(contentsOf: Data(("\r\n--\(boundary)\r\nContent-Disposition: form-data; "
+            + "name=\"\(name)\"; filename=\"\(filename)\"\r\nContent-Type: \(media.contentType)\r\n\r\n").utf8))
+        let input = try FileHandle(forReadingFrom: media.fileURL)
+        defer { try? input.close() }
+        while let chunk = try input.read(upToCount: 64 * 1024), !chunk.isEmpty {
+            try Task.checkCancellation()
+            try output.write(contentsOf: chunk)
         }
     }
 }

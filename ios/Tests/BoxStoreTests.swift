@@ -83,14 +83,17 @@ final class BoxStoreTests: XCTestCase {
         XCTAssertEqual(second.items.count, 6)
         XCTAssertNil(second.nextCursor)
         XCTAssertEqual(Set((first.items + second.items).map(\.id)).count, 26)
-        let media = BoxMediaStore(api: api)
+        let media = BoxMediaStore(api: api, cache: nil)
         for kind in [BoxItem.Kind.image, .video, .file] {
             let item = try XCTUnwrap(first.items.first(where: { $0.kind == kind }))
             await media.load(item)
             let url = try XCTUnwrap(media.resources[item.id]?.url)
             XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
             if kind == .file { XCTAssertEqual(url.lastPathComponent, "Reference.txt") }
-            if kind != .file { XCTAssertNotNil(media.resources[item.id]?.thumbnail) }
+            if kind != .file {
+                await media.loadThumbnail(item)
+                XCTAssertNotNil(media.thumbnail(item.id))
+            }
             if kind == .video {
                 let duration = try await AVURLAsset(url: url).load(.duration)
                 XCTAssertGreaterThan(duration.seconds, 0)
@@ -128,7 +131,7 @@ final class BoxStoreTests: XCTestCase {
         let api = FailingBoxMediaAPI()
         let page = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: nil)
         let item = try XCTUnwrap(page.items.first(where: { $0.kind == .image }))
-        let media = BoxMediaStore(api: api)
+        let media = BoxMediaStore(api: api, cache: nil)
         await media.load(item)
         XCTAssertNotNil(media.errors[item.id])
         await media.load(item)
@@ -143,7 +146,7 @@ final class BoxStoreTests: XCTestCase {
     func testCopyUsesTextLinkImageAndOriginalFileContent() async throws {
         let api = DemoBoxAPI()
         let page = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: nil)
-        let media = BoxMediaStore(api: api)
+        let media = BoxMediaStore(api: api, cache: nil)
         for kind in BoxItem.Kind.allCases {
             let item = try XCTUnwrap(page.items.first(where: { $0.kind == kind }))
             await media.load(item)
@@ -151,7 +154,8 @@ final class BoxStoreTests: XCTestCase {
             switch kind {
             case .text, .link: XCTAssertEqual(UIPasteboard.general.string, item.url ?? item.text)
             case .image:
-                XCTAssertEqual(UIPasteboard.general.image?.size, media.resources[item.id]?.thumbnail?.size)
+                let path = try XCTUnwrap(media.resources[item.id]?.url.path)
+                XCTAssertEqual(UIPasteboard.general.image?.size, UIImage(contentsOfFile: path)?.size)
                 XCTAssertNotNil(UIPasteboard.general.image)
             case .video, .file: XCTAssertEqual(UIPasteboard.general.url, media.resources[item.id]?.url)
             }
@@ -162,12 +166,15 @@ final class BoxStoreTests: XCTestCase {
         let api = FailingBoxMediaAPI(invalidVideo: true)
         let page = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: nil)
         let item = try XCTUnwrap(page.items.first { $0.kind == .video })
-        let media = BoxMediaStore(api: api)
+        let media = BoxMediaStore(api: api, cache: nil)
         await media.load(item)
         let resource = try XCTUnwrap(media.resources[item.id])
         XCTAssertTrue(FileManager.default.fileExists(atPath: resource.url.path))
-        XCTAssertNil(resource.thumbnail)
         XCTAssertNil(media.errors[item.id])
+        await media.loadThumbnail(item)
+        XCTAssertNil(media.thumbnail(item.id))
+        XCTAssertNotNil(media.thumbnailErrors[item.id])
+        XCTAssertTrue(media.resources[item.id] === resource)
     }
 
     func testSelectionDownloadsSelectedPageBeforeOnlyImmediateNeighbours() async {
@@ -177,7 +184,7 @@ final class BoxStoreTests: XCTestCase {
                     text: "file-\($0).txt", hasMedia: true, mediaType: "text/plain",
                     createdAt: "2026-10-07T00:00:00Z")
         }
-        let media = BoxMediaStore(api: api)
+        let media = BoxMediaStore(api: api, cache: nil)
         await media.loadSelection(id: "file-3", items: items)
         let requests = await api.requests
         XCTAssertEqual(requests, ["file-3", "file-4", "file-2"])

@@ -39,6 +39,8 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
     public let liked: Bool
     public let likedAt: String?
     public let collectionIDs: [String]
+    /// Absent on servers that predate stored thumbnails; such items have none.
+    public let hasThumbnail: Bool
 
     public var author: BoxAuthor { addedBy ?? .boss }
 
@@ -54,6 +56,7 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         case addedBy = "added_by"
         case likedAt = "liked_at"
         case collectionIDs = "collection_ids"
+        case hasThumbnail = "has_thumbnail"
     }
 
     public init(
@@ -62,7 +65,8 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         tags: [String] = [], source: Source = .iosShare, hasMedia: Bool = false,
         mediaType: String? = nil, mediaBytes: Int? = nil, width: Int? = nil,
         height: Int? = nil, durationMs: Int? = nil, createdAt: String, addedBy: BoxAuthor? = nil,
-        liked: Bool = false, likedAt: String? = nil, collectionIDs: [String] = []
+        liked: Bool = false, likedAt: String? = nil, collectionIDs: [String] = [],
+        hasThumbnail: Bool = false
     ) {
         self.id = id
         self.bossID = bossID
@@ -85,6 +89,7 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         self.liked = liked
         self.likedAt = likedAt
         self.collectionIDs = collectionIDs
+        self.hasThumbnail = hasThumbnail
     }
 
     public init(from decoder: Decoder) throws {
@@ -110,6 +115,7 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         liked = try values.decodeIfPresent(Bool.self, forKey: .liked) ?? false
         likedAt = try values.decodeIfPresent(String.self, forKey: .likedAt)
         collectionIDs = try values.decodeIfPresent([String].self, forKey: .collectionIDs) ?? []
+        hasThumbnail = try values.decodeIfPresent(Bool.self, forKey: .hasThumbnail) ?? false
     }
 }
 

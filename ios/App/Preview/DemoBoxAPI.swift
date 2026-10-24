@@ -1,5 +1,6 @@
 // Offline Box fixtures served through the same list, download and delete boundary as production.
-// Exports DemoBoxAPI with stable recency pages and media from bundled resources.
+// Exports DemoBoxAPI with stable recency pages, media and stored thumbnails from bundled resources;
+// the featured video has none, so its row exercises the backfill path.
 // Dependencies: Foundation, UIKit, HibossKit and demo grid/video resources.
 
 import Foundation
@@ -7,7 +8,7 @@ import HibossKit
 import PDFKit
 import UIKit
 
-actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
+actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing, BoxThumbnailServing {
     static let shared = DemoBoxAPI()
     var failsLikes = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_LIKE_FAILURE"] == "1"
     var collectionNames = ["demo-design": "Design references", "demo-reading": "Reading"]
@@ -42,7 +43,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
                 mediaBytes: kind == .file ? (pdf ? pdfData.count : referenceText.utf8.count) : nil,
                 width: 320, height: 200, durationMs: kind == .video ? 1600 : nil,
                 createdAt: Date().addingTimeInterval(Double(-60 * (index + 1)))
-                    .ISO8601Format()
+                    .ISO8601Format(), hasThumbnail: kind == .image
             )
         }
         let agentReference = BoxItem(
@@ -76,7 +77,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
                     note: "A saved composition for the next design.", project: "hiboss", tags: ["design"],
                     hasMedia: true, mediaType: video ? "video/mp4" : "image/png", mediaBytes: 1024,
                     width: 320, height: 200, durationMs: video ? 1600 : nil,
-                    createdAt: date, addedBy: author)
+                    createdAt: date, addedBy: author, hasThumbnail: true)
         }
     }
 
@@ -128,6 +129,22 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
         try FileManager.default.copyItem(at: url, to: destination)
     }
 
+    func downloadBoxThumbnail(id: String) async throws -> Data {
+        guard let item = items.first(where: { $0.id == id }), item.hasThumbnail,
+              let url = Bundle.main.url(forResource: item.kind == .video ? "demo-box-clip" : "demo-coarse-grid",
+                                        withExtension: item.kind == .video ? "mp4" : "png"),
+              let data = await BoxThumbnailGenerator.thumbnail(for: url, kind: item.kind)
+        else { throw HibossAPIError.requestFailed(status: 404, message: "") }
+        return data
+    }
+
+    func uploadBoxThumbnail(id: String, data _: Data, contentType _: String) async throws -> BoxItem {
+        guard let index = items.firstIndex(where: { $0.id == id }) else {
+            throw HibossAPIError.requestFailed(status: 404, message: "")
+        }
+        return items[index]
+    }
+
     private static var pdfData: Data {
         let bounds = CGRect(x: 0, y: 0, width: 360, height: 480)
         return UIGraphicsPDFRenderer(bounds: bounds).pdfData { context in
@@ -159,7 +176,8 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
             source: item.source, hasMedia: item.hasMedia, mediaType: item.mediaType,
             mediaBytes: item.mediaBytes, width: item.width, height: item.height,
             durationMs: item.durationMs, createdAt: item.createdAt, addedBy: item.addedBy,
-            liked: item.liked, likedAt: item.likedAt, collectionIDs: item.collectionIDs)
+            liked: item.liked, likedAt: item.likedAt, collectionIDs: item.collectionIDs,
+            hasThumbnail: item.hasThumbnail)
         items[index] = updated
         return updated
     }

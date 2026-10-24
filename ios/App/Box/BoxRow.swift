@@ -1,4 +1,4 @@
-// Native Box reference row with authenticated thumbnails and semantic kind labels.
+// Native Box reference row with authenticated, downsampled thumbnails and semantic kind labels.
 // Exports BoxRow and BoxThumbnail for list rows, content cards and the photo grid.
 // Dependencies: SwiftUI, HibossKit, BoxMediaStore and Theme.
 
@@ -46,9 +46,6 @@ struct BoxRow: View {
         .alignmentGuide(.listRowSeparatorLeading) { dimensions in
             grid || textSize.isAccessibilitySize ? 0 : dimensions[.leading] + 68
         }
-        .task(id: item.id) {
-            if item.kind == .image || item.kind == .video { await media.load(item) }
-        }
     }
 
     private var metadata: some View {
@@ -80,16 +77,16 @@ struct BoxThumbnail: View {
         GeometryReader { geometry in
             ZStack {
                 Theme.surface2
-                if let image = media.resources[item.id]?.thumbnail {
+                if let image = media.thumbnail(item.id) {
                     Image(uiImage: image).resizable().scaledToFill()
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
                 } else if item.hasMedia && (item.kind == .image || item.kind == .video) {
-                    if media.errors[item.id] != nil {
+                    if media.thumbnailErrors[item.id] != nil {
                         Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.warn)
                             .accessibilityLabel("Media unavailable")
                     } else {
-                        CompactImageWait(onRetry: { Task { await media.retry(item) } })
+                        CompactImageWait(onRetry: { Task { await media.retryThumbnail(item) } })
                     }
                 } else {
                     VStack(spacing: 2) {
@@ -111,9 +108,7 @@ struct BoxThumbnail: View {
             .frame(width: geometry.size.width, height: geometry.size.height).clipped()
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
-        .accessibilityHidden(media.errors[item.id] == nil)
-        .task(id: item.id) {
-            if item.kind == .image || item.kind == .video { await media.load(item) }
-        }
+        .accessibilityHidden(media.thumbnailErrors[item.id] == nil)
+        .task(id: "\(item.id)#\(media.thumbnailEpochs[item.id] ?? 0)") { await media.showThumbnail(item) }
     }
 }

@@ -11,6 +11,8 @@ public struct BoxUpload: Encodable, Sendable {
     public var project: String?
     public var source: BoxItem.Source
     public var media: Media?
+    /// Optional client-made JPEG preview sent as the multipart `thumbnail` part.
+    public var thumbnail: Media?
 
     public struct Media: Sendable {
         public let fileURL: URL
@@ -26,7 +28,8 @@ public struct BoxUpload: Encodable, Sendable {
 
     public init(
         text: String? = nil, url: String? = nil, note: String? = nil,
-        project: String? = nil, source: BoxItem.Source = .iosShare, media: Media? = nil
+        project: String? = nil, source: BoxItem.Source = .iosShare, media: Media? = nil,
+        thumbnail: Media? = nil
     ) {
         self.text = text
         self.url = url
@@ -34,6 +37,7 @@ public struct BoxUpload: Encodable, Sendable {
         self.project = project
         self.source = source
         self.media = media
+        self.thumbnail = thumbnail
     }
 }
 
