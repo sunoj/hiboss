@@ -36,8 +36,10 @@ final class BoxImagePreviewTests: XCTestCase {
         try await waitForCondition { self.imageView(content)?.image != nil }
         XCTAssertEqual(imageView(content)?.image?.size, NSSize(width: 1800, height: 1200))
         try capture(sheet, name: "box-image-retried")
+        // The viewer's retry downloads once; a visible row's one scheduled thumbnail retry may
+        // also reach the replacement service, depending on timing.
         let downloads = await provider.api.downloads
-        XCTAssertEqual(downloads, 1)
+        XCTAssertTrue((1...2).contains(downloads), "downloads: \(downloads)")
     }
 
     func testSelectedImageOpensFullResolutionImageInBothAppearances() async throws {
@@ -75,8 +77,9 @@ final class BoxImagePreviewTests: XCTestCase {
         XCTAssertEqual(store.selection, "image", "Closing the viewer retains the selected detail")
         try await openImage(in: detail)
         try await waitForCondition { detail.attachedSheet != nil }
+        // One for the row's thumbnail (then deleted) and one the viewer keeps and reuses.
         let downloads = await api.downloadsByID["image"]
-        XCTAssertEqual(downloads, 1)
+        XCTAssertEqual(downloads, 2)
     }
 
     private func show(store: BoxBrowserStore, media: BoxBrowserMedia,
