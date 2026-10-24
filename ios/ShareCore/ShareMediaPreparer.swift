@@ -1,5 +1,6 @@
 // Prepares media with medium-preset video export and bounded JPEG re-encoding.
-// Exports ShareMediaPreparer; oversized output is refused before network upload.
+// Exports ShareMediaPreparer; oversized output is refused before network upload, and image/video
+// uploads get the shared 512 px JPEG thumbnail when one can be made.
 // Dependencies: AVFoundation, ImageIO, UIKit and HibossKit.
 
 @preconcurrency import AVFoundation
@@ -20,6 +21,16 @@ enum ShareMediaPreparer {
             if kind == .video { return try await video(media.fileURL) }
             return try await Task.detached { try image(media.fileURL) }.value
         }
+    }
+
+    /// The `thumbnail` part for an image or video upload, written beside the prepared media.
+    static func thumbnail(for media: BoxUpload.Media, kind: BoxItem.Kind) async -> BoxUpload.Media? {
+        guard kind == .image || kind == .video,
+              let data = await BoxThumbnailGenerator.thumbnail(for: media.fileURL, kind: kind) else { return nil }
+        let output = media.fileURL.deletingLastPathComponent()
+            .appendingPathComponent(UUID().uuidString + "-thumbnail.jpg")
+        guard (try? data.write(to: output, options: [.atomic, .completeFileProtection])) != nil else { return nil }
+        return BoxUpload.Media(fileURL: output, contentType: BoxThumbnailGenerator.contentType)
     }
 
     private static func image(_ url: URL) throws -> BoxUpload.Media {

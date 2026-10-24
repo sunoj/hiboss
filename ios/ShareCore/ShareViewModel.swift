@@ -20,6 +20,7 @@ final class ShareViewModel: ObservableObject {
 
     private let api: (any BoxUploading)?
     private let prepare: @Sendable (BoxUpload.Media, BoxItem.Kind) async throws -> BoxUpload.Media
+    private let thumbnail: @Sendable (BoxUpload.Media, BoxItem.Kind) async -> BoxUpload.Media?
     private var prepared: [UUID: BoxUpload.Media] = [:]
     private var completed: Set<UUID> = []
     private var pending: [UUID: BoxUpload] = [:]
@@ -28,11 +29,15 @@ final class ShareViewModel: ObservableObject {
         api: (any BoxUploading)?, attachments: [ShareAttachment] = [],
         prepare: @escaping @Sendable (BoxUpload.Media, BoxItem.Kind) async throws -> BoxUpload.Media = {
             try await ShareMediaPreparer.prepare($0, kind: $1)
+        },
+        thumbnail: @escaping @Sendable (BoxUpload.Media, BoxItem.Kind) async -> BoxUpload.Media? = {
+            await ShareMediaPreparer.thumbnail(for: $0, kind: $1)
         }
     ) {
         self.api = api
         self.attachments = attachments
         self.prepare = prepare
+        self.thumbnail = thumbnail
         if api == nil { state = .disconnected }
         else if !attachments.isEmpty { state = .ready }
     }
@@ -99,8 +104,9 @@ final class ShareViewModel: ObservableObject {
            SharePolicy.decision(kind: item.kind, bytes: value.utf8.count) == .refuse {
             throw ShareError.textTooLarge
         }
+        let preview = if let media { await thumbnail(media, item.kind) } else { BoxUpload.Media?.none }
         let upload = BoxUpload(text: item.text, url: item.url, note: note.isEmpty ? nil : note,
-            project: project.isEmpty ? nil : project, source: .iosShare, media: media)
+            project: project.isEmpty ? nil : project, source: .iosShare, media: media, thumbnail: preview)
         pending[item.id] = upload
         return upload
     }

@@ -123,7 +123,7 @@ struct BoxNoteEditor: View {
 
 extension BoxItem {
     @MainActor func copyContent(media: BoxMediaStore) {
-        if kind == .image, let image = media.resources[id]?.thumbnail {
+        if kind == .image, let path = media.resources[id]?.url.path, let image = UIImage(contentsOfFile: path) {
             UIPasteboard.general.image = image
         } else if let url = media.resources[id]?.url {
             UIPasteboard.general.url = url

@@ -20,6 +20,7 @@ struct BoxListView: View {
     @State private var liked = false
     @State private var shareItem: BoxItem?
     @Environment(\.openConnectionSettings) private var openSettings
+    @Environment(\.scenePhase) private var scenePhase
 
     init(api: (any BoxServing)?, onSelect: ((BoxItem) -> Void)? = nil,
          collectionID: String? = nil) {
@@ -65,6 +66,9 @@ struct BoxListView: View {
             if let openedDetail { BoxDetail(original: openedDetail, store: store, media: media) }
         }
         .modifier(BoxDeleteConfirmation(item: $pendingDelete, store: store, media: media))
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await media.retryFailedLoads() } }
+        }
         .toolbar { controls }
     }
 
