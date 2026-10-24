@@ -1,5 +1,5 @@
 // Box read filters and editable metadata, preserving omitted versus cleared fields.
-// Exports BoxFilters, BoxPatch, BoxFieldUpdate and the list/media/delete service boundary.
+// Exports BoxFilters, BoxPatch, BoxFieldUpdate, the list/media/delete and thumbnail boundaries.
 // Dependencies: Foundation and BoxItem.
 
 import Foundation
@@ -63,4 +63,10 @@ public protocol BoxServing: Sendable {
     func boxItems(filters: BoxFilters, limit: Int, cursor: String?) async throws -> BoxPage
     func downloadBoxMedia(id: String, to destination: URL) async throws
     func deleteBoxItem(id: String, purge: Bool) async throws
+}
+
+/// Stored client-made previews; a server without them answers 404 or 405.
+public protocol BoxThumbnailServing: BoxServing {
+    func downloadBoxThumbnail(id: String) async throws -> Data
+    func uploadBoxThumbnail(id: String, data: Data, contentType: String) async throws -> BoxItem
 }
