@@ -2,5 +2,14 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>HiBoss Island</title>
+    <item>
+      <title>Version 1.0.0</title>
+      <pubDate>Sat, 24 Oct 2026 08:03:39 +0000</pubDate>
+      <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+      <sparkle:version>202610241501</sparkle:version>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[ HiBoss Island 1.0: the first public release. ]]></description>
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.0/HiBoss-Island-1.0.0.zip" sparkle:edSignature="VRYmdQhSw864RvCn090xAhC3BmTXMPex6cKAIyKs/7vg7FEQiHBfbQIZ5cyRKLIbvvzQCwF4GHliSo8mGmASCg==" length="7787932" type="application/zip" />
+    </item>
   </channel>
 </rss>
