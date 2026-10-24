@@ -5,6 +5,7 @@ import { expect } from 'vitest';
 import migration from '../migrations/0050_box_items.sql?raw';
 import collectionMigration from '../migrations/0056_box_collections.sql?raw';
 import agentMigration from '../migrations/0052_box_item_agent.sql?raw';
+import thumbnailMigration from '../migrations/0062_box_thumbnails.sql?raw';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from './test-helpers';
 import type { BoxItem } from './box/types';
 
@@ -13,6 +14,11 @@ export const OTHER = 'box-other';
 export const ADMIN = 'box-admin';
 export type Item = BoxItem;
 export interface Page { items: Item[]; next_cursor: string | null }
+
+export async function applySql(sql: string): Promise<void> {
+  const statements = sql.replace(/^--.*$/gm, '').split(';').map(line => line.trim()).filter(Boolean);
+  await env.DB.batch(statements.map(statement => env.DB.prepare(statement)));
+}
 
 export async function seedBox(): Promise<void> {
   await seedDatabase();
@@ -24,6 +30,7 @@ export async function seedBox(): Promise<void> {
   const collectionStatements = collectionMigration.replace(/^--.*$/gm, '').split(';')
     .map(sql => sql.trim()).filter(Boolean);
   await env.DB.batch(collectionStatements.map(sql => env.DB.prepare(sql)));
+  await applySql(thumbnailMigration);
   await seedBossToken('Box Owner', 'viewer', OWNER, OWNER);
   await seedBossToken('Box Other', 'manager', OTHER, OTHER);
   await seedBossToken('Box Admin', 'admin', ADMIN, ADMIN);

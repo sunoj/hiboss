@@ -54,9 +54,9 @@ it('keeps every public field across item responses and replaces storage fields w
       JOIN bosses b ON b.id = i.boss_id WHERE i.id = ?`).bind(item.id).first<BoxRow>();
     expect(row).not.toBeNull();
     if (!row) throw new Error('created item missing');
-    const { media_key, deleted_at, agent_id, ...stored } = row;
-    const expected = { ...stored, tags: ['reference'], has_media: media, added_by: { kind: 'boss' },
-      liked: false, collection_ids: [] };
+    const { media_key, thumb_key, thumb_bytes, deleted_at, agent_id, ...stored } = row;
+    const expected = { ...stored, tags: ['reference'], has_media: media, has_thumbnail: false,
+      added_by: { kind: 'boss' }, liked: false, collection_ids: [] };
     expect(item).toEqual(expected);
     const replay = await request('', 'POST', { text: 'ignored' }, OWNER, { 'Idempotency-Key': key });
     expect(replay.status).toBe(201);

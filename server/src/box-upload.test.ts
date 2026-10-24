@@ -4,7 +4,7 @@ import { env } from 'cloudflare:test';
 import { Hono } from 'hono';
 import { beforeAll, expect, it, vi } from 'vitest';
 import { OWNER, seedBox } from './box-test-helpers';
-import { FILE_BYTES, IMAGE_BYTES, multipartForm } from './box/multipart';
+import { FILE_BYTES, IMAGE_BYTES, MULTIPART_BYTES, multipartForm } from './box/multipart';
 import { createItem } from './box/store';
 import type { BoxRow } from './box/types';
 import type { Env } from './types';
@@ -14,7 +14,7 @@ beforeAll(seedBox);
 it('rejects oversized Content-Length without reading or parsing the multipart body', async () => {
   const request = new Request('https://test.local', { method: 'POST', body: 'malformed',
     headers: { 'Content-Type': 'multipart/form-data; boundary=test',
-      'Content-Length': String(FILE_BYTES + 64 * 1024 + 1) } });
+      'Content-Length': String(FILE_BYTES + MULTIPART_BYTES + 1) } });
   const parse = vi.spyOn(request, 'formData');
   await expect(multipartForm(request)).rejects.toMatchObject({ status: 413 });
   expect(request.bodyUsed).toBe(false);
@@ -26,7 +26,7 @@ it('rejects oversized images from leading part headers before parsing the file',
     + 'Content-Type: image/png\r\n\r\n';
   const request = new Request('https://test.local', { method: 'POST', body: prefix,
     headers: { 'Content-Type': 'multipart/form-data; boundary=test',
-      'Content-Length': String(IMAGE_BYTES + 64 * 1024 + 1) } });
+      'Content-Length': String(IMAGE_BYTES + MULTIPART_BYTES + 1) } });
   const parse = vi.spyOn(Response.prototype, 'formData');
   try {
     await expect(multipartForm(request)).rejects.toMatchObject({ status: 413 });
@@ -48,7 +48,7 @@ it.each(['video/mp4', 'application/pdf'])(
           controller.close();
         },
       }), headers: { 'Content-Type': 'multipart/form-data; boundary="test"',
-        'Content-Length': String(IMAGE_BYTES + 64 * 1024 + 1) } });
+        'Content-Length': String(IMAGE_BYTES + MULTIPART_BYTES + 1) } });
     const form = await multipartForm(request);
     expect(form.get('meta')).toBe('{}');
     const file = form.get('file') as File;
@@ -57,9 +57,9 @@ it.each(['video/mp4', 'application/pdf'])(
   });
 
 it('bounds the header scan when an oversized multipart request has no file header', async () => {
-  const request = new Request('https://test.local', { method: 'POST', body: 'x'.repeat(64 * 1024),
+  const request = new Request('https://test.local', { method: 'POST', body: 'x'.repeat(MULTIPART_BYTES),
     headers: { 'Content-Type': 'multipart/form-data; boundary=test',
-      'Content-Length': String(IMAGE_BYTES + 64 * 1024 + 1) } });
+      'Content-Length': String(IMAGE_BYTES + MULTIPART_BYTES + 1) } });
   await expect(multipartForm(request)).rejects.toMatchObject({ status: 413 });
 });
 
@@ -70,7 +70,7 @@ it('stores a File in R2 without calling its arrayBuffer method', async () => {
   app.post('/', async c => {
     Object.assign(c, { bossId: OWNER });
     const row = await createItem(c, { bossId: OWNER, agentId: null }, {
-      file, kind: 'image', boss: null, meta: {
+      file, thumbnail: null, kind: 'image', boss: null, meta: {
         text: null, url: null, note: null, project: null, tags: [], source: 'ios-share',
         width: null, height: null, duration_ms: null,
       },

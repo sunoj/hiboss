@@ -156,6 +156,9 @@ Owner docs: [Box design](hiboss-box-design.md), [Box v2](box-v2.md),
 
 - Each boss owns a Box of text, links and media (private R2 objects). Agents read the
   Boxes of the bosses they resolve to, and edit or delete only their own items.
+- An `image` or `video` item may carry one thumbnail, made by the uploader or by the first
+  boss client that views the item without one; the server stores it without decoding it.
+  Whoever can edit the item can replace it. Soft delete keeps it; purge deletes it with the media.
 - Items are `live` → soft-deleted → purged. Agents can organize readable collections;
   only the boss deletes collections or likes items.
 - A share link stores only a token hash, lasts 1 hour to 30 days (default 7 days), and

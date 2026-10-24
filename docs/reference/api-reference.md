@@ -106,6 +106,31 @@ Response (201): `{ "key": "uuid", "url": "...", "filename": "...", "content_type
 ### GET /api/attachments/:key
 Serve uploaded file. Public (no auth). Correct content-type and cache headers.
 
+## Box Thumbnail Endpoints
+
+The full Box route table lives in [Box design](../hiboss-box-design.md). Thumbnails are made by
+clients (a JPEG whose longest side is 512 px) and stored as-is; the server checks type, size and
+leading bytes but never decodes them. Item JSON carries `has_thumbnail`; the storage key and
+size are never returned.
+
+An accepted thumbnail is `image/jpeg`, `image/png` or `image/webp`, at most 256 KiB, and its
+leading bytes match the declared type (JPEG `FF D8 FF`, the PNG signature, `RIFF....WEBP`).
+A wrong type or mismatched bytes is 415; more than 256 KiB is 413. Only `image` and `video`
+items with media accept one; anything else is 409.
+
+### POST /api/box/items (thumbnail part)
+A media upload may add a `thumbnail` file part next to `file`. An invalid part rejects the
+whole request with the status above, and nothing is stored.
+
+### PUT /api/box/items/:id/thumbnail
+Raw body with the image `Content-Type`. Boss, or the agent that added the item; other agents
+receive 404. Replaces any existing thumbnail and returns the item JSON (200).
+
+### GET/HEAD /api/box/items/:id/thumbnail
+Same access as `/media`. 404 when the item or its thumbnail is absent. Headers: the stored
+`content-type`, `x-content-type-options: nosniff`, `cache-control: private, max-age=86400`
+and an `etag`; a matching `If-None-Match` returns 304.
+
 ## Progress Feed Endpoints
 
 ### POST /api/progress
