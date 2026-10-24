@@ -1,11 +1,30 @@
-// Visible Box rows: activation retries cover them, and a visible row retries each failure when
-// its backoff ends and reloads after a reset, so it recovers without scrolling.
-// Dependencies: HibossKit BoxItem and BoxBrowserMedia's thumbnail loading.
+// Visible Box rows: a stable task id, manual and activation retries, and a load loop that retries
+// each failure when its backoff ends and reloads after a reset, so a row recovers without scrolling.
+// Dependencies: HibossKit BoxItem and BoxBrowserMedia's thumbnail jobs.
 
 import Foundation
 import HibossKit
 
 extension BoxBrowserMedia {
+    /// The row and detail `.task` id: it changes only when the image leaves memory, never when it
+    /// appears, so a load's own publish cannot cancel it.
+    func thumbnailTaskID(_ id: String) -> String { "\(id)#\(thumbnailEpochs[id] ?? 0)" }
+
+    /// The manual retry: skips the backoff and starts a fresh attempt.
+    func retryThumbnail(_ item: BoxItem) async {
+        cancelLoad(item.id)
+        thumbnailErrors[item.id] = nil
+        thumbnailFailures.clear(item.id)
+        await loadThumbnail(item)
+    }
+
+    /// Retries every visible failed row whose backoff has elapsed, e.g. when the app becomes active.
+    func retryFailedLoads() {
+        for item in thumbnailFailures.due(now: now()) where visible[item.id] != nil {
+            Task { await loadThumbnail(item) }
+        }
+    }
+
     /// A row's or detail pane's load task: loads the image and, while it stays on screen, retries
     /// each failure once its backoff ends and reloads after a reset. The view cancels it on leaving.
     func show(_ item: BoxItem) async {

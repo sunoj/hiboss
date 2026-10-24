@@ -1,90 +1,108 @@
-// Row thumbnails: disk cache, then the stored server thumbnail, else a backfill from the original.
-// Backfill generates the shared JPEG and PUTs it under BoxBrowserMedia's BoxBackfillSession rules.
-// Dependencies: AppKit, ImageIO, HibossKit BoxThumbnailServing and BoxThumbnailGenerator.
+// Row thumbnails: one store-owned job per item reads the disk cache, the stored server thumbnail
+// or the original, publishes the image to waiting rows, then PUTs a backfill JPEG in a limiter
+// slot under BoxBackfillSession rules. Dependencies: AppKit, ImageIO, HibossKit generator.
 
 import AppKit
 import HibossKit
 import ImageIO
 
+/// One item's load. Rows wait only until it publishes; the PUT after that belongs to the store.
+@MainActor
+final class BoxThumbnailJob {
+    var task: Task<Void, Never>?
+    var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
+}
+
 extension BoxBrowserMedia {
     func thumbnail(_ id: String) -> NSImage? { images[id] }
-
-    /// The row and detail `.task` id: it changes only when the image leaves memory, never when it
-    /// appears, so a load's own publish cannot cancel it.
-    func thumbnailTaskID(_ id: String) -> String { "\(id)#\(thumbnailEpochs[id] ?? 0)" }
 
     static func hasThumbnailSource(_ item: BoxItem) -> Bool {
         item.hasImageMedia || (item.hasMedia && item.kind == .video)
     }
 
-    /// Loads a row image; a failure retries here once its backoff elapses. Callers that all
-    /// disappear cancel work still queued for a download slot.
+    /// Waits until the item's image is published or its load ends; a failure retries here once its
+    /// backoff elapses. A leaving row stops waiting, and the last one cancels an unpublished load.
     func loadThumbnail(_ item: BoxItem) async {
         guard Self.hasThumbnailSource(item), thumbnail(item.id) == nil else { return }
         if thumbnailErrors[item.id] != nil {
             guard thumbnailFailures.canRetry(item.id, now: now()) else { return }
             thumbnailErrors[item.id] = nil
         }
-        let current = generation
-        let task = thumbnailTasks[item.id]?.task ?? Task { await self.fetchThumbnail(item, generation: current) }
-        thumbnailTasks[item.id] = (task, (thumbnailTasks[item.id]?.waiters ?? 0) + 1)
-        await withTaskCancellationHandler { await task.value } onCancel: {
-            Task { @MainActor in self.leave(item.id, task: task, cancelled: true) }
-        }
-        if !Task.isCancelled { leave(item.id, task: task, cancelled: false) }
-    }
-
-    /// The manual retry: skips the backoff and starts a fresh attempt.
-    func retryThumbnail(_ item: BoxItem) async {
-        thumbnailTasks[item.id]?.task.cancel()
-        thumbnailTasks[item.id] = nil
-        thumbnailErrors[item.id] = nil
-        thumbnailFailures.clear(item.id)
-        await loadThumbnail(item)
-    }
-
-    /// Retries every visible failed row whose backoff has elapsed, e.g. when the app becomes active.
-    func retryFailedLoads() async {
-        let due = thumbnailFailures.due(now: now()).filter { visible[$0.id] != nil }
-        await withTaskGroup(of: Void.self) { group in
-            for item in due { group.addTask { await self.loadThumbnail(item) } }
+        let job = thumbnailTasks[item.id] ?? startJob(item), key = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { job.waiters[key] = $0 }
+        } onCancel: {
+            Task { @MainActor in
+                guard self.thumbnailTasks[item.id] === job, let waiter = job.waiters.removeValue(forKey: key)
+                else { return }
+                waiter.resume()
+                if job.waiters.isEmpty { self.cancelLoad(item.id) }
+            }
         }
     }
 
-    private func leave(_ id: String, task: Task<Void, Never>, cancelled: Bool) {
-        guard let entry = thumbnailTasks[id], entry.task == task else { return }
-        if entry.waiters <= 1 {
-            thumbnailTasks[id] = nil
-            if cancelled { task.cancel() }
-        } else {
-            thumbnailTasks[id] = (task, entry.waiters - 1)
-        }
+    /// Cancels a load that has not published and wakes its rows; a PUT in progress is not reached.
+    func cancelLoad(_ id: String) {
+        thumbnailTasks[id]?.task?.cancel()
+        thumbnailTasks[id].map { finish($0, id) }
     }
 
-    private func fetchThumbnail(_ item: BoxItem, generation current: Int) async {
+    /// The job captures the client and the account generation once, for its load and its PUT.
+    private func startJob(_ item: BoxItem) -> BoxThumbnailJob {
+        let job = BoxThumbnailJob(), api = apiProvider(), current = generation
+        job.task = Task { await self.run(job, item, api: api, generation: current) }
+        thumbnailTasks[item.id] = job
+        return job
+    }
+
+    /// Publishes the image, wakes the rows, then makes the backfill PUT in a limiter slot: one per
+    /// item at a time, never sent once a reset has made the job's generation stale.
+    private func run(_ job: BoxThumbnailJob, _ item: BoxItem, api: (any BoxBrowsing)?,
+                     generation current: Int) async {
+        defer { finish(job, item.id) }
+        let id = item.id, loaded: (image: DecodedThumbnail, backfill: Data?)
         do {
-            let (image, generated) = try await thumbnailImage(item)
+            loaded = try await thumbnailImage(item, api: api)
             try Task.checkCancellation()
-            guard current == generation else { return }
-            objectWillChange.send()
-            images.set(image.image, cost: image.cost, for: item.id)
-            thumbnailErrors[item.id] = nil
-            thumbnailFailures.clear(item.id)
-            // Its own task, so a row that leaves mid-PUT does not cancel the upload.
-            if let generated { await Task { await self.upload(generated, for: item) }.value }
         } catch {
             guard current == generation, !Task.isCancelled, !(error is CancellationError) else { return }
-            thumbnailErrors[item.id] = error.localizedDescription
+            thumbnailErrors[id] = error.localizedDescription
             thumbnailFailures.record(item, now: now())
+            return
         }
+        guard current == generation else { return }
+        objectWillChange.send()
+        images.set(loaded.image.image, cost: loaded.image.cost, for: id)
+        thumbnailErrors[id] = nil
+        thumbnailFailures.clear(id)
+        finish(job, id)
+        guard let data = loaded.backfill, let api, uploads[id] == nil, backfill.begin(id) else { return }
+        uploads[id] = job
+        defer { if uploads[id] === job { uploads[id] = nil } }
+        do {
+            try await limiter.run { @MainActor in
+                guard current == self.generation else { throw CancellationError() }
+                _ = try await api.uploadBoxThumbnail(
+                    id: id, data: data, contentType: BoxThumbnailGenerator.contentType)
+            }
+            backfill.succeeded(id)
+        } catch { if current == generation { backfill.failed(id, error: error) } }
+    }
+
+    /// Wakes the job's rows; later calls do nothing.
+    private func finish(_ job: BoxThumbnailJob, _ id: String) {
+        if thumbnailTasks[id] === job { thumbnailTasks[id] = nil }
+        job.waiters.values.forEach { $0.resume() }
+        job.waiters = [:]
     }
 
     /// The decoded image and, when the server has no thumbnail yet, the JPEG made here to backfill.
-    private func thumbnailImage(_ item: BoxItem) async throws -> (DecodedThumbnail, Data?) {
+    private func thumbnailImage(_ item: BoxItem, api: (any BoxBrowsing)?) async throws
+        -> (DecodedThumbnail, Data?) {
         if let data = await cache?.data(for: item.id), let image = await Self.decode(data) {
             return (image, item.hasThumbnail ? nil : data)
         }
-        if item.hasThumbnail, let api = apiProvider() {
+        if item.hasThumbnail, let api {
             do {
                 let id = item.id
                 let data = try await limiter.run { try await api.downloadBoxThumbnail(id: id) }
@@ -94,7 +112,7 @@ extension BoxBrowserMedia {
                 }
             } catch let HibossAPIError.requestFailed(status, _) where status == 404 {}
         }
-        let original = try await rowOriginal(item)
+        let original = try await rowOriginal(item, api: api)
         defer {
             if original.owned { try? FileManager.default.removeItem(at: original.url.deletingLastPathComponent()) }
         }
@@ -115,17 +133,6 @@ extension BoxBrowserMedia {
             BoxThumbnailGenerator.downsample(url, maxPixelSize: BoxThumbnailGenerator.maxPixelSize)
         }).value else { throw HibossAPIError.invalidResponse }
         return (DecodedThumbnail(image), nil)
-    }
-
-    private func upload(_ data: Data, for item: BoxItem) async {
-        guard let api = apiProvider(), backfill.begin(item.id) else { return }
-        do {
-            _ = try await api.uploadBoxThumbnail(
-                id: item.id, data: data, contentType: BoxThumbnailGenerator.contentType)
-            backfill.succeeded(item.id)
-        } catch {
-            backfill.failed(item.id, error: error)
-        }
     }
 
     /// Decodes off the main actor so drawing a row never decodes the JPEG lazily.

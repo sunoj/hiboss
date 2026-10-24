@@ -68,7 +68,9 @@ actor ScriptedBoxBrowser: BoxBrowsing {
     private(set) var storedThumbnails: [String: Data] = [:]
     private(set) var requests: [String] = []
     private(set) var peak = 0
+    private(set) var putPeak = 0
     private var active = 0
+    private var activePuts = 0
     private var delay: UInt64 = 0
     private var failures = 0
     private var putStatus: Int?
@@ -179,6 +181,9 @@ actor ScriptedBoxBrowser: BoxBrowsing {
 
     func uploadBoxThumbnail(id: String, data: Data, contentType: String) async throws -> BoxItem {
         requests.append("put:\(id)")
+        activePuts += 1
+        putPeak = max(putPeak, activePuts)
+        defer { activePuts -= 1 }
         if putDelay > 0 { try await Task.sleep(nanoseconds: putDelay) }
         if let putStatus { throw HibossAPIError.requestFailed(status: putStatus, message: "") }
         storedThumbnails[id] = data

@@ -23,7 +23,9 @@ final class BoxBrowserMedia: ObservableObject {
     let now: () -> Date
     let apiProvider: BoxBrowserStore.Provider
     private(set) var generation = 0
-    var thumbnailTasks: [String: (task: Task<Void, Never>, waiters: Int)] = [:]
+    /// Loads not yet published, and the backfill PUTs that follow them.
+    var thumbnailTasks: [String: BoxThumbnailJob] = [:]
+    var uploads: [String: BoxThumbnailJob] = [:]
     var thumbnailFailures = BoxLoadFailures()
     /// Rows and detail panes currently on screen, counted per item.
     var visible: [String: (item: BoxItem, count: Int)] = [:]
@@ -45,15 +47,17 @@ final class BoxBrowserMedia: ObservableObject {
         observations.append(AccountAuthorization.shared.observe { [weak self] _ in self?.reset() })
         observations.append(NotificationCenter.default
             .publisher(for: NSApplication.didBecomeActiveNotification)
-            .sink { [weak self] _ in Task { @MainActor in await self?.retryFailedLoads() } })
+            .sink { [weak self] _ in Task { @MainActor in self?.retryFailedLoads() } })
     }
 
     func reset() {
         generation += 1
         tasks.values.forEach { $0.cancel() }
         tasks = [:]
-        thumbnailTasks.values.forEach { $0.task.cancel() }
-        thumbnailTasks = [:]
+        thumbnailTasks.keys.forEach(cancelLoad)
+        uploads.values.forEach { $0.task?.cancel() }
+        uploads = [:]
+        backfill.reset()
         for id in files.keys { removeFile(id) }
         errors = [:]
         thumbnailErrors = [:]
@@ -65,8 +69,7 @@ final class BoxBrowserMedia: ObservableObject {
     /// Forgets a removed item everywhere, including its cached thumbnail on disk.
     func remove(id: String) {
         tasks[id]?.cancel()
-        thumbnailTasks[id]?.task.cancel()
-        thumbnailTasks[id] = nil
+        cancelLoad(id)
         removeFile(id)
         errors[id] = nil
         thumbnailErrors[id] = nil
@@ -105,13 +108,13 @@ final class BoxBrowserMedia: ObservableObject {
 
     /// The original for a row's thumbnail: a viewer's copy when one exists, otherwise a private
     /// download (`owned`) that the caller deletes. It leaves the limiter queue when cancelled.
-    func rowOriginal(_ item: BoxItem) async throws -> (url: URL, owned: Bool) {
+    func rowOriginal(_ item: BoxItem, api: (any BoxBrowsing)?) async throws -> (url: URL, owned: Bool) {
         if let file = files[item.id] { return (file, false) }
         if let task = tasks[item.id] {
             if let file = await task.value { return (file, false) }
             throw BoxBrowserError.media(errors[item.id] ?? L("Couldn't open this item."))
         }
-        return (try await fetch(item), true)
+        return (try await fetch(item, api: api), true)
     }
 
     func referenceFile(_ item: BoxItem) throws -> URL {
@@ -141,7 +144,7 @@ final class BoxBrowserMedia: ObservableObject {
     }
 
     private func download(_ item: BoxItem, generation current: Int) async throws -> URL {
-        let file = try await fetch(item)
+        let file = try await fetch(item, api: apiProvider())
         guard current == generation, !Task.isCancelled else {
             try? FileManager.default.removeItem(at: file.deletingLastPathComponent())
             throw CancellationError()
@@ -156,7 +159,7 @@ final class BoxBrowserMedia: ObservableObject {
     }
 
     /// Downloads into a new temporary directory that the caller owns.
-    private func fetch(_ item: BoxItem) async throws -> URL {
+    private func fetch(_ item: BoxItem, api: (any BoxBrowsing)?) async throws -> URL {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let ext = item.mediaType.flatMap { UTType(mimeType: $0)?.preferredFilenameExtension } ?? "bin"
         var name = ((item.text ?? "attachment") as NSString).lastPathComponent
@@ -164,7 +167,7 @@ final class BoxBrowserMedia: ObservableObject {
         if (name as NSString).pathExtension.isEmpty { name += ".\(ext)" }
         let file = directory.appendingPathComponent(name)
         do {
-            guard let api = apiProvider() else { throw BoxBrowserError.notConfigured }
+            guard let api else { throw BoxBrowserError.notConfigured }
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let id = item.id
             try await limiter.run { try await api.downloadBoxMedia(id: id, to: file) }

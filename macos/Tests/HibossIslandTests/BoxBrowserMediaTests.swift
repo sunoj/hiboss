@@ -42,7 +42,7 @@ final class BoxBrowserMediaTests: XCTestCase {
         let api = ScriptedBoxBrowser(media: try Self.png(width: 1600, height: 900))
         let media = BoxBrowserMedia(apiProvider: { api }, backfill: BoxBackfillSession())
         let item = Self.image(2)
-        await media.loadThumbnail(item)
+        await media.loadThumbnailAndBackfill(item)
         let image = try XCTUnwrap(media.thumbnail(item.id))
         XCTAssertEqual(max(image.size.width, image.size.height), 512)
         XCTAssertNil(media.files[item.id], "a row's original is deleted once its thumbnail exists")
@@ -62,7 +62,7 @@ final class BoxBrowserMediaTests: XCTestCase {
         let item = Self.image(3)
         let loaded = await media.load(item)
         let file = try XCTUnwrap(loaded)
-        await media.loadThumbnail(item)
+        await media.loadThumbnailAndBackfill(item)
         XCTAssertNotNil(media.thumbnail(item.id))
         XCTAssertEqual(media.files[item.id], file)
         XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
@@ -75,8 +75,8 @@ final class BoxBrowserMediaTests: XCTestCase {
             let api = ScriptedBoxBrowser(media: try Self.png(width: 800, height: 600))
             await api.script(putStatus: status)
             let media = BoxBrowserMedia(apiProvider: { api }, backfill: BoxBackfillSession())
-            await media.loadThumbnail(Self.image(4))
-            await media.loadThumbnail(Self.image(5))
+            await media.loadThumbnailAndBackfill(Self.image(4))
+            await media.loadThumbnailAndBackfill(Self.image(5))
             let puts = await api.requests.filter { $0.hasPrefix("put:") }
             XCTAssertEqual(puts, expected, "status \(status)")
             XCTAssertNotNil(media.thumbnail("image-5"))
@@ -121,7 +121,7 @@ final class BoxBrowserMediaTests: XCTestCase {
         XCTAssertEqual(requests.filter { $0 == "thumb:image-8" }.count, 1)
     }
 
-    func testVisibleFailedRowRetriesOnceWhenItsBackoffEnds() async throws {
+    func testVisibleFailedRowRecoversWhenItsBackoffEnds() async throws {
         let item = Self.image(9, thumbnail: true)
         let api = try await Self.api(storing: [item])
         await api.script(failures: 1)
@@ -196,6 +196,14 @@ final class BoxBrowserMediaTests: XCTestCase {
     static func image(_ index: Int, thumbnail: Bool = false) -> BoxItem {
         BoxItem(id: "image-\(index)", bossID: "boss", bossName: "Owner", kind: .image, hasMedia: true,
                 mediaType: "image/png", createdAt: "2026-10-07T00:00:00Z", hasThumbnail: thumbnail)
+    }
+}
+
+extension BoxBrowserMedia {
+    /// Loads a row image, then waits for the backfill PUT that its job may have started.
+    func loadThumbnailAndBackfill(_ item: BoxItem) async {
+        await loadThumbnail(item)
+        await uploads[item.id]?.task?.value
     }
 }
 

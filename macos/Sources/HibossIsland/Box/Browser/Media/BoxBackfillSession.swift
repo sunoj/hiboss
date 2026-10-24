@@ -1,4 +1,4 @@
-// App-session state for thumbnail backfill PUTs, shared by every Box browser window.
+// Account-session state for thumbnail backfill PUTs, shared by every Box browser window.
 // Exports BoxBackfillSession: 405 turns backfill off, 404 or a rejection settles one item,
 // a transient failure allows one retry on a later load. Dependencies: HibossKit.
 
@@ -20,6 +20,9 @@ final class BoxBackfillSession {
         attempts[id, default: 0] += 1
         return true
     }
+
+    /// An account change starts over: backfill on, nothing settled.
+    func reset() { (enabled, settled, attempts) = (true, [], [:]) }
 
     func succeeded(_ id: String) { settled.insert(id) }
 
