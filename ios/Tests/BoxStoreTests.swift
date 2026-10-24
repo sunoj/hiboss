@@ -92,7 +92,7 @@ final class BoxStoreTests: XCTestCase {
             if kind == .file { XCTAssertEqual(url.lastPathComponent, "Reference.txt") }
             if kind != .file {
                 await media.loadThumbnail(item)
-                XCTAssertNotNil(media.thumbnails[item.id])
+                XCTAssertNotNil(media.thumbnail(item.id))
             }
             if kind == .video {
                 let duration = try await AVURLAsset(url: url).load(.duration)
@@ -172,7 +172,7 @@ final class BoxStoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: resource.url.path))
         XCTAssertNil(media.errors[item.id])
         await media.loadThumbnail(item)
-        XCTAssertNil(media.thumbnails[item.id])
+        XCTAssertNil(media.thumbnail(item.id))
         XCTAssertNotNil(media.thumbnailErrors[item.id])
         XCTAssertTrue(media.resources[item.id] === resource)
     }

@@ -1,6 +1,6 @@
-// Verifies Box row media: the 4-download cap, thumbnail-first loads, one-time backfill, backoff
-// retries on reappearance and foreground, and the disk cache's removal and LRU eviction.
-// Dependencies: XCTest, HibossKit, UIKit and the HiBoss Box media store (fake BoxThumbnailServing).
+// Verifies Box row media: the 4-download cap, thumbnail-first loads, bounded backfill, the
+// memory and disk caches, and that a backfill's original is deleted once the thumbnail exists.
+// Dependencies: XCTest, HibossKit, UIKit and the HiBoss Box media store (BoxMediaTestDoubles).
 
 import HibossKit
 import UIKit
@@ -9,10 +9,12 @@ import XCTest
 
 @MainActor
 final class BoxMediaStoreTests: XCTestCase {
+    private typealias Fixture = BoxMediaFixture
+
     func testDownloadsRunAtMostFourAtATime() async {
         let api = ThumbnailBoxAPI()
-        let media = BoxMediaStore(api: api, cache: nil)
-        let items = (0..<12).map { Self.image($0, thumbnail: $0.isMultiple(of: 2)) }
+        let media = Fixture.store(api)
+        let items = (0..<12).map { Fixture.image($0, thumbnail: $0.isMultiple(of: 2)) }
         await withTaskGroup(of: Void.self) { group in
             for item in items { group.addTask { await media.loadThumbnail(item) } }
             for item in items.prefix(4) { group.addTask { await media.load(item) } }
@@ -20,16 +22,16 @@ final class BoxMediaStoreTests: XCTestCase {
         let peak = await api.peak
         XCTAssertLessThanOrEqual(peak, 4)
         XCTAssertGreaterThan(peak, 1)
-        XCTAssertEqual(media.thumbnails.count, 12)
+        XCTAssertEqual(items.filter { media.thumbnail($0.id) != nil }.count, 12)
     }
 
     func testFailedLoadRetriesWhenRequestedAgainAfterBackoff() async throws {
         let api = ThumbnailBoxAPI(failures: 1)
-        let media = BoxMediaStore(api: api, cache: nil)
-        await media.load(Self.image(0))
+        let media = Fixture.store(api)
+        await media.load(Fixture.image(0))
         XCTAssertNotNil(media.errors["image-0"])
         try await Task.sleep(nanoseconds: 1_100_000_000)
-        await media.load(Self.image(0))
+        await media.load(Fixture.image(0))
         let attempts = await api.requests.count
         XCTAssertEqual(attempts, 2)
         XCTAssertNotNil(media.resources["image-0"])
@@ -38,66 +40,92 @@ final class BoxMediaStoreTests: XCTestCase {
     func testStoredThumbnailLoadsFirstAndViewerStillUsesOriginal() async throws {
         let api = ThumbnailBoxAPI()
         let cache = cache()
-        let item = Self.image(1, thumbnail: true)
-        let media = BoxMediaStore(api: api, cache: cache)
+        let item = Fixture.image(1, thumbnail: true)
+        let media = Fixture.store(api, cache: cache)
         await media.loadThumbnail(item)
-        XCTAssertNotNil(media.thumbnails[item.id])
+        XCTAssertNotNil(media.thumbnail(item.id))
         XCTAssertNil(media.resources[item.id])
-        await BoxMediaStore(api: api, cache: cache).loadThumbnail(item)
+        await Fixture.store(api, cache: cache).loadThumbnail(item)
         await media.load(item)
         let requests = await api.requests
         XCTAssertEqual(requests, ["thumb:image-1", "media:image-1"])
     }
 
-    func testBackfillShowsDownsampledImageAndPutsBoundedJPEGOnce() async throws {
-        let api = ThumbnailBoxAPI(putStatus: 500)
-        let media = BoxMediaStore(api: api, cache: nil)
-        let item = Self.image(2)
+    func testBackfillShowsDownsampledImageAndPutsBoundedJPEG() async throws {
+        let api = ThumbnailBoxAPI()
+        let media = Fixture.store(api)
+        let item = Fixture.image(2)
         await media.loadThumbnail(item)
-        let image = try XCTUnwrap(media.thumbnails[item.id])
+        let image = try XCTUnwrap(media.thumbnail(item.id))
         XCTAssertEqual(max(image.size.width, image.size.height) * image.scale, 512)
-        media.remove(id: item.id)
-        await media.loadThumbnail(item)
-        let requests = await api.requests
-        XCTAssertEqual(requests, ["media:image-2", "put:image-2", "media:image-2"])
-        let puts = await api.puts
+        let requests = await api.requests, puts = await api.puts
+        XCTAssertEqual(requests, ["media:image-2", "put:image-2"])
         let put = try XCTUnwrap(puts.first)
         XCTAssertTrue(put.starts(with: [0xFF, 0xD8, 0xFF]))
         XCTAssertLessThanOrEqual(put.count, BoxThumbnailGenerator.maxBytes)
     }
 
-    func testBackfillTurnsOffForTheSessionAfter404Or405() async {
-        for status in [404, 405] {
-            let api = ThumbnailBoxAPI(putStatus: status)
-            let media = BoxMediaStore(api: api, cache: nil)
-            await media.loadThumbnail(Self.image(3))
-            await media.loadThumbnail(Self.image(4))
-            let requests = await api.requests
-            XCTAssertEqual(requests, ["media:image-3", "put:image-3", "media:image-4"])
-            XCTAssertNotNil(media.thumbnails["image-4"])
-        }
+    func testBackfillDeletesItsOriginalUnlessAViewerRequestedIt() async throws {
+        let api = ThumbnailBoxAPI()
+        let media = Fixture.store(api)
+        await media.loadThumbnail(Fixture.image(3))
+        XCTAssertNotNil(media.thumbnail("image-3"))
+        XCTAssertNil(media.resources["image-3"])
+        let backfilled = try await XCTUnwrapAsync(await api.destinations.first)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: backfilled.deletingLastPathComponent().path))
+        let viewed = Fixture.image(4)
+        await media.load(viewed)
+        await media.loadThumbnail(viewed)
+        let url = try XCTUnwrap(media.resources[viewed.id]?.url)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        let downloads = await api.requests.filter { $0 == "media:image-4" }
+        XCTAssertEqual(downloads.count, 1)
     }
 
-    func testFailedThumbnailRetriesOnReappearanceAndForegroundWithBackoff() async {
-        let api = ThumbnailBoxAPI(failures: 2)
-        let clock = TestClock()
-        let media = BoxMediaStore(api: api, cache: nil, now: { clock.date })
-        let first = Self.image(5, thumbnail: true), second = Self.image(6, thumbnail: true)
-        await media.loadThumbnail(first)
-        await media.loadThumbnail(second)
-        XCTAssertNotNil(media.thumbnailErrors[first.id])
-        await media.loadThumbnail(first)
-        await media.retryFailedLoads()
-        var count = await api.requests.count
-        XCTAssertEqual(count, 2, "no retry inside the backoff window")
-        clock.date += 1
-        await media.loadThumbnail(first)
-        XCTAssertNotNil(media.thumbnails[first.id])
-        XCTAssertNil(media.thumbnailErrors[first.id])
-        await media.retryFailedLoads()
-        XCTAssertNotNil(media.thumbnails[second.id])
-        count = await api.requests.count
-        XCTAssertEqual(count, 4)
+    func testBackfillTurnsOffForTheAppSessionOnlyOn405() async {
+        let session = BoxBackfillSession()
+        let gone = ThumbnailBoxAPI(putStatus: 404)
+        await Fixture.store(gone, backfill: session).loadThumbnail(Fixture.image(5))
+        await Fixture.store(gone, backfill: session).loadThumbnail(Fixture.image(6))
+        var puts = await gone.requests.filter { $0.hasPrefix("put:") }
+        XCTAssertEqual(puts, ["put:image-5", "put:image-6"], "a 404 skips only its own item")
+        let old = ThumbnailBoxAPI(putStatus: 405)
+        await Fixture.store(old, backfill: session).loadThumbnail(Fixture.image(7))
+        let other = Fixture.store(old, backfill: session)
+        await other.loadThumbnail(Fixture.image(8))
+        puts = await old.requests.filter { $0.hasPrefix("put:") }
+        XCTAssertEqual(puts, ["put:image-7"], "a 405 turns backfill off for every store")
+        XCTAssertNotNil(other.thumbnail("image-8"))
+    }
+
+    func testTransientBackfillFailureRetriesOnceOnALaterLoad() async {
+        let cache = cache(), session = BoxBackfillSession()
+        let api = ThumbnailBoxAPI(putStatuses: [500])
+        for _ in 0..<3 { await Fixture.store(api, cache: cache, backfill: session).loadThumbnail(Fixture.image(9)) }
+        let requests = await api.requests
+        XCTAssertEqual(requests, ["media:image-9", "put:image-9", "put:image-9"])
+        let recovered = ThumbnailBoxAPI(putStatuses: [503, nil])
+        let later = BoxBackfillSession()
+        for _ in 0..<3 { await Fixture.store(recovered, cache: cache, backfill: later).loadThumbnail(Fixture.image(10)) }
+        let puts = await recovered.requests.filter { $0.hasPrefix("put:") }
+        XCTAssertEqual(puts.count, 2, "a successful retry settles the item")
+    }
+
+    func testRowImagesStayWithinTheMemoryCapAndClearOnMemoryWarning() async throws {
+        let api = ThumbnailBoxAPI()
+        let original = try XCTUnwrap(UIImage(data: ThumbnailBoxAPI.original))
+        let bytes = Int(original.size.width * original.scale * original.size.height * original.scale) * 4
+        let media = Fixture.store(api, cache: cache(), memory: BoxThumbnailMemory(costLimit: bytes * 3 / 2))
+        let items = (11..<14).map { Fixture.image($0, thumbnail: true) }
+        for item in items { await media.loadThumbnail(item) }
+        XCTAssertLessThan(items.filter { media.thumbnail($0.id) != nil }.count, 3)
+        let reported = await Fixture.eventually { media.thumbnailEpochs.values.reduce(0, +) > 0 }
+        XCTAssertTrue(reported, "an eviction re-runs the visible row's task")
+        NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+        XCTAssertTrue(items.allSatisfy { media.thumbnail($0.id) == nil })
+        for item in items { await media.loadThumbnail(item) }
+        let requests = await api.requests
+        XCTAssertEqual(requests.count, 3, "misses after a memory warning come from the disk cache")
     }
 
     func testCacheEvictsOnItemRemovalAndLeastRecentlyUsedOverCap() async throws {
@@ -116,7 +144,7 @@ final class BoxMediaStoreTests: XCTestCase {
         XCTAssertNotNil(a)
         XCTAssertNil(b)
         XCTAssertNotNil(c)
-        let media = BoxMediaStore(api: ThumbnailBoxAPI(), cache: cache)
+        let media = Fixture.store(ThumbnailBoxAPI(), cache: cache)
         media.remove(id: "a")
         for _ in 0..<50 where FileManager.default.fileExists(atPath: directory.appendingPathComponent("a.jpg").path) {
             try await Task.sleep(nanoseconds: 10_000_000)
@@ -125,74 +153,31 @@ final class BoxMediaStoreTests: XCTestCase {
         XCTAssertNil(removed)
     }
 
+    func testTranslucentImageThumbnailIsFlattenedOntoWhiteOnIOS() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        try UIGraphicsImageRenderer(size: CGSize(width: 64, height: 64), format: format).pngData { context in
+            UIColor.red.withAlphaComponent(0.5).setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+        }.write(to: url)
+        let data = try await XCTUnwrapAsync(await BoxThumbnailGenerator.thumbnail(for: url, kind: .image))
+        let image = try XCTUnwrap(UIImage(data: data)?.cgImage)
+        var pixel = [UInt8](repeating: 0, count: 4)
+        let context = try XCTUnwrap(CGContext(
+            data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        context.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        XCTAssertGreaterThan(pixel[0], 240, "\(pixel)")
+        XCTAssertTrue((100...170).contains(pixel[1]) && (100...170).contains(pixel[2]), "\(pixel)")
+    }
+
+    private func XCTUnwrapAsync<T>(_ value: T?) async throws -> T { try XCTUnwrap(value) }
+
     private func cache() -> BoxThumbnailCache {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
-        return BoxThumbnailCache(directory: directory, capacity: 1024 * 1024)
-    }
-
-    private static func image(_ index: Int, thumbnail: Bool = false) -> BoxItem {
-        BoxItem(id: "image-\(index)", bossID: "boss", bossName: "Owner", kind: .image, hasMedia: true,
-                mediaType: "image/png", createdAt: "2026-10-07T00:00:00Z", hasThumbnail: thumbnail)
-    }
-}
-
-private final class TestClock: @unchecked Sendable {
-    var date = Date(timeIntervalSince1970: 1_800_000_000)
-}
-
-private actor ThumbnailBoxAPI: BoxThumbnailServing {
-    static let original = UIGraphicsImageRenderer(size: CGSize(width: 1000, height: 500),
-        format: { let format = UIGraphicsImageRendererFormat(); format.scale = 2; return format }())
-        .image { context in
-            UIColor.systemOrange.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 1000, height: 500))
-        }.pngData() ?? Data()
-    private var failures: Int
-    private let putStatus: Int?
-    private var active = 0
-    private(set) var peak = 0
-    private(set) var requests: [String] = []
-    private(set) var puts: [Data] = []
-
-    init(failures: Int = 0, putStatus: Int? = nil) {
-        self.failures = failures
-        self.putStatus = putStatus
-    }
-
-    func boxItems(filters _: BoxFilters, limit _: Int, cursor _: String?) async throws -> BoxPage {
-        BoxPage(items: [])
-    }
-
-    func downloadBoxMedia(id: String, to destination: URL) async throws {
-        try await serve("media:\(id)")
-        try Self.original.write(to: destination)
-    }
-
-    func downloadBoxThumbnail(id: String) async throws -> Data {
-        try await serve("thumb:\(id)")
-        return try XCTUnwrap(UIImage(data: Self.original)?.jpegData(compressionQuality: 0.5))
-    }
-
-    func uploadBoxThumbnail(id: String, data: Data, contentType _: String) async throws -> BoxItem {
-        requests.append("put:\(id)")
-        puts.append(data)
-        if let putStatus { throw HibossAPIError.requestFailed(status: putStatus, message: "") }
-        return BoxItem(id: id, bossID: "boss", bossName: "Owner", kind: .image, createdAt: "c",
-                       hasThumbnail: true)
-    }
-
-    func deleteBoxItem(id _: String, purge _: Bool) async throws {}
-
-    private func serve(_ request: String) async throws {
-        requests.append(request)
-        active += 1
-        peak = max(peak, active)
-        defer { active -= 1 }
-        try await Task.sleep(nanoseconds: 30_000_000)
-        if failures > 0 {
-            failures -= 1
-            throw HibossAPIError.requestFailed(status: 503, message: "unavailable")
-        }
+        return BoxThumbnailCache(directory: directory, capacity: 64 * 1024 * 1024)
     }
 }

@@ -1,6 +1,6 @@
 // Authenticated Box originals for viewers and small thumbnails for rows, behind one download cap.
 // Exports BoxMediaStore and BoxMediaResource; temporary bytes are removed with their resource.
-// Dependencies: HibossKit, Combine, UIKit, BoxMediaLimiter, BoxThumbnailCache and BoxLoadFailures.
+// Dependencies: HibossKit, Combine, UIKit, the limiter, thumbnail caches, backfill session, failures.
 
 import Combine
 import HibossKit
@@ -22,25 +22,42 @@ final class BoxMediaResource {
 final class BoxMediaStore: ObservableObject {
     @Published private(set) var resources: [String: BoxMediaResource] = [:]
     @Published private(set) var errors: [String: String] = [:]
-    @Published var thumbnails: [String: UIImage] = [:]
     @Published var thumbnailErrors: [String: String] = [:]
+    /// Bumped when an id's image leaves memory, so a visible row's load task runs again.
+    @Published private(set) var thumbnailEpochs: [String: Int] = [:]
     let api: (any BoxServing)?
     let limiter: BoxMediaLimiter
     let cache: BoxThumbnailCache?
+    let memory: BoxThumbnailMemory
+    let backfill: BoxBackfillSession
     let now: () -> Date
     var thumbnailTasks: [String: (task: Task<Void, Never>, waiters: Int)] = [:]
     var thumbnailFailures = BoxLoadFailures()
-    var backfillEnabled = true
-    var backfilled: Set<String> = []
+    /// Rows on screen that are still loading or waiting out a failure's backoff.
+    var visibleRows: [String: (item: BoxItem, count: Int)] = [:]
     private var tasks: [String: Task<Void, Never>] = [:]
     private var failures = BoxLoadFailures()
+    private var memoryWarning: AnyCancellable?
 
     init(api: (any BoxServing)?, cache: BoxThumbnailCache? = .standard, concurrency: Int = 4,
+         memory: BoxThumbnailMemory = BoxThumbnailMemory(), backfill: BoxBackfillSession = .shared,
          now: @escaping () -> Date = { Date() }) {
         self.api = api
         self.cache = cache
         self.limiter = BoxMediaLimiter(limit: concurrency)
+        self.memory = memory
+        self.backfill = backfill
         self.now = now
+        memory.onEvict = { [weak self] id in Task { @MainActor in self?.thumbnailEvicted(id) } }
+        memoryWarning = NotificationCenter.default
+            .publisher(for: UIApplication.didReceiveMemoryWarningNotification)
+            .sink { [weak memory] _ in memory?.removeAll() }
+    }
+
+    func thumbnail(_ id: String) -> UIImage? { memory[id] }
+
+    private func thumbnailEvicted(_ id: String) {
+        thumbnailEpochs[id, default: 0] += 1
     }
 
     /// Downloads the original for viewers, copy and share; a failure waits out its backoff.
@@ -72,12 +89,12 @@ final class BoxMediaStore: ObservableObject {
         await load(item)
     }
 
-    /// Retries every failed load whose backoff has elapsed, e.g. when the app returns to the foreground.
+    /// Retries the failed rows on screen whose backoff has elapsed, e.g. on return to the foreground.
     func retryFailedLoads() async {
-        let originals = failures.due(now: now())
-        let rows = thumbnailFailures.due(now: now())
+        let rows = visibleRows.values.map(\.item).filter {
+            thumbnailErrors[$0.id] != nil && thumbnailFailures.canRetry($0.id, now: now())
+        }
         await withTaskGroup(of: Void.self) { group in
-            for item in originals { group.addTask { await self.load(item) } }
             for item in rows { group.addTask { await self.loadThumbnail(item) } }
         }
     }
@@ -95,24 +112,24 @@ final class BoxMediaStore: ObservableObject {
         thumbnailTasks[id]?.task.cancel()
         resources[id] = nil
         errors[id] = nil
-        thumbnails[id] = nil
+        memory.remove(id)
         thumbnailErrors[id] = nil
         failures.clear(id)
         thumbnailFailures.clear(id)
         if let cache { Task { await cache.remove(id) } }
     }
 
-    /// The downloaded original, reusing a finished or in-flight viewer download.
+    /// The original a viewer requested, or a download only the caller holds; its bytes go when it is freed.
     func original(_ item: BoxItem) async throws -> BoxMediaResource {
         if let resource = resources[item.id] { return resource }
         if let task = tasks[item.id], !Task.isCancelled {
             await task.value
             if let resource = resources[item.id] { return resource }
         }
-        return try await download(item)
+        return try await download(item, keep: false)
     }
 
-    private func download(_ item: BoxItem) async throws -> BoxMediaResource {
+    private func download(_ item: BoxItem, keep: Bool = true) async throws -> BoxMediaResource {
         guard let api else { throw CancellationError() }
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("box-\(UUID().uuidString)")
@@ -125,6 +142,7 @@ final class BoxMediaStore: ObservableObject {
             if url != pending { try FileManager.default.moveItem(at: pending, to: url) }
             try Task.checkCancellation()
             let resource = BoxMediaResource(url: url, directory: directory)
+            guard keep else { return resource }
             resources[item.id] = resource
             errors[item.id] = nil
             failures.clear(item.id)
