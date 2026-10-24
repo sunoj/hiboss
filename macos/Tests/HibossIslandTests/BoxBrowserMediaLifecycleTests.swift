@@ -160,6 +160,20 @@ final class BoxBrowserMediaLifecycleTests: XCTestCase {
         XCTAssertEqual(puts.count, 10)
     }
 
+    func testOldServer405StopsPUTsAlreadyQueuedForASlot() async throws {
+        let api = ScriptedBoxBrowser(media: try Fixtures.png(width: 800, height: 600))
+        await api.script(putStatus: 405, putDelay: 100_000_000)
+        let cache = cache(), items = (60..<70).map { Fixtures.image($0) }
+        for item in items { await cache.store(try Self.jpeg(), for: item.id) }
+        let media = BoxBrowserMedia(apiProvider: { api }, cache: cache, backfill: BoxBackfillSession())
+        await withTaskGroup(of: Void.self) { group in
+            for item in items { group.addTask { await media.loadThumbnail(item) } }
+        }
+        try await waitForCondition { media.uploads.isEmpty }
+        let puts = await api.requests.filter { $0.hasPrefix("put:") }
+        XCTAssertLessThanOrEqual(puts.count, 4, "only the PUTs already holding a slot reach the old server")
+    }
+
     private final class Account {
         var api: any BoxBrowsing
         init(api: any BoxBrowsing) { self.api = api }

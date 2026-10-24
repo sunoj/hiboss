@@ -81,7 +81,7 @@ extension BoxBrowserMedia {
         defer { if uploads[id] === job { uploads[id] = nil } }
         do {
             try await limiter.run { @MainActor in
-                guard current == self.generation else { throw CancellationError() }
+                guard current == self.generation, self.backfill.enabled else { throw CancellationError() }
                 _ = try await api.uploadBoxThumbnail(
                     id: id, data: data, contentType: BoxThumbnailGenerator.contentType)
             }
