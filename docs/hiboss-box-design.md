@@ -26,6 +26,7 @@ holds reference material that no single message is about.
 | `note` | text, nullable | What the boss typed in the share sheet ("use this layout") |
 | `media_key` | text, nullable | R2 object key for `image`, `video` and `file` |
 | `media_type`, `media_bytes`, `width`, `height`, `duration_ms` | nullable | Filled from the upload |
+| `thumb_key`, `thumb_bytes` | nullable | Client-made thumbnail in R2 at `box/<boss_id>/<id>.thumb`; responses expose only `has_thumbnail` |
 | `project` | text, nullable | Optional tag, used to filter only (see Access) |
 | `tags` | JSON array | Optional |
 | `source` | `ios-share` \| `mac-share` \| `mac-drop` \| `cli` | Where it came from |
@@ -84,8 +85,10 @@ All routes live under `/api/box`.
 | `GET /api/box/items/search?q=` | boss or agent | FTS5 match, newest first, with the same filters |
 | `GET /api/box/items/:id` | boss or agent | One item's metadata |
 | `GET /api/box/items/:id/media` | boss or agent | The item's media bytes, with range support |
+| `GET`/`HEAD /api/box/items/:id/thumbnail` | boss or agent | The item's thumbnail; see the [API reference](reference/api-reference.md#box-thumbnail-endpoints) |
+| `PUT /api/box/items/:id/thumbnail` | boss or author agent | Store or replace the thumbnail (raw JPEG/PNG/WebP, ≤ 256 KiB); other agents receive 404 |
 | `PATCH /api/box/items/:id` | boss or author agent | Edit the note, tags or project; other agents receive 404 |
-| `DELETE /api/box/items/:id` | boss or author agent | Soft delete. `?purge=1` also removes the R2 object; other agents receive 404 |
+| `DELETE /api/box/items/:id` | boss or author agent | Soft delete. `?purge=1` also removes the media and thumbnail objects; other agents receive 404 |
 
 Every response that carries an item includes `boss_id`, `boss_name` and `added_by`.
 Agent retry keys cannot collide with the boss's keys or another agent's keys.

@@ -33,7 +33,7 @@ function bearer(token: string): string {
 function post(type: string, thumb: { type: string; bytes: Uint8Array<ArrayBuffer> } | null,
   token = OWNER): Promise<Response> {
   const form = new FormData();
-  form.set('meta', JSON.stringify({ source: 'ios-share' }));
+  form.set('meta', JSON.stringify({ source: 'ios-share', boss: OWNER }));
   form.set('file', new File([image(PNG, 32)], 'original', { type }));
   if (thumb) form.set('thumbnail', new File([thumb.bytes], 'thumb', { type: thumb.type }));
   return SELF.fetch('https://test.local/api/box/items', {
