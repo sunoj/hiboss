@@ -65,6 +65,16 @@ actor ScriptedBoxBrowser: BoxBrowsing {
     private(set) var deleted: [String] = []
     private(set) var downloads = 0
     private(set) var downloadsByID: [String: Int] = [:]
+    private(set) var storedThumbnails: [String: Data] = [:]
+    private(set) var requests: [String] = []
+    private(set) var peak = 0
+    private(set) var putPeak = 0
+    private var active = 0
+    private var activePuts = 0
+    private var delay: UInt64 = 0
+    private var failures = 0
+    private var putStatus: Int?
+    private var putDelay: UInt64 = 0
     private let media: Data
     private let mediaByID: [String: Data]
 
@@ -117,7 +127,30 @@ actor ScriptedBoxBrowser: BoxBrowsing {
     func downloadBoxMedia(id: String, to destination: URL) async throws {
         downloads += 1
         downloadsByID[id, default: 0] += 1
+        try await serve("media:\(id)")
         try (mediaByID[id] ?? media).write(to: destination)
+    }
+
+    func storeThumbnail(_ data: Data, for id: String) { storedThumbnails[id] = data }
+
+    func script(delay: UInt64 = 0, failures: Int = 0, putStatus: Int? = nil, putDelay: UInt64 = 0) {
+        self.delay = delay
+        self.failures = failures
+        self.putStatus = putStatus
+        self.putDelay = putDelay
+    }
+
+    /// Records the request and the concurrency peak, then fails while scripted failures remain.
+    private func serve(_ request: String) async throws {
+        requests.append(request)
+        active += 1
+        peak = max(peak, active)
+        defer { active -= 1 }
+        if delay > 0 { try await Task.sleep(nanoseconds: delay) }
+        if failures > 0 {
+            failures -= 1
+            throw HibossAPIError.requestFailed(status: 503, message: "unavailable")
+        }
     }
 
     func deleteBoxItem(id: String, purge: Bool) async throws {
@@ -131,7 +164,29 @@ actor ScriptedBoxBrowser: BoxBrowsing {
         if case let .value(value) = patch.note { note = value } else { note = item.note }
         return BoxItem(id: item.id, bossID: item.bossID, bossName: item.bossName, kind: item.kind,
             text: item.text, url: item.url, note: note, project: item.project, tags: item.tags,
-            hasMedia: item.hasMedia, mediaType: item.mediaType, createdAt: item.createdAt,
-            addedBy: item.addedBy)
+            source: item.source, hasMedia: item.hasMedia, mediaType: item.mediaType,
+            mediaBytes: item.mediaBytes, width: item.width, height: item.height,
+            durationMs: item.durationMs, createdAt: item.createdAt, addedBy: item.addedBy,
+            liked: item.liked, likedAt: item.likedAt, collectionIDs: item.collectionIDs,
+            hasThumbnail: item.hasThumbnail)
+    }
+
+    func downloadBoxThumbnail(id: String) async throws -> Data {
+        try await serve("thumb:\(id)")
+        guard let data = storedThumbnails[id] else {
+            throw HibossAPIError.requestFailed(status: 404, message: "")
+        }
+        return data
+    }
+
+    func uploadBoxThumbnail(id: String, data: Data, contentType: String) async throws -> BoxItem {
+        requests.append("put:\(id)")
+        activePuts += 1
+        putPeak = max(putPeak, activePuts)
+        defer { activePuts -= 1 }
+        if putDelay > 0 { try await Task.sleep(nanoseconds: putDelay) }
+        if let putStatus { throw HibossAPIError.requestFailed(status: putStatus, message: "") }
+        storedThumbnails[id] = data
+        return pages.flatMap(\.items).first { $0.id == id } ?? BoxBrowserFixtures.item(id)
     }
 }

@@ -36,7 +36,7 @@ enum BoxWindowCaptureSupport {
         try await waitForCondition(timeout: .seconds(5)) {
             window.toolbar != nil && store.didLoad && !store.isLoading
                 && store.items.filter { $0.hasImageMedia || $0.kind == .video }
-                    .allSatisfy { media.thumbnails[$0.id] != nil }
+                    .allSatisfy { media.thumbnail($0.id) != nil }
         }
         var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
         frame.size.height = min(frame.height, screen.height)

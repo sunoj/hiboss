@@ -68,7 +68,7 @@ struct MainView: View {
             settings.activeClientConfig.map { HibossAPI(config: $0) }
         }
         _box = StateObject(wrappedValue: boxStore ?? BoxBrowserStore(apiProvider: provider))
-        _boxMedia = StateObject(wrappedValue: boxMedia ?? BoxBrowserMedia(apiProvider: provider))
+        _boxMedia = StateObject(wrappedValue: boxMedia ?? BoxBrowserMedia(apiProvider: provider, cache: .standard))
         _sessionBox = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
         _progress = StateObject(wrappedValue: progressStore ?? ProgressFeedStore(
             apiProvider: progressProvider ?? {

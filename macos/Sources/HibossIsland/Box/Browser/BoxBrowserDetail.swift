@@ -104,19 +104,19 @@ struct BoxBrowserDetail: View {
     @ViewBuilder private func preview(_ item: BoxItem) -> some View {
         if item.hasImageMedia || item.kind == .video {
             VStack(spacing: 8) {
-                if let image = media.thumbnails[item.id] {
+                if let image = media.thumbnail(item.id) {
                     Image(nsImage: image).resizable().scaledToFit().frame(maxHeight: 320)
-                } else if let error = media.errors[item.id] {
+                } else if let error = media.thumbnailErrors[item.id] {
                     Text(verbatim: error).foregroundStyle(.secondary)
-                    Button(L("Retry")) { Task { _ = await media.load(item) } }
-                } else if media.files[item.id] != nil {
-                    Image(systemName: item.kindSymbol).font(.largeTitle)
+                    Button(L("Retry")) { Task { await media.retryThumbnail(item) } }
                 } else { ProgressView() }
                 if item.kind == .video {
                     Label(item.durationTitle ?? L("Video"), systemImage: "play.circle")
                 }
             }.frame(maxWidth: .infinity, minHeight: 140)
-                .task(id: item.id) { _ = await media.load(item) }
+                .task(id: media.thumbnailTaskID(item.id)) {
+                    await media.show(item)
+                }
         } else {
             GroupBox {
                 VStack(spacing: 12) {

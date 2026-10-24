@@ -160,6 +160,33 @@ final class BoxDropTests: XCTestCase {
         XCTAssertTrue(files.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
     }
 
+    func testImageDropCarriesSharedJPEGThumbnailAndTextDoesNot() async throws {
+        let original = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: original) }
+        try BoxBrowserMediaTests.png(width: 1600, height: 900).write(to: original)
+        var thumbnails: [Data?] = []
+        var files: [URL] = []
+        let store = BoxDropStore { upload, _ in
+            if let part = upload.thumbnail {
+                XCTAssertEqual(part.contentType, BoxThumbnailGenerator.contentType)
+                files += [part.fileURL, try XCTUnwrap(upload.media?.fileURL)]
+            }
+            thumbnails.append(try upload.thumbnail.map { try Data(contentsOf: $0.fileURL) })
+        }
+        await store.prepare([.file(original), .text("plain note")])
+        await store.save()
+        XCTAssertEqual(store.phase, .saved)
+        XCTAssertEqual(thumbnails.count, 2)
+        let jpeg = try XCTUnwrap(thumbnails.first ?? nil)
+        XCTAssertTrue(jpeg.starts(with: [0xFF, 0xD8, 0xFF]))
+        XCTAssertLessThanOrEqual(jpeg.count, BoxThumbnailGenerator.maxBytes)
+        let image = try XCTUnwrap(NSBitmapImageRep(data: jpeg))
+        XCTAssertEqual(max(image.pixelsWide, image.pixelsHigh), BoxThumbnailGenerator.maxPixelSize)
+        XCTAssertNil(thumbnails.last ?? nil)
+        XCTAssertTrue(files.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+    }
+
     func testNoteLimitBlocksUploadAndAllowsCorrection() async {
         var calls = 0
         let store = BoxDropStore { _, _ in calls += 1 }

@@ -1,10 +1,12 @@
 // Owns a drop draft, upload state and stable per-item retry identities.
-// Exports BoxDropStore; successful items are skipped after a partial failure.
-// Dependencies: Combine and the HibossKit Box create contract.
+// Exports BoxDropStore; successful items are skipped after a partial failure, and image and
+// video uploads carry the shared JPEG thumbnail part when one can be made.
+// Dependencies: Combine, UniformTypeIdentifiers, the HibossKit Box create contract and generator.
 
 import Combine
 import Foundation
 import HibossKit
+import UniformTypeIdentifiers
 
 @MainActor
 final class BoxDropStore: ObservableObject {
@@ -44,15 +46,36 @@ final class BoxDropStore: ObservableObject {
     var noteLocked: Bool { savedNote != nil || phase != .ready }
 
     private func upload(_ payload: BoxDropPayload, key: String) async throws {
-        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let ext = payload.upload.flatMap { UTType(mimeType: $0.mediaType)?.preferredFilenameExtension }
+        // AVFoundation needs the extension to read a video poster frame.
+        let fileURL = ext.map { base.appendingPathExtension($0) } ?? base
+        let thumbnailURL = base.appendingPathExtension("thumbnail.jpg")
+        defer {
+            try? FileManager.default.removeItem(at: fileURL)
+            try? FileManager.default.removeItem(at: thumbnailURL)
+        }
         var media: BoxUpload.Media?
+        var thumbnail: BoxUpload.Media?
         if let snapshot = payload.upload {
             try snapshot.data.write(to: fileURL, options: .atomic)
             media = BoxUpload.Media(fileURL: fileURL, contentType: snapshot.mediaType)
+            if await Self.writeThumbnail(of: fileURL, kind: payload.kind, to: thumbnailURL) {
+                thumbnail = BoxUpload.Media(fileURL: thumbnailURL, contentType: BoxThumbnailGenerator.contentType)
+            }
         }
         try await send(BoxUpload(text: payload.text, url: payload.url,
-            note: savedNote?.isEmpty == false ? savedNote : nil, source: .macDrop, media: media), key)
+            note: savedNote?.isEmpty == false ? savedNote : nil, source: .macDrop, media: media,
+            thumbnail: thumbnail), key)
+    }
+
+    /// The shared JPEG thumbnail for an image or video; a drop uploads without one when it fails.
+    private static func writeThumbnail(of file: URL, kind: BoxItem.Kind, to url: URL) async -> Bool {
+        guard kind == .image || kind == .video else { return false }
+        return await Task.detached(priority: .userInitiated) {
+            guard let data = await BoxThumbnailGenerator.thumbnail(for: file, kind: kind) else { return false }
+            return (try? data.write(to: url, options: .atomic)) != nil
+        }.value
     }
 
     func save() async {
