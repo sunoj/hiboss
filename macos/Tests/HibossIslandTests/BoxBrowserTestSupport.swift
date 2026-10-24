@@ -72,6 +72,7 @@ actor ScriptedBoxBrowser: BoxBrowsing {
     private var delay: UInt64 = 0
     private var failures = 0
     private var putStatus: Int?
+    private var putDelay: UInt64 = 0
     private let media: Data
     private let mediaByID: [String: Data]
 
@@ -130,10 +131,11 @@ actor ScriptedBoxBrowser: BoxBrowsing {
 
     func storeThumbnail(_ data: Data, for id: String) { storedThumbnails[id] = data }
 
-    func script(delay: UInt64 = 0, failures: Int = 0, putStatus: Int? = nil) {
+    func script(delay: UInt64 = 0, failures: Int = 0, putStatus: Int? = nil, putDelay: UInt64 = 0) {
         self.delay = delay
         self.failures = failures
         self.putStatus = putStatus
+        self.putDelay = putDelay
     }
 
     /// Records the request and the concurrency peak, then fails while scripted failures remain.
@@ -177,6 +179,7 @@ actor ScriptedBoxBrowser: BoxBrowsing {
 
     func uploadBoxThumbnail(id: String, data: Data, contentType: String) async throws -> BoxItem {
         requests.append("put:\(id)")
+        if putDelay > 0 { try await Task.sleep(nanoseconds: putDelay) }
         if let putStatus { throw HibossAPIError.requestFailed(status: putStatus, message: "") }
         storedThumbnails[id] = data
         return pages.flatMap(\.items).first { $0.id == id } ?? BoxBrowserFixtures.item(id)

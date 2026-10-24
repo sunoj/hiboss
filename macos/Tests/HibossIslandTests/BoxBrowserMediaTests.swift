@@ -13,7 +13,7 @@ final class BoxBrowserMediaTests: XCTestCase {
         let items = (0..<12).map { Self.image($0, thumbnail: $0.isMultiple(of: 2)) }
         let api = try await Self.api(storing: items.filter(\.hasThumbnail))
         await api.script(delay: 30_000_000)
-        let media = BoxBrowserMedia { api }
+        let media = BoxBrowserMedia(apiProvider: { api }, backfill: BoxBackfillSession())
         await withTaskGroup(of: Void.self) { group in
             for item in items { group.addTask { await media.loadThumbnail(item) } }
             for item in items.prefix(4) { group.addTask { _ = await media.load(item) } }
@@ -40,7 +40,7 @@ final class BoxBrowserMediaTests: XCTestCase {
 
     func testBackfillPutsBoundedJPEGOnceAndDropsTheRowOriginal() async throws {
         let api = ScriptedBoxBrowser(media: try Self.png(width: 1600, height: 900))
-        let media = BoxBrowserMedia { api }
+        let media = BoxBrowserMedia(apiProvider: { api }, backfill: BoxBackfillSession())
         let item = Self.image(2)
         await media.loadThumbnail(item)
         let image = try XCTUnwrap(media.thumbnail(item.id))
@@ -58,7 +58,7 @@ final class BoxBrowserMediaTests: XCTestCase {
 
     func testBackfillReusesAndKeepsAViewerOriginal() async throws {
         let api = ScriptedBoxBrowser(media: try Self.png(width: 800, height: 600))
-        let media = BoxBrowserMedia { api }
+        let media = BoxBrowserMedia(apiProvider: { api }, backfill: BoxBackfillSession())
         let item = Self.image(3)
         let loaded = await media.load(item)
         let file = try XCTUnwrap(loaded)
@@ -74,7 +74,7 @@ final class BoxBrowserMediaTests: XCTestCase {
         for (status, expected) in [(404, ["put:image-4", "put:image-5"]), (405, ["put:image-4"])] {
             let api = ScriptedBoxBrowser(media: try Self.png(width: 800, height: 600))
             await api.script(putStatus: status)
-            let media = BoxBrowserMedia { api }
+            let media = BoxBrowserMedia(apiProvider: { api }, backfill: BoxBackfillSession())
             await media.loadThumbnail(Self.image(4))
             await media.loadThumbnail(Self.image(5))
             let puts = await api.requests.filter { $0.hasPrefix("put:") }
@@ -125,7 +125,7 @@ final class BoxBrowserMediaTests: XCTestCase {
         let item = Self.image(9, thumbnail: true)
         let api = try await Self.api(storing: [item])
         await api.script(failures: 1)
-        let media = BoxBrowserMedia { api }
+        let media = BoxBrowserMedia(apiProvider: { api }, backfill: BoxBackfillSession())
         let row = Task { await media.show(item) }
         defer { row.cancel() }
         try await waitForCondition(timeout: .seconds(4)) { media.thumbnail(item.id) != nil }
@@ -137,9 +137,9 @@ final class BoxBrowserMediaTests: XCTestCase {
         let item = Self.image(10, thumbnail: true)
         let api = try await Self.api(storing: [item])
         let media = BoxBrowserMedia(apiProvider: { api }, cache: cache())
-        XCTAssertEqual(media.images.totalCostLimit, 96 * 1024 * 1024)
+        XCTAssertEqual(media.images.costLimit, 96 * 1024 * 1024)
         await media.loadThumbnail(item)
-        media.images.removeAllObjects()
+        media.images.removeAll()
         XCTAssertNil(media.thumbnail(item.id))
         await media.loadThumbnail(item)
         XCTAssertNotNil(media.thumbnail(item.id))
@@ -175,7 +175,7 @@ final class BoxBrowserMediaTests: XCTestCase {
         return BoxThumbnailCache(directory: directory, capacity: 1024 * 1024)
     }
 
-    private static func api(storing items: [BoxItem]) async throws -> ScriptedBoxBrowser {
+    static func api(storing items: [BoxItem]) async throws -> ScriptedBoxBrowser {
         let api = ScriptedBoxBrowser(media: try png(width: 800, height: 600))
         let image = try XCTUnwrap(NSBitmapImageRep(data: BoxBrowserFixtures.imageData())?.cgImage)
         let jpeg = try XCTUnwrap(BoxThumbnailGenerator.jpeg(image))
@@ -193,12 +193,12 @@ final class BoxBrowserMediaTests: XCTestCase {
         return try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
     }
 
-    private static func image(_ index: Int, thumbnail: Bool = false) -> BoxItem {
+    static func image(_ index: Int, thumbnail: Bool = false) -> BoxItem {
         BoxItem(id: "image-\(index)", bossID: "boss", bossName: "Owner", kind: .image, hasMedia: true,
                 mediaType: "image/png", createdAt: "2026-10-07T00:00:00Z", hasThumbnail: thumbnail)
     }
 }
 
-private final class MediaClock: @unchecked Sendable {
+final class MediaClock: @unchecked Sendable {
     var date = Date(timeIntervalSince1970: 1_800_000_000)
 }

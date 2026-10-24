@@ -64,8 +64,8 @@ struct BoxBrowserRow: View {
         .frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 6))
         .layoutProbe("box.thumbnail.\(item.id)")
         .onTapGesture(count: 2) { if item.hasImageMedia { onOpenImage() } }
-        // Reruns when the memory cache drops a shown image, which then reloads from disk.
-        .task(id: "\(item.id)|\(media.thumbnail(item.id) == nil)") { await media.show(item) }
+        // Keyed on the eviction epoch: reruns when memory drops the image, never when it appears.
+        .task(id: media.thumbnailTaskID(item.id)) { await media.show(item) }
     }
 
 }

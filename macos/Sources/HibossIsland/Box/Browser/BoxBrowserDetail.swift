@@ -114,7 +114,7 @@ struct BoxBrowserDetail: View {
                     Label(item.durationTitle ?? L("Video"), systemImage: "play.circle")
                 }
             }.frame(maxWidth: .infinity, minHeight: 140)
-                .task(id: "\(item.id)|\(media.thumbnail(item.id) == nil)") {
+                .task(id: media.thumbnailTaskID(item.id)) {
                     await media.show(item)
                 }
         } else {

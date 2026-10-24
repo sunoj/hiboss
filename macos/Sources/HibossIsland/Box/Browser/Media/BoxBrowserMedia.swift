@@ -1,6 +1,7 @@
 // Authenticated Box originals in isolated temporary directories, plus bounded row thumbnails.
 // Exports: BoxBrowserMedia; originals and thumbnails share a 4-slot download limiter.
-// Dependencies: AppKit, Combine, HibossKit, BoxMediaLimiter, BoxThumbnailCache and BoxLoadFailures.
+// Dependencies: AppKit, Combine, HibossKit, BoxMediaLimiter, BoxThumbnailCache/Memory, BoxLoadFailures
+// and BoxBackfillSession.
 
 import AppKit
 import Combine
@@ -12,8 +13,11 @@ final class BoxBrowserMedia: ObservableObject {
     @Published private(set) var files: [String: URL] = [:]
     @Published private(set) var errors: [String: String] = [:]
     @Published var thumbnailErrors: [String: String] = [:]
+    /// Bumped when an id's image leaves memory, so a visible row's load task runs again.
+    @Published private(set) var thumbnailEpochs: [String: Int] = [:]
     /// Decoded row thumbnails; the cost limit bounds memory and an evicted image reloads from disk.
-    let images = NSCache<NSString, NSImage>()
+    let images: BoxThumbnailMemory
+    let backfill: BoxBackfillSession
     let limiter: BoxMediaLimiter
     let cache: BoxThumbnailCache?
     let now: () -> Date
@@ -21,21 +25,23 @@ final class BoxBrowserMedia: ObservableObject {
     private(set) var generation = 0
     var thumbnailTasks: [String: (task: Task<Void, Never>, waiters: Int)] = [:]
     var thumbnailFailures = BoxLoadFailures()
-    /// Off for the rest of the app session once a server answers 405 (no thumbnail route).
-    var backfillEnabled = true
-    var backfilled: Set<String> = []
     /// Rows and detail panes currently on screen, counted per item.
     var visible: [String: (item: BoxItem, count: Int)] = [:]
     private var tasks: [String: Task<URL?, Never>] = [:]
     private var observations: [AnyCancellable] = []
 
     init(apiProvider: @escaping BoxBrowserStore.Provider, cache: BoxThumbnailCache? = nil,
-         concurrency: Int = 4, now: @escaping () -> Date = { Date() }) {
+         concurrency: Int = 4, images: BoxThumbnailMemory = BoxThumbnailMemory(),
+         backfill: BoxBackfillSession = .shared, now: @escaping () -> Date = { Date() }) {
         self.apiProvider = apiProvider
         self.cache = cache
         self.limiter = BoxMediaLimiter(limit: concurrency)
+        self.images = images
+        self.backfill = backfill
         self.now = now
-        images.totalCostLimit = 96 * 1024 * 1024
+        images.onEvict = { [weak self] id in
+            Task { @MainActor in self?.thumbnailEpochs[id, default: 0] += 1 }
+        }
         observations.append(AccountAuthorization.shared.observe { [weak self] _ in self?.reset() })
         observations.append(NotificationCenter.default
             .publisher(for: NSApplication.didBecomeActiveNotification)
@@ -52,7 +58,7 @@ final class BoxBrowserMedia: ObservableObject {
         errors = [:]
         thumbnailErrors = [:]
         thumbnailFailures = BoxLoadFailures()
-        images.removeAllObjects()
+        images.removeAll()
         objectWillChange.send()
     }
 
@@ -65,7 +71,7 @@ final class BoxBrowserMedia: ObservableObject {
         errors[id] = nil
         thumbnailErrors[id] = nil
         thumbnailFailures.clear(id)
-        images.removeObject(forKey: id as NSString)
+        images.remove(id)
         objectWillChange.send()
         if let cache { Task { await cache.remove(id) } }
     }
