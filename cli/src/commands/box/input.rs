@@ -1,5 +1,5 @@
 // Purpose: Detect Box text, HTTP links and local files before ingestion.
-// Exports: Input, detect, mime_for_path; uses existing MIME mappings and filesystem metadata.
+// Exports: Input, detect, size_limit, mime_for_path; uses existing MIME mappings and filesystem metadata.
 use crate::box_types::BoxKind;
 use std::{
     error::Error,
@@ -26,12 +26,7 @@ pub(super) fn detect(content: &str) -> Result<Input, Box<dyn Error>> {
                 return Err(format!("{} is not a regular file", path.display()).into());
             }
             let mime = mime_for_path(path);
-            let limit = if kind_for_mime(&mime) == BoxKind::Image {
-                10
-            } else {
-                50
-            } * 1024
-                * 1024;
+            let limit = size_limit(&mime);
             if metadata.len() == 0 || metadata.len() > limit {
                 return Err(format!("file must contain 1 to {limit} bytes").into());
             }
@@ -59,6 +54,12 @@ fn text_input_error(error: &std::io::Error) -> bool {
         return true;
     }
     false
+}
+
+/// Largest accepted upload for a MIME type; a thumbnail part shares this envelope.
+pub(super) fn size_limit(mime: &str) -> u64 {
+    let megabytes = if kind_for_mime(mime) == BoxKind::Image { 10 } else { 50 };
+    megabytes * 1024 * 1024
 }
 
 pub(super) fn kind_for_mime(mime: &str) -> BoxKind {
