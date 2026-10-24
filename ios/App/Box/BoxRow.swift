@@ -77,7 +77,7 @@ struct BoxThumbnail: View {
         GeometryReader { geometry in
             ZStack {
                 Theme.surface2
-                if let image = media.thumbnails[item.id] {
+                if let image = media.thumbnail(item.id) {
                     Image(uiImage: image).resizable().scaledToFill()
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
@@ -109,6 +109,6 @@ struct BoxThumbnail: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .accessibilityHidden(media.thumbnailErrors[item.id] == nil)
-        .task(id: item.id) { await media.loadThumbnail(item) }
+        .task(id: "\(item.id)#\(media.thumbnailEpochs[item.id] ?? 0)") { await media.showThumbnail(item) }
     }
 }
