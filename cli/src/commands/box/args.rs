@@ -70,6 +70,8 @@ pub struct AddArgs {
     pub ttl: Option<u64>,
     #[arg(long)]
     pub json: bool,
+    #[arg(long, help = "Print diagnostic notes, such as why no thumbnail was attached")]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Default, Args)]

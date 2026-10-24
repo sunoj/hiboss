@@ -1,4 +1,4 @@
-// Purpose: Dispatch Box ingestion, reads, media saving, deletion and share links.
+// Purpose: Dispatch Box ingestion (with thumbnails), reads, media saving, deletion and share links.
 // Exports: BoxArgs, BoxCommand, run; depends on the existing client and configuration.
 mod args;
 pub(crate) mod collections;
@@ -14,6 +14,7 @@ mod output;
 pub(crate) mod share;
 #[cfg(test)]
 mod tests;
+mod thumbnail;
 
 use crate::{
     box_types::{BoxItem, BoxMetadata},
@@ -28,7 +29,7 @@ pub async fn run(args: &BoxArgs, config: &Config, client: &HiBossClient) -> Resu
     match &args.command {
         BoxCommand::Collections(args) => collections::run(args, client).await,
         BoxCommand::Add(args) => {
-            let item = add(args, client).await?;
+            let item = add(args, client, &thumbnail::Tools::system()).await?;
             let collections = collections::for_items(std::slice::from_ref(&item), args.json, client).await?;
             output::print_item(&item, None, args.json, &collections)?;
             if !args.share {
@@ -64,7 +65,11 @@ pub async fn run(args: &BoxArgs, config: &Config, client: &HiBossClient) -> Resu
     }
 }
 
-async fn add(args: &AddArgs, client: &HiBossClient) -> Result<BoxItem, Box<dyn Error>> {
+async fn add(
+    args: &AddArgs,
+    client: &HiBossClient,
+    tools: &thumbnail::Tools,
+) -> Result<BoxItem, Box<dyn Error>> {
     if args.note.as_ref().is_some_and(|note| note.len() > 16 * 1024) {
         return Err("note exceeds 16 KB".into());
     }
@@ -91,7 +96,8 @@ async fn add(args: &AddArgs, client: &HiBossClient) -> Result<BoxItem, Box<dyn E
         input::Input::File(path, mime) => Some((path.as_path(), mime.as_str())),
         _ => None,
     };
-    let mut item = client.add_box_item(&metadata, file).await?;
+    let thumbnail = file.and_then(|(path, mime)| thumbnail::for_upload(path, mime, tools, args.verbose));
+    let mut item = client.add_box_item(&metadata, file, thumbnail).await?;
     for id in ids {
         item = client.collect_box_item(&id, &item.id).await?;
     }

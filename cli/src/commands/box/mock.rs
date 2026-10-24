@@ -106,6 +106,6 @@ async fn serve(listener: &TcpListener, reply: Reply) -> Captured {
     socket.write_all(response.as_bytes()).await.unwrap();
     Captured {
         headers,
-        body: String::from_utf8(body).unwrap(),
+        body: String::from_utf8_lossy(&body).into_owned(),
     }
 }

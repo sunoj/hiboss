@@ -2,7 +2,7 @@
 // Exports: ProgressArgs, run.
 // Dependencies: clap, colored, crate::client, crate::config, crate::session, crate::types.
 #[path = "progress_media.rs"]
-mod progress_media;
+pub(crate) mod progress_media;
 #[path = "progress_upload.rs"]
 mod progress_upload;
 use progress_upload::collect_media;

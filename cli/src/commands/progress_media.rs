@@ -1,6 +1,6 @@
 // Purpose: Local media probing, GIF conversion, and video poster extraction helpers.
 // Exports: TempFile, probe_image_dims, probe_video_meta, convert_gif_to_mp4,
-//          extract_video_poster, mime_for_path.
+//          extract_video_poster, mime_for_path, run_media_command, temp_path.
 // Dependencies: std::process::Command, std::path::PathBuf, serde_json.
 
 use std::io::Read;
@@ -8,15 +8,15 @@ use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
-const MEDIA_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
+pub(crate) const MEDIA_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
-struct CommandOutput {
-    status: ExitStatus,
-    stdout: Vec<u8>,
+pub(crate) struct CommandOutput {
+    pub status: ExitStatus,
+    pub stdout: Vec<u8>,
 }
 
 /// RAII guard that deletes a temporary file on drop.
-pub(super) struct TempFile(pub PathBuf);
+pub(crate) struct TempFile(pub PathBuf);
 
 impl Drop for TempFile {
     fn drop(&mut self) {
@@ -143,7 +143,7 @@ pub(super) fn extract_video_poster(path: &str) -> Option<TempFile> {
     }
 }
 
-fn run_media_command(command: &mut Command, label: &str, timeout: Duration) -> Option<CommandOutput> {
+pub(crate) fn run_media_command(command: &mut Command, label: &str, timeout: Duration) -> Option<CommandOutput> {
     command.stdout(Stdio::piped()).stderr(Stdio::null());
     let mut child = command.spawn().ok()?;
     let started = Instant::now();
@@ -188,12 +188,14 @@ pub(super) fn mime_for_path(path: &str) -> &'static str {
     }
 }
 
-fn temp_path(prefix: &str, ext: &str) -> PathBuf {
+pub(crate) fn temp_path(prefix: &str, ext: &str) -> PathBuf {
+    static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
-    std::env::temp_dir().join(format!("{}-{}-{}.{}", prefix, ts, std::process::id(), ext))
+    std::env::temp_dir().join(format!("{}-{}-{}-{}.{}", prefix, ts, std::process::id(), seq, ext))
 }
 
 #[cfg(test)]

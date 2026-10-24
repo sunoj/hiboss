@@ -98,6 +98,7 @@ impl HiBossClient {
         &self,
         metadata: &BoxMetadata<'_>,
         file: Option<(&Path, &str)>,
+        thumbnail: Option<Vec<u8>>,
     ) -> Result<BoxItem, Box<dyn Error>> {
         let mut request = self
             .box_request(reqwest::Method::POST, &[])?
@@ -113,9 +114,15 @@ impl HiBossClient {
             let part = reqwest::multipart::Part::bytes(bytes)
                 .file_name(filename)
                 .mime_str(mime)?;
-            let form = reqwest::multipart::Form::new()
+            let mut form = reqwest::multipart::Form::new()
                 .text("meta", serde_json::to_string(metadata)?)
                 .part("file", part);
+            if let Some(bytes) = thumbnail {
+                let part = reqwest::multipart::Part::bytes(bytes)
+                    .file_name("thumbnail.jpg")
+                    .mime_str("image/jpeg")?;
+                form = form.part("thumbnail", part);
+            }
             request = request.multipart(form);
         } else {
             request = request.json(metadata);
