@@ -14,75 +14,67 @@ final class AuthorizationBoundaryTests: XCTestCase {
     }
 
     func testHistorySurfacesTypedAuthorizationAndStopsRetrying() async {
-        for status in [401, 403] {
-            let api = RejectedHistoryAPI(status: status)
-            var rejection: HistorySyncError?
-            let sync = HistorySync(api: api) { _, error in rejection = error }
-            await sync.synchronize()
-            guard case let .authorization(error) = rejection else {
-                XCTFail("Expected typed authorization failure")
-                continue
-            }
-            XCTAssertTrue(error.isAuthFailure)
-            await sync.synchronize()
-            let reads = await api.reads
-            XCTAssertEqual(reads, 1)
-            await sync.stop()
+        let api = RejectedHistoryAPI(status: 401)
+        var rejection: HistorySyncError?
+        let sync = HistorySync(api: api) { _, error in rejection = error }
+        await sync.synchronize()
+        guard case let .authorization(error) = rejection else {
+            XCTFail("Expected typed authorization failure")
+            return
         }
+        XCTAssertTrue(error.isAuthFailure)
+        await sync.synchronize()
+        let reads = await api.reads
+        XCTAssertEqual(reads, 1)
+        await sync.stop()
     }
 
     func testTranscriptReadRejectionClearsPreviouslyLoadedEventsAndOtherStores() async {
-        for status in [401, 403] {
-            let api = AuthorizationSessionAPI()
-            let transcript = SessionStreamStore(sessionID: "session", pageSize: 1)
-            let joined = StubJoinService(lists: [[JoinRequestsModelTests.mini]])
-            let requests = JoinRequestsModel { joined }
-            await requests.refresh()
-            transcript.start(api: api)
-            await waitForLoad(transcript)
-            XCTAssertTrue(transcript.didLoad)
-            await api.rejectReads(status)
-            await transcript.refresh()
-            XCTAssertTrue(transcript.events.isEmpty)
-            XCTAssertFalse(transcript.didLoad)
-            XCTAssertFalse(transcript.hasEarlier)
-            XCTAssertTrue(requests.requests.isEmpty)
-            XCTAssertFalse(requests.didLoad)
-            transcript.stop()
-        }
+        let api = AuthorizationSessionAPI()
+        let transcript = SessionStreamStore(sessionID: "session", pageSize: 1)
+        let joined = StubJoinService(lists: [[JoinRequestsModelTests.mini]])
+        let requests = JoinRequestsModel { joined }
+        await requests.refresh()
+        transcript.start(api: api)
+        await waitForLoad(transcript)
+        XCTAssertTrue(transcript.didLoad)
+        await api.rejectReads(401)
+        await transcript.refresh()
+        XCTAssertTrue(transcript.events.isEmpty)
+        XCTAssertFalse(transcript.didLoad)
+        XCTAssertFalse(transcript.hasEarlier)
+        XCTAssertTrue(requests.requests.isEmpty)
+        XCTAssertFalse(requests.didLoad)
+        transcript.stop()
     }
 
     func testTranscriptStreamRejectionClearsPreviouslyLoadedEvents() async {
-        for status in [401, 403] {
-            let api = AuthorizationSessionAPI()
-            let transcript = SessionStreamStore(sessionID: "session")
-            transcript.start(api: api)
-            await waitForLoad(transcript)
-            await api.rejectStream(status)
-            let failure = expectation(description: "Stream authorization invalidates transcript")
-            let observation = transcript.$didLoad.filter { !$0 }.prefix(1).sink { _ in failure.fulfill() }
-            await fulfillment(of: [failure], timeout: 2)
-            XCTAssertTrue(transcript.events.isEmpty)
-            await transcript.refresh()
-            XCTAssertFalse(transcript.didLoad, "Rejected API must no longer be usable")
-            observation.cancel()
-            transcript.stop()
-        }
+        let api = AuthorizationSessionAPI()
+        let transcript = SessionStreamStore(sessionID: "session")
+        transcript.start(api: api)
+        await waitForLoad(transcript)
+        await api.rejectStream(401)
+        let failure = expectation(description: "Stream authorization invalidates transcript")
+        let observation = transcript.$didLoad.filter { !$0 }.prefix(1).sink { _ in failure.fulfill() }
+        await fulfillment(of: [failure], timeout: 2)
+        XCTAssertTrue(transcript.events.isEmpty)
+        await transcript.refresh()
+        XCTAssertFalse(transcript.didLoad, "Rejected API must no longer be usable")
+        observation.cancel()
+        transcript.stop()
     }
 
-    func testJoinRequestRead401And403ClearLoadedRequestsAndReview() async {
-        for status in [401, 403] {
-            let api = AuthorizationJoinAPI()
-            let model = JoinRequestsModel { api }
-            await model.refresh()
-            let review = JoinRequestReview(requestID: JoinRequestsModelTests.mini.id, model: model)
-            api.failure = status
-            await model.refresh()
-            XCTAssertTrue(model.requests.isEmpty)
-            XCTAssertFalse(model.didLoad)
-            XCTAssertTrue(model.isForbidden)
-            guard case .unavailable = review.phase else { XCTFail("Review retained account content"); continue }
-        }
+    func testJoinRequestRead401ClearsLoadedRequestsAndReview() async {
+        let api = AuthorizationJoinAPI()
+        let model = JoinRequestsModel { api }
+        await model.refresh()
+        let review = JoinRequestReview(requestID: JoinRequestsModelTests.mini.id, model: model)
+        api.failure = 401
+        await model.refresh()
+        XCTAssertTrue(model.requests.isEmpty)
+        XCTAssertFalse(model.didLoad)
+        XCTAssertTrue(model.isForbidden)
+        guard case .unavailable = review.phase else { XCTFail("Review retained account content"); return }
     }
 
     func testJoinRequestResetRetainsSharedAuthorizationRejection() async {
@@ -99,19 +91,17 @@ final class AuthorizationBoundaryTests: XCTestCase {
         XCTAssertTrue(model.isForbidden)
     }
 
-    func testJoinRequestWrite401And403ClearLoadedRequests() async {
-        for status in [401, 403] {
-            for approve in [true, false] {
-                let api = AuthorizationJoinAPI()
-                let model = JoinRequestsModel { api }
-                await model.refresh()
-                api.failure = status
-                if approve { _ = await model.approve(JoinRequestsModelTests.mini) }
-                else { _ = await model.reject(JoinRequestsModelTests.mini) }
-                XCTAssertTrue(model.requests.isEmpty)
-                XCTAssertFalse(model.didLoad)
-                XCTAssertTrue(model.isForbidden)
-            }
+    func testJoinRequestWrite401ClearsLoadedRequests() async {
+        for approve in [true, false] {
+            let api = AuthorizationJoinAPI()
+            let model = JoinRequestsModel { api }
+            await model.refresh()
+            api.failure = 401
+            if approve { _ = await model.approve(JoinRequestsModelTests.mini) }
+            else { _ = await model.reject(JoinRequestsModelTests.mini) }
+            XCTAssertTrue(model.requests.isEmpty)
+            XCTAssertFalse(model.didLoad)
+            XCTAssertTrue(model.isForbidden)
         }
     }
 

@@ -7,6 +7,7 @@ import HibossKit
 
 actor DemoMetricPanelAPI: PanelsServing, QuestionnaireServing {
     nonisolated let questionnaireScope = "metric-demo"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "demo-boss", role: "admin") }
     private let started = Date()
 
     func fetchPanels() async throws -> [PanelMetadata] {

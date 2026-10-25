@@ -12,7 +12,6 @@ import { withdrawResolvedOptions } from './message-options';
 import { checkBossPermission, findDiscordAgent } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
 import { createMessageId } from '../session-events';
-import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { channelMetadata, mergeProvenance } from '../message-security';
 
 interface DiscordOptionPayload {
@@ -37,6 +36,9 @@ export async function handleDiscordOptionCallback(
   if (permission.error) {
     return c.json({ type: 4, data: { content: permission.error, flags: 64 } });
   }
+  if (permission.boss?.role === 'viewer') {
+    return c.json({ type: 4, data: { content: 'Viewer cannot answer', flags: 64 } });
+  }
   const parent = await findParent(c.env, selection.messagePrefix, agentRow.agent_id);
   if (!parent) return c.text('message not found', 404);
   if (parent.status === 'expired') return expiredResponse(c);
@@ -45,14 +47,12 @@ export async function handleDiscordOptionCallback(
     deferredAnnounce(c.executionCtx));
   if (claim.kind === 'invalid_choice') return c.text('invalid selection', 400);
   if (claim.kind === 'resolved') return resolvedResponse(c, payload.message?.content);
-  if (claim.kind === 'failed') return c.text('failed to persist', 500);
+  // An offered option on an agent_to_boss parent is always an ask, so only a claim succeeds.
+  if (claim.kind !== 'claimed') return c.text('failed to persist', 500);
   const reply = claim.reply;
-  if (claim.kind === 'not_option') await markParentReplied(c.env, parent.id);
-  if (claim.kind === 'claimed') {
-    c.executionCtx.waitUntil(
-      withdrawResolvedOptions(c.env, agentRow.agent_id, parent, selection.option).catch(() => {}),
-    );
-  }
+  c.executionCtx.waitUntil(
+    withdrawResolvedOptions(c.env, agentRow.agent_id, parent, selection.option).catch(() => {}),
+  );
 
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, reply));
   const actor = permission.boss ? 'boss' : 'system';
@@ -76,7 +76,7 @@ async function findParent(
   agentId: string,
 ): Promise<MessageRow | null> {
   return env.DB
-    .prepare('SELECT * FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
+    .prepare("SELECT * FROM messages WHERE id LIKE ? AND agent_id = ? AND direction = 'agent_to_boss' LIMIT 1")
     .bind(`${messagePrefix}%`, agentId)
     .first<MessageRow>();
 }
@@ -101,11 +101,6 @@ async function insertReply(
     replyTargetSession(parent),
     { announce },
   );
-}
-
-async function markParentReplied(env: Env, messageId: string): Promise<void> {
-  await env.DB.prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
-    .bind(messageId).run();
 }
 
 function getActionMetadata(

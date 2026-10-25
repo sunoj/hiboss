@@ -49,13 +49,12 @@ extension HibossAPI: JoinRequestServing {
         let request = authorizedRequest(url: url, method: method)
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw HibossAPIError.invalidResponse }
-        if http.statusCode == 401 || http.statusCode == 403 {
-            await AccountAuthorization.shared.reject(
-                HibossAPIError.requestFailed(status: http.statusCode, message: ""), account: config)
-        }
         switch http.statusCode {
         case 200..<300: return data
-        case 401: throw HibossAPIError.requestFailed(status: 401, message: "")
+        case 401:
+            let rejection = HibossAPIError.requestFailed(status: 401, message: "")
+            await AccountAuthorization.shared.reject(rejection, account: config)
+            throw rejection
         case 403: throw JoinRequestError.forbidden
         case 404: throw JoinRequestError.notFound
         case 409: throw JoinRequestError.conflict(Self.plainText(data))

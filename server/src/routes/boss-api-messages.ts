@@ -150,7 +150,9 @@ routes.post('/messages/:id/forward', async (c) => {
 /** PATCH /api/boss/messages/:id — boss marks a message as read */
 routes.patch('/messages/:id', async (c) => {
   const bossId = getBossId(c);
-  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  const role = getBossRole(c);
+  if (role === 'viewer') return c.text('viewer cannot update messages', 403);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
   const messageId = c.req.param('id');
   const payload = await c.req.json<Record<string, unknown>>();
   const status = typeof payload.status === 'string' ? payload.status.trim() : '';

@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0062; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0064; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -51,9 +51,11 @@ CREATE TABLE agent_keys (
   label TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_used_at TEXT,
-  revoked_at TEXT
+  revoked_at TEXT,
+  minted_by_boss_id TEXT
 );
 CREATE INDEX idx_agent_keys_agent ON agent_keys(agent_id, created_at DESC);
+CREATE INDEX idx_agent_keys_minted_by ON agent_keys(minted_by_boss_id) WHERE minted_by_boss_id IS NOT NULL;
 
 -- Messaging and channel delivery
 
@@ -250,7 +252,8 @@ CREATE TABLE IF NOT EXISTS boss_pairing_codes (
   expires_at TEXT NOT NULL,
   consumed_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  redeemed_token_id TEXT REFERENCES boss_tokens(id) ON DELETE SET NULL
+  redeemed_token_id TEXT REFERENCES boss_tokens(id) ON DELETE SET NULL,
+  issued_by_token_id TEXT REFERENCES boss_tokens(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_boss_pairing_codes_expiry ON boss_pairing_codes(expires_at);
@@ -295,9 +298,11 @@ CREATE TABLE IF NOT EXISTS boss_devices (
   last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
   client_id TEXT REFERENCES boss_clients(id),
   relay_handle TEXT,
-  push_key TEXT
+  push_key TEXT,
+  token_id TEXT REFERENCES boss_tokens(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_boss_devices_client ON boss_devices(client_id);
+CREATE INDEX idx_boss_devices_token ON boss_devices(token_id);
 
 -- Relay capabilities are unique per registered installation.
 CREATE UNIQUE INDEX idx_boss_devices_relay_handle ON boss_devices(relay_handle);

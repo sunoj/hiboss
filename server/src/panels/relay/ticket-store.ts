@@ -1,5 +1,5 @@
 // Durable Object ticket persistence and atomic single-use consumption.
-// Exports issueTicket and consumeTicket for PanelRoom's HTTP boundary.
+// Exports prepareTicketTable, issueTicket and consumeTicket for PanelRoom's HTTP boundary.
 // Dependencies: Durable Object SQLite storage and relay ticket codecs.
 
 import {
@@ -16,6 +16,7 @@ export interface ConnectionAttachment {
   readonly ticketId: string;
   readonly roomId: string;
   readonly identity: string;
+  readonly tokenId: string | null;
   readonly role: PanelRole;
   readonly panelId: string;
   readonly operations: readonly PanelOperation[];
@@ -27,6 +28,7 @@ interface TicketRow extends Record<string, string | number | null> {
   secret: string;
   room_id: string;
   identity: string;
+  token_id: string | null;
   role: PanelRole;
   panel_id: string;
   operations: string;
@@ -37,6 +39,16 @@ interface TicketRow extends Record<string, string | number | null> {
 export type ConsumedTicket =
   | { readonly ok: true; readonly ticket: ConnectionAttachment }
   | { readonly ok: false; readonly status: 401 | 410 };
+
+/** Creates the ticket table, adding the token column to a room created before it existed. */
+export function prepareTicketTable(ctx: DurableObjectState): void {
+  ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS connection_tickets (
+    ticket_id TEXT PRIMARY KEY, secret TEXT NOT NULL, room_id TEXT NOT NULL,
+    identity TEXT NOT NULL, token_id TEXT, role TEXT NOT NULL, panel_id TEXT NOT NULL,
+    operations TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)`);
+  const columns = [...ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info(connection_tickets)')];
+  if (!columns.some(column => column.name === 'token_id')) ctx.storage.sql.exec('ALTER TABLE connection_tickets ADD COLUMN token_id TEXT');
+}
 
 export async function issueTicket(ctx: DurableObjectState, req: Request): Promise<Response> {
   let request: IssueTicketRequest | null = null;
@@ -49,8 +61,8 @@ export async function issueTicket(ctx: DurableObjectState, req: Request): Promis
   const ticketId = crypto.randomUUID();
   const secret = createTicketSecret();
   ctx.storage.sql.exec(
-    'INSERT INTO connection_tickets (ticket_id, secret, room_id, identity, role, panel_id, operations, expires_at, consumed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)',
-    ticketId, secret, request.roomId, request.identity, request.role, request.panelId, JSON.stringify(request.operations), request.expiresAt,
+    'INSERT INTO connection_tickets (ticket_id, secret, room_id, identity, token_id, role, panel_id, operations, expires_at, consumed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)',
+    ticketId, secret, request.roomId, request.identity, request.tokenId, request.role, request.panelId, JSON.stringify(request.operations), request.expiresAt,
   );
   return Response.json({
     ticket: encodeTicketEnvelope({ roomId: request.roomId, ticketId, secret }),
@@ -87,6 +99,7 @@ function attachmentFromRow(row: TicketRow): ConnectionAttachment {
     ticketId: row.ticket_id,
     roomId: row.room_id,
     identity: row.identity,
+    tokenId: row.token_id,
     role: row.role,
     panelId: row.panel_id,
     operations: operations as PanelOperation[],

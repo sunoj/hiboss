@@ -1,10 +1,11 @@
 // Lists and revokes bearer tokens belonging to the authenticated boss.
 // Exports bossTokensRouter mounted at /api/boss/tokens.
-// Depends on boss auth and D1 boss_tokens storage; hashes are never returned.
+// Depends on boss auth and the revocation cascade; hashes are never returned.
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossTokenId } from '../middleware/auth';
+import { revokeBossTokens } from '../boss-clients/revoke';
 
 interface BossTokenRow {
   id: string;
@@ -27,20 +28,16 @@ routes.get('/', async (c) => {
 
 routes.post('/revoke-others', async (c) => {
   if (getBossRole(c) !== 'admin') return c.json({ error: 'admin required' }, 403);
-  const result = await c.env.DB.prepare(
-    "UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND id != ? AND revoked_at IS NULL",
-  ).bind(getBossId(c), getBossTokenId(c)).run();
-  return c.json({ revoked: result.meta.changes ?? 0 });
+  const revoked = await revokeBossTokens(c.env.DB, { sql: 't.boss_id = ? AND t.id != ?', binds: [getBossId(c), getBossTokenId(c)] });
+  return c.json({ revoked });
 });
 
 routes.delete('/:tokenId', async (c) => {
   const tokenId = c.req.param('tokenId');
   const isSelf = tokenId === getBossTokenId(c);
   if (!isSelf && getBossRole(c) !== 'admin') return c.json({ error: 'admin required' }, 403);
-  const result = await c.env.DB.prepare(
-    "UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND id = ? AND revoked_at IS NULL",
-  ).bind(getBossId(c), tokenId).run();
-  if (!result.meta.changes) return c.text('token not found', 404);
+  const revoked = await revokeBossTokens(c.env.DB, { sql: 't.boss_id = ? AND t.id = ?', binds: [getBossId(c), tokenId] });
+  if (!revoked) return c.text('token not found', 404);
   return isSelf ? c.json({ ok: true, authenticated: false }) : c.json({ ok: true });
 });
 

@@ -1,8 +1,9 @@
 // Boss-owned client inventory, minting, and atomic credential/push revocation.
 // Exports bossClientsRouter and client contracts; depends on Hono, D1, and boss auth.
 import { Hono } from 'hono';
-import { bossAuth, getBossId, getClientId } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole, getClientId } from '../middleware/auth';
 import { issueBossToken } from '../boss-token';
+import { revokeBossTokens } from './revoke';
 import type { Env } from '../types';
 import type { BossClient, ClientId, ClientRegistration } from './types';
 export type { BossClient, ClientId, ClientKind, ClientRegistration } from './types';
@@ -37,6 +38,8 @@ async function listClients(db: D1Database, bossId: string, current: ClientId | n
 routes.get('/', async c => c.json({ clients: await listClients(c.env.DB, getBossId(c), getClientId(c)) }));
 
 routes.post('/', async c => {
+  // Adding a device is pairing's capability, which viewers do not have.
+  if (getBossRole(c) === 'viewer') return c.json({ error: 'admin or manager required' }, 403);
   const input = registration(await c.req.json<unknown>().catch(() => null));
   if (!input) return c.json({ error: 'valid kind and label are required' }, 400);
   const grant = await issueBossToken(c.env, getBossId(c), input.label, undefined, input);
@@ -51,9 +54,9 @@ routes.delete('/:id', async c => {
   const owned = await c.env.DB.prepare('SELECT id FROM boss_clients WHERE id = ? AND boss_id = ?')
     .bind(id, bossId).first();
   if (!owned) return c.json({ error: 'client not found' }, 404);
-  await c.env.DB.batch([
+  // A client without a live token (e.g. a migrated push client) still retires its own rows.
+  await revokeBossTokens(c.env.DB, { sql: 't.client_id = ? AND t.boss_id = ?', binds: [id, bossId] }, [
     c.env.DB.prepare("UPDATE boss_clients SET revoked_at = COALESCE(revoked_at, datetime('now')) WHERE id = ? AND boss_id = ?").bind(id, bossId),
-    c.env.DB.prepare("UPDATE boss_tokens SET revoked_at = COALESCE(revoked_at, datetime('now')) WHERE client_id = ?").bind(id),
     c.env.DB.prepare("UPDATE boss_signing_keys SET revoked_at = COALESCE(revoked_at, datetime('now')) WHERE client_id = ?").bind(id),
     c.env.DB.prepare('DELETE FROM boss_devices WHERE client_id = ?').bind(id),
     c.env.DB.prepare("INSERT INTO audit_log (actor_type, actor_id, action, resource_type, resource_id) VALUES ('boss', ?, 'client.revoke', 'client', ?)").bind(bossId, id),

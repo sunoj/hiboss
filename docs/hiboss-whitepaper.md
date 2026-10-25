@@ -129,7 +129,8 @@ Unauthenticated surface and its defenses:
   Origin and are unaffected.
 
 Verified-correct controls worth preserving: atomic option claim (`boss-option-reply.ts:24-44`),
-channel callbacks restricted to offered options (no free-text injection from channel viewers),
+channel callbacks restricted to an offered option of an `agent_to_boss` ask (no free-text injection),
+viewers refused on every channel writer (text, buttons, reactions),
 boss-write target scoping (`boss-writes.ts:54,85,130`), secrets stripped from boss channel reads
 (`boss-writes.ts:277-285`), session upsert bound to the owning agent (`sessions.ts:49-58`),
 admin-gated key minting on every approval channel.
@@ -178,8 +179,8 @@ spoofed by the sender (F-M5).
 
 1. Agent: `hiboss ask --option A --option B [--default A] [--timeout N]` → blocking message with
    `metadata.options` (+ validated `default_option`, `ask_support.rs:40-56`); server sets
-   `expires_at`; a new ask auto-expires older open asks in the same session
-   (`message-options.ts:189-210`).
+   `expires_at`; a new ask expires older open asks in the same session without applying their
+   defaults (`expirePreviousOptions`, `message-options.ts`).
 2. Delivery renders Telegram inline keyboards / Discord buttons; `callback_data` =
    12-char message-id prefix + option label (`message-options.ts:40-42`).
 3. Any resolution path — Discord button, Telegram button, boss API, macOS/iOS/web — funnels into
@@ -347,7 +348,6 @@ pre-open-source posture.
   `expires_at` NULL window after insert (`messages.ts:224-229`); expiry batch limit 50/5 min.
 - Admin bosses receive **all** agents' notifications regardless of `boss_agent_access`
   (`notify.ts:50-53`) — intended for admins, but bypasses scoping on the notification path.
-- Superseding asks auto-answer the older ask's default silently (`messages.ts:317-319`).
 - Viewer can mark-read and edit own preferences (no guard, `boss-api.ts:432`, `:96`); any boss can
   enumerate all bosses' contact identifiers (`bosses.ts:72-90`).
 - SSRF-lite: `callback_url` is unvalidated worker egress (`notify.ts:20-37`); prefix-match id

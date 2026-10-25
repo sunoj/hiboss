@@ -1,5 +1,5 @@
 // Preserves partially typed decimals while storing typed questionnaire answers.
-// Exports the native PanelNumberInput used by the shared catalog renderer.
+// Exports the native PanelNumberInput and the DisabledFieldText style shared by catalog fields.
 // Dependencies: SwiftUI text editing and PanelStore; no locale-dependent coercion.
 
 import SwiftUI
@@ -18,7 +18,7 @@ struct PanelNumberInput: View {
                 text = $0
                 store.setText($0, at: path)
             }))
-            .textFieldStyle(.roundedBorder).focused($focused)
+            .textFieldStyle(.roundedBorder).focused($focused).modifier(DisabledFieldText())
             .accessibilityLabel(label)
         }
         .onAppear { text = storedText }
@@ -27,4 +27,17 @@ struct PanelNumberInput: View {
     }
 
     private var storedText: String { panelValue(at: path, in: store.state)?.displayText ?? "" }
+}
+
+/// iOS keeps full-strength text in a disabled field; dim it to the secondary label, as macOS does.
+struct DisabledFieldText: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content.foregroundStyle(isEnabled ? Color.primary : Color.secondary)
+        #else
+        content
+        #endif
+    }
 }

@@ -7,9 +7,8 @@ import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
 import type { Channel, Env, MessageRow } from '../types';
 import { createForumTopic, editTelegramCaption, editMessageReplyMarkup, formatTelegramAttachmentCaption, removeInlineKeyboard } from '../channels/telegram';
 import { editDiscordMessage } from '../channels/discord';
-import { 
-  requireTelegramConfig as _requireTelegramConfig, 
-  requireDiscordConfig as _requireDiscordConfig, 
+import {
+  requireTelegramConfig as _requireTelegramConfig, requireDiscordConfig as _requireDiscordConfig,
   formatAgentMessage as _formatAgentMessage,
 } from './delivery';
 import { selectChannelConfig, fetchAgentName } from './message-queries';
@@ -50,9 +49,9 @@ export function buildInlineKeyboard(messageId: string, options: string[]): { tex
 
 export async function expireMessageOptions(env: Env, agentId: string, message: MessageRow,
   announce: Announce = announceResolution): Promise<void> {
-  // 1. Update DB: set status to expired, mark options_expired in metadata
-  const meta = message.metadata ? JSON.parse(message.metadata) as Record<string, unknown> : {};
-  const defaultOption = getDefaultOption(meta);
+  // The timeout default answers only a boss ask; any other timed-out message just expires once.
+  const meta = parseMetadata(message.metadata);
+  const defaultOption = message.direction === 'agent_to_boss' ? getDefaultOption(meta) : null;
   if (defaultOption) {
     await autoResolveDefaultOption(env, agentId, message, meta, defaultOption, announce);
     return;
@@ -263,8 +262,9 @@ export async function expirePreviousOptions(
     )
     .bind(...binds)
     .all<MessageRow>();
+  // A superseded ask is closed unanswered: its default is a timeout outcome, not a replacement.
   for (const row of rows.results ?? []) {
-    await expireMessageOptions(env, agentId, row);
+    await expireWithoutDefault(env, agentId, row);
   }
 }
 

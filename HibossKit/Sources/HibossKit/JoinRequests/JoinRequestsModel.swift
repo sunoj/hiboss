@@ -81,12 +81,13 @@ public final class JoinRequestsModel: ObservableObject {
             announce(pending)
         } catch {
             guard version == generation, !Task.isCancelled else { return }
+            if (error as? JoinRequestError) == .forbidden { return deny() }
             if AccountAuthorization.shared.reject(error) { return }
             state = .failed(error.localizedDescription)
         }
     }
 
-    /// Refreshes every `pollInterval` until cancelled; a 403 ends polling for this connection.
+    /// Refreshes every `pollInterval` until cancelled; a 403 ends polling, an explicit refresh retries.
     public func poll() async {
         let version = generation
         while version == generation, !Task.isCancelled {
@@ -106,6 +107,13 @@ public final class JoinRequestsModel: ObservableObject {
         let waiting = lookupWaiters
         lookupWaiters = []
         for waiter in waiting { waiter.resume() }
+    }
+
+    /// A 403 denies this account device approval; the account itself stays signed in.
+    private func deny() {
+        requests = []
+        didLoad = false
+        state = .forbidden
     }
 
     public func reset() {
@@ -176,7 +184,9 @@ public final class JoinRequestsModel: ObservableObject {
             return result
         } catch let error as JoinRequestError {
             guard version == generation, !Task.isCancelled else { return .failed(error.localizedDescription) }
-            if !AccountAuthorization.shared.reject(error) {
+            if error == .forbidden {
+                deny()
+            } else {
                 // 409 may mean "name taken" with the request still pending; the server decides.
                 await refresh()
             }

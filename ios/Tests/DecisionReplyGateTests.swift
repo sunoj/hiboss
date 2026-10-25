@@ -99,21 +99,20 @@ final class DecisionReplyGateTests: XCTestCase {
     }
 
     func testOldAuthorizationRejectionCannotClearTheNewAccount() async throws {
-        for status in [401, 403] {
-            let previous = HeldReplyAPI()
-            let current = HeldReplyAPI()
-            let store = await makeStore(previous)
-            let reply = Pending { await store.reply("Approve", to: "q1") }
-            await waitUntil { previous.replies.count == 1 }
-            store.start(api: current)
-            await waitUntil { store.hasCompleteRequiredInputs }
-            previous.release(.failure(HibossAPIError.requestFailed(status: status, message: "Rejected")))
-            _ = try await reply.settled()
-            XCTAssertTrue(store.hasCompleteRequiredInputs)
-            XCTAssertTrue(store.requiredInputLoaded)
-            XCTAssertTrue(store.isReady)
-            store.stop()
-        }
+        let status = 401
+        let previous = HeldReplyAPI()
+        let current = HeldReplyAPI()
+        let store = await makeStore(previous)
+        let reply = Pending { await store.reply("Approve", to: "q1") }
+        await waitUntil { previous.replies.count == 1 }
+        store.start(api: current)
+        await waitUntil { store.hasCompleteRequiredInputs }
+        previous.release(.failure(HibossAPIError.requestFailed(status: status, message: "Rejected")))
+        _ = try await reply.settled()
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
+        XCTAssertTrue(store.requiredInputLoaded)
+        XCTAssertTrue(store.isReady)
+        store.stop()
     }
 
     func testSecondTapWhileReplyIsInFlightSendsNothing() async throws {

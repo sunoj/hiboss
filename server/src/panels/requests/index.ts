@@ -10,7 +10,7 @@ import { isRecord, type PanelContext } from '../definition/helpers';
 import { authorize, readRecord } from '../lifecycle/repository';
 import { faultResponse, PanelFault } from '../lifecycle/types';
 import { publishRequest, replaceRequest, withdrawRequest } from './mutations';
-import { requestResponse, requestRow, submissionResponse, submissionRow } from './repository';
+import { requestResponse, requestRow, requireTargetBoss, submissionResponse, submissionRow } from './repository';
 import { submitAnswer } from './submissions';
 import { notifyRequestWall } from './signals';
 import { pendingRequests } from './discovery';
@@ -92,6 +92,7 @@ interactionRequestsRouter.post('/:id/submissions', route(async c => {
   if (!isBossAuth(c) || !['admin', 'manager'].includes(getBossRole(c))) throw new PanelFault('permission_denied', 403);
   const id = c.req.param('id')!, bossId = getBossId(c);
   const row = await requestRow(c.env.DB, id, bossId, 'subscriber');
+  await requireTargetBoss(c.env.DB, row, bossId);
   const input = await body(c);
   const result = await submitAnswer(c.env.DB, row, { bossId, bossName: getBossName(c), tokenId: getBossTokenId(c) }, parseSubmission(input, id, bossId), input.signedSubmission);
   await notifyRequestWall(c.env, row.panel_id);

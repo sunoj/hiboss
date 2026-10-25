@@ -13,18 +13,28 @@ fn choices() -> ChoicePayload {
 
 fn reply(metadata: serde_json::Value) -> Message {
     serde_json::from_value(json!({
-        "id": "reply-1", "body": "Approve", "metadata": metadata,
+        "id": "reply-1", "direction": "boss_to_agent", "body": "Approve", "metadata": metadata,
     }))
     .expect("valid reply fixture")
+}
+
+/// A boss ask from agent-a carrying `replies`.
+fn ask(replies: Vec<Message>) -> Message {
+    let mut ask: Message = serde_json::from_value(json!({
+        "id": "ask-1", "agent_id": "agent-a", "direction": "agent_to_boss",
+    }))
+    .expect("valid ask fixture");
+    ask.replies = Some(replies);
+    ask
 }
 
 #[test]
 fn server_default_is_not_an_explicit_reply_or_action() {
     let result = AskResult::from_poll(
         "ask-1",
-        Some(&[reply(json!({
+        Some(&ask(vec![reply(json!({
             "auto_default": true, "action": "deploy",
-        }))]),
+        }))])),
         &choices(),
     );
     let json = serde_json::to_value(&result).expect("serializable result");
@@ -42,7 +52,7 @@ fn explicit_reply_matching_default_keeps_its_action() {
         json!({"action": "deploy"}),
         json!({"auto_default": false, "action": "deploy"}),
     ] {
-        let result = AskResult::from_poll("ask-1", Some(&[reply(metadata)]), &choices());
+        let result = AskResult::from_poll("ask-1", Some(&ask(vec![reply(metadata)])), &choices());
         assert_eq!(result.outcome, Outcome::Reply);
         assert_eq!(result.text(), "Approve");
         assert_eq!(result.action.as_deref(), Some("deploy"));
@@ -55,8 +65,9 @@ fn explicit_reply_matching_default_keeps_its_action() {
 
 #[test]
 fn local_default_is_unconfirmed_and_has_no_action() {
-    for replies in [None, Some(&[][..])] {
-        let result = AskResult::from_poll("ask-1", replies, &choices());
+    let empty = ask(Vec::new());
+    for poll in [None, Some(&empty)] {
+        let result = AskResult::from_poll("ask-1", poll, &choices());
         assert_eq!(result.outcome, Outcome::LocalDefault);
         assert!(result.reply_id.is_none());
         assert!(result.action.is_none());
@@ -86,7 +97,7 @@ fn timeout_without_default_preserves_recovery_id() {
 fn bodyless_reply_does_not_invent_a_default() {
     let mut reply = reply(json!({}));
     reply.body = None;
-    let result = AskResult::from_poll("ask-1", Some(&[reply]), &choices());
+    let result = AskResult::from_poll("ask-1", Some(&ask(vec![reply])), &choices());
     assert_eq!(result.outcome, Outcome::Reply);
     assert!(result.body.is_none());
 }
@@ -95,9 +106,9 @@ fn bodyless_reply_does_not_invent_a_default() {
 fn reply_json_includes_the_answering_device() {
     let result = AskResult::from_poll(
         "ask-1",
-        Some(&[reply(json!({
+        Some(&ask(vec![reply(json!({
             "answered_by": {"client_id": "mac", "kind": "macos", "label": "Mac mini"}
-        }))]),
+        }))])),
         &choices(),
     );
     assert_eq!(
@@ -112,4 +123,72 @@ fn acknowledgement_links_to_the_boss_reply() {
     assert!(hint.contains("hiboss reply boss-reply-id \"<your response>\""));
     assert!(hint.contains("hiboss react boss-reply-id 👍"));
     assert!(!hint.contains("hiboss send"));
+}
+
+#[test]
+fn non_boss_rows_are_not_a_reply() {
+    let own: Message = serde_json::from_value(json!({
+        "id": "own-1", "agent_id": "agent-a", "direction": "agent_to_boss", "body": "Approve",
+    }))
+    .expect("own follow-up");
+    let forward: Message = serde_json::from_value(json!({
+        "id": "fwd-1", "agent_id": "agent-a", "direction": "agent_to_boss", "type": "forwarded",
+        "body": "[Forwarded from api] Deploy prod?",
+    }))
+    .expect("forward copy");
+    // CONTROL: with no rows at all the configured default is a local fallback.
+    assert_eq!(
+        AskResult::from_poll("ask-1", None, &choices()).outcome,
+        Outcome::LocalDefault
+    );
+    let result = AskResult::from_poll("ask-1", Some(&ask(vec![own, forward])), &choices());
+    assert_eq!(result.outcome, Outcome::LocalDefault);
+    assert!(result.reply_id.is_none());
+}
+
+#[test]
+fn peer_answer_counts_but_the_askers_own_peer_row_does_not() {
+    let row = |id: &str, agent: &str| -> Message {
+        serde_json::from_value(json!({
+            "id": id, "agent_id": agent, "direction": "agent_to_agent", "target_agent_id": "agent-a",
+            "body": id,
+        }))
+        .expect("peer row")
+    };
+    let mut peer_ask = ask(vec![row("own-1", "agent-a"), row("peer-1", "agent-b")]);
+    peer_ask.direction = Some("agent_to_agent".into());
+    let result = AskResult::from_poll("ask-1", Some(&peer_ask), &choices());
+    assert_eq!(
+        (result.outcome, result.reply_id.as_deref()),
+        (Outcome::Reply, Some("peer-1"))
+    );
+}
+
+#[test]
+fn the_asking_agent_never_answers_its_peer_ask_from_any_session() {
+    let row = |id: &str, session: serde_json::Value| -> Message {
+        serde_json::from_value(json!({
+            "id": id, "agent_id": "agent-a", "direction": "agent_to_agent", "target_agent_id": "agent-a",
+            "session_id": session, "body": id,
+        }))
+        .expect("same-agent row")
+    };
+    let mut peer_ask = ask(vec![
+        row("asker-1", json!("s1")),
+        row("unnamed-1", json!(null)),
+        row("other-session-1", json!("s2")),
+    ]);
+    peer_ask.direction = Some("agent_to_agent".into());
+    peer_ask.session_id = Some("s1".into());
+    let result = AskResult::from_poll("ask-1", Some(&peer_ask), &choices());
+    assert_eq!(
+        (result.outcome, result.reply_id),
+        (Outcome::LocalDefault, None)
+    );
+    // An ask whose asker is unknown cannot be told apart from its replies, so nothing answers it.
+    let mut anonymous = ask(vec![row("peer-1", json!("s2"))]);
+    anonymous.direction = Some("agent_to_agent".into());
+    anonymous.agent_id = None;
+    let result = AskResult::from_poll("ask-1", Some(&anonymous), &choices());
+    assert_eq!(result.outcome, Outcome::LocalDefault);
 }

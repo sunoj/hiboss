@@ -19,7 +19,8 @@ fn server(request: &Request) -> Response {
         ("POST", "/api/progress") => json!({"id":"post_1", "project":"profiles", "agent_id":"a1",
             "body":"done", "created_at":"2026-10-12"}),
         ("POST", path) if path.starts_with("/api/messages/msg_1/poll") => {
-            json!({"id":"msg_1", "replies":[{"id":"reply_1", "body":"answer"}]})
+            json!({"id":"msg_1", "replies":[{"id":"reply_1", "direction":"boss_to_agent", "body":"answer",
+                "metadata":{"source":"api","provenance":{"version":1,"source":"api","signature":{"status":"not_configured"}}}}]})
         }
         _ => json!({"messages":[], "total":0}),
     };

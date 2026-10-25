@@ -5,6 +5,7 @@
 
 import type { Channel, Env, MessageRow } from '../types';
 import { mapMessageRow } from './message-helpers';
+import { isDecisionReply } from '../decision-answerability';
 
 export async function selectChannelConfig(env: Env, agentId: string, requested?: Channel) {
   if (requested) {
@@ -69,14 +70,18 @@ export async function fetchReplies(env: Env, parentId: string, agentId?: string)
   return (result.results ?? []).map(mapMessageRow);
 }
 
+/**
+ * `decisionsOnly` keeps only replies that can answer the message: a boss_to_agent row for a
+ * boss ask, a peer's row for an agent-to-agent ask. The asker's own follow-ups and forward
+ * copies (both authored by the asker) never answer it.
+ */
 export async function fetchMessageWithReplies(env: Env, agentId: string, messageId: string, decisionsOnly = false) {
   const row = await fetchMessageRow(env, agentId, messageId);
   if (!row) {
     return null;
   }
   const replyList = await fetchReplies(env, row.id, agentId);
-  return { ...mapMessageRow(row), replies: decisionsOnly && row.direction === 'agent_to_boss'
-    ? replyList.filter(reply => reply.direction === 'boss_to_agent') : replyList };
+  return { ...mapMessageRow(row), replies: decisionsOnly ? replyList.filter(reply => isDecisionReply(row, reply)) : replyList };
 }
 
 export async function fetchAgentName(env: Env, agentId: string): Promise<string | null> {

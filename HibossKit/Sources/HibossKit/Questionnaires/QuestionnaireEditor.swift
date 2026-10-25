@@ -1,4 +1,4 @@
-// Presents questionnaire editing, local drafts, deadlines, and durable receipts.
+// Presents questionnaire editing, local drafts, deadlines, durable receipts and read-only access.
 // Exports the shared native editor for macOS and iOS panel detail surfaces.
 // Dependencies: SwiftUI, QuestionnaireModel, native controls, and answer summaries.
 
@@ -12,7 +12,7 @@ struct QuestionnaireEditor: View {
     @StateObject private var model: QuestionnaireModel
 
     init(
-        record: QuestionnaireRecord, bossID: String, service: any QuestionnaireServing,
+        record: QuestionnaireRecord, bossID: String, answerer: BossIdentity, service: any QuestionnaireServing,
         webModel: PanelWebModel,
          currentTime: @escaping @MainActor () -> Date, changed: @escaping @MainActor () async -> Void) {
         self.record = record
@@ -21,7 +21,7 @@ struct QuestionnaireEditor: View {
         self.changed = changed
         _model = StateObject(
             wrappedValue: QuestionnaireModel(
-                record: record, bossID: bossID, service: service, currentTime: currentTime))
+                record: record, bossID: bossID, answerer: answerer, service: service, currentTime: currentTime))
     }
 
     var body: some View {
@@ -72,6 +72,8 @@ struct QuestionnaireEditor: View {
         } else if model.hasNewRevision && model.latest.isOpen(at: now) {
             Text(kitL("This questionnaire changed. Your previous draft is preserved.")).font(.callout)
             Button(kitL("Start revised questionnaire")) { model.restart() }
+        } else if model.latest.isOpen(at: now), let reason = model.access.readOnlyReason {
+            Label(reason, systemImage: "eye").font(.callout).foregroundStyle(.secondary)
         } else if model.latest.isOpen(at: now) {
             if !model.editing.definition.formSpec.elements.values.contains(where: {
                 $0.on?["press"]?.action == "submitRequest"
@@ -130,7 +132,7 @@ private struct QuestionnaireFields: View {
     let enabled: Bool
 
     var body: some View {
-        PanelRenderer(spec: model.editing.definition.formSpec, store: store, webModel: webModel)
+        PanelRenderer(spec: model.formSpec, store: store, webModel: webModel)
             #if os(iOS)
             .environment(\.nativeSubmissionPending, model.isSending)
             #endif

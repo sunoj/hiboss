@@ -26,11 +26,12 @@ export interface ClaimOptions { allowExpired?: boolean; announce?: Announce }
 /**
  * Persists an ask answer only if its conditional insert wins.
  *
- * `allowFreeText` must be false for channel callbacks: Telegram callback_data is
- * client-supplied and both callback paths admit viewer-role bosses, so binding the
- * reply to an offered option is what stops a viewer from turning a button press into
- * an arbitrary agent instruction. Only the boss API — which rejects viewers outright —
- * passes true.
+ * `allowFreeText` is false for channel callbacks and the timeout default: Telegram
+ * callback_data and Discord custom_id are client-supplied, so such a choice is stored only
+ * as one of the options the parent offered. A parent without offered options rejects it as
+ * `invalid_choice` instead of storing text; the callback routes also accept only
+ * `agent_to_boss` parents. Viewers are refused before this call on every path, so this
+ * rule is not a role check.
  */
 export async function persistOptionReply(
   env: Env,
@@ -43,7 +44,7 @@ export async function persistOptionReply(
   { allowExpired = false, announce = announceResolution }: ClaimOptions = {},
 ): Promise<OptionClaimResult> {
   const options = parseOptions(parent.metadata);
-  if (options && !allowFreeText && !options.includes(choice)) return { kind: 'invalid_choice' };
+  if (!allowFreeText && !options?.includes(choice)) return { kind: 'invalid_choice' };
   const isAsk = parent.direction === 'agent_to_boss' && (parent.mode === 'blocking' || options !== null);
   if (!isAsk) {
     const reply = await insertMessageWithEvent(env, insertSql, insertBinds, sessionId);

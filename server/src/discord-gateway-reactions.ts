@@ -46,7 +46,7 @@ export async function persistDiscordReaction(
   action: 'add' | 'remove'
 ): Promise<boolean> {
   const permission = await checkBossPermission(env, 'discord', reaction.user_id, agentId, true);
-  if (permission.error || !permission.boss) return false;
+  if (permission.error || !permission.boss || permission.boss.role === 'viewer') return false;
   const message = await findDiscordMessage(env, agentId, reaction.message_id);
   if (!message) {
     return false;

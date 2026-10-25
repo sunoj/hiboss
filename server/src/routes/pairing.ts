@@ -4,11 +4,12 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
-import { bossAuth, getBossId, getBossRole, hashApiKey } from '../middleware/auth';
-import { issueBossToken } from '../boss-token';
+import { bossAuth, getBossId, getBossRole, getBossTokenId, hashApiKey } from '../middleware/auth';
+import { bossTokenStatements } from '../boss-token';
 import {
   parseSigningRegistration,
   verifyPairingRegistration,
+  type RegisteredSigningKey,
   type SigningRegistration,
 } from '../message-security';
 
@@ -39,8 +40,16 @@ interface PairingStatusRow {
 export const bossPairingRouter = createBossPairingRouter();
 export const pairingRouter = createPairingRouter();
 
-/** Issues a single-use code for bossId; null when the active-code limit is reached. */
-export async function issuePairingCode(db: D1Database, bossId: string): Promise<{ code: string; expires_at: string } | null> {
+// A code redeems only while its issuer is live: the issuing token and its client are unrevoked. A code with
+// no issuing token is a bootstrap code, live only until the boss holds its first token.
+const LIVE_ISSUER = `(EXISTS (SELECT 1 FROM boss_tokens t LEFT JOIN boss_clients cl ON cl.id = t.client_id
+    WHERE t.id = boss_pairing_codes.issued_by_token_id AND t.boss_id = boss_pairing_codes.boss_id
+    AND t.revoked_at IS NULL AND (t.client_id IS NULL OR cl.revoked_at IS NULL))
+  OR (boss_pairing_codes.issued_by_token_id IS NULL
+    AND NOT EXISTS (SELECT 1 FROM boss_tokens t WHERE t.boss_id = boss_pairing_codes.boss_id)))`;
+
+/** Issues a single-use code for bossId on behalf of tokenId; null when the active-code limit is reached. */
+export async function issuePairingCode(db: D1Database, bossId: string, tokenId: string): Promise<{ code: string; expires_at: string } | null> {
   const now = new Date().toISOString();
   await db.prepare('DELETE FROM boss_pairing_codes WHERE boss_id = ? AND expires_at <= ?').bind(bossId, now).run();
   const active = await db.prepare(
@@ -49,8 +58,8 @@ export async function issuePairingCode(db: D1Database, bossId: string): Promise<
   if ((active?.count ?? 0) >= MAX_ACTIVE_PAIRING_CODES) return null;
   const code = newPairingCode();
   const expiresAt = new Date(Date.now() + PAIRING_TTL_MS).toISOString();
-  await db.prepare('INSERT INTO boss_pairing_codes (boss_id, code_hash, expires_at) VALUES (?, ?, ?)')
-    .bind(bossId, await hashApiKey(code), expiresAt).run();
+  await db.prepare('INSERT INTO boss_pairing_codes (boss_id, code_hash, expires_at, issued_by_token_id) VALUES (?, ?, ?, ?)')
+    .bind(bossId, await hashApiKey(code), expiresAt, tokenId).run();
   return { code, expires_at: expiresAt };
 }
 
@@ -68,7 +77,7 @@ function createBossPairingRouter(): Hono<{ Bindings: Env }> {
   routes.post('/', async (c) => {
     // A code mints another token for the issuing boss, so it never grants more than the issuer holds.
     if (!PAIRING_ROLES.includes(getBossRole(c))) return c.json({ error: 'admin or manager required' }, 403);
-    const issued = await issuePairingCode(c.env.DB, getBossId(c));
+    const issued = await issuePairingCode(c.env.DB, getBossId(c), getBossTokenId(c));
     if (!issued) return c.text('too many pairing codes', 429);
     return c.json(issued);
   });
@@ -107,20 +116,11 @@ function createPairingRouter(): Hono<{ Bindings: Env }> {
       ? await verifyPairingRegistration(request.code, request.signing)
       : undefined;
     if (request.signing && !signingKey) return c.text('invalid signing proof', 400);
-    const now = new Date().toISOString();
-    const claimed = await c.env.DB.prepare(
-      'UPDATE boss_pairing_codes SET consumed_at = ? WHERE code_hash = ? AND consumed_at IS NULL AND expires_at > ? AND EXISTS (SELECT 1 FROM bosses b WHERE b.id = boss_pairing_codes.boss_id AND b.archived_at IS NULL) RETURNING id, boss_id',
-    ).bind(now, await hashApiKey(request.code), now).first<{ id: string; boss_id: string }>();
-    if (!claimed) return c.text('invalid or expired pairing code', 400);
+    const grant = await redeemCode(c.env, request, signingKey ?? undefined);
+    if (!grant) return c.text('invalid or expired pairing code', 400);
     const boss = await c.env.DB.prepare('SELECT id, name, role FROM bosses WHERE id = ? AND archived_at IS NULL')
-      .bind(claimed.boss_id).first<BossIdentity>();
+      .bind(grant.bossId).first<BossIdentity>();
     if (!boss) return c.text('invalid or expired pairing code', 400);
-    const grant = await issueBossToken(c.env, boss.id, request.deviceLabel, signingKey ?? undefined, {
-      kind: signingKey?.clientKind ?? 'web', label: request.deviceLabel,
-    });
-    await c.env.DB.prepare(
-      'UPDATE boss_pairing_codes SET redeemed_token_id = ? WHERE id = ?',
-    ).bind(grant.tokenId, claimed.id).run();
     return c.json({
       token: grant.token,
       boss,
@@ -128,6 +128,31 @@ function createPairingRouter(): Hono<{ Bindings: Env }> {
     });
   });
   return routes;
+}
+
+/** Claims the code and issues its token in one batch, so a revoked issuer can never mint one. */
+async function redeemCode(env: Env, request: PairingRedeemRequest, signingKey: RegisteredSigningKey | undefined):
+  Promise<{ token: string; bossId: string } | null> {
+  const codeHash = await hashApiKey(request.code);
+  const pending = await env.DB.prepare('SELECT boss_id FROM boss_pairing_codes WHERE code_hash = ?')
+    .bind(codeHash).first<{ boss_id: string }>();
+  if (!pending) return null;
+  const now = new Date().toISOString();
+  const claimedHere = { sql: `EXISTS (SELECT 1 FROM boss_pairing_codes WHERE code_hash = ? AND consumed_at = ?
+    AND redeemed_token_id IS NULL)`, binds: [codeHash, now] };
+  const { grant, statements } = await bossTokenStatements(env, pending.boss_id, request.deviceLabel, signingKey,
+    { kind: signingKey?.clientKind ?? 'web', label: request.deviceLabel }, claimedHere);
+  const [claim] = await env.DB.batch([
+    env.DB.prepare(`UPDATE boss_pairing_codes SET consumed_at = ? WHERE code_hash = ? AND boss_id = ?
+      AND consumed_at IS NULL AND expires_at > ? AND ${LIVE_ISSUER}
+      AND EXISTS (SELECT 1 FROM bosses b WHERE b.id = boss_pairing_codes.boss_id AND b.archived_at IS NULL) RETURNING id`)
+      .bind(now, codeHash, pending.boss_id, now),
+    ...statements,
+    env.DB.prepare(`UPDATE boss_pairing_codes SET redeemed_token_id = ? WHERE code_hash = ? AND consumed_at = ?
+      AND redeemed_token_id IS NULL AND EXISTS (SELECT 1 FROM boss_tokens WHERE id = ?)`)
+      .bind(grant.tokenId, codeHash, now, grant.tokenId),
+  ]);
+  return claim.results.length ? { token: grant.token, bossId: pending.boss_id } : null;
 }
 
 async function pairingStatusRow(env: Env, bossId: string, code: string): Promise<PairingStatusRow | null> {

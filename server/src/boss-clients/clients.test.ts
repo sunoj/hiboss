@@ -8,6 +8,7 @@ import type { BossClient } from './types';
 
 const ROOT = 'clients-root-token';
 const VIEWER = 'clients-viewer-token';
+const MANAGER = 'clients-manager-token';
 const headers = (token = ROOT): Record<string, string> => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
 const url = 'https://test.local/api/boss/clients';
 type Grant = { client: BossClient; token: string };
@@ -16,6 +17,7 @@ beforeAll(async () => {
   await seedDatabase();
   await seedBossToken('Clients Boss', 'admin', ROOT, 'clients-boss');
   await seedBossToken('Clients Viewer', 'viewer', VIEWER, 'clients-viewer');
+  await seedBossToken('Clients Manager', 'manager', MANAGER, 'clients-manager');
 });
 
 async function mint(token = ROOT, kind = 'web'): Promise<Grant> {
@@ -39,17 +41,23 @@ it('exchanges a legacy bearer for an independent client token without invalidati
   expect(JSON.stringify(data)).not.toContain('token_hash');
 });
 
-it('allows viewers to mint only for themselves and hides other bosses clients', async () => {
-  const grant = await mint(VIEWER);
+it('refuses a viewer minting a client, like pairing and sign-in approval', async () => {
+  const response = await SELF.fetch(url, { method: 'POST', headers: headers(VIEWER), body: JSON.stringify({ kind: 'web', label: 'Viewer' }) });
+  expect(response.status).toBe(403);
+  expect(await env.DB.prepare("SELECT id FROM boss_clients WHERE boss_id = 'clients-viewer'").first()).toBeNull();
+});
+
+it('mints only for the calling boss and hides other bosses clients', async () => {
+  const grant = await mint(MANAGER);
   const row = await env.DB.prepare('SELECT boss_id FROM boss_clients WHERE id = ?').bind(grant.client.id).first<{ boss_id: string }>();
-  expect(row?.boss_id).toBe('clients-viewer');
+  expect(row?.boss_id).toBe('clients-manager');
   expect((await SELF.fetch(`${url}/${grant.client.id}`, { method: 'DELETE', headers: headers() })).status).toBe(404);
   const list = await SELF.fetch(url, { headers: headers() });
   expect(JSON.stringify(await list.json())).not.toContain(grant.client.id);
 });
 
 it('blocks self-revocation but preserves the existing token self-revoke path', async () => {
-  const grant = await mint(VIEWER);
+  const grant = await mint(MANAGER);
   expect((await SELF.fetch(`${url}/${grant.client.id}`, { method: 'DELETE', headers: headers(grant.token) })).status).toBe(403);
   const row = await env.DB.prepare('SELECT id FROM boss_tokens WHERE client_id = ?').bind(grant.client.id).first<{ id: string }>();
   expect((await SELF.fetch(`https://test.local/api/boss/tokens/${row?.id}`, { method: 'DELETE', headers: headers(grant.token) })).status).toBe(200);
@@ -108,7 +116,7 @@ it('rejects anonymous minting', async () => {
 
 it('re-parents a device token to the registering boss, stamping its client and auditing the move', async () => {
   const owner = await mint(ROOT, 'ios');
-  const other = await mint(VIEWER, 'ios');
+  const other = await mint(MANAGER, 'ios');
   const register = (token: string) => SELF.fetch('https://test.local/api/boss/devices', {
     method: 'POST', headers: headers(token), body: JSON.stringify({
       token: '11223344', bundleId: 'ai.hiboss.app', environment: 'sandbox', platform: 'ios',
@@ -119,5 +127,5 @@ it('re-parents a device token to the registering boss, stamping its client and a
   expect(moved.status).toBe(200);
   expect(await moved.json()).toEqual({ ok: true, reparented: true });
   expect(await env.DB.prepare("SELECT boss_id, client_id FROM boss_devices WHERE device_token = '11223344'").first())
-    .toEqual({ boss_id: 'clients-viewer', client_id: other.client.id });
+    .toEqual({ boss_id: 'clients-manager', client_id: other.client.id });
 });

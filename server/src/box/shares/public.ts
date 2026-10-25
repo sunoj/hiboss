@@ -43,6 +43,7 @@ async function resolve(c: BoxContext): Promise<PublicItem | null> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
   return c.env.DB.prepare(`SELECT i.*, s.id AS share_id, s.expires_at FROM box_shares s
     JOIN box_items i ON i.id = s.item_id AND i.boss_id = s.boss_id
+    JOIN bosses b ON b.id = i.boss_id AND b.archived_at IS NULL
     WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > ?
     AND i.deleted_at IS NULL`).bind(await tokenHash(token), new Date().toISOString()).first<PublicItem>();
 }

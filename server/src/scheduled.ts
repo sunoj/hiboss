@@ -69,7 +69,8 @@ async function expireDueOptions(env: Env, now: string, announce: Announce): Prom
     .prepare(
       `SELECT * FROM messages WHERE expires_at IS NOT NULL AND expires_at < ?
        AND status IN ('sent', 'delivered', 'read')
-       AND (json_extract(metadata, '$.options') IS NOT NULL OR mode = 'blocking') LIMIT ?`
+       AND (json_extract(metadata, '$.options') IS NOT NULL OR mode = 'blocking')
+       ORDER BY expires_at ASC, id ASC LIMIT ?`
     )
     .bind(now, BATCH_SIZE)
     .all<MessageRow>();

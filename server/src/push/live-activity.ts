@@ -5,6 +5,7 @@
 import { sendApnsRequest, type ApnsEnvironment } from '../apns';
 import type { Env, MessageRow, Priority } from '../types';
 import type { Resolution } from './relay';
+import { liveDeviceSql } from './devices';
 
 const END_TIMEOUT_MS = 5_000;
 /** Rows older than this are purged by the scheduled job; no ask stays open that long. */
@@ -57,7 +58,8 @@ async function completionFor(env: Env, resolution: Resolution): Promise<EndCompl
 export async function endLiveActivities(env: Env, message: Pick<MessageRow, 'id' | 'priority'>,
   status: Resolution['status'], audienceBossIds: ReadonlySet<string>): Promise<void> {
   const stored = (await env.DB.prepare(`SELECT d.boss_id, t.activity_token, t.environment, d.bundle_id
-    FROM live_activity_tokens t JOIN boss_devices d ON d.id = t.device_id WHERE t.message_id = ?`)
+    FROM live_activity_tokens t JOIN boss_devices d ON d.id = t.device_id
+    WHERE t.message_id = ? AND ${liveDeviceSql('d')}`)
     .bind(message.id).all<ActivityTokenRow>()).results ?? [];
   if (stored.length === 0) return;
   const rows = stored.filter((row) => audienceBossIds.has(row.boss_id));

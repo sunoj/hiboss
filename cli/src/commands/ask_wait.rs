@@ -2,6 +2,7 @@
 // Exports wait_for_reply; retries transient HTTP and transport failures with backoff.
 // Dependencies: HiBossClient, typed HTTP errors, and Tokio deadline timers.
 
+use super::ask_result::decision_reply;
 use crate::client::{HiBossClient, HttpError};
 use crate::types::Message;
 use std::error::Error;
@@ -25,14 +26,7 @@ pub(crate) async fn wait_for_reply(
             .ceil()
             .min(f64::from(POLL_WINDOW_SECONDS)) as u32;
         match timeout_at(deadline, client.poll_reply(id, window)).await {
-            Ok(Ok(message))
-                if message
-                    .replies
-                    .as_ref()
-                    .is_some_and(|items| !items.is_empty()) =>
-            {
-                return Ok(Some(message));
-            }
+            Ok(Ok(message)) if decision_reply(&message).is_some() => return Ok(Some(message)),
             Ok(Ok(_)) => {}
             Ok(Err(error)) if is_transient(error.as_ref()) => {
                 eprintln!("hiboss: poll failed, retrying while waiting for reply: {error}");
@@ -43,18 +37,14 @@ pub(crate) async fn wait_for_reply(
         sleep_until(deadline.min(Instant::now() + RETRY_BACKOFF)).await;
     }
     let message = reconcile_reply(client, id).await?;
-    Ok(message
-        .replies
-        .as_ref()
-        .is_some_and(|items| !items.is_empty())
-        .then_some(message))
+    Ok(decision_reply(&message).is_some().then_some(message))
 }
 
 async fn reconcile_reply(client: &HiBossClient, id: &str) -> Result<Message, Box<dyn Error>> {
     let mut attempt = 0;
     loop {
         attempt += 1;
-        match client.get_message(id).await {
+        match client.get_decisions(id).await {
             Ok(message) => return Ok(message),
             Err(error) if attempt < FINAL_READ_ATTEMPTS && is_transient(error.as_ref()) => {
                 eprintln!("hiboss: final reply read failed, retrying: {error}");

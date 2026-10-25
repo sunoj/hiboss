@@ -104,7 +104,8 @@ public struct PanelRenderer: View {
             set: { store.setString($0, at: path) })
         return AnyView(VStack(alignment: .leading, spacing: 6) {
             Text(verbatim: label).font(.headline)
-            TextField(placeholder, text: binding).textFieldStyle(.roundedBorder).accessibilityLabel(label)
+            TextField(placeholder, text: binding).textFieldStyle(.roundedBorder).modifier(DisabledFieldText())
+                .accessibilityLabel(label)
         }.accessibilityLabel(label))
     }
 
@@ -119,7 +120,7 @@ public struct PanelRenderer: View {
             set: { store.setString($0, at: path) })
         return AnyView(VStack(alignment: .leading, spacing: 6) {
             Text(verbatim: label).font(.headline)
-            TextEditor(text: binding)
+            TextEditor(text: binding).modifier(DisabledFieldText())
                 .frame(minHeight: CGFloat(rows * 24))
                 .overlay(alignment: .topLeading) {
                     if let placeholder, binding.wrappedValue.isEmpty {

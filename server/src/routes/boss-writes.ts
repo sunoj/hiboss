@@ -7,6 +7,7 @@ import type { Channel, Env, Priority } from '../types';
 import { channelWriteError } from './channel-names';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
+import { mintedKeySweep } from '../agent-keys/boss-access';
 import { getAccessibleAgentIds } from './boss-api';
 import { getBossOverview } from './boss-overview';
 
@@ -139,8 +140,10 @@ routes.patch('/agents/:id/config', async (c) => {
     if (getBossRole(c) !== 'admin') return c.text('admin required', 403);
     if (typeof payload.admin !== 'boolean') return c.text('admin must be a boolean', 400);
     if (Object.keys(payload).length !== 1) return c.text('admin must be updated separately', 400);
-    await c.env.DB.prepare('UPDATE api_keys SET is_admin = ? WHERE id = ?')
-      .bind(Number(payload.admin), agentId).run();
+    await c.env.DB.batch([
+      c.env.DB.prepare('UPDATE api_keys SET is_admin = ? WHERE id = ?').bind(Number(payload.admin), agentId),
+      ...mintedKeySweep(c.env.DB),
+    ]);
     audit(c, scope.bossId, 'agent.admin', 'api_key', agentId, JSON.stringify({ admin: payload.admin }));
     return c.json({ admin: payload.admin });
   }

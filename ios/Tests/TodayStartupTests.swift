@@ -119,6 +119,7 @@ final class TodayStartupTests: XCTestCase {
 
 private actor StartupPanelsAPI: PanelsServing, QuestionnaireServing {
     nonisolated let questionnaireScope = "eager-startup"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "boss", role: "admin") }
     private(set) var panelReads = 0
     func fetchPanels() async throws -> [PanelMetadata] {
         panelReads += 1

@@ -220,24 +220,23 @@ final class DecisionRefreshTests: XCTestCase {
     }
 
     func testAuthorizationRejectionClearsTheCachedDecisionImmediately() async {
-        for status in [401, 403] {
-            let (store, api) = await loadedStore()
-            await api.failNextFetch(status: status)
-            await store.refreshRequiredInputs()
-            XCTAssertTrue(store.requiredInputs.isEmpty)
-            XCTAssertTrue(store.history.isEmpty)
-            XCTAssertFalse(store.requiredInputLoaded)
-            XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
-            store.stop()
-            let (tapped, tappedAPI) = await loadedStore()
-            tapped.requiredInputReady = false
-            await tappedAPI.failNextFetch(status: status)
-            let attempt = await tapped.reply("Yes", to: Self.ask.id)
-            XCTAssertEqual(attempt, .failed)
-            XCTAssertTrue(tapped.history.isEmpty)
-            XCTAssertTrue(tapped.requiredInputs.isEmpty)
-            tapped.stop()
-        }
+        let status = 401
+        let (store, api) = await loadedStore()
+        await api.failNextFetch(status: status)
+        await store.refreshRequiredInputs()
+        XCTAssertTrue(store.requiredInputs.isEmpty)
+        XCTAssertTrue(store.history.isEmpty)
+        XCTAssertFalse(store.requiredInputLoaded)
+        XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
+        store.stop()
+        let (tapped, tappedAPI) = await loadedStore()
+        tapped.requiredInputReady = false
+        await tappedAPI.failNextFetch(status: status)
+        let attempt = await tapped.reply("Yes", to: Self.ask.id)
+        XCTAssertEqual(attempt, .failed)
+        XCTAssertTrue(tapped.history.isEmpty)
+        XCTAssertTrue(tapped.requiredInputs.isEmpty)
+        tapped.stop()
     }
 
     func testTappedVerificationEscalatesAtEightSecondsWithoutSendingALateReply() async {

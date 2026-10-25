@@ -228,3 +228,21 @@ it.each([undefined, ''])('defaults TTL for absent or empty request body %j', asy
   const result = await response.json() as Share;
   expect(Date.parse(result.expiresAt) - Date.parse(result.createdAt)).toBe(604800000);
 });
+
+it('stops serving pages and files while the owning boss is archived', async () => {
+  const item = await (await upload()).json() as { id: string };
+  const result = await share(item.id);
+  expect((await SELF.fetch(result.url)).status).toBe(200);
+  expect((await SELF.fetch(`${result.url}/file`)).status).toBe(200);
+  await env.DB.prepare("UPDATE bosses SET archived_at = datetime('now') WHERE id = ?").bind(OWNER).run();
+  try {
+    for (const url of [result.url, `${result.url}/file`]) {
+      const response = await SELF.fetch(url);
+      headers(response);
+      expect(response.status, url).toBe(404);
+    }
+  } finally {
+    await env.DB.prepare('UPDATE bosses SET archived_at = NULL WHERE id = ?').bind(OWNER).run();
+  }
+  expect((await SELF.fetch(result.url)).status).toBe(200);
+});

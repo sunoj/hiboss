@@ -3,6 +3,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
+import { liveTokenId } from './resolution-test-support';
 import { notifyBossAgents } from '../notify';
 import { resolveDestinations } from '../delivery/destinations';
 import { sendDestination } from '../delivery/adapters';
@@ -21,9 +22,10 @@ beforeAll(async () => {
 beforeEach(async () => {
   await env.DB.prepare('DELETE FROM boss_destinations WHERE boss_id = ?').bind(bossId).run();
   await env.DB.prepare('DELETE FROM boss_devices WHERE boss_id = ?').bind(bossId).run();
-  await env.DB.prepare(`INSERT INTO boss_devices (id, boss_id, device_token, bundle_id, environment) VALUES
-    ('cleanup-device', ?, ?, 'app', 'sandbox'), ('kept-device', ?, '11223344', 'app', 'sandbox')`)
-    .bind(bossId, deviceToken, bossId).run();
+  const tokenId = await liveTokenId(bossId);
+  await env.DB.prepare(`INSERT INTO boss_devices (id, boss_id, device_token, bundle_id, environment, token_id) VALUES
+    ('cleanup-device', ?, ?, 'app', 'sandbox', ?), ('kept-device', ?, '11223344', 'app', 'sandbox', ?)`)
+    .bind(bossId, deviceToken, tokenId, bossId, tokenId).run();
   await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, kind, target, label) VALUES
     ('cleanup-destination', ?, 'apns', '{"device_id":"cleanup-device"}', 'Push'),
     ('kept-destination', ?, 'apns', '{"device_id":"kept-device"}', 'Push'),

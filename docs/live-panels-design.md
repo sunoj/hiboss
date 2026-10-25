@@ -207,6 +207,9 @@ selection, and batch review after the initial submit flow passes end-to-end test
 - Mark remote previews as previews; editing or previewing never counts as approval.
 - Show the precise proposed operation and selected parameters before committing an
   authorization request. Intake answers authorize no unrelated task actions.
+- Only the panel's target boss, with role `admin` or `manager`, may submit. Native clients
+  compare `/api/boss/me` with the panel's `targetBossId` and show anyone else the
+  questionnaire read-only with the reason; the server enforces the same rule with a 403.
 - Preserve submitted answers as read-only history. Corrections create a linked new
   request; accepted answers are never silently edited.
 - Expiration closes a request without inventing an answer. Initial generated forms

@@ -14,7 +14,7 @@ message pre-warning to preserve a parseable stdout stream.
 
 | Outcome | Meaning | reply_id | action |
 | --- | --- | --- | --- |
-| `reply` | A reply message was returned without the automatic-default flag | Returned message ID | String if supplied by reply metadata, otherwise null |
+| `reply` | A decision reply was returned without the automatic-default flag | Returned message ID | String if supplied by reply metadata, otherwise null |
 | `auto_default` | The server produced a timeout-default reply | Returned message ID | null |
 | `local_default` | Polling returned no replies and the CLI used its configured fallback | null | null |
 | `timeout` | Polling returned no replies and no default was configured | null | null |
@@ -25,6 +25,26 @@ when absent). For example:
 ```json
 {"message_id":"ask-1","reply_id":"reply-1","outcome":"auto_default","body":"Wait","action":null}
 ```
+
+Only a decision reply counts: a `boss_to_agent` row for an ask to the boss, or a row written by
+the other agent for an `--to` ask. The asking agent's own follow-ups and forward copies of the ask
+are never an outcome. After the last poll window the CLI reads
+`GET /api/messages/:id?replies=decisions`, which applies the same rule on the server, and the CLI
+filters again before choosing an outcome.
+
+An `--to` ask is answered only by a reply from a different agent profile. A reply written by the
+asking agent never answers it, from whichever session it comes. So an `--to` ask addressed to
+another session of the same agent profile is never answered: it times out with `local_default`
+or `timeout`. Peers on different agent profiles work as usual.
+
+Only a reply that counts as an answer closes an ask. The asker's follow-ups and boss rows on an
+agent-to-agent ask are stored but leave it open, so the deadline still expires it. The boss inbox
+answers only `agent_to_boss` messages and returns 404 for any other parent.
+
+The server writes an automatic default only when an ask to the boss times out. An `--to` ask
+that times out expires once without an answer, so its outcome is `local_default` or `timeout`.
+An ask superseded by a newer ask with options from the same session expires immediately without
+its default; its waiting CLI reports `local_default` or `timeout`, never `auto_default`.
 
 `reply` deliberately does not mean human approval. An Agent can be a Boss, and
 provenance and authorization must be checked in the actual execution context.
@@ -41,6 +61,21 @@ Default paths never print `Action:` or request acknowledgment of a human reply.
 For ordinary replies, action commands are displayed only; `ask` does not run them.
 Completed polling still exits successfully; transport failures keep existing exit
 codes. Consumers must inspect the outcome rather than infer approval from exit 0.
+
+## Release order
+
+Deploy the Worker before or together with the CLI. The decision read (`?replies=decisions`),
+the closing rule and the boss inbox guards are server-side. A new CLI against an older Worker
+gets every reply from its final read and filters them itself, so its outcomes stay correct, but
+nothing the CLI does can stop a boss-agent answering its own ask on an older Worker. The reply
+request and its signed payload are unchanged, so either CLI works with either Worker.
+
+## Known limitations
+
+- An agent-to-agent ask has no claim step. A peer reply that arrives after the deadline expired
+  the ask is still stored and counted as its answer by the decision read.
+- If the server cannot record a timeout default (the conditional insert fails without the ask
+  closing), the ask stays open until a later sweep or session end closes it.
 
 ## MCP contract
 

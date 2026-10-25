@@ -56,9 +56,18 @@ Response (200): `{ "messages": [Message], "total": number }`
 
 ### GET /api/messages/:id
 Get a single message with its reply chain. Response includes `replies: Message[]`.
+`?replies=decisions` returns only the replies that can answer the message, the same set
+`/poll` returns: `boss_to_agent` rows for an `agent_to_boss` ask, and rows written by the
+other agent for an `agent_to_agent` ask. The asker's own follow-ups and forward copies are
+left out. The CLI's final ask read uses it.
 
 ### POST /api/messages/:id/reply
 Reply to a message. Request: `{ "body": "string" }`. Response (201): message object.
+A reply to an `agent_to_agent` message is stored under the replier's own session (the session
+the parent addressed, or null when the parent named none) with `target_session_id` set to the
+sender's session; its session event lands in the replier's session. A reply closes its parent
+only when it answers it: for an `agent_to_agent` parent, only a reply from a different agent
+does (see `docs/ask-outcomes.md`).
 An agent reply to a boss reply is stored as an `agent_to_boss` follow-up with `reply_to` set to
 that reply, so clients fold it into the original thread. Follow-ups never decide a question.
 
@@ -73,6 +82,13 @@ stored on every channel in `metadata.reactions` as
 (actor, actor_id, emoji); a change is republished on the boss stream. Legacy entries
 `{emoji, boss_id}` and `{emoji, user}` still read as boss reactions. Metadata writers patch only
 their own keys database-side; stored metadata that is not a JSON object is treated as `{}`.
+
+### POST /api/messages/:id/forward
+Copy a message to another channel. Request: `{ "channel": "telegram"|"discord" }`. The copy has
+`type: 'forwarded'` and `reply_to` set to the original. It is stored `async`, without options or
+a deadline, so a forwarded ask is never a second decision: it is not a pending input, not the
+Telegram bare-text target, and not an ask to claim. `POST /api/boss/messages/:id/forward` stores
+the same copy.
 
 ### POST /api/messages/:id/poll
 Long-poll for reply to a blocking message. Query: `timeout` (default 300, max 300).
@@ -253,10 +269,16 @@ Revoke one token belonging to the authenticated boss. Any boss may revoke its ow
 ### POST /api/boss/tokens/revoke-others
 Admin only. Revoke every token belonging to the authenticated boss except the token making the request. Returns `{ "revoked": number }`.
 
+Every token revocation (rotation, `DELETE /api/boss/tokens/:tokenId`, `revoke-others` and
+`DELETE /api/boss/clients/:id`) retires, in the same batch, the token's client, its signing keys,
+the push devices registered with it and the unredeemed pairing codes it issued. Push fan-out sends
+only to a device whose registering token and client are still live, and an open live-panel
+subscription of a revoked token is closed (`4401`) before it receives another frame.
+
 An admin bearer can revoke sibling devices. The five-minute, single-use pairing-code lifetime protects an unredeemed QR code, not a bearer token that has already been issued.
 
 ### POST /api/boss/pairing
-Admin only. Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five unconsumed codes are active per boss; expired rows are cleaned before minting. Consumed rows remain until expiry so the issuing client can observe completion. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
+Admin or manager (a viewer gets 403). Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five unconsumed codes are active per boss; expired rows are cleaned before minting. Consumed rows remain until expiry so the issuing client can observe completion. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
 `{ "code": "hb_pair_<64 hex characters>", "expires_at": "ISO8601" }`.
 The server stores only a hash of the code.
 
@@ -272,6 +294,9 @@ Request: `{ "code": "hb_pair_<64 hex characters>", "device_label": "string", "si
 Response:
 `{ "token": "hb_boss_<64 hex characters>", "boss": { "id", "name", "role" } }`.
 The new token is independent from all other boss tokens; an existing device remains online.
+A code redeems only while the token that issued it, and that token's client, are unrevoked; the
+first-boss bootstrap code redeems only while the boss holds no token. Otherwise the response is
+`400 invalid or expired pairing code`.
 The consumed code is linked to the new token's metadata so the issuing client can
 report which device connected, but the bearer value is never returned by the status API.
 
@@ -286,7 +311,8 @@ List sub-agent messages. Params: `unread`, `priority`, `limit`, `offset`, `count
 Read message with replies.
 
 ### POST /api/boss/inbox/:id/reply
-Reply as boss. Request: `{ "body" }`.
+Reply as boss. Request: `{ "body" }`. Only `agent_to_boss` messages can be answered (404
+otherwise), and a boss-agent cannot answer its own message (403).
 
 ### PATCH /api/boss/inbox/:id
 Mark as read. Request: `{ "status": "read" }`.
@@ -306,6 +332,10 @@ Messages from accessible agents. Params: `limit`, `offset`, `unread`, `priority`
 
 ### GET /api/boss/messages/:id
 Message detail with replies.
+
+### PATCH /api/boss/messages/:id
+Records a receipt (`status`: `read` or `delivered`) on an open message. Viewer role is
+blocked (403); a resolved message returns 409.
 
 ### POST /api/boss/messages/:id/reply
 Boss replies to an agent. Viewer role is blocked. For option messages, `body` must
@@ -348,7 +378,11 @@ counts sessions seen in the last 15 minutes.
 ### POST /api/boss/devices
 Registers an iOS device's APNs token for push. Body:
 `{ "token": "<apns-hex>", "bundleId": "ai.hiboss.app", "environment": "sandbox"|"production", "platform": "ios" }`.
-Upserts by device token for the authenticated boss. Returns `{ "ok": true }`.
+Upserts by device token for the authenticated boss and binds the row to the registering token, so
+the device stops receiving pushes when that token is revoked. A row registered before this binding
+existed is bound to its client's newest live token, or, without a client, to the boss's newest live
+client-less token; a row whose client has no live token (including `migrated-push` rows) receives
+no push until the app registers again, which it does on every launch. Returns `{ "ok": true }`.
 Fresh blocking `POST /api/panels/:id/requests` publications send `HIBOSS_REQUEST` to the panel's target boss devices; retries, replace/withdraw, optional requests, `deliver:false`, and `DESTINATIONS_MODE=on` are silent.
 See the [questionnaire push contract](../../docs/live-panels/questionnaires.md#publication-push-contract) for payload, privacy, decision tiers, and best-effort delivery rules.
 

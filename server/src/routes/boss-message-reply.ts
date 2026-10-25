@@ -5,7 +5,7 @@
 import { Hono, type Context } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
-import { isDecisionAnswerable } from '../decision-answerability';
+import { isDecisionAnswerable, isDecisionReply } from '../decision-answerability';
 import {
   bossAuth, getBossId, getBossName, getBossRole, getBossTokenId, getClientId,
 } from '../middleware/auth';
@@ -120,7 +120,8 @@ function finishReply(
   bossId: string,
   bossName: string,
 ): void {
-  if (optionKind === 'not_option') c.executionCtx.waitUntil(
+  // A reply that is not a decision under isDecisionReply is stored and leaves the parent open.
+  if (optionKind === 'not_option' && isDecisionReply(parent, inserted)) c.executionCtx.waitUntil(
     c.env.DB.prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
       .bind(parent.id).run(),
   );

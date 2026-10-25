@@ -17,6 +17,7 @@ enum DemoPanelServices {
 
 actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
     nonisolated let questionnaireScope = "native-demo-\(UUID().uuidString)"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "demo-boss", role: "admin") }
     private var submission: QuestionnaireSubmission?
     private let started = Date()
     private var questionReads = 0

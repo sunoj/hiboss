@@ -6,6 +6,7 @@ import { deliverToChannelWithOptions } from '../routes/delivery';
 import { parseOptionMedia } from '../routes/option-media';
 import { buildInlineKeyboard } from '../routes/message-options';
 import { sendDevicePush, type PushDevice } from '../push/send';
+import { liveDeviceSql } from '../push/devices';
 import { prepareBossPush } from '../push/boss-payload';
 import { jsonObject, type ResolvedDestination } from './types';
 
@@ -35,9 +36,9 @@ export async function sendDestination(env: Env, destination: ResolvedDestination
 
 async function sendApns(env: Env, destination: ResolvedDestination, message: MessageRow, agent: string,
   session: { label: string | null; branch: string | null } | null): Promise<null> {
-  const device = await env.DB.prepare(`SELECT boss_id, device_token, bundle_id, environment, relay_handle, push_key
-      FROM boss_devices
-    WHERE id = ? AND boss_id = ? AND client_id IS ?`)
+  const device = await env.DB.prepare(`SELECT d.boss_id, d.device_token, d.bundle_id, d.environment, d.relay_handle,
+      d.push_key FROM boss_devices d
+    WHERE d.id = ? AND d.boss_id = ? AND d.client_id IS ? AND ${liveDeviceSql('d')}`)
     .bind(destination.config.device_id, destination.boss_id, destination.client_id)
     .first<PushDevice>();
   if (!device) throw new Error('push device unavailable');

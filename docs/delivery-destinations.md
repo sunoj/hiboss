@@ -45,6 +45,13 @@ queue rows untouched, so drain the legacy queue before enabling it.
 - `inbound_routes` are consulted only in `on` mode. Priority descending, then route ID,
   selects the first matching pattern; a NULL pattern is a catch-all and invalid patterns
   are skipped. Unmatched traffic uses the channel/session lookup.
+- A Telegram text that replies to a message answers that message, whichever agent sent it,
+  when the message was delivered to that chat (a delivery row's `external_message_id` for a
+  `telegram_chat` destination, or the legacy `telegram_message_id`/`telegram_chat_id`
+  metadata) and the replying boss can access its agent. The answer goes through the same
+  one-answer claim as every other path. A reply that matches nothing, or a message the boss
+  cannot access, is routed like unquoted text and links to no parent. Option buttons still
+  resolve only the chat's agent; a button for another agent's message returns 404.
 - Each iOS/macOS client has a `native_live` destination; each push device has an `apns`
   destination referencing its device ID. Revoked clients and removed devices are
   excluded when resolving or retrying.

@@ -141,8 +141,13 @@ routes.post('/:id/reply', async (c) => {
     .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
     .bind(messageId, `${escapeLike(messageId)}%`)
     .first<MessageRow>();
-  if (!parent) {
+  // The inbox lists only agent_to_boss messages, so it answers nothing else.
+  if (!parent || parent.direction !== 'agent_to_boss') {
     return c.text('not found', 404);
+  }
+  // An agent never answers its own message, even when it also acts as a boss.
+  if (parent.agent_id === agentId) {
+    return c.text('cannot answer your own message', 403);
   }
   const agentIds = await getAccessibleAgentIds(c.env, boss.id, boss.role);
   if (!agentIds.includes(parent.agent_id)) {
