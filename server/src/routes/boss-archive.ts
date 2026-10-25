@@ -16,7 +16,7 @@ export async function archiveBoss(c: BossContext): Promise<Response> {
   if (boss.archived_at !== null) return c.text('boss is archived', 409);
   const liveAdmins = "SELECT COUNT(*) FROM bosses WHERE role = 'admin' AND archived_at IS NULL";
   if (boss.role === 'admin' && await c.env.DB.prepare(liveAdmins).first<number>('COUNT(*)') === 1) {
-    return c.text('cannot archive the last unarchived admin', 400);
+    return c.text('cannot archive the last unarchived admin', 409);
   }
   if (id === getBossId(c)) return c.text('cannot archive self', 400);
   const result = await c.env.DB.prepare(`UPDATE bosses SET archived_at = datetime('now') WHERE id = ? AND archived_at IS NULL
@@ -24,7 +24,7 @@ export async function archiveBoss(c: BossContext): Promise<Response> {
   if (!result) {
     const current = await c.env.DB.prepare('SELECT archived_at FROM bosses WHERE id = ?').bind(id).first<Pick<ArchiveRow, 'archived_at'>>();
     if (!current) return c.text('not found', 404);
-    return current.archived_at !== null ? c.text('boss is archived', 409) : c.text('cannot archive the last unarchived admin', 400);
+    return c.text(current.archived_at !== null ? 'boss is archived' : 'cannot archive the last unarchived admin', 409);
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.archive', 'boss', id));
   await evictBossSubscriptions(c.env, boss);

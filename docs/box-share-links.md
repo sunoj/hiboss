@@ -2,7 +2,9 @@
 
 A share link lets anyone holding the URL view one Box item without signing in, until it expires or is
 revoked. The server stores only a hash of the token. Agent-created links remain valid until expiry or
-revocation even if the agent later loses access. The boss can list and revoke these links.
+revocation even if the agent later loses access. The boss can list and revoke these links. Every link of
+an archived boss stops working while the boss is archived, and works again after a restore if it has not
+expired or been revoked.
 
 ## Data (migration 0057_box_shares.sql, additive)
 `box_shares`: `id` TEXT PK (`bs_` + 32 hex), `item_id` TEXT NOT NULL → box_items.id, `boss_id` TEXT NOT NULL,
@@ -29,7 +31,7 @@ response; never stored, logged or listed.
 - `GET /s/:token` → HTML page for the item. `GET|HEAD /s/:token/file` → the item's bytes (Range support
   via the existing `serveAttachment`).
 - A share is valid only when: token hash matches, `revoked_at IS NULL`, `expires_at > now`, the item exists
-  and is not deleted. Every failure → the same 404 page/body (no distinction between expired, revoked and
+  and is not deleted, and the owning boss is not archived (`bosses.archived_at IS NULL`). Every failure → the same 404 page/body (no distinction between expired, revoked and
   unknown).
 - Count a view on the page GET only (not on `/file`, not HEAD): increment `view_count`, set `last_viewed_at`.
 - Page content: title (escaped), text body in `<pre>` (escaped), link items as an `<a>` only when the URL is

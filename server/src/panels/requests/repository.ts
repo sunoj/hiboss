@@ -13,6 +13,10 @@ export async function requestRow(db: D1Database, id: string, identity: string, r
   await authorize(db, await readRecord(db, row.panel_id), identity, role);
   return row;
 }
+export async function requireTargetBoss(db: D1Database, row: RequestRow, bossId: string): Promise<void> {
+  const target = await db.prepare('SELECT 1 FROM panels WHERE panel_id = ? AND target_boss_id = ?').bind(row.panel_id, bossId).first();
+  if (!target) throw new PanelFault('permission_denied', 403, 'only the panel target boss can answer this questionnaire');
+}
 export async function definition(db: D1Database, row: RequestRow, revision = row.revision): Promise<Questionnaire> {
   const result = await db.prepare('SELECT definition_json FROM interaction_revisions WHERE request_id = ? AND revision = ?').bind(row.request_id, revision).first<{ definition_json: string }>();
   if (!result) throw new PanelFault('not_found', 404);
