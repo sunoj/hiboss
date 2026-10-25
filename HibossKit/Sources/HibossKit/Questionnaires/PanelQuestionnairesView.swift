@@ -22,6 +22,7 @@ private struct PanelQuestionnairesContent: View {
     @ObservedObject var panels: PanelsModel
     @State private var records: [QuestionnaireRecord] = []
     @State private var service: (any QuestionnaireServing)?
+    @State private var answerer: BossIdentity?
     @State private var error: String?
     @State private var isRefreshing = false
     @State private var hasLoaded = false
@@ -39,10 +40,11 @@ private struct PanelQuestionnairesContent: View {
                 Button(kitL("Retry questions")) { Task { await refresh() } }.disabled(isRefreshing)
             }
             #endif
-            if let service, let bossID = tile.metadata?.targetBossId {
+            if let service, let answerer, let bossID = tile.metadata?.targetBossId {
                 ForEach(records) { record in
                     QuestionnaireEditor(
-                        record: record, bossID: bossID, service: service, webModel: panels.webModel,
+                        record: record, bossID: bossID, answerer: answerer, service: service,
+                        webModel: panels.webModel,
                         currentTime: { panels.serverNow(for: tile.id) }) {
                             await panels.refreshPendingQuestionnaires()
                         }
@@ -68,9 +70,11 @@ private struct PanelQuestionnairesContent: View {
         do {
             let api = try await panels.questionnaireService()
             let fetched = try await api.fetchQuestionnaires(panelID: tile.id)
+            let boss = if let answerer { answerer } else { try await api.fetchBossIdentity() }
             try Task.checkCancellation()
             guard generation == refreshGeneration else { return }
             records = fetched.sorted { $0.isOpen(at: panels.now) && !$1.isOpen(at: panels.now) }
+            answerer = boss
             service = api
             error = nil
             hasLoaded = true

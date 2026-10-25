@@ -50,6 +50,7 @@ final class PanelRetryTests: XCTestCase {
 
 private actor HeldPanelReads: PanelsServing, QuestionnaireServing {
     nonisolated let questionnaireScope = "held-panel-reads"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "boss", role: "admin") }
     let holdPanels: Bool
     let first: XCTestExpectation
     let second: XCTestExpectation

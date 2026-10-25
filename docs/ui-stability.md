@@ -42,10 +42,12 @@ directly to that result.
 The rule covers refreshes, not a change of who the content belongs to. Two events clear account
 content on purpose, on iOS and macOS. Both go through `HibossKit` `AccountAuthorization`:
 
-- **Rejection.** An authenticated 401/403 on a boss-token request calls `reject(_:)`.
+- **Rejection.** An authenticated 401 on a boss-token request calls `reject(_:)`.
   Observers drop cached content, reply drafts, questionnaire editors and saved drafts, panel
   state and device requests. Requests stay refused until an accepted reconnect, which
-  includes a same-account reconnect.
+  includes a same-account reconnect. A 403 is not a rejection: the credential is valid but
+  lacks permission for that one action, so the surface shows a permission message and the
+  account and its content stay as they are.
 - **Account change.** A different `ConnectionConfig` calls `connect(_:)`. It purges the
   previous account's persisted drafts and advances the identity generation, so in-flight
   results from the previous account are discarded.

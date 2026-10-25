@@ -16,6 +16,7 @@ enum DemoTextAsk {
 
 struct DemoHomePanelsAPI: PanelsServing, QuestionnaireServing {
     let questionnaireScope = "home-demo"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "demo-boss", role: "admin") }
 
     func fetchPanels() async throws -> [PanelMetadata] {
         try await DemoDelay.wait("PANELS")

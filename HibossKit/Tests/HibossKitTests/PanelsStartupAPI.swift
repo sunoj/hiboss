@@ -8,6 +8,7 @@ import XCTest
 
 actor PanelsStartupAPI: PanelsServing, QuestionnaireServing {
     nonisolated let questionnaireScope = "startup-tests"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "boss", role: "admin") }
     private var panelGate: CheckedContinuation<Void, Never>?
     private var panelWaiter: CheckedContinuation<Void, Never>?
     private var hold = true

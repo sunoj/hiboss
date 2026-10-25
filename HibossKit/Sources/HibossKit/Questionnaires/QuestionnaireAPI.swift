@@ -8,6 +8,10 @@ extension HibossAPI: QuestionnaireServing {
     public var questionnaireScope: String { config.serverURL.absoluteString }
     private var questionnairesURL: URL { config.serverURL.appendingPathComponent("api/interaction-requests") }
 
+    public func fetchBossIdentity() async throws -> BossIdentity {
+        try await decode(BossIdentity.self, from: apiURL.appendingPathComponent("me"), context: "boss profile")
+    }
+
     public func fetchPendingQuestionnaires() async throws -> [PendingQuestionnaire] {
         var requests: [PendingQuestionnaire] = []
         var cursor: String?

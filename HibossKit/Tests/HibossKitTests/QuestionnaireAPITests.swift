@@ -41,7 +41,7 @@ final class QuestionnaireAPITests: XCTestCase {
     }
 
     @MainActor
-    func testStructuredSubmissionAuthorizationErrorClearsTheAccount() async throws {
+    func testStructuredSubmissionClearsTheAccountOnlyForRejectedCredentials() async throws {
         let client = api()
         defer { AccountAuthorization.shared.connect(nil) }
         let definition = QuestionnaireDefinition(title: "Settings", kind: "intake", blocking: true,
@@ -50,7 +50,7 @@ final class QuestionnaireAPITests: XCTestCase {
         let record = QuestionnaireRecord(requestId: "request", panelId: "panel", requestRevision: 1,
             definitionRevision: 1, state: "open", expiresAt: nil, withdrawalReason: nil,
             definition: definition, submission: nil)
-        for status in [401, 403] {
+        for (status, rejectsAccount) in [(401, true), (403, false)] {
             AccountAuthorization.shared.connect(client.config)
             var cleared = false
             let observation = AccountAuthorization.shared.observe { _ in cleared = true }
@@ -60,11 +60,26 @@ final class QuestionnaireAPITests: XCTestCase {
             do {
                 _ = try await client.submitQuestionnaire(record, bossID: "boss", submissionID: "submission",
                                                          answers: .object([:]))
-                XCTFail("Expected authorization failure")
-            } catch { XCTAssertEqual((error as? HibossAPIError)?.isAuthFailure, true) }
-            XCTAssertTrue(cleared)
+                XCTFail("Expected a rejected submission")
+            } catch { XCTAssertEqual((error as? HibossAPIError)?.isAuthFailure, rejectsAccount) }
+            XCTAssertEqual(cleared, rejectsAccount, "Only rejected credentials clear the account (HTTP \(status))")
             observation.cancel()
         }
+    }
+
+    func testBossIdentityReadsIdAndRoleFromTheProfile() async throws {
+        QuestionnaireURLProtocol.handler = { request in
+            XCTAssertEqual(request.httpMethod, "GET")
+            XCTAssertEqual(request.url?.path, "/api/boss/me")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer unit-token")
+            return (200, Data(#"""
+            {"id":"boss_7","name":"Ming","role":"manager","telegram_user_id":null,"discord_user_id":"42",
+             "agent_id":null,"preferences":{"privatePush":true},"created_at":"2026-09-01 08:00:00",
+             "pushMode":"relay","token_id":"tok_1","agent_ids":["agent_a","agent_b"]}
+            """#.utf8))
+        }
+        let identity = try await api().fetchBossIdentity()
+        XCTAssertEqual(identity, BossIdentity(id: "boss_7", role: "manager"))
     }
 
     private func api() -> HibossAPI {

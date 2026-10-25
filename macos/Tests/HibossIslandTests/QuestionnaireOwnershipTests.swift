@@ -110,6 +110,7 @@ private final class RecordingQuestionnaireCenter: QuestionnaireNotifying {
 
 private actor PendingQuestionnaireAPI: PanelsServing, QuestionnaireServing {
     nonisolated let questionnaireScope = "mac-ownership"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "boss", role: "admin") }
     private let pending: [PendingQuestionnaire]
 
     init(pending: [PendingQuestionnaire]) throws { self.pending = pending }

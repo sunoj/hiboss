@@ -72,7 +72,7 @@ final class BossClientsAPITests: XCTestCase {
     }
 
     func testAllCallsSurfaceServerFailures() async throws {
-        ClientsURLProtocol.handler = { _ in (403, "{}") }
+        ClientsURLProtocol.handler = { _ in (401, "{}") }
         for operation in 0..<3 {
             do {
                 let service = try api()

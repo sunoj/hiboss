@@ -218,6 +218,7 @@ final class PanelsQuestionnaireCoverageTests: XCTestCase {
 
 actor ControlledQuestionnaireAPI: PanelsServing, QuestionnaireServing {
     nonisolated let questionnaireScope = "coverage-tests"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "boss", role: "admin") }
     private var questions: [PendingQuestionnaire] = []
     private var heldQuestions: [PendingQuestionnaire]?
     private var questionsGate: CheckedContinuation<Void, Never>?

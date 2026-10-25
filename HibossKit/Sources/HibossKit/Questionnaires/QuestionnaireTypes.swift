@@ -60,6 +60,8 @@ public struct QuestionnaireReceipt: Codable, Sendable {
 
 public protocol QuestionnaireServing: Sendable {
     var questionnaireScope: String { get }
+    /// The signed-in boss, which decides whether a panel's questionnaire is answerable here.
+    func fetchBossIdentity() async throws -> BossIdentity
     func fetchPendingQuestionnaires() async throws -> [PendingQuestionnaire]
     func fetchQuestionnaires(panelID: String) async throws -> [QuestionnaireRecord]
     func fetchQuestionnaire(_ id: String) async throws -> QuestionnaireRecord

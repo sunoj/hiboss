@@ -181,7 +181,7 @@ final class JoinRequestsModelTests: XCTestCase {
 
 final class StubJoinService: JoinRequestServing, @unchecked Sendable {
     private var lists: [[JoinRequest]]
-    let listError: Error?
+    var listError: Error?
     var decisionError: Error?
     private(set) var listCalls = 0
     private(set) var approved: [String] = []

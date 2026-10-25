@@ -35,32 +35,31 @@ final class AccountAuthorizationTests: XCTestCase {
 
     func testRejectionClearsHistoryPreferenceAndReplyDrafts() async {
         defer { AccountAuthorization.shared.connect(nil) }
-        for status in [401, 403] {
-            AccountAuthorization.shared.connect(nil)
-            let api = AccountContentAPI()
-            let flow = OptionFlowStore()
-            flow.connect(api: api)
-            await flow.refreshHistory()
-            XCTAssertEqual(flow.historyMessages.count, 1)
-            let preferences = BossPreferencesStore(api: api)
-            await preferences.load()
-            XCTAssertEqual(preferences.preferences.privatePush, true)
-            let reply = AttentionReplyState()
-            reply.drafts["cached"] = "Private draft"
-            AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: status, message: ""))
-            XCTAssertTrue(flow.historyMessages.isEmpty)
-            XCTAssertNil(flow.activeMessage)
-            XCTAssertNil(flow.historyLoadedAt)
-            XCTAssertEqual(preferences.preferences, BossPreferences())
-            XCTAssertTrue(reply.drafts.isEmpty)
-            await preferences.save()
-            let saves = await api.saves
-            XCTAssertEqual(saves, 0, "Rejected account must not retain a writable preference editor")
-            AccountAuthorization.shared.connect(nil)
-            await preferences.load()
-            XCTAssertEqual(preferences.preferences.privatePush, true, "Explicit reconnection can load again")
-            flow.disconnect()
-        }
+        let status = 401
+        AccountAuthorization.shared.connect(nil)
+        let api = AccountContentAPI()
+        let flow = OptionFlowStore()
+        flow.connect(api: api)
+        await flow.refreshHistory()
+        XCTAssertEqual(flow.historyMessages.count, 1)
+        let preferences = BossPreferencesStore(api: api)
+        await preferences.load()
+        XCTAssertEqual(preferences.preferences.privatePush, true)
+        let reply = AttentionReplyState()
+        reply.drafts["cached"] = "Private draft"
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: status, message: ""))
+        XCTAssertTrue(flow.historyMessages.isEmpty)
+        XCTAssertNil(flow.activeMessage)
+        XCTAssertNil(flow.historyLoadedAt)
+        XCTAssertEqual(preferences.preferences, BossPreferences())
+        XCTAssertTrue(reply.drafts.isEmpty)
+        await preferences.save()
+        let saves = await api.saves
+        XCTAssertEqual(saves, 0, "Rejected account must not retain a writable preference editor")
+        AccountAuthorization.shared.connect(nil)
+        await preferences.load()
+        XCTAssertEqual(preferences.preferences.privatePush, true, "Explicit reconnection can load again")
+        flow.disconnect()
     }
 
     func testDeviceRequestsResumeAfterSuccessfulAccountConnection() async throws {
@@ -85,7 +84,7 @@ final class AccountAuthorizationTests: XCTestCase {
         let api = ControlledRequiredInputs(messages: [])
         let store = RequiredInputStore()
         store.connect(api)
-        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 403, message: ""))
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
         XCTAssertEqual(store.state, RequiredInputState())
         store.refresh()
         XCTAssertFalse(store.state.refreshing)

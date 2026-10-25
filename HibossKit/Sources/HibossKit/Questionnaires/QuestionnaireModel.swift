@@ -1,5 +1,6 @@
 // Preserves revision-pinned drafts and reconciles ambiguous durable submissions.
-// Exports QuestionnaireModel; network failures never trigger automatic resubmission.
+// Exports QuestionnaireModel; network failures never trigger automatic resubmission, and only
+// an answerable boss (QuestionnaireAccess) can edit or submit.
 // Dependencies: injectable questionnaire service, UserDefaults, and PanelStore.
 
 import Combine
@@ -15,6 +16,7 @@ public final class QuestionnaireModel: ObservableObject {
     @Published public private(set) var error: String?
     @Published public private(set) var hasSavedDraft = false
     @Published public private(set) var isRecovering = false
+    public let access: QuestionnaireAccess
     private var authorizationObservation: AnyCancellable?
     private var authorizationRejected = false
     private let currentTime: @MainActor () -> Date
@@ -22,11 +24,13 @@ public final class QuestionnaireModel: ObservableObject {
     private let bossID: String
     private let storage: UserDefaults
 
-    public init(record: QuestionnaireRecord, bossID: String, service: any QuestionnaireServing, storage: UserDefaults = .standard,
-                currentTime: @escaping @MainActor () -> Date = { Date() }) {
+    /// `bossID` is the panel's target boss; `answerer` is the signed-in boss viewing it.
+    public init(record: QuestionnaireRecord, bossID: String, answerer: BossIdentity, service: any QuestionnaireServing,
+                storage: UserDefaults = .standard, currentTime: @escaping @MainActor () -> Date = { Date() }) {
         self.editing = record
         self.latest = record
         self.bossID = bossID
+        self.access = QuestionnaireAccess(boss: answerer, targetBossID: bossID)
         self.service = service
         self.storage = storage
         self.currentTime = currentTime
@@ -53,8 +57,13 @@ public final class QuestionnaireModel: ObservableObject {
     }
 
     public var canEdit: Bool {
-        !authorizationRejected && latest.isOpen(at: currentTime())
+        access == .answerable && !authorizationRejected && latest.isOpen(at: currentTime())
             && !hasNewRevision && pendingID == nil && !isSending
+    }
+    /// The form to render: a viewer who cannot answer gets no controls that would submit it.
+    public var formSpec: PanelSpec {
+        let spec = editing.definition.formSpec
+        return access == .answerable ? spec : spec.removingSubmitControls()
     }
     public var hasNewRevision: Bool { latest.requestRevision != editing.requestRevision }
     public var answers: PanelValue { panelValue(at: "/form", in: store.state) ?? .object([:]) }
