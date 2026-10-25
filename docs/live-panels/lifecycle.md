@@ -1,9 +1,8 @@
 # Dynamic card lifecycle protocol
 
-Status: core lifecycle and durable intake questionnaires deployed to the Worker
-on 2026-09-11. System projections remain planned. See [questionnaires](questionnaires.md).
-See [implementation and rollout status](implementation.md) for the tested contract and remaining work.
 Scope: publication, ownership, freshness, terminal results, and wall visibility.
+Durable intake questionnaires are specified in [questionnaires](questionnaires.md); the
+tested contract is in [implementation](implementation.md).
 This document specializes the [panel protocol](protocol.md) and
 [runtime contract](runtime.md). It owns lifecycle rules where those older proposals
 are less specific. Retention timings below are proposed product defaults.

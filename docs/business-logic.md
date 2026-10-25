@@ -61,19 +61,23 @@ Two paths create principals outside the join and pairing flows:
 
 - An agent with `is_admin` creates another agent and its first key with `POST /api/keys`.
   No boss approves it, the new agent has `is_admin = 0`, and no boss is granted access to it.
-- Any authenticated boss, a viewer included, mints another client and token for itself
-  with `POST /api/boss/clients`. The new token carries the boss's own role.
+- An `admin` or `manager` boss mints another client and token for itself with
+  `POST /api/boss/clients`; a viewer cannot (403). The new token carries the boss's own role.
 
-Revoking a boss client retires its token, its signing keys and its push devices.
-Revoking a boss token removes its push devices, the unused pairing codes it issued and
-its live-panel subscriptions.
+Revoking a boss token (self or admin delete, revoke-others, admin rotation) or a boss
+client retires, in one batch, the token's client, signing keys, the push devices
+registered with it and the unredeemed pairing codes it issued. Push goes only to devices
+whose registering token and client are live, and a pairing code redeems only while its
+issuing token is live. Open live-panel subscriptions are rechecked (token, archive, role,
+grant) before every frame and closed with 4401; a subscribe whose check cannot run is
+closed with 1013 so the client reconnects.
 
 ## Bosses and grants
 
 Owner docs: [boss archive](boss-archive.md).
 
-- Bosses are `live` or `archived`; archiving keeps identity, grants and tokens, and
-  restore reverses it. An archived boss cannot authenticate, receives no delivery, and
+- Bosses are `live` or `archived`; archiving keeps identity, grants and tokens, revokes
+  the agent keys the boss minted, and restore reverses the rest. An archived boss cannot authenticate, receives no delivery, and
   its Box share links stop working. A boss cannot archive itself (400), and the last
   live admin cannot be archived, demoted or deleted (409).
 - Admins create bosses, change roles, grant and revoke agent access, and rotate a boss's
@@ -90,8 +94,9 @@ mints, verifies, swaps the config and revokes the old key. An agent cannot revok
 live key; an admin boss, or a manager granted that agent, can, because it can also mint a
 replacement. A manager cannot mint or revoke keys, or reset the signing key, of an agent
 that is linked to a boss (`bosses.agent_id`) or has `is_admin`; only an admin can. A key
-minted by a boss records that boss, and it is revoked when that boss loses access to the
-agent, is archived or is deleted. Agents can edit their own profile and callback URL.
+minted by a boss records that boss, and it is revoked when that boss could no longer mint
+it: the grant is removed, the boss is demoted, archived or deleted, or the agent becomes
+boss-linked or `is_admin`. A key the agent mints with a boss-minted key inherits that boss. Agents can edit their own profile and callback URL.
 Agent and boss message signing (ES256) is described in
 [agent message signing](agent-message-signing.md) and [message signing](message-signing.md).
 

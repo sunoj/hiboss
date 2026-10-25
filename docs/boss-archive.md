@@ -1,8 +1,10 @@
 # Reversible boss archive
 
 Migration `0047_boss_archive.sql` adds nullable `bosses.archived_at` with ALTER TABLE.
-Archive changes only that field. Grants, clients, tokens, panels, messages, and audit
-history remain. Restore clears it; existing non-revoked tokens work again.
+Archive sets that field and, in the same batch, revokes the agent keys the boss minted
+(see [agent keys](agent-keys.md)). Grants, clients, tokens, panels, messages, and audit
+history remain. Restore clears the field; existing non-revoked tokens work again, and
+revoked agent keys stay revoked.
 
 | Production selection site | Classification and policy |
 | --- | --- |
@@ -36,7 +38,8 @@ boss ID. Unknown targets return 404; repeated state transitions return 409.
 Archive rejects self with 400 and the last live admin with 409, the same status as
 demoting or deleting the last live admin. The last-admin constraint also guards the
 UPDATE atomically. Successful changes append `boss.archive` or
-`boss.restore` audit events. No delete or token revocation occurs in either path.
+`boss.restore` audit events. Neither path deletes rows or revokes boss tokens; archive
+revokes only the boss-minted agent keys, each with a `system` `agent_key.revoke` audit row.
 After committing, archive awaits best-effort socket eviction. Restored subscribers
 reconnect; restore itself performs no eviction.
 
