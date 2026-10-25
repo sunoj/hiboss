@@ -256,7 +256,7 @@ Admin only. Revoke every token belonging to the authenticated boss except the to
 An admin bearer can revoke sibling devices. The five-minute, single-use pairing-code lifetime protects an unredeemed QR code, not a bearer token that has already been issued.
 
 ### POST /api/boss/pairing
-Admin only. Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five unconsumed codes are active per boss; expired rows are cleaned before minting. Consumed rows remain until expiry so the issuing client can observe completion. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
+Admin or manager (a viewer gets 403). Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five unconsumed codes are active per boss; expired rows are cleaned before minting. Consumed rows remain until expiry so the issuing client can observe completion. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
 `{ "code": "hb_pair_<64 hex characters>", "expires_at": "ISO8601" }`.
 The server stores only a hash of the code.
 

@@ -6,7 +6,7 @@ push stays isolated per deployment and what "message encryption" does and doesn'
 
 ## 1. Isolation is structural, not a feature
 
-Each deployment is a closed loop with no shared backend:
+With its own APNs key (direct mode, §2), each deployment is a closed loop with no shared backend:
 
 ```
 your agents ──► your Worker ──► your D1 (messages, bosses, boss_devices)
@@ -39,7 +39,16 @@ that bundle ID. So:
   build can point at any server for in-app SSE/history, but **push** requires the operator's
   own bundle ID + key.
 
-The server has **no central push relay**: each server pushes only with its own APNs key.
+The server chooses its push transport in `server/src/push/send.ts`:
+
+- **Direct:** with an APNs key configured, the server pushes with that key only.
+- **Relay:** without an APNs key, the server sends through the [push relay](push-relay.md)
+  at `PUSH_RELAY_URL`, or `https://push.hiboss.org` when the variable is unset. Only devices
+  that registered a relay handle and a push key receive pushes this way. The payload is
+  AES-GCM sealed with the device's push key, so the relay and Apple cannot read it.
+- **None:** `PUSH_RELAY_URL=off` on a server without an APNs key disables push.
+
+A device registered for the other transport is pruned when the server tries to push to it.
 
 ## 3. Do we need message encryption?
 
