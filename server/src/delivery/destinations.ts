@@ -3,6 +3,7 @@
 import type { Env, Priority } from '../types';
 import { getQuietHoursEnd, isInQuietHours } from '../routes/quiet-hours';
 import { jsonObject, PRIORITY_RANK } from './types';
+import { liveDeviceSql } from '../push/devices';
 import type { DestinationMessage, DestinationRow, ResolvedDestination, RouteRow } from './types';
 
 export function eligibleDestination(row: DestinationRow, message: DestinationMessage): boolean {
@@ -31,7 +32,7 @@ export async function resolveDestinations(env: Env, message: DestinationMessage,
     AND (b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access a WHERE a.boss_id = b.id AND a.agent_id = ?))
     AND (d.kind != 'apns' OR EXISTS (SELECT 1 FROM boss_devices dev
       WHERE dev.id = json_extract(d.target, '$.device_id') AND dev.boss_id = d.boss_id
-      AND dev.client_id IS d.client_id)) ORDER BY d.id`).bind(message.agent_id).all<DestinationRow>();
+      AND dev.client_id IS d.client_id AND ${liveDeviceSql('dev')})) ORDER BY d.id`).bind(message.agent_id).all<DestinationRow>();
   const scope = await resolveScope(env, message);
   const resolved: ResolvedDestination[] = [];
   for (const row of rows.results) {

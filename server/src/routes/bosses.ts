@@ -11,6 +11,7 @@ import { identityConflict } from './boss-external-accounts';
 import { archiveBoss, restoreBoss } from './boss-archive';
 import { buildBossUpdate, isLastAdminError, lastAdminGuard } from './boss-updates';
 import { issueBossToken } from '../boss-token';
+import { revokeBossTokens } from '../boss-clients/revoke';
 import { inFlightDeliveryGuard, isDeliveryInProgressError, preserveMergedDeliveries } from '../delivery/delete-destination';
 
 type BossRole = 'admin' | 'manager' | 'viewer';
@@ -239,8 +240,7 @@ routes.post('/:id/token', async (c) => {
   }
   const boss = await findBoss(c.env, c.req.param('id'));
   if (!boss) return c.text('not found', 404);
-  await c.env.DB.prepare("UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND revoked_at IS NULL")
-    .bind(boss.id).run();
+  await revokeBossTokens(c.env.DB, { sql: 't.boss_id = ?', binds: [boss.id] });
   const { token } = await issueBossToken(c.env, boss.id, 'rotated');
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.token', 'boss', boss.id));
   return c.json({ id: boss.id, name: boss.name, label: 'rotated', token });

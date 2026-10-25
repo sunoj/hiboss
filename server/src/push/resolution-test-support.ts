@@ -19,6 +19,17 @@ export function relayHandle(prefix: string): string {
   return (prefix.replace(/[^A-Za-z0-9_-]/g, '') + 'a'.repeat(43)).slice(0, 43);
 }
 
+/** The boss's newest live token id, seeding one first: push selects only devices bound to a live token. */
+export async function liveTokenId(bossId: string): Promise<string> {
+  await env.DB.prepare(`INSERT INTO boss_tokens (boss_id, label, token_hash) SELECT ?, 'device fixture', ?
+    WHERE NOT EXISTS (SELECT 1 FROM boss_tokens WHERE boss_id = ? AND revoked_at IS NULL)`)
+    .bind(bossId, `device-fixture-${bossId}`, bossId).run();
+  const row = await env.DB.prepare(`SELECT id FROM boss_tokens WHERE boss_id = ? AND revoked_at IS NULL
+    ORDER BY created_at DESC, rowid DESC LIMIT 1`).bind(bossId).first<{ id: string }>();
+  if (!row) throw new Error('token fixture missing');
+  return row.id;
+}
+
 export interface SeededAudience { agentId: string; bossId: string }
 
 /** An agent, a manager boss with access to it, and an optional push device for that boss. */
@@ -37,9 +48,9 @@ export async function seedAudience(prefix: string, device?: { token: string; rel
   if (device) {
     const handle = relayHandle(prefix);
     await env.DB.prepare(`INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment, platform,
-      relay_handle, push_key) VALUES (?, ?, 'ai.hiboss.app', 'sandbox', 'ios', ?, ?)`)
+      relay_handle, push_key, token_id) VALUES (?, ?, 'ai.hiboss.app', 'sandbox', 'ios', ?, ?, ?)`)
       .bind(bossId, device.relay ? `relay:${handle}` : device.token,
-        device.relay ? handle : null, device.relay ? RELAY_PUSH_KEY : null).run();
+        device.relay ? handle : null, device.relay ? RELAY_PUSH_KEY : null, await liveTokenId(bossId)).run();
   }
   return { agentId, bossId };
 }

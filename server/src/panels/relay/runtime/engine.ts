@@ -14,7 +14,7 @@ interface Lease { epoch: string; expiresAt: number; requestId: string; hash: str
 interface UpdateReceipt { id: string; hash: string; expiresAt: number; frame: Checkpoint & { kind: string }; }
 export class PanelEngine {
   private queues = new Map<string, Promise<unknown>>();
-  constructor(private storage: DurableObjectStorage, private db: D1Database, private broadcast: (panelId: string, frame: unknown) => void,
+  constructor(private storage: DurableObjectStorage, private db: D1Database, private broadcast: (panelId: string, frame: unknown) => Promise<void>,
     private wallChanged: (panelId: string, agentId: string, expiresAt: string,
       invalidate: boolean) => Promise<void>) {}
 
@@ -92,7 +92,7 @@ export class PanelEngine {
     // Only a renewal that restores visibility can change questionnaire discovery.
     const invalidate = !(Date.parse(lifecycle.expiresAt ?? '') > Date.now());
     if (invalidate) {
-      this.broadcast(row.panel_id, { kind: 'panel.changed', panelId: row.panel_id,
+      await this.broadcast(row.panel_id, { kind: 'panel.changed', panelId: row.panel_id,
         metadataVersion: receipt.metadataVersion });
     } else {
       const state = await this.snapshot({ ...row, lifecycle_json: JSON.stringify(updatedLifecycle) });
@@ -169,7 +169,7 @@ export class PanelEngine {
     const frame = { ...next, kind: 'state.ack' };
     receipts.push({ id: body.updateId, hash, expiresAt: now + 600_000, frame });
     await this.storage.put({ [`snapshot:${row.panel_id}`]: next, [`receipts:${row.panel_id}`]: receipts.slice(-256) });
-    this.broadcast(row.panel_id, { ...next, kind: changed ? 'state.patch' : 'state.observation', baseSequence: snapshot.sequence, ops: changed ? body.ops : undefined });
+    await this.broadcast(row.panel_id, { ...next, kind: changed ? 'state.patch' : 'state.observation', baseSequence: snapshot.sequence, ops: changed ? body.ops : undefined });
     return frame;
   }
 
@@ -202,7 +202,7 @@ export class PanelEngine {
       const receipt = await commitControl(this.db, pending);
       await this.storage.put(`snapshot:${pending.panelId}`, pending.snapshot);
       await this.storage.delete(`lease:${pending.panelId}`);
-      this.broadcast(pending.panelId, { kind: 'panel.changed', panelId: pending.panelId, metadataVersion: pending.expectedVersion + 1 });
+      await this.broadcast(pending.panelId, { kind: 'panel.changed', panelId: pending.panelId, metadataVersion: pending.expectedVersion + 1 });
       if (!pending.lifecycle.expiresAt) throw new PanelFault('invalid_lifecycle', 422);
       await this.wallChanged(pending.panelId, pending.agentId, pending.lifecycle.expiresAt, true);
       await this.db.prepare('UPDATE panel_outbox SET delivered_at = ? WHERE event_id = ?').bind(new Date().toISOString(), pending.operationId).run();

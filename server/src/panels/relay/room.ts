@@ -6,22 +6,22 @@ import { DurableObject } from 'cloudflare:workers';
 import type { Env } from '../../types';
 import { isRecord } from '../definition/helpers';
 import { faultResponse, PanelFault } from '../lifecycle/types';
-import { consumeTicket, issueTicket, type ConnectionAttachment } from './ticket-store';
+import { consumeTicket, issueTicket, prepareTicketTable, type ConnectionAttachment } from './ticket-store';
+import { SubscriberGate } from './subscriber-gate';
 import { PanelEngine } from './runtime/engine';
 import { WallSignals } from './wall/signals';
 
 export class PanelRoom extends DurableObject<Env> {
   private engine: PanelEngine;
   private wall: WallSignals;
+  private gate: SubscriberGate;
   private queues = new WeakMap<WebSocket, Promise<void>>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS connection_tickets (
-      ticket_id TEXT PRIMARY KEY, secret TEXT NOT NULL, room_id TEXT NOT NULL,
-      identity TEXT NOT NULL, role TEXT NOT NULL, panel_id TEXT NOT NULL,
-      operations TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)`);
-    this.wall = new WallSignals(ctx, ws => this.attachment(ws));
+    prepareTicketTable(ctx);
+    this.gate = new SubscriberGate(env.DB, ws => this.attachment(ws));
+    this.wall = new WallSignals(ctx, ws => this.attachment(ws), this.gate);
     this.engine = new PanelEngine(ctx.storage, env.DB, (id, frame) => this.broadcast(id, frame),
       (id, agent, expiry, invalidate) => this.wall.changed(id, agent, expiry, invalidate));
   }
@@ -80,9 +80,9 @@ export class PanelRoom extends DurableObject<Env> {
     return value as unknown as ConnectionAttachment;
   }
 
-  private broadcast(panelId: string, frame: unknown): void {
-    for (const socket of this.ctx.getWebSockets()) {
-      if (this.attachment(socket)?.subscribedPanelId !== panelId) continue;
+  private async broadcast(panelId: string, frame: unknown): Promise<void> {
+    const subscribed = this.ctx.getWebSockets().filter(socket => this.attachment(socket)?.subscribedPanelId === panelId);
+    for (const socket of await this.gate.admit(subscribed, panelId)) {
       try { socket.send(JSON.stringify(frame)); } catch { /* Closed projections recover from a fresh snapshot. */ }
     }
   }
@@ -102,11 +102,13 @@ export class PanelRoom extends DurableObject<Env> {
       const ticket = this.attachment(ws);
       if (!ticket || input.panelId !== ticket.panelId) throw new PanelFault('permission_denied', 403);
       if (input.kind === 'wall.subscribe' && ticket.operations.includes('wall.subscribe')) {
+        if (!(await this.gate.admit([ws], null)).length) return;
         ws.serializeAttachment({ ...ticket, subscribedPanelId: 'wall' });
         ws.send(JSON.stringify({ kind: 'wall.changed' }));
         return;
       }
       if (input.kind === 'subscribe' && ticket.operations.includes('subscribe')) {
+        if (!(await this.gate.admit([ws], ticket.panelId)).length) return;
         const state = await this.engine.execute(ticket.panelId, ticket.identity, ticket.role, 'state', input);
         ws.serializeAttachment({ ...ticket, subscribedPanelId: ticket.panelId });
         ws.send(JSON.stringify({ ...(state as object), kind: 'state.snapshot' }));

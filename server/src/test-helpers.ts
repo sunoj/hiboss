@@ -14,6 +14,7 @@ import bossArchiveMigration from '../migrations/0047_boss_archive.sql?raw';
 import dashboardListMigration from '../migrations/0051_dashboard_list_order.sql?raw';
 import agentKeysMigration from '../migrations/0045_agent_keys.sql?raw';
 import devicesMigration from '../migrations/0046_devices.sql?raw';
+import credentialIssuersMigration from '../migrations/0063_credential_issuers.sql?raw';
 import bootstrapAdminMigration from '../migrations/0059_join_bootstrap_admin.sql?raw';
 import liveActivityMigration from '../migrations/0061_live_activity_tokens.sql?raw';
 import sessionIdentityMigration from '../migrations/0048_session_identity.sql?raw';
@@ -133,6 +134,8 @@ export async function seedDatabase(): Promise<void> {
   const signingStatements = agentSigningMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
   await env.DB.batch(signingStatements.map(sql => env.DB.prepare(sql)));
   await env.DB.prepare(bootstrapAdminMigration).run();
+  const issuerStatements = credentialIssuersMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
+  await env.DB.batch(issuerStatements.map(sql => env.DB.prepare(sql)));
   const liveActivityStatements = liveActivityMigration.replace(/^--.*$/gm, '').split(';')
     .map(value => value.trim()).filter(Boolean);
   await env.DB.batch(liveActivityStatements.map(sql => env.DB.prepare(sql)));

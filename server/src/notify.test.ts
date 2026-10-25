@@ -5,6 +5,7 @@
 import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase, getTestAgentId } from './test-helpers';
+import { liveTokenId } from './push/resolution-test-support';
 import { notifyAgentCallback, notifyBossAgents, notifyTargetAgent } from './notify';
 import type { Env, MessageRow } from './types';
 
@@ -108,9 +109,9 @@ describe('notifyBossAgents', () => {
       .bind(bossId, agentId)
       .run();
     await env.DB.prepare(
-      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, token_id) VALUES (?, ?, ?, ?, ?, ?)'
     )
-      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios', await liveTokenId(bossId))
       .run();
     const fetchMock = vi.fn<typeof fetch>(
       async () => Response.json({ reason: 'BadDeviceToken' }, { status: 400 }),
@@ -181,8 +182,8 @@ describe('notifyBossAgents', () => {
     await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
       .bind(bossId, agentId)
       .run();
-    await env.DB.prepare('INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)')
-      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+    await env.DB.prepare('INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, token_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios', await liveTokenId(bossId))
       .run();
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -221,8 +222,8 @@ describe('notifyBossAgents', () => {
     await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
       .bind(bossId, agentId)
       .run();
-    await env.DB.prepare('INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)')
-      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+    await env.DB.prepare('INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, token_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios', await liveTokenId(bossId))
       .run();
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -262,9 +263,9 @@ describe('notifyBossAgents', () => {
       .bind(bossId, agentId)
       .run();
     await env.DB.prepare(
-      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, token_id) VALUES (?, ?, ?, ?, ?, ?)'
     )
-      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios', await liveTokenId(bossId))
       .run();
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -295,9 +296,9 @@ describe('notifyBossAgents', () => {
       .bind(bossId, agentId)
       .run();
     await env.DB.prepare(
-      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, token_id) VALUES (?, ?, ?, ?, ?, ?)'
     )
-      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios', await liveTokenId(bossId))
       .run();
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -334,9 +335,9 @@ describe('notifyBossAgents', () => {
       .bind(bossId, agentId)
       .run();
     await env.DB.prepare(
-      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, token_id) VALUES (?, ?, ?, ?, ?, ?)'
     )
-      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios', await liveTokenId(bossId))
       .run();
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);

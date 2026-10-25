@@ -3,7 +3,7 @@
 
 import { bossCanAccessAgent } from '../../access';
 import { Hono } from 'hono';
-import { dualAuth, getAgentId, getBossId, isBossAuth } from '../../../middleware/auth';
+import { dualAuth, getAgentId, getBossId, getBossTokenId, isBossAuth } from '../../../middleware/auth';
 import type { Env } from '../../../types';
 import { isRecord } from '../ticket';
 
@@ -24,7 +24,8 @@ panelWallRouter.post('/panel-wall-connections', dualAuth, async c => {
   if (!c.env.PANEL_ROOM) return c.json({ error: 'service_unavailable' }, 503);
   const room = c.env.PANEL_ROOM.get(c.env.PANEL_ROOM.idFromName(roomId));
   const response = await room.fetch(new Request('https://panel-room.internal/__issue-ticket', {
-    method: 'POST', body: JSON.stringify({ roomId, identity, role: boss ? 'subscriber' : 'producer',
+    method: 'POST', body: JSON.stringify({ roomId, identity, tokenId: boss ? getBossTokenId(c) : null,
+      role: boss ? 'subscriber' : 'producer',
       panelId: 'wall', operations: ['wall.subscribe'], expiresAt: Date.now() + 60_000 }),
   }));
   if (!response.ok) return c.json({ error: 'service_unavailable' }, 503);

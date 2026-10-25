@@ -5,6 +5,7 @@
 // Best effort: every failure is swallowed and never reaches the transition that called it.
 import type { Env, MessageRow } from '../types';
 import { endLiveActivities } from './live-activity';
+import { liveDeviceSql } from './devices';
 import type { Resolution } from './relay';
 import { pushMode, sendDeviceResolution, type PushDevice } from './send';
 
@@ -35,7 +36,7 @@ export function isAgentAsk(message: Pick<MessageRow, 'direction' | 'mode' | 'met
 async function audience(env: Env, agentId: string): Promise<PushDevice[]> {
   const rows = await env.DB.prepare(`SELECT d.boss_id, d.device_token, d.bundle_id, d.environment,
       d.relay_handle, d.push_key FROM boss_devices d JOIN bosses b ON b.id = d.boss_id
-    WHERE b.archived_at IS NULL AND (b.role = 'admin'
+    WHERE b.archived_at IS NULL AND ${liveDeviceSql('d')} AND (b.role = 'admin'
       OR b.id IN (SELECT boss_id FROM boss_agent_access WHERE agent_id = ?))`)
     .bind(agentId).all<PushDevice>();
   return rows.results ?? [];

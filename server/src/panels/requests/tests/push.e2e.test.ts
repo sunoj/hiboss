@@ -7,6 +7,7 @@ import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import app from '../../../index';
 import * as apns from '../../../apns';
 import { authHeaders } from '../../../test-helpers';
+import { liveTokenId } from '../../../push/resolution-test-support';
 import type { Env } from '../../../types';
 import { base, BOSS, finish, publishPanel, questionnaire, setup } from './support';
 
@@ -15,8 +16,8 @@ beforeAll(setup);
 beforeEach(async () => {
   vi.spyOn(apns, 'sendPush').mockResolvedValue({ ok: true, prune: false });
   await env.DB.prepare('UPDATE bosses SET preferences = NULL WHERE id = ?').bind(BOSS).run();
-  await env.DB.prepare('INSERT OR REPLACE INTO boss_devices (id, boss_id, device_token, bundle_id, environment) VALUES (?, ?, ?, ?, ?)')
-    .bind('questionnaire-device', BOSS, 'request-token', 'com.hiboss.ios', 'sandbox').run();
+  await env.DB.prepare('INSERT OR REPLACE INTO boss_devices (id, boss_id, device_token, bundle_id, environment, token_id) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind('questionnaire-device', BOSS, 'request-token', 'com.hiboss.ios', 'sandbox', await liveTokenId(BOSS)).run();
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -127,9 +128,10 @@ it('keeps publication successful after a push failure', async () => {
 });
 it('prunes invalid devices and their destinations and still pushes the other target device', async () => {
   await env.DB.prepare("INSERT INTO bosses (id, name, role) VALUES ('other-request-boss', 'Other boss', 'admin')").run();
-  await env.DB.prepare(`INSERT INTO boss_devices (id, boss_id, device_token, bundle_id, environment) VALUES
-    ('other-request-device', 'other-request-boss', 'other-token', 'app', 'sandbox'),
-    ('second-request-device', ?, 'second-token', 'app', 'production')`).bind(BOSS).run();
+  await env.DB.prepare(`INSERT INTO boss_devices (id, boss_id, device_token, bundle_id, environment, token_id) VALUES
+    ('other-request-device', 'other-request-boss', 'other-token', 'app', 'sandbox', ?),
+    ('second-request-device', ?, 'second-token', 'app', 'production', ?)`)
+    .bind(await liveTokenId('other-request-boss'), BOSS, await liveTokenId(BOSS)).run();
   await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, kind, target, label)
     VALUES ('request-destination', ?, 'apns', '{"device_id":"questionnaire-device"}', 'Phone')`).bind(BOSS).run();
   vi.mocked(apns.sendPush).mockImplementation(async (_env, token) => token === 'request-token'

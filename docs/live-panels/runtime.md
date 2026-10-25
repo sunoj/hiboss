@@ -281,7 +281,7 @@ imply a network connection survives device sleep.
 | Lost submission response | Query submission ID before retrying |
 | Simultaneous answers | One accepted record; loser sees resolution |
 | Revised form during editing | Freeze old draft; require explicit restart |
-| Revoked credential | Close scoped subscriptions within bounded renewal period; reject formal writes immediately |
+| Revoked credential, demotion or lost grant | Recheck subscriber tokens and panel access in D1 before each frame and close a failing socket (`4401`); reject formal writes immediately |
 | Large/busy panel | Reject quota breach or reduce accepted frequency; never freeze Home |
 | Missed control notification | Recover from authoritative record and outbox, not socket memory |
 | Agent crashes after receiving answer | Redelivery with same submission ID; execution must deduplicate |

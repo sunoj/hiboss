@@ -3,6 +3,7 @@
 // Depends on D1 for callback lookup and global fetch for delivery.
 
 import { pushMode, sendDevicePush, type PushDevice } from './push/send';
+import { liveDeviceSql } from './push/devices';
 import { prepareBossPush, type BossPushSession, type PreparedBossPush } from './push/boss-payload';
 import { prepareRequestPush } from './push/request-payload';
 import type { Questionnaire } from './panels/requests/types';
@@ -80,8 +81,8 @@ async function notifyBossDevices(
   const bossIds = bosses.map((boss) => boss.id);
   const placeholders = bossIds.map(() => '?').join(', ');
   const devices = await env.DB
-    .prepare(`SELECT boss_id, device_token, bundle_id, environment, relay_handle, push_key
-      FROM boss_devices WHERE boss_id IN (${placeholders})`)
+    .prepare(`SELECT d.boss_id, d.device_token, d.bundle_id, d.environment, d.relay_handle, d.push_key
+      FROM boss_devices d WHERE d.boss_id IN (${placeholders}) AND ${liveDeviceSql('d')}`)
     .bind(...bossIds)
     .all<BossDeviceRow>();
   if (!devices.results?.length) return;
@@ -107,8 +108,8 @@ export async function notifyBossRequest(env: Env, panelId: string, requestId: st
     const prepared = prepareRequestPush({ panelId, requestId, bossId: panel.target_boss_id, agentName,
       panelTitle: panel.title, title: form.title, priority: form.priority }, panel.preferences);
     if (!prepared) return;
-    const devices = await env.DB.prepare(`SELECT boss_id, device_token, bundle_id, environment, relay_handle, push_key
-      FROM boss_devices WHERE boss_id = ?`)
+    const devices = await env.DB.prepare(`SELECT d.boss_id, d.device_token, d.bundle_id, d.environment, d.relay_handle,
+      d.push_key FROM boss_devices d WHERE d.boss_id = ? AND ${liveDeviceSql('d')}`)
       .bind(panel.target_boss_id).all<BossDeviceRow>();
     for (const device of devices.results ?? []) await sendBossDevicePush(env, device, prepared);
   } catch {
