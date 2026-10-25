@@ -75,8 +75,10 @@ rotation until it is resolved. Do not paste recovery files or bearers into logs.
 
 An admin boss, or a manager with an explicit grant to the agent, can list key labels and
 creation/last-use times, mint a key (copying its bearer once), or revoke a key. Viewers
-cannot use these endpoints. A boss may revoke the final key, because boss-side minting
-can restore access later:
+cannot use these endpoints. A manager also cannot use them, or reset signing keys, for an
+agent that is linked to a boss (`bosses.agent_id`) or has `is_admin`: such a bearer opens
+that boss's inbox or the agent-admin routes, so only an admin may hold one (403).
+A boss may revoke the final key, because boss-side minting can restore access later:
 
 ```sh
 hiboss config set key <new-bearer>
@@ -90,6 +92,15 @@ hiboss key list
 
 Mint accepts `{ "label": "machine name" }`. Inventories contain metadata only. List,
 mint and revoke are audited; key mutations and their audit rows share one D1 batch.
+
+A boss-minted key records its minter (`minted_by_boss_id`) and lives only while that boss
+could still mint it. Removing the grant, demoting or archiving the minter, deleting it,
+linking a boss to the agent, or setting the agent's `is_admin` revokes such keys in the
+same batch, with a `system` `agent_key.revoke` audit row each. A key the agent mints with a
+boss-minted bearer inherits that minter and is revoked with it; keys minted with the agent's
+own keys are unaffected. Migration 0064 backfills minters from the mint audit, skipping each
+agent's first key (join approval audits it as a boss mint). Restoring an archived boss does
+not revive its revoked keys.
 Repeated revocation is idempotent and adds no further mutation audit.
 
 ## Known limitations

@@ -51,9 +51,11 @@ CREATE TABLE agent_keys (
   label TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_used_at TEXT,
-  revoked_at TEXT
+  revoked_at TEXT,
+  minted_by_boss_id TEXT
 );
 CREATE INDEX idx_agent_keys_agent ON agent_keys(agent_id, created_at DESC);
+CREATE INDEX idx_agent_keys_minted_by ON agent_keys(minted_by_boss_id) WHERE minted_by_boss_id IS NOT NULL;
 
 -- Messaging and channel delivery
 

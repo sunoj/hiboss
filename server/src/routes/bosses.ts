@@ -7,6 +7,7 @@ import type { Context } from 'hono';
 import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
+import { mintedKeySweep } from '../agent-keys/boss-access';
 import { identityConflict } from './boss-external-accounts';
 import { archiveBoss, restoreBoss } from './boss-archive';
 import { buildBossUpdate, isLastAdminError, lastAdminGuard } from './boss-updates';
@@ -112,6 +113,7 @@ routes.post('/', async (c) => {
       INSERT INTO boss_external_accounts (boss_id, provider, provider_user_id)
       SELECT id, 'telegram', telegram_user_id FROM created WHERE telegram_user_id IS NOT NULL
       UNION ALL SELECT id, 'discord', discord_user_id FROM created WHERE discord_user_id IS NOT NULL`),
+    ...mintedKeySweep(c.env.DB),
   ]);
   const inserted = results[0].results[0];
   if (!inserted) {
@@ -145,7 +147,7 @@ routes.patch('/:id', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();
   const result = await buildBossUpdate(c.env, boss, payload);
   if (!result.ok) return c.text(result.error, result.status);
-  try { await c.env.DB.batch(result.writes); }
+  try { await c.env.DB.batch([...result.writes, ...mintedKeySweep(c.env.DB)]); }
   catch (error) {
     if (isLastAdminError(error)) {
       return c.text('cannot remove the last live admin', 409);
@@ -175,8 +177,10 @@ routes.delete('/:id', async (c) => {
     for (const id of removingIds) statements.push(...await preserveMergedDeliveries(c.env, id, removingIds));
   }
   statements.push(c.env.DB.prepare('DELETE FROM bosses WHERE id = ?').bind(bossId));
+  const deleteIndex = statements.length - 1;
+  statements.push(...mintedKeySweep(c.env.DB));
   let result: D1Result;
-  try { result = (await c.env.DB.batch(statements)).at(-1)!; }
+  try { result = (await c.env.DB.batch(statements))[deleteIndex]; }
   catch (error) {
     if (isLastAdminError(error)) {
       return c.text('cannot remove the last live admin', 409);
@@ -221,10 +225,10 @@ routes.delete('/:id/access/:agentId', async (c) => {
   if (denied) return denied;
   const bossId = c.req.param('id');
   const agentId = c.req.param('agentId');
-  const result = await c.env.DB
-    .prepare('DELETE FROM boss_agent_access WHERE boss_id = ? AND agent_id = ?')
-    .bind(bossId, agentId)
-    .run();
+  const [result] = await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM boss_agent_access WHERE boss_id = ? AND agent_id = ?').bind(bossId, agentId),
+    ...mintedKeySweep(c.env.DB),
+  ]);
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
   }
