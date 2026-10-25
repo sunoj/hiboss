@@ -1,6 +1,7 @@
 // Round-two regression: a Telegram reply answers the message it replies to, whatever the chat's agent.
-// Covers a shared admin chat in destinations mode `on`, the boss-access condition, and the
-// unchanged routing of unmatched text. Depends on SELF, seeded D1 fixtures, and delivery rows.
+// Covers a shared admin chat in destinations mode `on`, the boss-access condition, unquoted
+// text answering a destination-delivered ask, and the unchanged routing of unmatched text.
+// Depends on SELF, seeded D1 fixtures, and delivery rows.
 
 import { env, SELF } from 'cloudflare:test';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -42,13 +43,16 @@ afterAll(() => {
   vi.unstubAllGlobals();
 });
 
-/** An open ask; `delivered` is the Telegram id it got in chat X, through metadata or a delivery row. */
+/**
+ * An open ask; `delivered` is the Telegram id it got in chat X, through metadata or a delivery row.
+ * A destination send stores no message channel, as message-send does in mode `on`.
+ */
 async function ask(agent: string, delivered: { metadata?: number; delivery?: number }): Promise<string> {
   const id = fresh();
   const metadata = delivered.metadata ? { telegram_message_id: delivered.metadata, telegram_chat_id: chatX } : {};
   await env.DB.prepare(`INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, metadata)
-    VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Drop the staging DB?', 'delivered', ?)`)
-    .bind(id, agent, JSON.stringify(metadata)).run();
+    VALUES (?, ?, 'agent_to_boss', 'blocking', ?, 'Drop the staging DB?', 'delivered', ?)`)
+    .bind(id, agent, delivered.delivery ? null : 'telegram', JSON.stringify(metadata)).run();
   if (delivered.delivery) {
     await env.DB.prepare("INSERT INTO message_deliveries (message_id, destination_id, status, external_message_id) VALUES (?, ?, 'sent', ?)")
       .bind(id, destinationX, String(delivered.delivery)).run();
@@ -56,12 +60,13 @@ async function ask(agent: string, delivered: { metadata?: number; delivery?: num
   return id;
 }
 
-async function replyInX(from: string, replyTo: number, text: string): Promise<{ status: number; agent_id?: string; reply_to?: string | null }> {
+async function replyInX(from: string, replyTo: number | null, text: string): Promise<{ status: number; agent_id?: string; reply_to?: string | null }> {
   update += 1;
+  const quoted = replyTo === null ? {} : { reply_to_message: { message_id: replyTo } };
   const response = await SELF.fetch(`${base}/api/webhooks/telegram`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': secret },
     body: JSON.stringify({ update_id: update, message: { message_id: update, chat: { id: chatX },
-      from: { id: from }, text, reply_to_message: { message_id: replyTo } } }),
+      from: { id: from }, text, ...quoted } }),
   });
   if (response.status !== 201) return { status: response.status };
   const row = await response.json() as { agent_id: string; reply_to: string | null };
@@ -92,5 +97,11 @@ describe('DL2: a Telegram reply answers the message it replies to', () => {
     const parent = await ask(agentB, { delivery: 7801 });
     expect(await replyInX(manager.telegram, 7801, 'not mine')).toEqual({ status: 201, agent_id: agentA, reply_to: null });
     expect(await status(parent)).toBe('delivered');
+  });
+
+  it("answers the chat agent's destination-delivered ask with unquoted text", async () => {
+    const pending = await ask(agentA, { delivery: 7901 });
+    expect(await replyInX(admin.telegram, null, 'go ahead')).toEqual({ status: 201, agent_id: agentA, reply_to: pending });
+    expect(await status(pending)).toBe('replied');
   });
 });

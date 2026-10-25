@@ -16,17 +16,17 @@ const legacyChatMatch = `json_extract(m.metadata, '$.telegram_chat_id') IS NULL
 export async function findTelegramMessageInChat(
   env: Env, chatId: string, externalId: number,
 ): Promise<MessageRow | null> {
+  // Destination sends store no message channel; only channel-path sends carry 'telegram'.
   return env.DB.prepare(`SELECT m.* FROM messages m
-    WHERE m.channel = 'telegram'
-      AND ((json_extract(m.metadata, '$.telegram_message_id') = ?
+    WHERE (m.channel = 'telegram' AND json_extract(m.metadata, '$.telegram_message_id') = ?
         AND (CAST(json_extract(m.metadata, '$.telegram_chat_id') AS TEXT) = ?
           OR (${legacyChatMatch})))
-        OR EXISTS (SELECT 1 FROM message_deliveries md
-          JOIN boss_destinations d ON d.id = md.destination_id
-          WHERE md.message_id = m.id AND md.external_message_id = ?
-            AND d.kind = 'telegram_chat'
-            AND CAST(json_extract(d.target, '$.chat_id') AS TEXT) = ?))
-    LIMIT 1`)
+      OR EXISTS (SELECT 1 FROM message_deliveries md
+        JOIN boss_destinations d ON d.id = md.destination_id
+        WHERE md.message_id = m.id AND md.external_message_id = ?
+          AND d.kind = 'telegram_chat'
+          AND CAST(json_extract(d.target, '$.chat_id') AS TEXT) = ?)
+    ORDER BY m.created_at DESC LIMIT 1`)
     // D1 binds a JS number as REAL, so CAST(? AS TEXT) would give '77.0'; bind the stored text.
     .bind(externalId, chatId, chatId, String(externalId), chatId)
     .first<MessageRow>();
@@ -52,15 +52,14 @@ export async function findPendingTelegramMessageInChat(
 ): Promise<string | null> {
   const pending = await env.DB.prepare(`SELECT m.id FROM messages m
     WHERE m.agent_id = ? AND m.direction = 'agent_to_boss'
-      AND m.mode = 'blocking' AND m.channel = 'telegram'
-      AND m.status IN ('sent', 'delivered')
-      AND (CAST(json_extract(m.metadata, '$.telegram_chat_id') AS TEXT) = ?
+      AND m.mode = 'blocking' AND m.status IN ('sent', 'delivered')
+      AND ((m.channel = 'telegram' AND (CAST(json_extract(m.metadata, '$.telegram_chat_id') AS TEXT) = ?
+          OR (${legacyChatMatch})))
         OR EXISTS (SELECT 1 FROM message_deliveries md
           JOIN boss_destinations d ON d.id = md.destination_id
           WHERE md.message_id = m.id AND md.status IN ('sent', 'delivered')
             AND d.kind = 'telegram_chat'
-            AND CAST(json_extract(d.target, '$.chat_id') AS TEXT) = ?)
-        OR (${legacyChatMatch}))
+            AND CAST(json_extract(d.target, '$.chat_id') AS TEXT) = ?))
     ORDER BY m.created_at DESC LIMIT 1`)
     .bind(agentId, chatId, chatId, chatId)
     .first<{ id: string }>();
