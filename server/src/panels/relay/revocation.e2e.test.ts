@@ -1,11 +1,11 @@
 // Live panel subscriptions end with the credential and access that opened them.
-// Covers role demotion, grant revocation and token revocation against real DO WebSockets.
+// Covers role demotion, grant loss, token revocation and a failed access check against real DO WebSockets.
 // Dependencies: Cloudflare test runtime and the relay lifecycle harness.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { hashApiKey } from '../../middleware/auth';
 import { getTestAgentId, seedBossToken } from '../../test-helpers';
-import { claim, connect, publish, seed } from './runtime/test-support';
+import { bossHeaders, bossId, claim, connect, publish, seed } from './runtime/test-support';
 
 const api = 'https://test.local/api';
 const unique = (name: string): string => `lp1-${name}-${crypto.randomUUID().slice(0, 8)}`;
@@ -25,7 +25,7 @@ async function boss(role: string, granted = false): Promise<{ id: string; token:
   return { id, token };
 }
 
-async function subscribe(panelId: string, token: string, wall?: string) {
+async function open(panelId: string, token: string, wall?: string) {
   const response = await SELF.fetch(`${api}/${wall ? 'panel-wall-connections' : 'panel-connections'}`, {
     method: 'POST', headers: headers(token), body: JSON.stringify(wall ? { targetBossId: wall } : { panelId, role: 'subscriber' }),
   });
@@ -39,9 +39,15 @@ async function subscribe(panelId: string, token: string, wall?: string) {
   const closed: number[] = [];
   socket.addEventListener('message', event => { frames.push(JSON.parse(String(event.data)) as { kind: string }); });
   socket.addEventListener('close', event => { closed.push(event.code); });
-  socket.send(JSON.stringify({ protocolVersion: 2, panelId, kind: wall ? 'wall.subscribe' : 'subscribe' }));
-  await expect.poll(() => frames.length).toBe(1);
-  return { socket, frames, closed };
+  const subscribe = () => socket.send(JSON.stringify({ protocolVersion: 2, panelId, kind: wall ? 'wall.subscribe' : 'subscribe' }));
+  return { socket, frames, closed, subscribe };
+}
+
+async function subscribe(panelId: string, token: string, wall?: string) {
+  const connection = await open(panelId, token, wall);
+  connection.subscribe();
+  await expect.poll(() => connection.frames.length).toBe(1);
+  return connection;
 }
 
 /** Publishes, subscribes, applies `change`, then sends one producer patch; returns the subscriber's view. */
@@ -103,4 +109,41 @@ it('LP-1 rotating the subscriber boss closes its own wall socket on the next sig
     await expect.poll(() => wall.closed).toEqual([4401]);
     expect(wall.frames).toHaveLength(1);
   } finally { wall.socket.close(); }
+});
+
+it('LP-1 a target boss that loses its grant gets no further frames and is closed on resubscribe', async () => {
+  const id = await publish();
+  const producer = await connect(id);
+  const epoch = await claim(producer);
+  const subscriber = await subscribe(id, bossHeaders.Authorization.slice(7));
+  const revoke = await SELF.fetch(`${api}/bosses/${bossId}/access/${getTestAgentId()}`, { method: 'DELETE', headers: headers(root.token) });
+  try {
+    expect(revoke.status).toBe(200);
+    const start = producer.frames.length;
+    producer.send({ kind: 'state.update', epoch, updateId: crypto.randomUUID(), baseSequence: 0,
+      ops: [{ op: 'replace', path: '/task/done', value: 1 }] });
+    await producer.next('error', start);
+    subscriber.subscribe();
+    await expect.poll(() => subscriber.closed).toEqual([4401]);
+    expect(subscriber.frames.map(frame => frame.kind)).toEqual(['state.snapshot']);
+  } finally {
+    await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(bossId, getTestAgentId()).run();
+    for (const socket of [producer.socket, subscriber.socket]) socket.close();
+  }
+});
+
+it('LP-1 a failed access check closes a subscribing socket with 1013 so the client reconnects', async () => {
+  const id = await publish();
+  const watcher = await boss('admin');
+  const connection = await open(id, watcher.token);
+  // The gate's panel query reads boss_agent_access; without the table the check fails rather than denies.
+  await env.DB.prepare('ALTER TABLE boss_agent_access RENAME TO boss_agent_access_hidden').run();
+  try {
+    connection.subscribe();
+    await expect.poll(() => connection.closed).toEqual([1013]);
+    expect(connection.frames).toEqual([]);
+  } finally {
+    await env.DB.prepare('ALTER TABLE boss_agent_access_hidden RENAME TO boss_agent_access').run();
+    connection.socket.close();
+  }
 });

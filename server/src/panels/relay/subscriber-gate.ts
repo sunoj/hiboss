@@ -1,5 +1,6 @@
 // Re-authorizes boss subscriber sockets against D1 before the room sends them anything.
-// Exports SubscriberGate: a revoked token or client, an archive, a demotion or a lost grant closes the socket (4401).
+// Exports SubscriberGate: a revoked token or client, an archive, a demotion or a lost grant closes the socket
+// (4401); a failed check before subscribing closes it with 1013 so the client retries.
 // Dependencies: D1 boss credentials and the panel access policy in ../access.ts.
 
 import type { ConnectionAttachment } from './ticket-store';
@@ -22,19 +23,36 @@ export class SubscriberGate {
    * failed check sends nothing and closes nothing: the next frame checks again.
    */
   async admit(sockets: readonly WebSocket[], panelId: string | null): Promise<WebSocket[]> {
+    try { return await this.filter(sockets, panelId); } catch {
+      return sockets.filter(socket => this.attachment(socket)?.role !== 'subscriber');
+    }
+  }
+
+  /** Admits one socket before it subscribes; a failed check closes it with 1013 so the client reconnects. */
+  async admitSubscription(socket: WebSocket, panelId: string | null): Promise<boolean> {
+    try { return (await this.filter([socket], panelId)).length > 0; } catch {
+      this.close(socket, 1013, 'retry');
+      return false;
+    }
+  }
+
+  private async filter(sockets: readonly WebSocket[], panelId: string | null): Promise<WebSocket[]> {
     const subscribers = sockets.filter(socket => this.attachment(socket)?.role === 'subscriber');
     if (subscribers.length === 0) return [...sockets];
-    let live: Set<string>;
-    try { live = await this.liveTokens(subscribers, panelId); } catch { return sockets.filter(s => !subscribers.includes(s)); }
+    const live = await this.liveTokens(subscribers, panelId);
     return sockets.filter(socket => {
       const ticket = this.attachment(socket);
       if (ticket?.role !== 'subscriber') return true;
       if (ticket.tokenId && live.has(`${ticket.tokenId}:${ticket.identity}`)) return true;
-      // Stop broadcasts immediately, including while the close handshake is pending.
-      socket.serializeAttachment(null);
-      try { socket.close(4401, 'access revoked'); } catch { /* Already closed. */ }
+      this.close(socket, 4401, 'access revoked');
       return false;
     });
+  }
+
+  private close(socket: WebSocket, code: number, reason: string): void {
+    // Stop broadcasts immediately, including while the close handshake is pending.
+    socket.serializeAttachment(null);
+    try { socket.close(code, reason); } catch { /* Already closed. */ }
   }
 
   private async liveTokens(sockets: readonly WebSocket[], panelId: string | null): Promise<Set<string>> {

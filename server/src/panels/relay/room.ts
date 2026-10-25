@@ -102,13 +102,13 @@ export class PanelRoom extends DurableObject<Env> {
       const ticket = this.attachment(ws);
       if (!ticket || input.panelId !== ticket.panelId) throw new PanelFault('permission_denied', 403);
       if (input.kind === 'wall.subscribe' && ticket.operations.includes('wall.subscribe')) {
-        if (!(await this.gate.admit([ws], null)).length) return;
+        if (!await this.gate.admitSubscription(ws, null)) return;
         ws.serializeAttachment({ ...ticket, subscribedPanelId: 'wall' });
         ws.send(JSON.stringify({ kind: 'wall.changed' }));
         return;
       }
       if (input.kind === 'subscribe' && ticket.operations.includes('subscribe')) {
-        if (!(await this.gate.admit([ws], ticket.panelId)).length) return;
+        if (!await this.gate.admitSubscription(ws, ticket.panelId)) return;
         const state = await this.engine.execute(ticket.panelId, ticket.identity, ticket.role, 'state', input);
         ws.serializeAttachment({ ...ticket, subscribedPanelId: ticket.panelId });
         ws.send(JSON.stringify({ ...(state as object), kind: 'state.snapshot' }));

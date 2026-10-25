@@ -96,7 +96,7 @@ export class PanelEngine {
         metadataVersion: receipt.metadataVersion });
     } else {
       const state = await this.snapshot({ ...row, lifecycle_json: JSON.stringify(updatedLifecycle) });
-      this.broadcast(row.panel_id, { ...state, kind: 'state.observation' });
+      await this.broadcast(row.panel_id, { ...state, kind: 'state.observation' });
     }
     await this.wallChanged(row.panel_id, row.agent_id, expiresAt, invalidate);
     return receipt;
@@ -124,7 +124,7 @@ export class PanelEngine {
       const renewed = { ...existing, expiresAt: now + LEASE_MS };
       await this.storage.put(`lease:${row.panel_id}`, renewed);
       const state = await this.snapshot(row);
-      this.broadcast(row.panel_id, { ...state, kind: 'state.observation' });
+      await this.broadcast(row.panel_id, { ...state, kind: 'state.observation' });
       return { kind: 'lease.ack', epoch: renewed.epoch, leaseExpiresAt: new Date(renewed.expiresAt).toISOString(), snapshot: state };
     }
     if (body.action !== 'claim' || typeof body.requestId !== 'string' || !body.requestId) throw new PanelFault('invalid_lease', 422);
@@ -139,7 +139,7 @@ export class PanelEngine {
     const lease: Lease = { epoch: crypto.randomUUID(), expiresAt: now + LEASE_MS, requestId: body.requestId, hash };
     const baseline = { ...await this.snapshot(row), epoch: lease.epoch, sequence: 0, leaseExpiresAt: new Date(lease.expiresAt).toISOString() };
     await this.storage.put({ [`lease:${row.panel_id}`]: lease, [`snapshot:${row.panel_id}`]: baseline, [`receipts:${row.panel_id}`]: [] });
-    this.broadcast(row.panel_id, { ...baseline, kind: 'state.snapshot' });
+    await this.broadcast(row.panel_id, { ...baseline, kind: 'state.snapshot' });
     return { kind: 'lease.ack', epoch: lease.epoch, leaseExpiresAt: new Date(lease.expiresAt).toISOString(), snapshot: baseline };
   }
 

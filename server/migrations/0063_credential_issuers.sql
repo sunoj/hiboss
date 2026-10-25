@@ -7,4 +7,10 @@ UPDATE boss_devices SET token_id = (
   WHERE t.client_id = boss_devices.client_id AND t.boss_id = boss_devices.boss_id AND t.revoked_at IS NULL
   ORDER BY t.created_at DESC, t.id DESC LIMIT 1
 ) WHERE client_id IS NOT NULL;
+-- A device registered under a client-less token keeps pushing under the boss's newest such token.
+UPDATE boss_devices SET token_id = (
+  SELECT t.id FROM boss_tokens t
+  WHERE t.boss_id = boss_devices.boss_id AND t.client_id IS NULL AND t.revoked_at IS NULL
+  ORDER BY t.created_at DESC, t.id DESC LIMIT 1
+) WHERE token_id IS NULL AND client_id IS NULL;
 ALTER TABLE boss_pairing_codes ADD COLUMN issued_by_token_id TEXT REFERENCES boss_tokens(id) ON DELETE CASCADE;
