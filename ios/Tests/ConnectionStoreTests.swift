@@ -55,7 +55,7 @@ final class ConnectionStoreTests: XCTestCase {
                                     sharedDefaults: nil, signerStore: StubSignerStore(),
                                     onSignOut: { api in unregistered = Task { await relay.unregister(api: api) } })
         await store.restore()
-        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 403, message: ""))
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
         AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
         await unregistered?.value
         XCTAssertEqual(PushRelayStub.routes, ["DELETE relay.example/v1/registrations/self"])

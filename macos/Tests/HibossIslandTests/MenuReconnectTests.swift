@@ -41,7 +41,7 @@ final class MenuReconnectTests: XCTestCase {
     func testMenuReconnectWithRejectedCredentialsDoesNotRestoreAccount() async throws {
         let (delegate, api) = try await fixture()
         defer { cleanup(delegate) }
-        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 403, message: ""))
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
         await api.rejectVerification()
         let checked = expectation(description: "menu reconnect verifies credentials")
         await api.onVerification { checked.fulfill() }

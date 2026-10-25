@@ -96,6 +96,18 @@ final class JoinRequestsAPITests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testOnlyRejectedCredentialsClearTheAccount() async throws {
+        let service = try api()
+        defer { AccountAuthorization.shared.connect(nil) }
+        for (status, rejectsAccount) in [(401, true), (403, false)] {
+            AccountAuthorization.shared.connect(service.config)
+            JoinURLProtocol.handler = { _ in (status, "") }
+            _ = try? await service.listPendingJoinRequests()
+            XCTAssertEqual(AccountAuthorization.shared.hasRejectedAccount, rejectsAccount, "HTTP \(status)")
+        }
+    }
+
     private func XCTAssertThrowsJoinError(
         _ expected: JoinRequestError, _ body: () async throws -> Void, line: UInt = #line
     ) async {

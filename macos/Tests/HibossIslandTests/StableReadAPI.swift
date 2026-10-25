@@ -8,6 +8,7 @@ import HibossKit
 actor StableReadAPI: BossServing, PanelsServing, QuestionnaireServing, JoinRequestServing {
     enum Read: Hashable { case history, panels, joins, questions, editor }
     nonisolated let questionnaireScope = "stable-surfaces"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "boss_1", role: "admin") }
     let history: [HistoryMessage]
     let joins: [JoinRequest]
     private let panelAPI: StubPanelsService

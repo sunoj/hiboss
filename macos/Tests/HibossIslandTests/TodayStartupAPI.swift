@@ -8,6 +8,7 @@ import XCTest
 
 actor TodayStartupAPI: PanelsServing, QuestionnaireServing, BossServing {
     nonisolated let questionnaireScope = "mac-startup"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "boss", role: "admin") }
     private let panels: StubPanelsService
     private var gate: CheckedContinuation<Void, Never>?
     private var waiter: CheckedContinuation<Void, Never>?

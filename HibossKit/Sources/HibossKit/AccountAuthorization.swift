@@ -1,6 +1,6 @@
 // Shared account identity and rejection boundary across native reads, writes and intents.
 // Exports AccountAuthorization; generation and subscriptions invalidate account-scoped work.
-// Dependencies: Combine and typed HibossAPI/JoinRequest errors.
+// Dependencies: Combine and typed HibossAPI errors.
 
 import Combine
 import Foundation
@@ -15,9 +15,9 @@ public final class AccountAuthorization: ObservableObject {
 
     public init() {}
 
+    /// Only a rejected credential (401) signs the account out; a 403 is a per-action permission error.
     public static func isRejected(_ error: Error) -> Bool {
         (error as? HibossAPIError)?.isAuthFailure == true
-            || (error as? JoinRequestError) == .forbidden
     }
 
     @discardableResult

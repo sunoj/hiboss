@@ -14,9 +14,8 @@ public enum HibossAPIError: Error, LocalizedError {
         case .invalidResponse:
             return kitL("The server returned an invalid response.")
         case let .requestFailed(status, message):
-            if status == 401 || status == 403 {
-                return kitL("That Boss Token was rejected. Check the token and try again.")
-            }
+            if status == 401 { return kitL("That Boss Token was rejected. Check the token and try again.") }
+            if status == 403 { return kitL("You don't have permission to do that.") }
             return message.isEmpty ? kitL("Server request failed (HTTP \(status)).") : message
         case let .decodingFailed(context, body):
             return kitL("Couldn't read \(context). Server sent: \(body.prefix(200))")
@@ -25,8 +24,9 @@ public enum HibossAPIError: Error, LocalizedError {
 
     /// A rejected credential (vs a transient/network failure) — callers stop
     /// retrying and prompt to reconnect instead of hammering with a dead token.
+    /// A 403 is not one: the account is valid but lacks permission for that action.
     public var isAuthFailure: Bool {
-        if case let .requestFailed(status, _) = self { return status == 401 || status == 403 }
+        if case .requestFailed(status: 401, _) = self { return true }
         return false
     }
 }

@@ -14,24 +14,41 @@ final class StableBoundaryTests: XCTestCase {
     }
 
     func testTargetedReadRejectionClearsInboxAndPreferenceDraft() async {
-        for status in [401, 403] {
-            let api = BoundaryAPI()
-            let store = loadedStore(api)
-            let preferences = PreferencesStore()
-            await preferences.load(api: api)
-            preferences.setPrivatePush(true)
-            store.messageDrafts["decision"] = "Account draft"
-            store.sessionReplyDraft.update("Session draft", targets: [])
-            api.failure = status
-            _ = await store.loadMessage("decision")
-            XCTAssertTrue(store.history.isEmpty)
-            XCTAssertTrue(store.openedMessages.isEmpty)
-            XCTAssertFalse(preferences.hasLoaded)
-            XCTAssertFalse(preferences.isDirty)
-            XCTAssertTrue(store.messageDrafts.isEmpty)
-            XCTAssertTrue(store.sessionReplyDraft.text.isEmpty)
-            store.stop()
-        }
+        let status = 401
+        let api = BoundaryAPI()
+        let store = loadedStore(api)
+        let preferences = PreferencesStore()
+        await preferences.load(api: api)
+        preferences.setPrivatePush(true)
+        store.messageDrafts["decision"] = "Account draft"
+        store.sessionReplyDraft.update("Session draft", targets: [])
+        api.failure = status
+        _ = await store.loadMessage("decision")
+        XCTAssertTrue(store.history.isEmpty)
+        XCTAssertTrue(store.openedMessages.isEmpty)
+        XCTAssertFalse(preferences.hasLoaded)
+        XCTAssertFalse(preferences.isDirty)
+        XCTAssertTrue(store.messageDrafts.isEmpty)
+        XCTAssertTrue(store.sessionReplyDraft.text.isEmpty)
+        store.stop()
+    }
+
+    func testTargetedReadPermissionErrorKeepsTheAccountAndItsDrafts() async {
+        let api = BoundaryAPI()
+        let store = loadedStore(api)
+        let preferences = PreferencesStore()
+        await preferences.load(api: api)
+        preferences.setPrivatePush(true)
+        store.messageDrafts["decision"] = "Account draft"
+        api.failure = 403
+        let result = await store.loadMessage("decision")
+        XCTAssertEqual(result, .failed(HibossAPIError.requestFailed(status: 403, message: "").localizedDescription))
+        XCTAssertFalse(AccountAuthorization.shared.hasRejectedAccount)
+        XCTAssertFalse(store.history.isEmpty)
+        XCTAssertTrue(preferences.hasLoaded)
+        XCTAssertTrue(preferences.isDirty)
+        XCTAssertEqual(store.messageDrafts["decision"], "Account draft")
+        store.stop()
     }
 
     func testHistoryRejectionClearsCachedDecision() async {
@@ -107,45 +124,43 @@ final class StableBoundaryTests: XCTestCase {
     }
 
     func testPreferencesLoadAndSaveRejectionsClearTheAccount() async {
-        for status in [401, 403] {
-            for saving in [false, true] {
-                let api = BoundaryAPI()
-                let inbox = loadedStore(api)
-                let preferences = PreferencesStore()
-                await preferences.load(api: api)
-                if saving { preferences.setPrivatePush(true) }
-                api.failure = status
-                if saving { await preferences.save() }
-                else { await preferences.load(api: api) }
-                XCTAssertFalse(preferences.hasLoaded)
-                XCTAssertFalse(preferences.isDirty)
-                XCTAssertTrue(inbox.history.isEmpty)
-                let posts = api.posts
-                await preferences.save()
-                XCTAssertEqual(api.posts, posts)
-                inbox.stop()
-            }
+        let status = 401
+        for saving in [false, true] {
+            let api = BoundaryAPI()
+            let inbox = loadedStore(api)
+            let preferences = PreferencesStore()
+            await preferences.load(api: api)
+            if saving { preferences.setPrivatePush(true) }
+            api.failure = status
+            if saving { await preferences.save() }
+            else { await preferences.load(api: api) }
+            XCTAssertFalse(preferences.hasLoaded)
+            XCTAssertFalse(preferences.isDirty)
+            XCTAssertTrue(inbox.history.isEmpty)
+            let posts = api.posts
+            await preferences.save()
+            XCTAssertEqual(api.posts, posts)
+            inbox.stop()
         }
     }
 
     func testIntentGateVerificationAndWriteRejectionsClearTheAccount() async {
-        for status in [401, 403] {
-            for verifying in [true, false] {
-                let api = BoundaryAPI()
-                let inbox = loadedStore(api)
-                let preferences = PreferencesStore()
-                await preferences.load(api: api)
-                preferences.setPrivatePush(true)
-                api.failure = status
-                api.rejectVerification = verifying
-                _ = await inbox.replyGate.submit("Yes", to: "decision", via: api,
-                    onAuthorizationFailure: { AccountAuthorization.shared.reject($0) })
-                XCTAssertTrue(inbox.history.isEmpty)
-                XCTAssertFalse(preferences.hasLoaded)
-                XCTAssertFalse(preferences.isDirty)
-                XCTAssertEqual(api.posts, verifying ? 0 : 1)
-                inbox.stop()
-            }
+        let status = 401
+        for verifying in [true, false] {
+            let api = BoundaryAPI()
+            let inbox = loadedStore(api)
+            let preferences = PreferencesStore()
+            await preferences.load(api: api)
+            preferences.setPrivatePush(true)
+            api.failure = status
+            api.rejectVerification = verifying
+            _ = await inbox.replyGate.submit("Yes", to: "decision", via: api,
+                onAuthorizationFailure: { AccountAuthorization.shared.reject($0) })
+            XCTAssertTrue(inbox.history.isEmpty)
+            XCTAssertFalse(preferences.hasLoaded)
+            XCTAssertFalse(preferences.isDirty)
+            XCTAssertEqual(api.posts, verifying ? 0 : 1)
+            inbox.stop()
         }
     }
 

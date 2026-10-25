@@ -1,4 +1,4 @@
-// Verifies draft isolation, expiry, and durable submission recovery without UI execution.
+// Verifies draft isolation, expiry, answer access, and durable submission recovery without UI.
 // Exports model unit tests using an in-memory service and isolated UserDefaults.
 // Dependencies: XCTest and HibossKit; no network, browser, or application launch.
 
@@ -11,9 +11,9 @@ final class QuestionnaireModelTests: XCTestCase {
         let (model, service, storage) = fixture()
         model.store.setNumber(7, at: "/form/count")
         model.save()
-        let restored = QuestionnaireModel(record: question(), bossID: "boss", service: service, storage: storage)
+        let restored = QuestionnaireModel(record: question(), bossID: "boss", answerer: owner, service: service, storage: storage)
         XCTAssertEqual(restored.answers.object?["count"], .number(7))
-        let other = QuestionnaireModel(record: question(), bossID: "other", service: service, storage: storage)
+        let other = QuestionnaireModel(record: question(), bossID: "other", answerer: BossIdentity(id: "other", role: "admin"), service: service, storage: storage)
         XCTAssertEqual(other.answers.object?["count"], .number(3))
         model.update(question(revision: 2))
         XCTAssertFalse(model.canEdit)
@@ -31,7 +31,7 @@ final class QuestionnaireModelTests: XCTestCase {
         XCTAssertFalse(model.canEdit)
         XCTAssertFalse(model.hasSavedDraft)
         XCTAssertEqual(model.answers, .object([:]))
-        let restored = QuestionnaireModel(record: question(), bossID: "boss",
+        let restored = QuestionnaireModel(record: question(), bossID: "boss", answerer: owner,
                                           service: service, storage: storage)
         XCTAssertEqual(restored.answers.object?["count"], .number(3))
         AccountAuthorization.shared.connect(nil)
@@ -50,7 +50,7 @@ final class QuestionnaireModelTests: XCTestCase {
         let (model, service, storage) = fixture()
         await model.submit()
         let pending = try XCTUnwrap(model.pendingID)
-        let restored = QuestionnaireModel(record: question(), bossID: "boss", service: service, storage: storage)
+        let restored = QuestionnaireModel(record: question(), bossID: "boss", answerer: owner, service: service, storage: storage)
         XCTAssertEqual(restored.pendingID, pending)
         await service.showAccepted()
         await restored.recover()
@@ -74,7 +74,7 @@ final class QuestionnaireModelTests: XCTestCase {
         XCTAssertEqual(model.latest.submission?.answers.object?["count"], .number(8))
         let count = await service.submissions
         XCTAssertEqual(count, 1)
-        let reopened = QuestionnaireModel(record: question(), bossID: "boss", service: service, storage: storage)
+        let reopened = QuestionnaireModel(record: question(), bossID: "boss", answerer: owner, service: service, storage: storage)
         XCTAssertEqual(reopened.answers.object?["count"], .number(3))
     }
 
@@ -86,6 +86,43 @@ final class QuestionnaireModelTests: XCTestCase {
         model.update(question())
         XCTAssertEqual(model.latest.state, "accepted")
         XCTAssertFalse(model.canEdit)
+    }
+
+    func testForbiddenSubmissionShowsAPermissionMessageAndKeepsTheAccount() async {
+        defer { AccountAuthorization.shared.connect(nil) }
+        let (model, service, _) = fixture()
+        await service.deny()
+        await model.submit()
+        XCTAssertEqual(model.error, kitL("You don't have permission to do that."))
+        XCTAssertFalse(AccountAuthorization.shared.hasRejectedAccount)
+        XCTAssertNil(model.pendingID)
+        XCTAssertTrue(model.canEdit, "A permission error must not lock the account out of its questionnaires")
+    }
+
+    func testAccessFollowsTheServerAnsweringRule() {
+        XCTAssertEqual(QuestionnaireAccess(boss: owner, targetBossID: "boss"), .answerable)
+        XCTAssertEqual(QuestionnaireAccess(boss: BossIdentity(id: "boss", role: "manager"), targetBossID: "boss"),
+                       .answerable)
+        XCTAssertEqual(QuestionnaireAccess(boss: BossIdentity(id: "boss", role: "viewer"), targetBossID: "boss"),
+                       .roleCannotAnswer)
+        XCTAssertEqual(QuestionnaireAccess(boss: BossIdentity(id: "admin", role: "admin"), targetBossID: "boss"),
+                       .otherBoss)
+        XCTAssertNil(QuestionnaireAccess.answerable.readOnlyReason)
+    }
+
+    func testOtherBossAndViewerSeeTheQuestionnaireReadOnly() async {
+        let (owned, _, _) = fixture()
+        XCTAssertTrue(owned.canEdit)
+        for answerer in [BossIdentity(id: "admin", role: "admin"), BossIdentity(id: "boss", role: "viewer")] {
+            let service = QuestionnaireStub(question())
+            let model = QuestionnaireModel(record: question(), bossID: "boss", answerer: answerer, service: service,
+                                           storage: UserDefaults(suiteName: "QuestionnaireAccess.\(UUID())")!)
+            XCTAssertFalse(model.canEdit, answerer.id)
+            XCTAssertNotNil(model.access.readOnlyReason)
+            await model.submit()
+            let count = await service.submissions
+            XCTAssertEqual(count, 0, "A read-only viewer never sends answers")
+        }
     }
 
     func testPointerWritesRoundTripEscapedKeysAndRejectNonFiniteNumbers() throws {
@@ -113,9 +150,11 @@ final class QuestionnaireModelTests: XCTestCase {
         let suite = "QuestionnaireModelTests.\(UUID())"
         let storage = UserDefaults(suiteName: suite)!
         addTeardownBlock { UserDefaults.standard.removePersistentDomain(forName: suite) }
-        return (QuestionnaireModel(record: record, bossID: "boss", service: service, storage: storage), service, storage)
+        return (QuestionnaireModel(record: record, bossID: "boss", answerer: owner, service: service, storage: storage), service, storage)
     }
 }
+
+private let owner = BossIdentity(id: "boss", role: "admin")
 
 private func question(revision: Int = 1, expiresAt: String? = nil) -> QuestionnaireRecord {
     let spec = PanelSpec(root: "count", elements: ["count": PanelElement(type: "NumberInput",
@@ -128,10 +167,12 @@ private func question(revision: Int = 1, expiresAt: String? = nil) -> Questionna
 
 private actor QuestionnaireStub: QuestionnaireServing {
     nonisolated let questionnaireScope = "https://unit.test"
+    func fetchBossIdentity() async throws -> BossIdentity { BossIdentity(id: "boss", role: "admin") }
     var current: QuestionnaireRecord
     var accepted: QuestionnaireSubmission?
     var submissions = 0
     var shouldFail = false
+    var denied = false
     init(_ record: QuestionnaireRecord) { current = record }
     func fetchPendingQuestionnaires() async throws -> [PendingQuestionnaire] { [] }
     func fetchQuestionnaires(panelID: String) async throws -> [QuestionnaireRecord] { [current] }
@@ -141,6 +182,7 @@ private actor QuestionnaireStub: QuestionnaireServing {
         return accepted
     }
     func submitQuestionnaire(_ request: QuestionnaireRecord, bossID: String, submissionID: String, answers: PanelValue) async throws -> QuestionnaireReceipt {
+        if denied { throw HibossAPIError.requestFailed(status: 403, message: "permission_denied") }
         submissions += 1
         accepted = QuestionnaireSubmission(submissionId: submissionID, requestId: request.requestId,
             requestRevision: request.requestRevision, answers: answers, acceptedAt: "2026-09-11T00:00:00Z", delivery: "pending")
@@ -149,6 +191,7 @@ private actor QuestionnaireStub: QuestionnaireServing {
             requestRevision: request.requestRevision, acceptedAt: "2026-09-11T00:00:00Z", delivery: "pending")
     }
     func failAfterAccepting() { shouldFail = true }
+    func deny() { denied = true }
     func showAccepted() {
         current = QuestionnaireRecord(requestId: current.requestId, panelId: current.panelId, requestRevision: current.requestRevision,
             definitionRevision: current.definitionRevision, state: "accepted", expiresAt: nil, withdrawalReason: nil,
