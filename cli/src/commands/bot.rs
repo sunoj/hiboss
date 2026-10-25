@@ -91,7 +91,7 @@ async fn handle_message(handler: &str, client: &HiBossClient, message: &Message)
 
     match run_handler(handler, body).await {
         Ok(Some(reply)) => {
-            if let Err(err) = client.reply_to(id, &reply, None).await {
+            if let Err(err) = client.reply_to(id, &reply).await {
                 eprintln!("Failed to reply to {}: {}", short_id(id), err);
             } else {
                 eprintln!("[reply] {}", truncate(&reply, 80));

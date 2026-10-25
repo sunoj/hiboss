@@ -47,16 +47,8 @@ impl HiBossClient {
     }
 
     /// Signs over the full parent ID and the recipient the server derives from the parent.
-    pub(crate) async fn signed_reply(
-        &self,
-        id: &str,
-        body: &str,
-        session_id: Option<&str>,
-    ) -> Result<(String, Value), Box<dyn Error>> {
-        let mut request = json!({ "body": body });
-        if let Some(session_id) = session_id {
-            request["session_id"] = json!(session_id);
-        }
+    pub(crate) async fn signed_reply(&self, id: &str, body: &str) -> Result<(String, Value), Box<dyn Error>> {
+        let request = json!({ "body": body });
         if self.signer()?.is_none() {
             return Ok((id.to_owned(), request));
         }

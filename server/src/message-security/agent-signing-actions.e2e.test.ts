@@ -97,21 +97,3 @@ it('requires signatures on forwards and boss-agent replies of a signing agent', 
   const reply = await signedMessage(signer, actionPayload(agent.id, { kind: 'boss_reply', message_id: askId }, 'Approve'));
   expect((await request(`/boss/inbox/${askId}/reply`, agent.token, 'POST', { body: 'Approve', signed_message: reply })).status).toBe(201);
 });
-
-it('binds the session a signed reply names', async () => {
-  const { agent, signer } = await enrolled('signed-reply-session');
-  const parent = await bossMessage(agent.id);
-  const [session, other] = [crypto.randomUUID(), crypto.randomUUID()];
-  for (const id of [session, other]) {
-    await env.DB.prepare('INSERT INTO sessions (id, agent_id, label) VALUES (?, ?, ?)').bind(id, agent.id, id).run();
-  }
-  const signed = await signedMessage(signer, messagePayload(agent.id, {
-    session_id: session, action: { kind: 'reply', message_id: parent, audience: { kind: 'boss' } }, body: 'Done', mode: null,
-  }));
-  expect((await request(`/messages/${parent}/reply`, agent.token, 'POST',
-    { body: 'Done', session_id: other, signed_message: signed })).status).toBe(401);
-  const reply = await request(`/messages/${parent}/reply`, agent.token, 'POST',
-    { body: 'Done', session_id: session, signed_message: signed });
-  expect(reply.status).toBe(201);
-  expect((await reply.json() as { session_id: string | null }).session_id).toBe(session);
-});

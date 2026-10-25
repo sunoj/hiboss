@@ -190,31 +190,41 @@ describe('only a decision reply closes an agent-to-agent ask', () => {
   });
 });
 
-describe('an ask to another session of the same agent', () => {
-  it('counts a reply from the addressed session and refuses a session the replier does not own', async () => {
-    const asker = await agent('same-agent');
-    const other = await agent('same-other');
-    const [first, second, foreign] = [unique('s1'), unique('s2'), unique('sx')];
-    for (const [id, owner] of [[first, asker.id], [second, asker.id], [foreign, other.id]] as const) {
-      await env.DB.prepare('INSERT INTO sessions (id, agent_id, label) VALUES (?, ?, ?)').bind(id, owner, id).run();
+describe('a reply from the asking agent never answers its agent-to-agent ask', () => {
+  async function sessions(agentId: string, count: number): Promise<string[]> {
+    const ids = Array.from({ length: count }, () => unique('session'));
+    for (const id of ids) {
+      await env.DB.prepare('INSERT INTO sessions (id, agent_id, label) VALUES (?, ?, ?)').bind(id, agentId, id).run();
     }
-    const id = await ask({ agentId: asker.id, direction: 'agent_to_agent', target: asker.id, sessionId: first, targetSession: second });
-    const reply = (body: Record<string, unknown>) => SELF.fetch(`${api}/messages/${id}/reply`, {
-      method: 'POST', headers: headers(asker.key), body: JSON.stringify(body),
+    return ids;
+  }
+
+  async function replyAndRead(id: string, key: string, body: Record<string, unknown>) {
+    const response = await SELF.fetch(`${api}/messages/${id}/reply`, {
+      method: 'POST', headers: headers(key), body: JSON.stringify(body),
     });
-    expect((await reply({ body: 'Yes', session_id: foreign })).status).toBe(400);
-    // CONTROL: a reply that names no session cannot be told apart from the asker, so it stays a non-answer.
-    expect((await reply({ body: 'Maybe' })).status).toBe(201);
-    expect((await row(id)).status).toBe('sent');
-    const answered = await reply({ body: 'Yes', session_id: second });
-    expect(answered.status).toBe(201);
-    const stored = await answered.json() as MessageRow;
-    const events = await env.DB.prepare('SELECT session_id FROM session_events WHERE message_id = ?').bind(stored.id)
-      .all<{ session_id: string }>();
-    const decisions = await (await SELF.fetch(`${api}/messages/${id}?replies=decisions`, { headers: headers(asker.key) }))
-      .json() as { replies: { body: string }[] };
-    expect({ session: stored.session_id, events: events.results.map(event => event.session_id),
-      decisions: decisions.replies.map(item => item.body), parent: (await row(id)).status })
-      .toEqual({ session: second, events: [second], decisions: ['Yes'], parent: 'replied' });
+    const decisions = await (await SELF.fetch(`${api}/messages/${id}?replies=decisions`, { headers: headers(key) }))
+      .json() as { replies: unknown[] };
+    return { status: response.status, parent: (await row(id)).status, decisions: decisions.replies.length };
+  }
+
+  it('keeps the ask open when the asker replies from another of its sessions', async () => {
+    const asker = await agent('p4-x');
+    const peer = await agent('p4-y');
+    const [origin, other] = await sessions(asker.id, 2);
+    const id = await ask({ agentId: asker.id, direction: 'agent_to_agent', target: peer.id, sessionId: origin });
+    expect(await replyAndRead(id, asker.key, { body: 'never mind', session_id: other }))
+      .toEqual({ status: 201, parent: 'sent', decisions: 0 });
+    // CONTROL: the peer agent's reply still answers and closes it.
+    expect(await replyAndRead(id, peer.key, { body: 'Yes' })).toEqual({ status: 201, parent: 'replied', decisions: 1 });
+  });
+
+  it('never answers an ask to another session of the same agent', async () => {
+    const asker = await agent('same-agent');
+    const [first, second, third] = await sessions(asker.id, 3);
+    const id = await ask({ agentId: asker.id, direction: 'agent_to_agent', target: asker.id, sessionId: first, targetSession: second });
+    for (const body of [{ body: 'Yes' }, { body: 'Yes', session_id: second }, { body: 'Yes', session_id: third }]) {
+      expect(await replyAndRead(id, asker.key, body)).toEqual({ status: 201, parent: 'sent', decisions: 0 });
+    }
   });
 });

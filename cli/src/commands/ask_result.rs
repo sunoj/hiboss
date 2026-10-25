@@ -28,8 +28,8 @@ pub(crate) struct AskResult {
 }
 
 /// Whether `reply` answers `ask`: a boss_to_agent row for a boss ask; for an agent-to-agent ask, a
-/// row from another agent or from the same agent in a named session other than the ask's. The
-/// asker's own follow-ups and forward copies never answer it. Mirrors the server's isDecisionReply.
+/// row written by a different agent. Rows from the asking agent (any session), including forward
+/// copies, never answer it. Mirrors the server's isDecisionReply.
 pub(crate) fn answers(ask: &Message, reply: &Message) -> bool {
     if ask.direction.as_deref() != Some("agent_to_agent") {
         return reply.direction.as_deref() == Some("boss_to_agent");
@@ -37,8 +37,7 @@ pub(crate) fn answers(ask: &Message, reply: &Message) -> bool {
     ask.agent_id.is_some()
         && reply.agent_id.is_some()
         && reply.direction.as_deref() == Some("agent_to_agent")
-        && (reply.agent_id != ask.agent_id
-            || (reply.session_id.is_some() && reply.session_id != ask.session_id))
+        && reply.agent_id != ask.agent_id
 }
 
 /// The first reply that answers `ask`.

@@ -32,12 +32,10 @@ are never an outcome. After the last poll window the CLI reads
 `GET /api/messages/:id?replies=decisions`, which applies the same rule on the server, and the CLI
 filters again before choosing an outcome.
 
-An `--to` ask may address another session of the same agent. A reply then counts only when it
-names a session other than the ask's: `hiboss reply` sends its registered session ID, the server
-accepts it only when that session belongs to the replier, and a signed reply signs it. A reply
-that names no session (older CLIs, the MCP reply tool, `hiboss bot`) cannot be told apart from
-the asker, so it never answers a same-agent ask. Replies from a different agent count without a
-session.
+An `--to` ask is answered only by a reply from a different agent profile. A reply written by the
+asking agent never answers it, from whichever session it comes. So an `--to` ask addressed to
+another session of the same agent profile is never answered: it times out with `local_default`
+or `timeout`. Peers on different agent profiles work as usual.
 
 Only a reply that counts as an answer closes an ask. The asker's follow-ups and boss rows on an
 agent-to-agent ask are stored but leave it open, so the deadline still expires it. The boss inbox
@@ -66,12 +64,11 @@ codes. Consumers must inspect the outcome rather than infer approval from exit 0
 
 ## Release order
 
-Deploy the Worker before or together with the CLI. The decision read
-(`?replies=decisions`), the reply `session_id` field and the boss inbox self-answer guard are
-server-side. A new CLI against an older Worker gets every reply from its final read and filters
-them itself, and its same-agent `--to` replies carry a session the old Worker ignores, so they
-do not count until the Worker is updated. Nothing the CLI does can stop a boss-agent answering
-its own ask on an older Worker.
+Deploy the Worker before or together with the CLI. The decision read (`?replies=decisions`),
+the closing rule and the boss inbox guards are server-side. A new CLI against an older Worker
+gets every reply from its final read and filters them itself, so its outcomes stay correct, but
+nothing the CLI does can stop a boss-agent answering its own ask on an older Worker. The reply
+request and its signed payload are unchanged, so either CLI works with either Worker.
 
 ## Known limitations
 
