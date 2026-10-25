@@ -22,6 +22,7 @@ import {
   selectChannelConfig,
 } from './message-helpers';
 import { ensureTopicForSession } from './session-channels';
+import { ownsSession } from '../projects';
 
 import { destinationsMode, dispatchDestinations } from '../delivery';
 const routes = new Hono<{ Bindings: Env }>();
@@ -59,25 +60,38 @@ routes.post('/:id/reply', async (c) => {
     const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
     if (existing) return c.json(mapMessageRow(existing), 200);
   }
-  return persistReply(c, parent, body, replyDirection, replyTargetAgentId,
-    replyTargetSessionId, auth.metadata, idempotencyKey);
+  const sessionId = await replierSession(c.env, parent, agentId);
+  return persistReply(c, parent, body, replyDirection, { agentId: replyTargetAgentId, sessionId: replyTargetSessionId },
+    sessionId, auth.metadata, idempotencyKey);
 });
+
+/**
+ * The replier's own session, which owns the reply row and its event: the parent's session for
+ * the agent's own conversation, the addressed session for a peer message, null otherwise.
+ */
+async function replierSession(env: Env, parent: MessageRow, agentId: string): Promise<string | null> {
+  if (parent.direction !== 'agent_to_agent') return replyTargetSession(parent);
+  const candidate = parent.agent_id === agentId ? parent.session_id
+    : parent.target_agent_id === agentId ? parent.target_session_id : null;
+  return candidate && await ownsSession(env.DB, candidate, agentId) ? candidate : null;
+}
 
 async function persistReply(
   c: Context<{ Bindings: Env }>, parent: MessageRow, body: string, replyDirection: Direction,
-  replyTargetAgentId: string | null, replyTargetSessionId: string | null,
+  target: { agentId: string | null; sessionId: string | null }, sessionId: string | null,
   metadata: Record<string, unknown>, idempotencyKey: string | null,
 ): Promise<Response> {
   const agentId = getAgentId(c);
+  const replyTargetAgentId = target.agentId;
   const inserted = await insertMessageWithEvent(
     c.env,
     `INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority,
       session_id, reply_to, target_agent_id, target_session_id, metadata, idempotency_key)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal',
-      replyTargetSession(parent), parent.id, replyTargetAgentId, replyTargetSessionId,
+      sessionId, parent.id, replyTargetAgentId, target.sessionId,
       JSON.stringify(metadata), idempotencyKey],
-    replyTargetSession(parent),
+    sessionId,
   );
   if (!inserted) {
     return c.text('failed to persist', 500);

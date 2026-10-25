@@ -144,6 +144,10 @@ routes.post('/:id/reply', async (c) => {
   if (!parent) {
     return c.text('not found', 404);
   }
+  // An agent never answers its own message, even when it also acts as a boss.
+  if (parent.agent_id === agentId) {
+    return c.text('cannot answer your own message', 403);
+  }
   const agentIds = await getAccessibleAgentIds(c.env, boss.id, boss.role);
   if (!agentIds.includes(parent.agent_id)) {
     return c.text('no access to this agent', 403);

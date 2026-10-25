@@ -70,7 +70,9 @@ routes.get('/', async (c) => {
 
 routes.get('/:id', async (c) => {
   const agentId = getAgentId(c);
-  const message = await fetchMessageWithReplies(c.env, agentId, c.req.param('id'));
+  // `?replies=decisions` is the ask reconcile read: only replies that can answer the ask.
+  const decisionsOnly = c.req.query('replies') === 'decisions';
+  const message = await fetchMessageWithReplies(c.env, agentId, c.req.param('id'), decisionsOnly);
   if (!message) {
     return c.text('not found', 404);
   }

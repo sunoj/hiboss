@@ -14,7 +14,7 @@ message pre-warning to preserve a parseable stdout stream.
 
 | Outcome | Meaning | reply_id | action |
 | --- | --- | --- | --- |
-| `reply` | A reply message was returned without the automatic-default flag | Returned message ID | String if supplied by reply metadata, otherwise null |
+| `reply` | A decision reply was returned without the automatic-default flag | Returned message ID | String if supplied by reply metadata, otherwise null |
 | `auto_default` | The server produced a timeout-default reply | Returned message ID | null |
 | `local_default` | Polling returned no replies and the CLI used its configured fallback | null | null |
 | `timeout` | Polling returned no replies and no default was configured | null | null |
@@ -25,6 +25,17 @@ when absent). For example:
 ```json
 {"message_id":"ask-1","reply_id":"reply-1","outcome":"auto_default","body":"Wait","action":null}
 ```
+
+Only a decision reply counts: a `boss_to_agent` row for an ask to the boss, or a row written by
+the other agent for an `--to` ask. The asking agent's own follow-ups and forward copies of the ask
+are never an outcome. After the last poll window the CLI reads
+`GET /api/messages/:id?replies=decisions`, which applies the same rule on the server, and the CLI
+filters again before choosing an outcome.
+
+The server writes an automatic default only when an ask to the boss times out. An `--to` ask
+that times out expires once without an answer, so its outcome is `local_default` or `timeout`.
+An ask superseded by a newer ask with options from the same session expires immediately without
+its default; its waiting CLI reports `local_default` or `timeout`, never `auto_default`.
 
 `reply` deliberately does not mean human approval. An Agent can be a Boss, and
 provenance and authorization must be checked in the actual execution context.

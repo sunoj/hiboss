@@ -38,7 +38,8 @@ export async function insertMessageWithRecovery(
       env,
       'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
       [messageId, agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId],
-      sessionId ?? targetSessionId,
+      // The event belongs to the sender's own session; a peer's session is not the sender's transcript.
+      sessionId ?? (targetAgentId === agentId ? targetSessionId : null),
     );
     return { inserted, existing: null };
   } catch (error) {

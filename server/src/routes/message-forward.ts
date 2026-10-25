@@ -18,6 +18,11 @@ import { destinationsMode, dispatchDestinations } from '../delivery';
 import { systemMetadata } from '../message-security';
 
 const FORWARD_CHANNELS = ['discord', 'telegram'] as const;
+/**
+ * A forward is a copy for reading, never a second decision: it is stored async and without
+ * options or a deadline, so it is not a pending input, an auto-link target or an ask to claim.
+ */
+const FORWARD_MODE = 'async';
 
 export type ForwardChannel = (typeof FORWARD_CHANNELS)[number];
 
@@ -87,7 +92,7 @@ async function forwardToDestinations(env: Env, original: MessageRow, channel: Fo
   const inserted = await insertMessageWithEvent(env,
     `INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, type, reply_to, metadata, session_id)
      VALUES (?, ?, 'agent_to_boss', ?, ?, ?, 'sent', ?, 'forwarded', ?, ?, ?) RETURNING *`,
-    [createMessageId(), original.agent_id, original.mode, channel, buildForwardBody(original.channel, original.body),
+    [createMessageId(), original.agent_id, FORWARD_MODE, channel, buildForwardBody(original.channel, original.body),
       original.priority, original.id, JSON.stringify(metadata), original.session_id], original.session_id);
   if (!inserted) throw new Error('failed to persist');
   await dispatchDestinations(env, inserted);
@@ -177,7 +182,7 @@ async function persistForward(env: Env, original: MessageRow, targetChannel: For
       createMessageId(),
       original.agent_id,
       original.direction,
-      original.mode,
+      FORWARD_MODE,
       targetChannel,
       forwardBody,
       'delivered',
