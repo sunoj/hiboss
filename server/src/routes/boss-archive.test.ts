@@ -65,14 +65,14 @@ it('requires admin boss authentication for both operations', async () => {
 
 it('protects the last live admin and prevents self archive even with another admin', async () => {
   const last = await post(admin, 'archive');
-  expect(last.status).toBe(400);
+  expect(last.status).toBe(409);
   expect(await last.text()).toContain('last unarchived admin');
   const other = await seedBossToken('Other admin', 'admin', 'archive-other-admin');
   const self = await post(admin, 'archive');
   expect(self.status).toBe(400);
   expect(await self.text()).toContain('self');
   expect((await post(other, 'archive')).status).toBe(200);
-  expect((await post(admin, 'archive')).status).toBe(400);
+  expect((await post(admin, 'archive')).status).toBe(409);
 });
 
 it('blocks archived target mutations, including grants, token rotation, and external accounts', async () => {

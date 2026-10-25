@@ -14,6 +14,7 @@ history remain. Restore clears it; existing non-revoked tokens work again.
 | `delivery/inbound.ts` | Live: exclude archived route owners. |
 | `panels/lifecycle/repository.ts`: admin authorization | Live: exclude archived admins; access helper also checks the target. |
 | `panels/requests/submissions.ts`: answer commit guard | Live: exclude archived target/token owners. |
+| `box/shares/public.ts`: public share resolution | Live: a share of an archived boss's item returns the same 404 as an unknown token, for the page and `/file`; restore makes unexpired, unrevoked shares work again. |
 | `routes/boss-inbox.ts`: agent-as-boss identity | Live: exclude archived linked bosses. |
 | `routes/webhook-helpers.ts`: account and channel identity | Live: exclude archived identities. |
 | `routes/webhook-helpers.ts`: total boss count | History/security inventory: retain all rows so archival cannot reopen anonymous bootstrap access. |
@@ -32,8 +33,9 @@ history remain. Restore clears it; existing non-revoked tokens work again.
 
 `POST /api/bosses/:id/archive` and `/restore` require an admin boss token and a full
 boss ID. Unknown targets return 404; repeated state transitions return 409.
-Archive rejects self and the last live admin with 400. The last-admin constraint
-also guards the UPDATE atomically. Successful changes append `boss.archive` or
+Archive rejects self with 400 and the last live admin with 409, the same status as
+demoting or deleting the last live admin. The last-admin constraint also guards the
+UPDATE atomically. Successful changes append `boss.archive` or
 `boss.restore` audit events. No delete or token revocation occurs in either path.
 After committing, archive awaits best-effort socket eviction. Restored subscribers
 reconnect; restore itself performs no eviction.

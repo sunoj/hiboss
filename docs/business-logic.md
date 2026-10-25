@@ -8,16 +8,17 @@ relative to the Worker origin; source paths are relative to the repository root.
 
 | Principal | Credential | Created by |
 | --- | --- | --- |
-| Agent (`api_keys`) | Bearer keys in `agent_keys` (hashed, revocable) | An approved join request |
+| Agent (`api_keys`) | Bearer keys in `agent_keys` (hashed, revocable) | An approved join request, or `POST /api/keys` by an `is_admin` agent |
 | Boss (`bosses`) | One boss token per client (`boss_tokens` under `boss_clients`) | First-boss bootstrap, or a boss admin |
-| Boss client (`boss_clients`) | The token plus an optional device signing key | Pairing-code redemption or sign-in approval |
+| Boss client (`boss_clients`) | The token plus an optional device signing key | Pairing-code redemption, sign-in approval, or `POST /api/boss/clients` by the boss itself |
 
 Agent keys and boss tokens are not interchangeable: agent routes reject boss tokens and
 boss routes reject agent keys. A boss has one role:
 
 - `admin`: sees every agent, manages bosses, grants and enrolment;
 - `manager`: sees and writes for agents it was granted (`boss_agent_access`);
-- `viewer`: read-only on granted agents.
+- `viewer`: read-only on granted agents on every surface: the boss API, the boss-agent
+  inbox, and Telegram and Discord text, option buttons and reactions.
 
 An agent's administrative capability is the separate flag `api_keys.is_admin`. It gates
 `/api/keys`, `/api/channels` and `/api/discord-gateway`. Workflow roles (`orchestrator`,
@@ -51,19 +52,30 @@ Owner docs: [multi-profile onboarding](multi-profile-onboarding.md),
    Approval atomically creates every requested profile and its key; the first status
    poll returns the plaintext keys once. Profiles enrolled through the bootstrap path
    receive `is_admin = 1`; every other enrolment receives `is_admin = 0`.
-5. **Later devices.** A paired client issues pairing codes for further devices. A Mac can
-   also sign in through an approved iPhone request (`signin_requests`: pending →
-   approved/rejected; approved → completed/expired, ten minutes, five attempts).
+5. **Later devices.** A paired `admin` or `manager` client issues pairing codes for
+   further devices; a viewer cannot. A Mac can also sign in through an approved iPhone
+   request (`signin_requests`: pending → approved/rejected; approved → completed/expired,
+   ten minutes, five attempts).
+
+Two paths create principals outside the join and pairing flows:
+
+- An agent with `is_admin` creates another agent and its first key with `POST /api/keys`.
+  No boss approves it, the new agent has `is_admin = 0`, and no boss is granted access to it.
+- Any authenticated boss, a viewer included, mints another client and token for itself
+  with `POST /api/boss/clients`. The new token carries the boss's own role.
 
 Revoking a boss client retires its token, its signing keys and its push devices.
+Revoking a boss token removes its push devices, the unused pairing codes it issued and
+its live-panel subscriptions.
 
 ## Bosses and grants
 
 Owner docs: [boss archive](boss-archive.md).
 
 - Bosses are `live` or `archived`; archiving keeps identity, grants and tokens, and
-  restore reverses it. A boss cannot archive itself, and the last live admin cannot be
-  archived or demoted (409).
+  restore reverses it. An archived boss cannot authenticate, receives no delivery, and
+  its Box share links stop working. A boss cannot archive itself (400), and the last
+  live admin cannot be archived, demoted or deleted (409).
 - Admins create bosses, change roles, grant and revoke agent access, and rotate a boss's
   tokens (`POST /api/bosses/:id/token` revokes every existing token of that boss).
 - An admin boss can grant or remove an agent's `is_admin` capability; each change is
@@ -76,9 +88,12 @@ Owner docs: [boss archive](boss-archive.md).
 Owner doc: [agent keys](agent-keys.md). An agent holds one or more labelled keys. Rotation
 mints, verifies, swaps the config and revokes the old key. An agent cannot revoke its last
 live key; an admin boss, or a manager granted that agent, can, because it can also mint a
-replacement. Agents can edit their own profile and callback URL. Agent and boss message
-signing (ES256) is described in [agent message signing](agent-message-signing.md) and
-[message signing](message-signing.md).
+replacement. A manager cannot mint or revoke keys, or reset the signing key, of an agent
+that is linked to a boss (`bosses.agent_id`) or has `is_admin`; only an admin can. A key
+minted by a boss records that boss, and it is revoked when that boss loses access to the
+agent, is archived or is deleted. Agents can edit their own profile and callback URL.
+Agent and boss message signing (ES256) is described in
+[agent message signing](agent-message-signing.md) and [message signing](message-signing.md).
 
 ## Sessions and projects
 
@@ -105,9 +120,13 @@ Owner docs: [message format](message-format.md), [ask outcomes](ask-outcomes.md)
   later answers get a conflict. Explicit blocking timeouts are 60–86400 seconds.
 - On timeout with a default, the server writes a system reply marked `auto_default`;
   without a default, no answer is created. A new ask with options from the same session
-  expires the older one; ending a session expires its asks without choosing defaults.
+  expires the older one without choosing its default; ending a session, by any route,
+  expires its asks without choosing defaults.
+- A forwarded copy of an ask is not a decision: it is not an open ask, and neither the
+  copy nor a reply to it is the ask's answer or outcome.
 - `--action` commands are shown to the asking agent and never executed by HiBoss.
-- Viewers cannot answer through the boss API. Sends are idempotent per sender key.
+- Viewers cannot answer or react on any surface, including channel option buttons and
+  reactions. Sends are idempotent per sender key.
 - Reactions are stored in message metadata, not as replies. Peer `--to` targets resolve
   by agent name, session label, nickname or prefix, as described in the CLI reference.
 
@@ -127,16 +146,18 @@ Telegram and Discord inbound messages map to a boss through `boss_external_accou
 
 Owner docs: [progress feed](progress-feed-contract.md),
 [feed v2](progress-feed-v2-contract.md), [attribution](progress-attribution-contract.md).
-Agents create, list and delete their own posts (up to four media items). Bosses read and
-delete posts of accessible agents and like them idempotently. Posts never notify.
+Agents create, list and delete their own posts (up to four media items). Bosses read
+posts of accessible agents and like them idempotently; admins and managers can delete
+them, viewers cannot. Posts never notify.
 
 ## Live panels and questionnaires
 
 Owner docs: [protocol](live-panels/protocol.md), [lifecycle](live-panels/lifecycle.md),
 [runtime](live-panels/runtime.md), [questionnaires](live-panels/questionnaires.md).
 
-- The owning agent publishes and produces. The target boss, granted bosses and admins
-  subscribe.
+- The owning agent publishes and produces. The target boss (while it can reach the
+  agent) and live admins subscribe; another boss granted the same agent does not see a
+  panel that targets someone else.
 - Task state: `running` ↔ `paused`; either → `completed`, `failed` or `cancelled`.
   Terminal states are permanent.
 - Visibility is separate from task state. It defaults to 3600 seconds and can be
@@ -145,8 +166,9 @@ Owner docs: [protocol](live-panels/protocol.md), [lifecycle](live-panels/lifecyc
 - Producers hold 45-second leases with epoch fencing; writes use CAS on metadata and
   definition versions.
 - Questionnaires go `open` → `accepted` or `withdrawn`; expiry is derived and never
-  auto-answers. A boss `admin` or `manager` submits one schema-valid answer, and the
-  agent acknowledges receipt. A terminal panel command rejects open questionnaires unless
+  auto-answers. Only the panel's target boss, with role `admin` or `manager`, submits
+  one schema-valid answer; any other boss, another admin included, gets 403. The agent
+  acknowledges receipt. A terminal panel command rejects open questionnaires unless
   they are explicitly withdrawn.
 
 ## Box
@@ -162,8 +184,8 @@ Owner docs: [Box design](hiboss-box-design.md), [Box v2](box-v2.md),
 - Items are `live` → soft-deleted → purged. Agents can organize readable collections;
   only the boss deletes collections or likes items.
 - A share link stores only a token hash, lasts 1 hour to 30 days (default 7 days), and
-  works only while both the share and the item are live. Revoking an agent's key does not
-  revoke shares it created.
+  works only while the share and the item are live and the owning boss is not archived.
+  Revoking an agent's key does not revoke shares it created.
 
 ## Groups, audit and attachments
 
@@ -176,13 +198,7 @@ Owner docs: [Box design](hiboss-box-design.md), [Box v2](box-v2.md),
 ## Known limitations
 
 - `email` is accepted in channel and routing configuration but has no delivery adapter.
-- Registering a session as `completed` through `POST /api/sessions` does not expire its
-  asks; `PATCH` and `DELETE` do. Expiry handles at most 50 asks per call.
 - A session or boss referenced by a panel cannot be deleted (foreign key).
-- On the legacy path, the quiet-hours queue does not recheck ask expiry, and queued
-  messages skip native push and boss-agent callbacks.
-- The boss API and boss-agent inbox allow a receipt to move from `read` back to
-  `delivered`; the agent API allows only forward moves.
 - The CLI `boss` command group mixes boss-token routes (`/api/bosses`) and boss-agent
   routes (`/api/boss/inbox`); one configured credential cannot serve both.
 - Provider sends are not exactly-once: a crash after acceptance can repeat a retry.

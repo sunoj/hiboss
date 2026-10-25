@@ -27,6 +27,18 @@ describe('questionnaire integrity', () => {
     finally { await env.DB.prepare("UPDATE bosses SET role = 'manager' WHERE id = ?").bind(BOSS).run(); }
     expect((await submit(requestId)).status).toBe(201);
   });
+  it('refuses a non-target admin with 403 and leaves the request open for the target', async () => {
+    const { requestId } = await publish();
+    await seedBossToken('Questionnaire admin', 'admin', 'hb_questionnaire_admin', 'questionnaire-admin');
+    const headers = { Authorization: 'Bearer hb_questionnaire_admin', 'Content-Type': 'application/json' };
+    expect((await read(requestId, '', headers)).status).toBe(200);
+    const response = await SELF.fetch(`${base}/interaction-requests/${requestId}/submissions`, { method: 'POST', headers, body: JSON.stringify({
+      protocolVersion: 1, purpose: 'hiboss.interaction-submit', submissionId: crypto.randomUUID(), requestId, requestRevision: 1, bossId: 'questionnaire-admin', answers: { count: 4 } }) });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: 'permission_denied' } });
+    expect(await (await read(requestId)).json()).toMatchObject({ state: 'open', submission: null });
+    expect((await submit(requestId)).status).toBe(201);
+  });
   it('hides answers from another viewer and revokes reads when access is removed', async () => {
     const { requestId } = await publish();
     await seedBossToken('Other', 'viewer', 'hb_questionnaire_other', 'questionnaire-other');

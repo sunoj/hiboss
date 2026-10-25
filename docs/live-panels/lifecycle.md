@@ -164,7 +164,8 @@ refresh that estimate on foreground. A device wall-clock change cannot revive a 
 Task state never changes on lease or visibility expiry. An abandoned run remains
 running/offline until its owner reports a terminal outcome or the boss archives its
 card. A lapsed running or paused card is hidden from the Active wall, not ended;
-if its producer returns and observes, it becomes visible again. Automatic failure on
+only an explicit renewal by its owner makes it visible again. Observations after the
+lapse do not. Automatic failure on
 timeout would misclassify a healthy task during a network partition.
 
 ## 5. Visibility, results, and retention
@@ -275,9 +276,8 @@ outcome even after the task becomes terminal. Conflicting bodies return 409.
 | POST /api/panels/:id/lifecycle | pause, resume, complete, fail, cancel |
 | POST /api/panels/:id/renew | Owner-only visibility renewal with optional ttlSeconds |
 | PUT /api/panels/:id/definition | full revision replacement and epoch fence |
-| PUT /api/panels/:id/preferences | placement plus expectedPreferenceVersion |
-| POST /api/panels/:id/result-receipt | seen/acknowledged terminal version; idempotent |
-| GET /api/panels?view=wall\|results\|archived | scoped metadata with authoritative lifecycle projection |
+| PUT /api/panels/:id/preferences | placement, and seen/acknowledged terminal version (terminal panels only), with expectedPreferenceVersion |
+| GET /api/panels | scoped metadata with authoritative lifecycle projection; `cursor`/`limit` pagination (default 50, maximum 100), no server-side view filter |
 | GET /api/panels/:id/state | latest checkpoint, or immutable terminal checkpoint |
 
 Every state/observation frame names panelId, definitionRevision, epoch, sequence,
