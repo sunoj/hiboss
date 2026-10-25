@@ -115,8 +115,8 @@ landed. If another producer takes the lease, it stops and says so rather than fi
 Persistent intake questionnaires and typed answers are implemented for iOS/macOS
 panel details. Use `hiboss request publish <panel-id> <file> --idempotency-key <key>`;
 standalone catalog previews only capture local answers. The installed guide includes
-a complete intake example. See `docs/live-panels/questionnaires.md` for rollout and
-remaining scope. An intake answer is not authorization to execute an external action.
+a complete intake example. See `docs/live-panels/questionnaires.md` for the contract,
+including who may answer. An intake answer is not authorization to execute an external action.
 
 ### Cross-Session Coordination
 When peer communication is authorized and sessions are active on the same project:
