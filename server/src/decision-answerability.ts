@@ -1,5 +1,5 @@
 // Defines decision shape and definitive closure conditions shared with pending inputs.
-// Exports SQL predicates and isDecisionAnswerable for the boss reply route.
+// Exports SQL predicates, isDecisionAnswerable for the boss reply route and isDecisionReply.
 // Depends on D1 message rows and the shared open-status predicate; age is display-only.
 
 import type { Env } from './types';
@@ -16,6 +16,23 @@ export const OPEN_DECISION_SQL = `${OPEN_MESSAGE_STATUS.replace('status', 'messa
   AND (CASE WHEN json_valid(messages.metadata)
        THEN json_extract(messages.metadata, '$.options_expired') IS NOT 1
        ELSE 1 END)`;
+
+type ReplyParty = { direction: string; agent_id: string; session_id?: string | null };
+
+/**
+ * Whether `reply` answers `parent`: a boss_to_agent row answers a boss ask; an agent_to_agent row
+ * answers a peer ask when another agent wrote it, or the same agent from a named session other than
+ * the ask's. Only such a reply closes an ask; any other reply is stored and leaves it open.
+ */
+export function isDecisionReply(parent: ReplyParty, reply: ReplyParty): boolean {
+  if (parent.direction === 'agent_to_agent') {
+    const session = reply.session_id ?? null;
+    return reply.direction === 'agent_to_agent' && (reply.agent_id !== parent.agent_id
+      || (session !== null && session !== (parent.session_id ?? null)));
+  }
+  if (parent.direction === 'agent_to_boss') return reply.direction === 'boss_to_agent';
+  return true;
+}
 
 /** Non-decision messages remain replyable regardless of status, deadline, or metadata. */
 export async function isDecisionAnswerable(env: Env, parentId: string): Promise<boolean> {

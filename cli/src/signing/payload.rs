@@ -52,8 +52,10 @@ pub fn sign_action(
 ) -> Result<(), Box<dyn Error>> {
     let body = trimmed(request.get("body")).unwrap_or_default();
     request.insert("body".into(), Value::String(body.clone()));
+    // A reply that names its session signs it; the server binds it the same way.
+    let session = request.get("session_id").cloned().unwrap_or(Value::Null);
     let content = json!({
-        "session_id": null, "action": action, "body": body, "mode": null,
+        "session_id": session, "action": action, "body": body, "mode": null,
         "timeout": null, "file_url": null, "options": null, "metadata": null,
     });
     attach(signer, request, content)

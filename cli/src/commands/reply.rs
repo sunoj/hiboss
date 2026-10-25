@@ -20,7 +20,11 @@ pub async fn run(
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
     let response = client
-        .reply_to(&args.id, &unescape_body(&args.body))
+        .reply_to(
+            &args.id,
+            &unescape_body(&args.body),
+            session::read_session_id().as_deref(),
+        )
         .await?;
     eprintln!("Reply posted");
     session::mark_replied();

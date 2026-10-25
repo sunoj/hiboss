@@ -27,19 +27,26 @@ pub(crate) struct AskResult {
     pub device_label: Option<String>,
 }
 
-/// The reply that answers `ask`: a boss_to_agent row for a boss ask, a peer's row for an
-/// agent-to-agent ask. The asker's own follow-ups and forward copies never answer it.
+/// Whether `reply` answers `ask`: a boss_to_agent row for a boss ask; for an agent-to-agent ask, a
+/// row from another agent or from the same agent in a named session other than the ask's. The
+/// asker's own follow-ups and forward copies never answer it. Mirrors the server's isDecisionReply.
+pub(crate) fn answers(ask: &Message, reply: &Message) -> bool {
+    if ask.direction.as_deref() != Some("agent_to_agent") {
+        return reply.direction.as_deref() == Some("boss_to_agent");
+    }
+    ask.agent_id.is_some()
+        && reply.agent_id.is_some()
+        && reply.direction.as_deref() == Some("agent_to_agent")
+        && (reply.agent_id != ask.agent_id
+            || (reply.session_id.is_some() && reply.session_id != ask.session_id))
+}
+
+/// The first reply that answers `ask`.
 pub(crate) fn decision_reply(ask: &Message) -> Option<&Message> {
-    let peer_ask = ask.direction.as_deref() == Some("agent_to_agent");
-    ask.replies.as_deref()?.iter().find(|reply| {
-        if peer_ask {
-            reply.direction.as_deref() == Some("agent_to_agent")
-                && reply.agent_id.is_some()
-                && reply.agent_id != ask.agent_id
-        } else {
-            reply.direction.as_deref() == Some("boss_to_agent")
-        }
-    })
+    ask.replies
+        .as_deref()?
+        .iter()
+        .find(|reply| answers(ask, reply))
 }
 
 impl AskResult {

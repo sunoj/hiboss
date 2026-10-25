@@ -5,6 +5,7 @@
 
 import type { Channel, Env, MessageRow } from '../types';
 import { mapMessageRow } from './message-helpers';
+import { isDecisionReply } from '../decision-answerability';
 
 export async function selectChannelConfig(env: Env, agentId: string, requested?: Channel) {
   if (requested) {
@@ -81,12 +82,6 @@ export async function fetchMessageWithReplies(env: Env, agentId: string, message
   }
   const replyList = await fetchReplies(env, row.id, agentId);
   return { ...mapMessageRow(row), replies: decisionsOnly ? replyList.filter(reply => isDecisionReply(row, reply)) : replyList };
-}
-
-function isDecisionReply(parent: MessageRow, reply: { agent_id: string; direction: string }): boolean {
-  if (parent.direction === 'agent_to_agent') return reply.direction === 'agent_to_agent' && reply.agent_id !== parent.agent_id;
-  if (parent.direction === 'agent_to_boss') return reply.direction === 'boss_to_agent';
-  return true;
 }
 
 export async function fetchAgentName(env: Env, agentId: string): Promise<string | null> {

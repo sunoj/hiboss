@@ -83,8 +83,9 @@ export async function authenticateAgentMessage(input: AgentMessageInput): Promis
 }
 
 /** Content of a signed write whose only signed fields are the action and the body. */
-export function actionContent(action: AgentAction, body: string): SignedAgentContent {
-  return { session_id: null, action, body, mode: null, timeout: null, file_url: null, options: null, metadata: null };
+/** `sessionId` is the session a reply names; a signature covers it like a send's session. */
+export function actionContent(action: AgentAction, body: string, sessionId: string | null = null): SignedAgentContent {
+  return { session_id: sessionId, action, body, mode: null, timeout: null, file_url: null, options: null, metadata: null };
 }
 
 /** The idempotency key that makes a replayed signed write return the original row. */

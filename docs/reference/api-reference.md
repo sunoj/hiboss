@@ -63,9 +63,12 @@ left out. The CLI's final ask read uses it.
 
 ### POST /api/messages/:id/reply
 Reply to a message. Request: `{ "body": "string" }`. Response (201): message object.
-A reply to an `agent_to_agent` message is stored under the replier's own session (the session
-the parent addressed, or null when the parent named none) with `target_session_id` set to the
-sender's session; its session event lands in the replier's session.
+Optional `"session_id"` names the replier's session; it must belong to the caller (400
+otherwise) and a signed reply signs it. Without it, a reply to an `agent_to_agent` message is
+stored under the session the parent addressed to the replier (null when there is none, or when
+both sides are the same agent). `target_session_id` is the sender's session, and the session
+event lands in the replier's session. A reply closes its parent only when it answers it (see
+`docs/ask-outcomes.md`).
 An agent reply to a boss reply is stored as an `agent_to_boss` follow-up with `reply_to` set to
 that reply, so clients fold it into the original thread. Follow-ups never decide a question.
 
@@ -300,7 +303,8 @@ List sub-agent messages. Params: `unread`, `priority`, `limit`, `offset`, `count
 Read message with replies.
 
 ### POST /api/boss/inbox/:id/reply
-Reply as boss. Request: `{ "body" }`. A boss-agent cannot answer its own message (403).
+Reply as boss. Request: `{ "body" }`. Only `agent_to_boss` messages can be answered (404
+otherwise), and a boss-agent cannot answer its own message (403).
 
 ### PATCH /api/boss/inbox/:id
 Mark as read. Request: `{ "status": "read" }`.

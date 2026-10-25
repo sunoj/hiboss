@@ -23,6 +23,7 @@ import {
 } from './message-helpers';
 import { ensureTopicForSession } from './session-channels';
 import { ownsSession } from '../projects';
+import { isDecisionReply } from '../decision-answerability';
 
 import { destinationsMode, dispatchDestinations } from '../delivery';
 const routes = new Hono<{ Bindings: Env }>();
@@ -43,6 +44,8 @@ routes.post('/:id/reply', async (c) => {
   if (!body) {
     return c.text('body is required', 400);
   }
+  const named = typeof payload.session_id === 'string' ? payload.session_id.trim() || null : null;
+  if (!await ownsSession(c.env.DB, named, agentId)) return c.text('session does not belong to calling agent', 400);
   // For agent_to_agent messages, reply direction is also agent_to_agent (back to sender)
   const replyDirection: Direction = parent.direction === 'agent_to_agent'
     ? 'agent_to_agent'
@@ -52,7 +55,7 @@ routes.post('/:id/reply', async (c) => {
   const audience = audienceOf(replyDirection, replyTargetAgentId, replyTargetSessionId);
   const auth = await authenticateAgentMessage({
     env: c.env, agentId, agentKeyId: getAgentKeyId(c), signedMessage: payload.signed_message,
-    content: actionContent({ kind: 'reply', message_id: parent.id, audience }, body),
+    content: actionContent({ kind: 'reply', message_id: parent.id, audience }, body, named),
   });
   if (!auth.ok) return c.text(auth.error, auth.status);
   const idempotencyKey = auth.signed ? signedIdempotencyKey(auth.signed) : null;
@@ -60,19 +63,21 @@ routes.post('/:id/reply', async (c) => {
     const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
     if (existing) return c.json(mapMessageRow(existing), 200);
   }
-  const sessionId = await replierSession(c.env, parent, agentId);
+  const sessionId = named ?? await replierSession(c.env, parent, agentId);
   return persistReply(c, parent, body, replyDirection, { agentId: replyTargetAgentId, sessionId: replyTargetSessionId },
     sessionId, auth.metadata, idempotencyKey);
 });
 
 /**
- * The replier's own session, which owns the reply row and its event: the parent's session for
- * the agent's own conversation, the addressed session for a peer message, null otherwise.
+ * The replier's session when the reply names none: the parent's session for the agent's own
+ * conversation, the addressed session for a peer's message. A message between two sessions of the
+ * same agent does not say which side replies, so it is null (and the reply is no answer).
  */
 async function replierSession(env: Env, parent: MessageRow, agentId: string): Promise<string | null> {
   if (parent.direction !== 'agent_to_agent') return replyTargetSession(parent);
-  const candidate = parent.agent_id === agentId ? parent.session_id
-    : parent.target_agent_id === agentId ? parent.target_session_id : null;
+  const author = parent.agent_id === agentId;
+  const target = parent.target_agent_id === agentId;
+  const candidate = author && !target ? parent.session_id : target && !author ? parent.target_session_id : null;
   return candidate && await ownsSession(env.DB, candidate, agentId) ? candidate : null;
 }
 
@@ -97,7 +102,7 @@ async function persistReply(
     return c.text('failed to persist', 500);
   }
   if (replyDirection === 'agent_to_boss') await sendBossReply(c, inserted, parent, body);
-  if (parent.direction !== 'agent_to_boss') {
+  if (parent.direction !== 'agent_to_boss' && isDecisionReply(parent, inserted)) {
     await c.env.DB
       .prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
       .bind(parent.id).run();

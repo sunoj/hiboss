@@ -26,6 +26,7 @@ enum Scenario {
     DroppedBody,
     MalformedJson,
     SelfReplyOnly,
+    PollSelfReply,
 }
 
 struct Server {
@@ -162,7 +163,9 @@ async fn send_body(stream: &mut TcpStream, scenario: Scenario, has_reply: bool, 
     }
     let body = if matches!(scenario, Scenario::MalformedJson) {
         "{broken"
-    } else if matches!(scenario, Scenario::SelfReplyOnly) && index > 0 {
+    } else if (matches!(scenario, Scenario::SelfReplyOnly) && index > 0)
+        || (matches!(scenario, Scenario::PollSelfReply) && index == 0)
+    {
         SELF_REPLY_BODY
     } else if has_reply {
         r#"{"id":"ask-1","direction":"agent_to_boss","replies":[{"id":"reply-1","direction":"boss_to_agent","body":"B","metadata":{"source":"api","provenance":{"version":1,"source":"api","signature":{"status":"not_configured"}}}}]}"#

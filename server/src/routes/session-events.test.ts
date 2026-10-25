@@ -97,11 +97,13 @@ describe('session event history', () => {
     const reply = await SELF.fetch(`https://test.local/api/messages/${sent.id}/reply`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ body: 'peer reply' }),
+      // Both sessions belong to one agent, so the reply names the session it comes from.
+      body: JSON.stringify({ body: 'peer reply', session_id: targetSessionId }),
     });
     expect(reply.status).toBe(201);
-    const data = await history(sessionId);
-    expect(data.events.map((event) => event.message_id)).toEqual([sent.id, (await reply.json() as { id: string }).id]);
+    const replied = await reply.json() as { id: string };
+    expect((await history(sessionId)).events.map((event) => event.message_id)).toEqual([sent.id]);
+    expect((await history(targetSessionId)).events.map((event) => event.message_id)).toEqual([replied.id]);
   });
 
   it('returns resync when the cursor predates retained history', async () => {

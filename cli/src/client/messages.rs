@@ -177,8 +177,14 @@ impl HiBossClient {
             .await?;
         parse_send_response(resp).await
     }
-    pub async fn reply_to(&self, id: &str, body: &str) -> Result<Message, Box<dyn Error>> {
-        let (id, req) = self.signed_reply(id, body).await?;
+    /// `session_id` names the replier's session, which decides whether a peer reply answers.
+    pub async fn reply_to(
+        &self,
+        id: &str,
+        body: &str,
+        session_id: Option<&str>,
+    ) -> Result<Message, Box<dyn Error>> {
+        let (id, req) = self.signed_reply(id, body, session_id).await?;
         let resp = self
             .http
             .post(format!("{}/api/messages/{}/reply", self.base_url, id))

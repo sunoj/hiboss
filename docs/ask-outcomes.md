@@ -32,6 +32,17 @@ are never an outcome. After the last poll window the CLI reads
 `GET /api/messages/:id?replies=decisions`, which applies the same rule on the server, and the CLI
 filters again before choosing an outcome.
 
+An `--to` ask may address another session of the same agent. A reply then counts only when it
+names a session other than the ask's: `hiboss reply` sends its registered session ID, the server
+accepts it only when that session belongs to the replier, and a signed reply signs it. A reply
+that names no session (older CLIs, the MCP reply tool, `hiboss bot`) cannot be told apart from
+the asker, so it never answers a same-agent ask. Replies from a different agent count without a
+session.
+
+Only a reply that counts as an answer closes an ask. The asker's follow-ups and boss rows on an
+agent-to-agent ask are stored but leave it open, so the deadline still expires it. The boss inbox
+answers only `agent_to_boss` messages and returns 404 for any other parent.
+
 The server writes an automatic default only when an ask to the boss times out. An `--to` ask
 that times out expires once without an answer, so its outcome is `local_default` or `timeout`.
 An ask superseded by a newer ask with options from the same session expires immediately without
@@ -52,6 +63,22 @@ Default paths never print `Action:` or request acknowledgment of a human reply.
 For ordinary replies, action commands are displayed only; `ask` does not run them.
 Completed polling still exits successfully; transport failures keep existing exit
 codes. Consumers must inspect the outcome rather than infer approval from exit 0.
+
+## Release order
+
+Deploy the Worker before or together with the CLI. The decision read
+(`?replies=decisions`), the reply `session_id` field and the boss inbox self-answer guard are
+server-side. A new CLI against an older Worker gets every reply from its final read and filters
+them itself, and its same-agent `--to` replies carry a session the old Worker ignores, so they
+do not count until the Worker is updated. Nothing the CLI does can stop a boss-agent answering
+its own ask on an older Worker.
+
+## Known limitations
+
+- An agent-to-agent ask has no claim step. A peer reply that arrives after the deadline expired
+  the ask is still stored and counted as its answer by the decision read.
+- If the server cannot record a timeout default (the conditional insert fails without the ask
+  closing), the ask stays open until a later sweep or session end closes it.
 
 ## MCP contract
 

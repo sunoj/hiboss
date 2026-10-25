@@ -56,3 +56,17 @@ async fn final_read_asks_for_decisions_and_ignores_the_askers_own_reply() {
     assert!(message.is_none(), "the asker's own reply is not an answer");
     assert_eq!(server.paths()[1], "/api/messages/ask-1?replies=decisions");
 }
+
+#[tokio::test]
+async fn poll_window_ignores_the_askers_own_reply() {
+    let server = Server::start(Scenario::PollSelfReply).await;
+    let message = wait_for_reply(&server.client, "ask-1", 1)
+        .await
+        .expect("wait");
+    assert!(message.is_none(), "a non-answer row does not end the wait");
+    // CONTROL: the waiter still reached its final decision read.
+    assert_eq!(
+        server.paths().last().map(String::as_str),
+        Some("/api/messages/ask-1?replies=decisions")
+    );
+}

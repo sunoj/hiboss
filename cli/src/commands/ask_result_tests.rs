@@ -163,3 +163,26 @@ fn peer_answer_counts_but_the_askers_own_peer_row_does_not() {
         (Outcome::Reply, Some("peer-1"))
     );
 }
+
+#[test]
+fn same_agent_peer_answer_counts_only_from_another_session() {
+    let row = |id: &str, session: serde_json::Value| -> Message {
+        serde_json::from_value(json!({
+            "id": id, "agent_id": "agent-a", "direction": "agent_to_agent", "target_agent_id": "agent-a",
+            "session_id": session, "body": id,
+        }))
+        .expect("same-agent row")
+    };
+    let mut peer_ask = ask(vec![
+        row("asker-1", json!("s1")),
+        row("old-cli-1", json!(null)),
+        row("peer-1", json!("s2")),
+    ]);
+    peer_ask.direction = Some("agent_to_agent".into());
+    peer_ask.session_id = Some("s1".into());
+    let result = AskResult::from_poll("ask-1", Some(&peer_ask), &choices());
+    assert_eq!(
+        (result.outcome, result.reply_id.as_deref()),
+        (Outcome::Reply, Some("peer-1"))
+    );
+}

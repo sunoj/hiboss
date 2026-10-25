@@ -152,3 +152,19 @@ fn key_files_use_the_pkcs8_layout_the_mcp_plugin_imports() {
     assert_eq!(bytes.len(), 138);
     assert_eq!(&bytes[68..73], &[0xa1, 0x44, 0x03, 0x42, 0x00]);
 }
+
+#[test]
+fn a_reply_signs_the_session_it_names() {
+    let signer = AgentSigner::ephemeral("agent-1", "cred-1");
+    let payload = |fields: Value| -> Value {
+        let mut reply = request(fields);
+        sign_action(&signer, &mut reply, json!({"kind": "reply", "message_id": "parent-1", "audience": {"kind": "boss"}}))
+            .expect("sign");
+        let token = reply["signed_message"].as_str().expect("token").to_owned();
+        let segment = token.split('.').nth(1).expect("payload segment").to_owned();
+        serde_json::from_slice(&crate::message_security::decode(&segment).expect("base64url")).expect("JSON")
+    };
+    // CONTROL: a reply without a session signs null, as before.
+    assert_eq!(payload(json!({"body": "Done"}))["session_id"], Value::Null);
+    assert_eq!(payload(json!({"body": "Done", "session_id": "s2"}))["session_id"], "s2");
+}
