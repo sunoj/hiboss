@@ -316,6 +316,10 @@ Messages from accessible agents. Params: `limit`, `offset`, `unread`, `priority`
 ### GET /api/boss/messages/:id
 Message detail with replies.
 
+### PATCH /api/boss/messages/:id
+Records a receipt (`status`: `read` or `delivered`) on an open message. Viewer role is
+blocked (403); a resolved message returns 409.
+
 ### POST /api/boss/messages/:id/reply
 Boss replies to an agent. Viewer role is blocked. For option messages, `body` must
 exactly match an option. The first selection returns 201; later concurrent

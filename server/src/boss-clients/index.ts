@@ -1,7 +1,7 @@
 // Boss-owned client inventory, minting, and atomic credential/push revocation.
 // Exports bossClientsRouter and client contracts; depends on Hono, D1, and boss auth.
 import { Hono } from 'hono';
-import { bossAuth, getBossId, getClientId } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole, getClientId } from '../middleware/auth';
 import { issueBossToken } from '../boss-token';
 import { revokeBossTokens } from './revoke';
 import type { Env } from '../types';
@@ -38,6 +38,8 @@ async function listClients(db: D1Database, bossId: string, current: ClientId | n
 routes.get('/', async c => c.json({ clients: await listClients(c.env.DB, getBossId(c), getClientId(c)) }));
 
 routes.post('/', async c => {
+  // Adding a device is pairing's capability, which viewers do not have.
+  if (getBossRole(c) === 'viewer') return c.json({ error: 'admin or manager required' }, 403);
   const input = registration(await c.req.json<unknown>().catch(() => null));
   if (!input) return c.json({ error: 'valid kind and label are required' }, 400);
   const grant = await issueBossToken(c.env, getBossId(c), input.label, undefined, input);

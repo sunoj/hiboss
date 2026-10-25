@@ -17,7 +17,6 @@ import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resol
 import { replyTargetSession } from './message-helpers';
 import { createMessageId } from '../session-events';
 import { storeMessageReaction, removeMessageReaction } from './message-reactions';
-import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { channelMetadata, mergeProvenance } from '../message-security';
 
 type TelegramConfigRow = { agent_id: string; config: string };
@@ -45,6 +44,10 @@ export async function handleTelegramCallbackQuery(c: TelegramContext, query: Rec
     answer(bossError);
     return c.text(bossError, 403);
   }
+  if (bossInfo?.role === 'viewer') {
+    answer('Viewer cannot answer');
+    return c.text('viewer cannot answer', 403);
+  }
   if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) {
     answer('No access');
     return c.text('no access to this agent', 403);
@@ -59,11 +62,12 @@ export async function handleTelegramReaction(c: TelegramContext, reaction: Recor
   if (!chatId || !tgMsgId) return c.text('invalid reaction', 400);
   const { boss: bossInfo, error: bossError } = await resolveBossForChannel(c.env, 'telegram', asString((reaction['user'] as Record<string, unknown>)?.['id']), true);
   if (bossError) return c.text(bossError, 403);
+  if (bossInfo?.role === 'viewer') return c.text('viewer cannot react', 403);
   const configRow = await findTelegramConfigRow(c.env, chatId, threadId);
   if (!configRow) return c.text('forbidden', 403);
   if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
-  const msg = await findTelegramMessageInChat(c.env, configRow.agent_id, chatId, tgMsgId);
-  if (!msg) return c.text('ok', 200);
+  const msg = await findTelegramMessageInChat(c.env, chatId, tgMsgId);
+  if (!msg || msg.agent_id !== configRow.agent_id) return c.text('ok', 200);
   const emojis = ((reaction['new_reaction'] as { type: string; emoji?: string }[] | undefined) ?? [])
     .filter((value) => value.type === 'emoji' && value.emoji)
     .map((value) => value.emoji as string);
@@ -94,7 +98,7 @@ async function handleMessageCallback(
     return c.text('invalid callback data', 400);
   }
   const parentMsg = await c.env.DB
-    .prepare('SELECT * FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
+    .prepare("SELECT * FROM messages WHERE id LIKE ? AND agent_id = ? AND direction = 'agent_to_boss' LIMIT 1")
     .bind(`${parsed.msgPrefix}%`, configRow.agent_id)
     .first<MessageRow>();
   if (!parentMsg) return replyWithAnswer(c, botToken, queryId, 'Not found', c.text('message not found', 404));
@@ -119,18 +123,14 @@ async function handleMessageCallback(
   );
   const rejection = await telegramClaimRejection(c, claim, botToken, queryId, query);
   if (rejection) return rejection;
-  if (claim.kind === 'failed' || claim.kind === 'invalid_choice' || claim.kind === 'resolved') {
-    return replyWithAnswer(c, botToken, queryId, 'Error', c.text('failed to persist', 500));
-  }
+  // An offered option on an agent_to_boss parent is always an ask, so only a claim succeeds.
+  if (claim.kind !== 'claimed') return replyWithAnswer(c, botToken, queryId, 'Error', c.text('failed to persist', 500));
   const inserted = claim.reply;
   answerTelegramCallback(c, botToken, queryId, `Selected: ${parsed.selectedOption}`);
   await updateCallbackMessage(botToken, chatMessage(query), `✅ Selected: ${parsed.selectedOption}`);
-  if (claim.kind === 'not_option') await markParentReplied(c.env, parentMsg.id);
-  if (claim.kind === 'claimed') {
-    c.executionCtx.waitUntil(
-      withdrawResolvedOptions(c.env, configRow.agent_id, parentMsg, parsed.selectedOption).catch(() => {}),
-    );
-  }
+  c.executionCtx.waitUntil(
+    withdrawResolvedOptions(c.env, configRow.agent_id, parentMsg, parsed.selectedOption).catch(() => {}),
+  );
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.callback', 'message', parentMsg.id, parsed.selectedOption));
   return c.json(mapMessage(inserted), 201);
@@ -150,11 +150,6 @@ async function telegramClaimRejection(
   answerTelegramCallback(c, botToken, queryId, 'Already selected');
   await updateCallbackMessage(botToken, chatMessage(query), '⚠️ Already selected elsewhere');
   return c.text('option already resolved', 409);
-}
-
-async function markParentReplied(env: Env, messageId: string): Promise<void> {
-  await env.DB.prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
-    .bind(messageId).run();
 }
 
 async function handleJoinCallback(

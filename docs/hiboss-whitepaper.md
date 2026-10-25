@@ -129,7 +129,8 @@ Unauthenticated surface and its defenses:
   Origin and are unaffected.
 
 Verified-correct controls worth preserving: atomic option claim (`boss-option-reply.ts:24-44`),
-channel callbacks restricted to offered options (no free-text injection from channel viewers),
+channel callbacks restricted to an offered option of an `agent_to_boss` ask (no free-text injection),
+viewers refused on every channel writer (text, buttons, reactions),
 boss-write target scoping (`boss-writes.ts:54,85,130`), secrets stripped from boss channel reads
 (`boss-writes.ts:277-285`), session upsert bound to the owning agent (`sessions.ts:49-58`),
 admin-gated key minting on every approval channel.

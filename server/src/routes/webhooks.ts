@@ -20,7 +20,8 @@ import {
   resolveBossForChannel,
 } from './webhook-helpers';
 import { handleTelegramCallbackQuery, handleTelegramReaction } from './telegram-webhook-actions';
-import { findPendingTelegramMessageInChat, findTelegramMessageInChat } from './telegram-message-match';
+import { findPendingTelegramMessageInChat, findRepliedTelegramMessage } from './telegram-message-match';
+import { replyTargetSession } from './message-helpers';
 import type { Env, MessageRow } from '../types';
 import { createMessageId } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
@@ -120,15 +121,17 @@ async function handleTelegramMessage(c: TelegramWebhookContext, payload: Record<
     false,
   );
   if (bossError) return c.text(bossError, 403);
-  if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, target.configRow.agent_id, bossInfo.role))) {
-    return c.text('no access to this agent', 403);
-  }
 
   const command = extractTelegramCommand(message, text);
+  // A reply answers the message it quotes, which may belong to another agent than the chat's.
+  const answered = command?.name === 'status' ? null : await findRepliedTelegramMessage(c.env, chatId, message, bossInfo);
+  if (!answered && bossInfo && !(await hasBossAccess(c.env, bossInfo.id, target.configRow.agent_id, bossInfo.role))) {
+    return c.text('no access to this agent', 403);
+  }
   if (command?.name === 'status') return handleTelegramStatusCommand(c, target.configRow, threadId);
   const body = command?.name === 'msg' ? command.body : text;
   if (!body) return c.text('missing chat or body', 400);
-  return createTelegramBossMessage(c, payload, message, body, target, bossInfo);
+  return createTelegramBossMessage(c, payload, message, body, { ...target, answered }, bossInfo);
 }
 
 async function createTelegramBossMessage(
@@ -136,29 +139,32 @@ async function createTelegramBossMessage(
   payload: Record<string, unknown>,
   message: Record<string, unknown> | undefined,
   body: string,
-  target: { configRow: TelegramConfigRow; targetSessionId: string | null },
+  target: { configRow: TelegramConfigRow; targetSessionId: string | null; answered: MessageRow | null },
   bossInfo: { id: string; name: string; role: string } | null,
 ): Promise<Response> {
+  const { answered } = target;
+  const agentId = answered?.agent_id ?? await routeTelegramText(c.env, body, target, bossInfo);
   const idempotencyKey = asString(payload['update_id']);
   if (idempotencyKey) {
-    const existing = await findMessageByIdempotencyKey(c.env, target.configRow.agent_id, idempotencyKey);
+    const existing = await findMessageByIdempotencyKey(c.env, agentId, idempotencyKey);
     if (existing) return c.json(mapMessage(existing), 200);
   }
-  const routedAgentId = target.targetSessionId || target.configRow.inbound ? null : await evaluateRoutingRules(c.env, 'telegram', body, target.configRow.agent_id);
-  const canRoute = !routedAgentId || !bossInfo || await hasBossAccess(c.env, bossInfo.id, routedAgentId, bossInfo.role);
-  const agentId = canRoute && routedAgentId ? routedAgentId : target.configRow.agent_id;
   const chatId = asString((message?.['chat'] as Record<string, unknown> | undefined)?.['id']);
-  const replyTo = await resolveTelegramReplyTo(c.env, agentId, chatId, message);
+  // A quoted message that matched nothing (or no accessible message) links nowhere.
+  const quotes = (message?.['reply_to_message'] as Record<string, unknown> | undefined)?.['message_id'] !== undefined;
+  const replyTo = answered?.id ?? (quotes || !chatId ? null : await findPendingTelegramMessageInChat(c.env, agentId, chatId));
+  const sessionId = answered && answered.agent_id !== target.configRow.agent_id
+    ? replyTargetSession(answered) : target.targetSessionId;
   const senderId = asString((message?.['from'] as Record<string, unknown>)?.['id']);
   const metadata = mergeProvenance(
     payload,
     channelMetadata('telegram', bossInfo, senderId),
   );
-  const parent = replyTo ? await c.env.DB.prepare('SELECT * FROM messages WHERE id = ?')
-    .bind(replyTo).first<MessageRow>() : null;
+  const parent = answered ?? (replyTo ? await c.env.DB.prepare('SELECT * FROM messages WHERE id = ?')
+    .bind(replyTo).first<MessageRow>() : null);
   const insertSql = 'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *';
-  const binds = [createMessageId(), agentId, 'boss_to_agent', 'async', 'telegram', body, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), target.targetSessionId];
-  const inserted = await persistChannelText(c.env, parent, body, insertSql, binds, target.targetSessionId,
+  const binds = [createMessageId(), agentId, 'boss_to_agent', 'async', 'telegram', body, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), sessionId];
+  const inserted = await persistChannelText(c.env, parent, body, insertSql, binds, sessionId,
     deferredAnnounce(c.executionCtx));
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentId, inserted));
@@ -197,14 +203,16 @@ async function findTelegramTarget(env: Env, chatId: string, threadId: number | u
   return fallback ? { configRow: fallback, targetSessionId: null } : null;
 }
 
-async function resolveTelegramReplyTo(env: Env, agentId: string, chatId: string | undefined, message: Record<string, unknown> | undefined): Promise<string | null> {
-  const replyToTgId = (message?.['reply_to_message'] as Record<string, unknown> | undefined)?.['message_id'] as number | undefined;
-  if (replyToTgId && chatId) {
-    const parent = await findTelegramMessageInChat(env, agentId, chatId, replyToTgId);
-    return parent?.id ?? null;
-  }
-  if (!chatId) return null;
-  return findPendingTelegramMessageInChat(env, agentId, chatId);
+/** The agent for text that answers no quoted message: the chat's agent, or a routing rule's target. */
+async function routeTelegramText(
+  env: Env, body: string, target: { configRow: TelegramConfigRow; targetSessionId: string | null },
+  bossInfo: { id: string; role: string } | null,
+): Promise<string> {
+  if (target.targetSessionId || target.configRow.inbound) return target.configRow.agent_id;
+  const routedAgentId = await evaluateRoutingRules(env, 'telegram', body, target.configRow.agent_id);
+  if (!routedAgentId) return target.configRow.agent_id;
+  const canRoute = !bossInfo || await hasBossAccess(env, bossInfo.id, routedAgentId, bossInfo.role);
+  return canRoute ? routedAgentId : target.configRow.agent_id;
 }
 
 function extractTelegramCommand(message: Record<string, unknown> | undefined, text: string): TelegramCommand | null {
