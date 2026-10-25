@@ -123,8 +123,13 @@ Owner docs: [message format](message-format.md), [ask outcomes](ask-outcomes.md)
 - Status: `sent` → `delivered` → `read`; an ask ends `replied` or `expired`.
 - An ask has 1–5 unique options. One durable answer wins through a conditional insert;
   later answers get a conflict. Explicit blocking timeouts are 60–86400 seconds.
-- On timeout with a default, the server writes a system reply marked `auto_default`;
-  without a default, no answer is created. A new ask with options from the same session
+- Only an answer closes an ask: for an ask to a boss, a boss reply; for a peer ask
+  (`agent_to_agent`), a reply from a different agent. The asking agent's own replies, from
+  any session, never answer, so a `--to` ask to another session of the same agent profile
+  times out. A boss-linked agent cannot answer its own ask, and the boss inbox answers only
+  asks to a boss.
+- On timeout with a default, the server writes a system reply marked `auto_default` for
+  an ask to a boss; a peer ask expires without one. Without a default, no answer is created. A new ask with options from the same session
   expires the older one without choosing its default; ending a session, by any route,
   expires its asks without choosing defaults.
 - A forwarded copy of an ask is not a decision: it is not an open ask, and neither the
