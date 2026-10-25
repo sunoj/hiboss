@@ -1,7 +1,14 @@
 // Removes a boss-owned push device and every APNs destination referencing it atomically.
-// Exports deleteBossDevice; depends on D1 batch transactions and destination cascades.
+// Exports deleteBossDevice and liveDeviceSql; depends on D1 batch transactions and destination cascades.
 import type { Env } from '../types';
 import { preserveMergedDeliveries } from '../delivery/delete-destination';
+
+/** Every push selection's predicate for device `alias`: the token that registered it, and its client, are live. */
+export function liveDeviceSql(alias: string): string {
+  return `EXISTS (SELECT 1 FROM boss_tokens lt LEFT JOIN boss_clients lc ON lc.id = lt.client_id
+    WHERE lt.id = ${alias}.token_id AND lt.boss_id = ${alias}.boss_id AND lt.revoked_at IS NULL
+    AND (lt.client_id IS NULL OR lc.revoked_at IS NULL))`;
+}
 
 export async function deleteBossDevice(env: Env, bossId: string, token: string): Promise<void> {
   const destinations = await env.DB.prepare(`SELECT id FROM boss_destinations WHERE kind = 'apns'

@@ -3,6 +3,7 @@
 import { env } from 'cloudflare:test';
 import { beforeAll, beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { seedDatabase } from '../../test-helpers';
+import { liveTokenId } from '../../push/resolution-test-support';
 import { dispatchDestinations, drainDestinationDeliveries } from '../dispatch';
 import { resolveDestinations } from '../destinations';
 import * as adapters from '../adapters';
@@ -99,7 +100,8 @@ it.each(['high', 'critical'] as const)('delivers %s immediately during quiet hou
 it('sends APNs only to the resolved live device and keeps native eligibility queued', async () => {
   await env.DB.prepare("UPDATE boss_destinations SET enabled = 0 WHERE id = 'retry-dest'").run();
   await env.DB.prepare("INSERT INTO boss_clients (id, boss_id, kind, label) VALUES ('phone', 'retry-boss', 'ios', 'Phone')").run();
-  await env.DB.prepare("INSERT INTO boss_devices (id, boss_id, client_id, device_token, bundle_id, environment) VALUES ('device', 'retry-boss', 'phone', 'push-token', 'app', 'sandbox')").run();
+  await env.DB.prepare("INSERT INTO boss_devices (id, boss_id, client_id, device_token, bundle_id, environment, token_id) VALUES ('device', 'retry-boss', 'phone', 'push-token', 'app', 'sandbox', ?)")
+    .bind(await liveTokenId('retry-boss')).run();
   await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, kind, client_id, target, label) VALUES
     ('push', 'retry-boss', 'apns', 'phone', '{"device_id":"device"}', 'Push'),
     ('native', 'retry-boss', 'native_live', 'phone', '{}', 'Native')`).run();

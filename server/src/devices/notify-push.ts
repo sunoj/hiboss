@@ -3,6 +3,7 @@
 // Depends on the shared APNs sender and boss_devices registrations.
 import type { Env } from '../types';
 import { pushMode, sendDevicePush, type PushDevice } from '../push/send';
+import { liveDeviceSql } from '../push/devices';
 import type { ApnsPayload } from '../apns';
 
 export interface JoinNotice {
@@ -40,7 +41,7 @@ export async function pushJoinRequest(env: Env, notice: JoinNotice): Promise<voi
   if (pushMode(env) === 'none') return;
   const devices = await env.DB.prepare(`SELECT d.boss_id, d.device_token, d.bundle_id, d.environment,
     d.relay_handle, d.push_key FROM boss_devices d
-    JOIN bosses b ON b.id = d.boss_id WHERE b.role = 'admin' AND b.archived_at IS NULL`)
+    JOIN bosses b ON b.id = d.boss_id WHERE b.role = 'admin' AND b.archived_at IS NULL AND ${liveDeviceSql('d')}`)
     .all<PushDevice>();
   const payload = joinRequestPayload(notice);
   for (const device of devices.results ?? []) {

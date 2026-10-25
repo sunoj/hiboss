@@ -4,7 +4,7 @@
 
 import { bossPanelScope } from '../access';
 import { Context, Hono } from 'hono';
-import { dualAuth, getAgentId, getBossId, isBossAuth } from '../../middleware/auth';
+import { dualAuth, getAgentId, getBossId, getBossTokenId, isBossAuth } from '../../middleware/auth';
 import type { Env } from '../../types';
 import { panelWallRouter } from './wall';
 import {
@@ -59,6 +59,7 @@ async function issueConnectionTicket(c: RelayContext): Promise<Response> {
   const expectedRole: PanelRole = isBossAuth(c) ? 'subscriber' : 'producer';
   if (role !== expectedRole) return errorResponse(c, 403, 'permission_denied', 'The authenticated caller cannot request this role');
   const identity = isBossAuth(c) ? getBossId(c) : getAgentId(c);
+  const tokenId = isBossAuth(c) ? getBossTokenId(c) : null;
   const panel = await panelScope(c, panelId, role, identity);
   if (!panel) return errorResponse(c, 404, 'not_found', 'Panel was not found');
   if (!c.env.PANEL_ROOM) return errorResponse(c, 503, 'service_unavailable', 'Panel relay is unavailable');
@@ -69,7 +70,7 @@ async function issueConnectionTicket(c: RelayContext): Promise<Response> {
   const response = await room.fetch(new Request('https://panel-room.internal/__issue-ticket', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ roomId, identity, role, panelId, operations, expiresAt }),
+    body: JSON.stringify({ roomId, identity, tokenId, role, panelId, operations, expiresAt }),
   }));
   if (!response.ok) return errorResponse(c, 503, 'service_unavailable', 'Panel relay could not issue a ticket');
   const issued = await response.json<unknown>();

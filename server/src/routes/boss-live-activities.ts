@@ -4,7 +4,7 @@
 // Only an open ask stores a token (409 otherwise), so its close always finds the token to end.
 import type { Context } from 'hono';
 import type { ApnsEnvironment } from '../apns';
-import { getBossId, getBossRole, getClientId } from '../middleware/auth';
+import { getBossId, getBossRole, getBossTokenId } from '../middleware/auth';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { pushMode } from '../push/send';
 import type { Env } from '../types';
@@ -39,8 +39,8 @@ export async function registerLiveActivity(c: Context<{ Bindings: Env }>): Promi
   if (!registration) return c.text('invalid live activity registration', 400);
   if (!await readableMessage(c, registration.messageId)) return c.text('not found', 404);
   const device = await c.env.DB.prepare(`SELECT id FROM boss_devices
-    WHERE boss_id = ? AND client_id IS ? AND relay_handle IS NULL ORDER BY last_seen_at DESC LIMIT 1`)
-    .bind(getBossId(c), getClientId(c)).first<{ id: string }>();
+    WHERE boss_id = ? AND token_id = ? AND relay_handle IS NULL ORDER BY last_seen_at DESC LIMIT 1`)
+    .bind(getBossId(c), getBossTokenId(c)).first<{ id: string }>();
   if (!device) return c.text('no direct push device registered', 409);
   // Conditional on the ask being open in the same statement: a close commits either before it
   // (nothing stored) or after it (the close's fan-out reads the row).

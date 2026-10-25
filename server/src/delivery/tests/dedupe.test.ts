@@ -3,6 +3,7 @@
 import { env } from 'cloudflare:test';
 import { beforeAll, beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { seedDatabase } from '../../test-helpers';
+import { liveTokenId } from '../../push/resolution-test-support';
 import { dispatchDestinations, drainDestinationDeliveries } from '../dispatch';
 import * as adapters from '../adapters';
 import type { Env, MessageRow } from '../../types';
@@ -56,7 +57,8 @@ it('shares one retry claim and mirrors the eventual receipt', async () => {
 it('collapses two destinations for the same device token', async () => {
   const message = await setup('apns', '{"device_id":"device"}');
   await env.DB.prepare("INSERT INTO boss_clients (id, boss_id, kind, label) VALUES ('phone', 'one', 'ios', 'Phone')").run();
-  await env.DB.prepare("INSERT INTO boss_devices (id, boss_id, client_id, device_token, bundle_id, environment) VALUES ('device', 'one', 'phone', 'shared-token', 'app', 'sandbox')").run();
+  await env.DB.prepare("INSERT INTO boss_devices (id, boss_id, client_id, device_token, bundle_id, environment, token_id) VALUES ('device', 'one', 'phone', 'shared-token', 'app', 'sandbox', ?)")
+    .bind(await liveTokenId('one')).run();
   await env.DB.prepare("UPDATE boss_destinations SET boss_id = 'one', provider_id = NULL, client_id = 'phone'").run();
   const spy = vi.spyOn(adapters, 'sendDestination').mockResolvedValue(null);
   await dispatchDestinations(on, message);

@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
-import { bossAuth, getBossId, getClientId } from '../middleware/auth';
+import { bossAuth, getBossId, getBossTokenId, getClientId } from '../middleware/auth';
 import type { ApnsEnvironment } from '../apns';
 import { isRelaySecret } from '../push/relay';
 import { deleteBossDevice } from '../push/devices';
@@ -32,6 +32,7 @@ routes.post('/', async (c) => {
   }
   const bossId = getBossId(c);
   // Capture the prior owner and move the row atomically, including concurrent registrations.
+  // The registering token owns the row: pushes stop once that token is revoked.
   const audit = c.env.DB.prepare(
     `INSERT INTO audit_log (actor_type, actor_id, action, resource_type, resource_id, details)
      SELECT 'boss', ?, 'device.reparent', 'device', id, json_object('old_boss_id', boss_id)
@@ -43,11 +44,12 @@ routes.post('/', async (c) => {
   const upsert = c.env.DB
     .prepare(
       `INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, client_id,
-        relay_handle, push_key)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        token_id, relay_handle, push_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(device_token) DO UPDATE SET
          boss_id = excluded.boss_id,
          client_id = excluded.client_id,
+         token_id = excluded.token_id,
          relay_handle = excluded.relay_handle,
          push_key = excluded.push_key,
          bundle_id = excluded.bundle_id,
@@ -57,7 +59,7 @@ routes.post('/', async (c) => {
          last_seen_at = datetime('now')`
     )
     .bind(bossId, payload.token, payload.bundleId, payload.environment, payload.platform, getClientId(c),
-      payload.relayHandle, payload.pushKey);
+      getBossTokenId(c), payload.relayHandle, payload.pushKey);
   const [auditResult] = await c.env.DB.batch([audit, dropActivities, upsert]);
   return c.json({ ok: true, ...(auditResult.meta.changes > 0 ? { reparented: true } : {}) });
 });

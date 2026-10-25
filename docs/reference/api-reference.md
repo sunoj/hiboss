@@ -253,6 +253,12 @@ Revoke one token belonging to the authenticated boss. Any boss may revoke its ow
 ### POST /api/boss/tokens/revoke-others
 Admin only. Revoke every token belonging to the authenticated boss except the token making the request. Returns `{ "revoked": number }`.
 
+Every token revocation (rotation, `DELETE /api/boss/tokens/:tokenId`, `revoke-others` and
+`DELETE /api/boss/clients/:id`) retires, in the same batch, the token's client, its signing keys,
+the push devices registered with it and the unredeemed pairing codes it issued. Push fan-out sends
+only to a device whose registering token and client are still live, and an open live-panel
+subscription of a revoked token is closed (`4401`) before it receives another frame.
+
 An admin bearer can revoke sibling devices. The five-minute, single-use pairing-code lifetime protects an unredeemed QR code, not a bearer token that has already been issued.
 
 ### POST /api/boss/pairing
@@ -272,6 +278,9 @@ Request: `{ "code": "hb_pair_<64 hex characters>", "device_label": "string", "si
 Response:
 `{ "token": "hb_boss_<64 hex characters>", "boss": { "id", "name", "role" } }`.
 The new token is independent from all other boss tokens; an existing device remains online.
+A code redeems only while the token that issued it, and that token's client, are unrevoked; the
+first-boss bootstrap code redeems only while the boss holds no token. Otherwise the response is
+`400 invalid or expired pairing code`.
 The consumed code is linked to the new token's metadata so the issuing client can
 report which device connected, but the bearer value is never returned by the status API.
 
@@ -348,7 +357,11 @@ counts sessions seen in the last 15 minutes.
 ### POST /api/boss/devices
 Registers an iOS device's APNs token for push. Body:
 `{ "token": "<apns-hex>", "bundleId": "ai.hiboss.app", "environment": "sandbox"|"production", "platform": "ios" }`.
-Upserts by device token for the authenticated boss. Returns `{ "ok": true }`.
+Upserts by device token for the authenticated boss and binds the row to the registering token, so
+the device stops receiving pushes when that token is revoked. A row registered before this binding
+existed is bound to its client's newest live token, or, without a client, to the boss's newest live
+client-less token; a row whose client has no live token (including `migrated-push` rows) receives
+no push until the app registers again, which it does on every launch. Returns `{ "ok": true }`.
 Fresh blocking `POST /api/panels/:id/requests` publications send `HIBOSS_REQUEST` to the panel's target boss devices; retries, replace/withdraw, optional requests, `deliver:false`, and `DESTINATIONS_MODE=on` are silent.
 See the [questionnaire push contract](../../docs/live-panels/questionnaires.md#publication-push-contract) for payload, privacy, decision tiers, and best-effort delivery rules.
 

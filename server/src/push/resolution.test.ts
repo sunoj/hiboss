@@ -10,7 +10,7 @@ import { endContentState, purgeLiveActivityTokens } from './live-activity';
 import { handleScheduled } from '../scheduled';
 import { announceResolution, SWEEP_RESOLUTION_LIMIT } from './resolution';
 import {
-  apnsEnv, captureFetch, insertAsk, openResolved, relayHandle, relayResolutions, seedAudience,
+  apnsEnv, captureFetch, insertAsk, liveTokenId, openResolved, relayHandle, relayResolutions, seedAudience,
 } from './resolution-test-support';
 import type { Env, MessageRow } from '../types';
 
@@ -35,8 +35,8 @@ describe('direct mode', () => {
   it('sends a silent background push to every device of the ask audience despite quiet hours', async () => {
     const { agentId } = await seedAudience('direct-quiet', { token: 'aa01' }, QUIET);
     await env.DB.prepare(`INSERT INTO bosses (id, name, role) VALUES ('direct-quiet-outsider', 'Outsider', 'manager')`).run();
-    await env.DB.prepare(`INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment)
-      VALUES ('direct-quiet-outsider', 'ff01', 'ai.hiboss.app', 'sandbox')`).run();
+    await env.DB.prepare(`INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment, token_id)
+      VALUES ('direct-quiet-outsider', 'ff01', 'ai.hiboss.app', 'sandbox', ?)`).bind(await liveTokenId('direct-quiet-outsider')).run();
     const captured = captureFetch();
     await announceResolution(direct, await ask('direct-quiet-ask', agentId), 'replied');
     const sent = captured.filter((r) => r.url.includes('/3/device/'));

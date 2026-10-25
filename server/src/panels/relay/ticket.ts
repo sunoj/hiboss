@@ -24,6 +24,8 @@ export interface IssuedTicket {
 export interface IssueTicketRequest {
   readonly roomId: string;
   readonly identity: string;
+  /** The boss token behind a subscriber ticket; producers carry none. */
+  readonly tokenId: string | null;
   readonly role: PanelRole;
   readonly panelId: string;
   readonly operations: readonly PanelOperation[];
@@ -91,9 +93,13 @@ export function parseIssueTicketRequest(value: unknown): IssueTicketRequest | nu
   if (typeof value.identity !== 'string' || !value.identity || typeof value.panelId !== 'string' || !value.panelId) return null;
   if (!isPanelRole(value.role) || !Array.isArray(value.operations) || !value.operations.every(isPanelOperation)) return null;
   if (typeof value.expiresAt !== 'number' || !Number.isInteger(value.expiresAt)) return null;
+  const tokenId = typeof value.tokenId === 'string' && value.tokenId ? value.tokenId : null;
+  // A subscriber ticket names its boss token so the room can recheck it; a producer ticket names none.
+  if ((tokenId === null && value.tokenId != null) || (value.role === 'subscriber') !== (tokenId !== null)) return null;
   return {
     roomId: value.roomId,
     identity: value.identity,
+    tokenId,
     role: value.role,
     panelId: value.panelId,
     operations: value.operations,
