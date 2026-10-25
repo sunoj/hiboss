@@ -60,6 +60,11 @@ public final class QuestionnaireModel: ObservableObject {
         access == .answerable && !authorizationRejected && latest.isOpen(at: currentTime())
             && !hasNewRevision && pendingID == nil && !isSending
     }
+    /// The form to render: a viewer who cannot answer gets no controls that would submit it.
+    public var formSpec: PanelSpec {
+        let spec = editing.definition.formSpec
+        return access == .answerable ? spec : spec.removingSubmitControls()
+    }
     public var hasNewRevision: Bool { latest.requestRevision != editing.requestRevision }
     public var answers: PanelValue { panelValue(at: "/form", in: store.state) ?? .object([:]) }
 

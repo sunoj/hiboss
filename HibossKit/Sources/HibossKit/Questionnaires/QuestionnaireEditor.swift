@@ -132,7 +132,7 @@ private struct QuestionnaireFields: View {
     let enabled: Bool
 
     var body: some View {
-        PanelRenderer(spec: model.editing.definition.formSpec, store: store, webModel: webModel)
+        PanelRenderer(spec: model.formSpec, store: store, webModel: webModel)
             #if os(iOS)
             .environment(\.nativeSubmissionPending, model.isSending)
             #endif

@@ -125,6 +125,20 @@ final class QuestionnaireModelTests: XCTestCase {
         }
     }
 
+    func testReadOnlyFormOmitsItsSubmitControls() {
+        let record = question(submitControl: true)
+        let storage = UserDefaults(suiteName: "QuestionnaireSubmitControl.\(UUID())")!
+        let service = QuestionnaireStub(record)
+        let owned = QuestionnaireModel(record: record, bossID: "boss", answerer: owner, service: service, storage: storage)
+        XCTAssertNotNil(owned.formSpec.elements["submit"])
+        XCTAssertEqual(owned.formSpec.elements["root"]?.children, ["count", "submit"])
+        let other = QuestionnaireModel(record: record, bossID: "boss", answerer: BossIdentity(id: "admin", role: "admin"),
+                                       service: service, storage: storage)
+        XCTAssertNil(other.formSpec.elements["submit"], "A viewer who cannot answer sees no submit control")
+        XCTAssertEqual(other.formSpec.elements["root"]?.children, ["count"])
+        XCTAssertNotNil(other.formSpec.elements["count"])
+    }
+
     func testPointerWritesRoundTripEscapedKeysAndRejectNonFiniteNumbers() throws {
         let (model, _, _) = fixture()
         model.store.setString("answer", at: "/form/a~1b~0c")
@@ -156,9 +170,15 @@ final class QuestionnaireModelTests: XCTestCase {
 
 private let owner = BossIdentity(id: "boss", role: "admin")
 
-private func question(revision: Int = 1, expiresAt: String? = nil) -> QuestionnaireRecord {
-    let spec = PanelSpec(root: "count", elements: ["count": PanelElement(type: "NumberInput",
-        props: ["label": .string("Count"), "value": .object(["$bindState": .string("/form/count")])], children: [], on: nil)])
+private func question(revision: Int = 1, expiresAt: String? = nil, submitControl: Bool = false) -> QuestionnaireRecord {
+    var elements = ["count": PanelElement(type: "NumberInput",
+        props: ["label": .string("Count"), "value": .object(["$bindState": .string("/form/count")])], children: [], on: nil)]
+    if submitControl {
+        elements["submit"] = PanelElement(type: "Button", props: ["label": .string("Send")], children: [],
+            on: ["press": PanelAction(action: "submitRequest", params: nil)])
+        elements["root"] = PanelElement(type: "Stack", props: [:], children: ["count", "submit"], on: nil)
+    }
+    let spec = PanelSpec(root: submitControl ? "root" : "count", elements: elements)
     let definition = QuestionnaireDefinition(title: "Settings", kind: "intake", blocking: true, formSpec: spec,
         answerSchema: .object([:]), defaults: .object(["count": .number(3)]), context: .object([:]))
     return QuestionnaireRecord(requestId: "request", panelId: "panel", requestRevision: revision,
