@@ -13,9 +13,16 @@ async function token(id: string, bossId: string, clientId: string | null, create
     VALUES (?, ?, 'fixture', ?, ?, ?, ?)`).bind(id, bossId, `hash-${id}`, clientId, createdAt, revoked ? createdAt : null).run();
 }
 
-async function device(id: string, bossId: string, clientId: string | null): Promise<void> {
-  await env.DB.prepare(`INSERT INTO boss_devices (id, boss_id, device_token, bundle_id, environment, client_id)
-    VALUES (?, ?, ?, 'ai.hiboss.app', 'sandbox', ?)`).bind(id, bossId, `apns-${id}`, clientId).run();
+async function device(id: string, bossId: string, clientId: string | null, registeredAt?: string): Promise<void> {
+  await env.DB.prepare(`INSERT INTO boss_devices (id, boss_id, device_token, bundle_id, environment, client_id, updated_at)
+    VALUES (?, ?, ?, 'ai.hiboss.app', 'sandbox', ?, COALESCE(?, datetime('now')))`)
+    .bind(id, bossId, `apns-${id}`, clientId, registeredAt ?? null).run();
+}
+
+async function replayMigration(): Promise<void> {
+  const data = migration.replace(/^--.*$/gm, '').split(';').map(sql => sql.trim())
+    .filter(sql => sql && !sql.startsWith('ALTER') && !sql.startsWith('CREATE INDEX'));
+  await env.DB.batch(data.map(sql => env.DB.prepare(sql)));
 }
 
 it('binds a paired device to its client token, a client-less device to the newest client-less token, else nothing', async () => {
@@ -30,14 +37,27 @@ it('binds a paired device to its client token, a client-less device to the newes
   await device('bf-paired', 'bf-boss', 'bf-phone');
   await device('bf-loose', 'bf-boss', null);
   await device('bf-silenced', 'bf-boss', 'bf-stale');
-  const data = migration.replace(/^--.*$/gm, '').split(';').map(sql => sql.trim())
-    .filter(sql => sql && !sql.startsWith('ALTER') && !sql.startsWith('CREATE INDEX'));
-  await env.DB.batch(data.map(sql => env.DB.prepare(sql)));
+  await replayMigration();
   const rows = await env.DB.prepare("SELECT id, token_id FROM boss_devices WHERE boss_id = 'bf-boss' ORDER BY id")
     .all<{ id: string; token_id: string | null }>();
   expect(rows.results).toEqual([
     { id: 'bf-loose', token_id: 'bf-loose-live' },
     { id: 'bf-paired', token_id: 'bf-phone-new' },
     { id: 'bf-silenced', token_id: null },
+  ]);
+});
+
+it('leaves a device registered before a later rotation token unbound', async () => {
+  await env.DB.prepare(`INSERT INTO bosses (id, name, role) VALUES ('bf-rotated', 'Rotated', 'admin')`).run();
+  await token('bf-r1', 'bf-rotated', null, '2026-01-01 00:00:00', true);
+  await token('bf-r2', 'bf-rotated', null, '2026-02-10 00:00:00');
+  await device('bf-lost', 'bf-rotated', null, '2026-01-15 00:00:00');
+  await device('bf-current', 'bf-rotated', null, '2026-02-15 00:00:00');
+  await replayMigration();
+  const rows = await env.DB.prepare("SELECT id, token_id FROM boss_devices WHERE boss_id = 'bf-rotated' ORDER BY id")
+    .all<{ id: string; token_id: string | null }>();
+  expect(rows.results).toEqual([
+    { id: 'bf-current', token_id: 'bf-r2' },
+    { id: 'bf-lost', token_id: null },
   ]);
 });
