@@ -27,10 +27,25 @@ pub(crate) struct AskResult {
     pub device_label: Option<String>,
 }
 
+/// The reply that answers `ask`: a boss_to_agent row for a boss ask, a peer's row for an
+/// agent-to-agent ask. The asker's own follow-ups and forward copies never answer it.
+pub(crate) fn decision_reply(ask: &Message) -> Option<&Message> {
+    let peer_ask = ask.direction.as_deref() == Some("agent_to_agent");
+    ask.replies.as_deref()?.iter().find(|reply| {
+        if peer_ask {
+            reply.direction.as_deref() == Some("agent_to_agent")
+                && reply.agent_id.is_some()
+                && reply.agent_id != ask.agent_id
+        } else {
+            reply.direction.as_deref() == Some("boss_to_agent")
+        }
+    })
+}
+
 impl AskResult {
     pub(crate) fn from_poll(
         message_id: &str,
-        replies: Option<&[Message]>,
+        ask: Option<&Message>,
         choices: &ChoicePayload,
     ) -> Self {
         let mut result = Self {
@@ -41,7 +56,8 @@ impl AskResult {
             action: None,
             device_label: None,
         };
-        if let Some(reply) = replies.and_then(|items| items.first()) {
+        let answer = ask.and_then(decision_reply);
+        if let Some(reply) = answer {
             let automatic = reply
                 .metadata
                 .as_ref()
@@ -64,7 +80,7 @@ impl AskResult {
                     .and_then(|value| value.as_str())
                     .map(str::to_owned);
             }
-        } else if let Some(default) = resolve_default_reply(choices, replies) {
+        } else if let Some(default) = resolve_default_reply(choices, answer) {
             result.outcome = Outcome::LocalDefault;
             result.body = Some(default.label);
         }

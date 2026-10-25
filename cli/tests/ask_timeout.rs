@@ -26,10 +26,30 @@ fn serve(request: &Request, poll: impl FnOnce() -> Response) -> Response {
     }
 }
 
+/// A boss ask whose only reply (if any) is a boss_to_agent decision with server provenance.
 fn poll_response(reply: Option<Value>) -> Response {
+    let replies: Vec<Value> = reply
+        .into_iter()
+        .map(|mut reply| {
+            let automatic = reply["metadata"]["auto_default"] == json!(true);
+            let (source, status) = if automatic {
+                ("system", "not_applicable")
+            } else {
+                ("api", "not_configured")
+            };
+            reply["direction"] = json!("boss_to_agent");
+            if !reply["metadata"].is_object() {
+                reply["metadata"] = json!({});
+            }
+            reply["metadata"]["source"] = json!(source);
+            reply["metadata"]["provenance"] =
+                json!({"version":1, "source":source, "signature":{"status":status}});
+            reply
+        })
+        .collect();
     Response::json(
         200,
-        json!({"id":"ask-1", "replies":reply.into_iter().collect::<Vec<_>>()}),
+        json!({"id":"ask-1", "direction":"agent_to_boss", "replies":replies}),
     )
 }
 

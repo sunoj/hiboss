@@ -3,7 +3,7 @@
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
 use super::ask_media::{resolve_option_media, upload_attachment};
-use super::ask_result::{print_result, AskResult};
+use super::ask_result::{AskResult, print_result};
 use super::ask_support::{action_metadata, validate_default_option, warn_unread_messages};
 use super::ask_wait::wait_for_reply;
 use crate::{client::HiBossClient, config::Config, session, types::SendRequest};
@@ -247,8 +247,7 @@ pub async fn run(
         submission.id, args.timeout, submission.id
     );
     let poll = wait_for_reply(client, &submission.id, args.timeout).await?;
-    let replies = poll.as_ref().and_then(|message| message.replies.as_deref());
-    let result = AskResult::from_poll(&submission.id, replies, &choices);
+    let result = AskResult::from_poll(&submission.id, poll.as_ref(), &choices);
     if let Some(reply_id) = &result.reply_id {
         let _ = client.update_status(reply_id, "read").await;
     }
