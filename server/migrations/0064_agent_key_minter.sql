@@ -1,13 +1,16 @@
 -- An agent key minted by a boss lives only while that boss may still mint it (managers never
 -- for boss-linked or is_admin agents). Backfill the minter from the mint audit, then retire
 -- keys whose minter already lost that right, auditing each revocation.
+-- Join approval audits each new agent's first key as a boss mint; a first key is never a
+-- boss-side mint, so it is excluded from the backfill.
 ALTER TABLE agent_keys ADD COLUMN minted_by_boss_id TEXT;
 
 UPDATE agent_keys SET minted_by_boss_id = (
   SELECT a.actor_id FROM audit_log a WHERE a.actor_type = 'boss' AND a.action = 'agent_key.mint'
     AND a.resource_type = 'agent_key' AND a.resource_id = agent_keys.id
   ORDER BY a.created_at LIMIT 1
-);
+)
+WHERE rowid != (SELECT MIN(first.rowid) FROM agent_keys first WHERE first.agent_id = agent_keys.agent_id);
 
 CREATE INDEX idx_agent_keys_minted_by ON agent_keys(minted_by_boss_id) WHERE minted_by_boss_id IS NOT NULL;
 

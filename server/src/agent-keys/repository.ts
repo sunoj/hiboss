@@ -32,9 +32,18 @@ export async function prepareKey(db: D1Database, agentId: string, label: string,
   return { id, key, statement };
 }
 
-/** Returns null when the agent is gone or a boss actor lost the right to mint for it. */
-export async function mintKey(db: D1Database, agentId: string, label: string, actor: KeyActor): Promise<(AgentKey & { key: string }) | null> {
-  const key = await prepareKey(db, agentId, label, actor.type === 'boss' ? actor.id : null);
+/**
+ * Returns null when the agent is gone or the minting boss lost the right to mint for it.
+ * A key minted with a boss-minted bearer inherits that minter, so self-minting cannot
+ * launder a key out of the sweep.
+ */
+export async function mintKey(db: D1Database, agentId: string, label: string, actor: KeyActor,
+  parentKeyId: string | null): Promise<(AgentKey & { key: string }) | null> {
+  const mintedBy = actor.type === 'boss' ? actor.id : parentKeyId
+    ? await db.prepare('SELECT minted_by_boss_id FROM agent_keys WHERE id = ?').bind(parentKeyId)
+      .first<string | null>('minted_by_boss_id')
+    : null;
+  const key = await prepareKey(db, agentId, label, mintedBy);
   const [rows] = await db.batch<AgentKey>([key.statement, db.prepare(`INSERT INTO audit_log
     (actor_type, actor_id, action, resource_type, resource_id, details)
     SELECT ?, ?, 'agent_key.mint', 'agent_key', ?, ? WHERE changes() > 0`)

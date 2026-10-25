@@ -1,11 +1,13 @@
 // Boss-minted agent keys: managers cannot reach boss-linked or is_admin agents, and a key
-// lives only while its minting boss could still mint it (audit round 2: BG1, BG2, BG3).
+// lives only while its minting boss could still mint it, including keys it self-mints
+// (audit round 2: BG1, BG2, BG3).
 // Runs against Worker/D1 via SELF; depends on shared seeds and real auth middleware.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 import type { AgentKey } from './types';
+import migration from '../../migrations/0064_agent_key_minter.sql?raw';
 
 beforeAll(seedDatabase);
 const base = 'https://test.local/api';
@@ -116,4 +118,39 @@ it('revokes a manager-minted key when a boss is linked to the agent', async () =
   expect(created.status).toBe(201);
   expect(await live(key)).toBe(401);
   expect(await live(a.token)).toBe(200);
+});
+
+it('revokes keys self-minted with a boss-minted bearer along with their parent', async () => {
+  const a = await agent('bm-lineage');
+  const manager = await seedBossToken('BM manager 6', 'manager', 'bm-manager-6');
+  await seedBossToken('BM admin 6', 'admin', 'bm-admin-6');
+  await grant(manager, a.id);
+  const parent = await minted(a.id, 'bm-manager-6');
+  const child = await request('/agents/me/keys', parent, 'POST', { label: 'child' });
+  expect(child.status).toBe(201);
+  const childKey = (await child.json() as { key: string }).key;
+  const own = await request('/agents/me/keys', a.token, 'POST', { label: 'own child' });
+  const ownKey = (await own.json() as { key: string }).key;
+  expect((await request(`/bosses/${manager}/access/${a.id}`, 'bm-admin-6', 'DELETE')).status).toBe(200);
+  expect([await live(parent), await live(childKey)]).toEqual([401, 401]);
+  expect([await live(a.token), await live(ownKey)]).toEqual([200, 200]);
+});
+
+// Runs last: replays the migration's data statements over this file's database.
+it('backfills boss mints from the audit but never an agent first key', async () => {
+  const a = await agent('bm-joined');
+  const approver = await seedBossToken('BM approver', 'admin', 'bm-approver');
+  const first = await env.DB.prepare('SELECT id FROM agent_keys WHERE agent_id = ?').bind(a.id).first<string>('id');
+  const later = await minted(a.id, 'bm-approver');
+  const laterId = await env.DB.prepare('SELECT id FROM agent_keys WHERE key_hash = ?').bind(await hashApiKey(later)).first<string>('id');
+  await env.DB.prepare(`INSERT INTO audit_log (actor_type, actor_id, action, resource_type, resource_id, details)
+    VALUES ('boss', ?, 'agent_key.mint', 'agent_key', ?, '{}')`).bind(approver, first).run();
+  await env.DB.prepare("UPDATE bosses SET archived_at = datetime('now') WHERE id = ?").bind(approver).run();
+  await env.DB.prepare('UPDATE agent_keys SET minted_by_boss_id = NULL WHERE agent_id = ?').bind(a.id).run();
+  const data = migration.replace(/^--.*$/gm, '').split(';').map(sql => sql.trim())
+    .filter(sql => sql && !sql.startsWith('ALTER') && !sql.startsWith('CREATE INDEX'));
+  await env.DB.batch(data.map(sql => env.DB.prepare(sql)));
+  const rows = await env.DB.prepare('SELECT id, minted_by_boss_id AS minter FROM agent_keys WHERE agent_id = ?').bind(a.id).all();
+  expect(rows.results).toEqual(expect.arrayContaining([{ id: first, minter: null }, { id: laterId, minter: approver }]));
+  expect([await live(a.token), await live(later)]).toEqual([200, 401]);
 });

@@ -32,7 +32,7 @@ async function mint(c: KeyContext, agentId: string, actor: KeyActor): Promise<Re
   }
   const label = payload.label.trim();
   if (!label || label.length > MAX_LABEL_LENGTH) return c.text('label must be 1–100 characters', 400);
-  const key = await mintKey(c.env.DB, agentId, label, actor);
+  const key = await mintKey(c.env.DB, agentId, label, actor, actor.type === 'agent' ? getAgentKeyId(c) : null);
   return key ? c.json(key, 201) : c.text('not found', 404);
 }
 
