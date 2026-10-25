@@ -133,10 +133,10 @@ describe('Telegram webhook security', () => {
     ).bind('tg-sec-forge-agent', JSON.stringify({ chat_id: 'tg-sec-forge-chat', bot_token: 'forge-token' })).run();
     await env.DB.prepare(
       "INSERT INTO bosses (id, name, role, telegram_user_id) VALUES (?, ?, ?, ?)"
-    ).bind('tg-sec-boss-forge-viewer', 'Viewer Boss', 'viewer', 'tg-sec-viewer-2').run();
+    ).bind('tg-sec-boss-forge-manager', 'Manager Boss', 'manager', 'tg-sec-manager-2').run();
     await env.DB.prepare(
       'INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)'
-    ).bind('tg-sec-boss-forge-viewer', 'tg-sec-forge-agent').run();
+    ).bind('tg-sec-boss-forge-manager', 'tg-sec-forge-agent').run();
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Choose', 'delivered', 'normal', ?, ?)"
     ).bind(
@@ -150,7 +150,7 @@ describe('Telegram webhook security', () => {
       callback_query: {
         id: 'tg-sec-callback-forge',
         data: 'facef00d:rm -rf / --no-preserve-root',
-        from: { id: 'tg-sec-viewer-2' },
+        from: { id: 'tg-sec-manager-2' },
         message: {
           message_id: 4,
           chat: { id: 'tg-sec-forge-chat', type: 'private' },

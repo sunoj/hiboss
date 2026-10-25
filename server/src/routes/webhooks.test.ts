@@ -318,9 +318,9 @@ describe('POST /api/webhooks/telegram', () => {
   it('handles inline keyboard callback queries', async () => {
     const parentId = 'ca11bacf00000001aabbccdd00000001';
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority) VALUES (?, ?, 'boss_to_agent', 'async', 'Original', 'sent', 'normal')"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'Original', 'sent', 'normal', ?)"
     )
-      .bind(parentId, getTestAgentId())
+      .bind(parentId, getTestAgentId(), JSON.stringify({ options: ['option-one'] }))
       .run();
 
     const res = await postTelegramWebhook({
@@ -348,7 +348,7 @@ describe('POST /api/webhooks/telegram', () => {
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'Deploy?', 'delivered', 'normal', ?)"
     )
-      .bind(parentId, getTestAgentId(), JSON.stringify({ actions }))
+      .bind(parentId, getTestAgentId(), JSON.stringify({ options: Object.keys(actions), actions }))
       .run();
 
     const res = await postTelegramWebhook({
@@ -373,9 +373,9 @@ describe('POST /api/webhooks/telegram', () => {
   it('callback reply has no action metadata when parent has no actions', async () => {
     const parentId = 'a0ac7100000000030000000000000003';
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'No actions', 'sent', 'normal')"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'async', 'No actions', 'sent', 'normal', ?)"
     )
-      .bind(parentId, getTestAgentId())
+      .bind(parentId, getTestAgentId(), JSON.stringify({ options: ['SomeOption'] }))
       .run();
 
     const res = await postTelegramWebhook({
