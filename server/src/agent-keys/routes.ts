@@ -1,9 +1,9 @@
 // Self-service and boss credential endpoints with scoped access and audit records.
 // Exports routers; depends on Hono, auth, accessible agents and key persistence.
-import { Hono, type Context, type Next } from 'hono';
+import { Hono, type Context } from 'hono';
 import type { Env } from '../types';
-import { apiAuth, bossAuth, getAgentId, getAgentKeyId, getBossId, getBossRole } from '../middleware/auth';
-import { getAccessibleAgentIds } from '../routes/boss-api-access';
+import { apiAuth, bossAuth, getAgentId, getAgentKeyId, getBossId } from '../middleware/auth';
+import { bossKeyAccess } from './boss-access';
 import { listKeys, mintKey, revokeKey } from './repository';
 import { MAX_LABEL_LENGTH, type KeyActor } from './types';
 
@@ -15,13 +15,6 @@ agentKeysRouter.post('/', c => mint(c, getAgentId(c), { type: 'agent', id: getAg
 agentKeysRouter.delete('/:id', c => revoke(c, getAgentId(c), { type: 'agent', id: getAgentId(c) }, getAgentKeyId(c)));
 
 export const bossAgentKeysRouter = new Hono<{ Bindings: Env }>();
-async function bossKeyAccess(c: KeyContext, next: Next): Promise<Response | void> {
-  const role = getBossRole(c);
-  if (role !== 'admin' && role !== 'manager') return c.text('admin or manager required', 403);
-  const ids = await getAccessibleAgentIds(c.env, getBossId(c), role);
-  if (!ids.includes(c.req.param('agentId') ?? '')) return c.text('not found', 404);
-  await next();
-}
 bossAgentKeysRouter.use('/:agentId/keys', bossAuth, bossKeyAccess);
 bossAgentKeysRouter.use('/:agentId/keys/*', bossAuth, bossKeyAccess);
 bossAgentKeysRouter.get('/:agentId/keys', c => list(c, c.req.param('agentId'), { type: 'boss', id: getBossId(c) }));
@@ -39,7 +32,8 @@ async function mint(c: KeyContext, agentId: string, actor: KeyActor): Promise<Re
   }
   const label = payload.label.trim();
   if (!label || label.length > MAX_LABEL_LENGTH) return c.text('label must be 1–100 characters', 400);
-  return c.json(await mintKey(c.env.DB, agentId, label, actor), 201);
+  const key = await mintKey(c.env.DB, agentId, label, actor);
+  return key ? c.json(key, 201) : c.text('not found', 404);
 }
 
 async function revoke(c: KeyContext, agentId: string, actor: KeyActor, currentId: string | null): Promise<Response> {

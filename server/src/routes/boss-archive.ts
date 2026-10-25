@@ -4,6 +4,7 @@ import type { Context } from 'hono';
 import type { Env } from '../types';
 import { getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
+import { mintedKeySweep } from '../agent-keys/boss-access';
 
 type BossContext = Context<{ Bindings: Env }>;
 type ArchiveRow = { id: string; role: string; archived_at: string | null };
@@ -19,8 +20,12 @@ export async function archiveBoss(c: BossContext): Promise<Response> {
     return c.text('cannot archive the last unarchived admin', 400);
   }
   if (id === getBossId(c)) return c.text('cannot archive self', 400);
-  const result = await c.env.DB.prepare(`UPDATE bosses SET archived_at = datetime('now') WHERE id = ? AND archived_at IS NULL
-    AND (role != 'admin' OR (${liveAdmins}) > 1) RETURNING *`).bind(id).first();
+  const [archived] = await c.env.DB.batch([
+    c.env.DB.prepare(`UPDATE bosses SET archived_at = datetime('now') WHERE id = ? AND archived_at IS NULL
+      AND (role != 'admin' OR (${liveAdmins}) > 1) RETURNING *`).bind(id),
+    ...mintedKeySweep(c.env.DB),
+  ]);
+  const result = archived.results[0];
   if (!result) {
     const current = await c.env.DB.prepare('SELECT archived_at FROM bosses WHERE id = ?').bind(id).first<Pick<ArchiveRow, 'archived_at'>>();
     if (!current) return c.text('not found', 404);

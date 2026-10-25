@@ -2,10 +2,10 @@
 // Exports agentSigningRouter (/api/agents/me/signing-keys) and bossAgentSigningRouter.
 // Depends on the message-security key registry, auth middleware and boss notification.
 
-import { Hono, type Context, type Next } from 'hono';
+import { Hono, type Context } from 'hono';
 import type { Env } from '../types';
-import { apiAuth, bossAuth, getAgentId, getAgentKeyId, getBossId, getBossRole } from '../middleware/auth';
-import { getAccessibleAgentIds } from '../routes/boss-api-access';
+import { apiAuth, bossAuth, getAgentId, getAgentKeyId, getBossId } from '../middleware/auth';
+import { bossKeyAccess } from './boss-access';
 import {
   agentRequiresSignature, enrollAgentSigningKey, listLiveAgentKeys, listUnresetAgentKeys, revokeAgentSigningKey, systemMetadata,
   type AgentSigningKey,
@@ -53,15 +53,8 @@ async function noticeFirstUse(env: Env, key: AgentSigningKey): Promise<void> {
 }
 
 export const bossAgentSigningRouter = new Hono<{ Bindings: Env }>();
-async function bossAccess(c: SigningContext, next: Next): Promise<Response | void> {
-  const role = getBossRole(c);
-  if (role !== 'admin' && role !== 'manager') return c.text('admin or manager required', 403);
-  const ids = await getAccessibleAgentIds(c.env, getBossId(c), role);
-  if (!ids.includes(c.req.param('agentId') ?? '')) return c.text('not found', 404);
-  await next();
-}
-bossAgentSigningRouter.use('/:agentId/signing-keys', bossAuth, bossAccess);
-bossAgentSigningRouter.use('/:agentId/signing-keys/*', bossAuth, bossAccess);
+bossAgentSigningRouter.use('/:agentId/signing-keys', bossAuth, bossKeyAccess);
+bossAgentSigningRouter.use('/:agentId/signing-keys/*', bossAuth, bossKeyAccess);
 bossAgentSigningRouter.get('/:agentId/signing-keys', async c => c.json({
   keys: (await listUnresetAgentKeys(c.env, c.req.param('agentId')))
     .map(key => ({ ...publicView(key), credential_live: key.credential_live === 1 })),
