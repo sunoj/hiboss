@@ -154,6 +154,18 @@ impl HiBossClient {
         verified_message(Self::parse_response(resp).await?)
     }
 
+    /// The ask reconcile read: the message with only the replies that can answer it.
+    pub async fn get_decisions(&self, id: &str) -> Result<Message, Box<dyn Error>> {
+        let resp = self
+            .http
+            .get(format!("{}/api/messages/{}", self.base_url, id))
+            .query(&[("replies", "decisions")])
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        verified_message(Self::parse_response(resp).await?)
+    }
+
     pub async fn send_message(&self, req: &SendRequest) -> Result<SendResponse, Box<dyn Error>> {
         let body = self.signed_send_body(req).await?;
         let resp = self

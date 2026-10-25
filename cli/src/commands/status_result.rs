@@ -2,6 +2,7 @@
 // Exports: StatusReport, ReplyReport, ReplyOutcome (serializable) and StatusReport::text().
 // Dependencies: serde, serde_json, crate::types::Message, crate::message_security.
 
+use super::ask_result::answers;
 use crate::message_security::assurance_label;
 use crate::types::Message;
 use serde::Serialize;
@@ -15,6 +16,8 @@ const AUTO_DEFAULT_NOTE: &str =
 pub(crate) enum ReplyOutcome {
     Reply,
     AutoDefault,
+    /// A row that cannot answer the ask, such as the asker's own follow-up or a forward copy.
+    NotAnAnswer,
 }
 
 #[derive(Debug, Serialize)]
@@ -55,10 +58,10 @@ pub(crate) fn device_label(reply: &Message) -> Option<String> {
 impl ReplyReport {
     /// Only an explicit `metadata.auto_default == true` marks an automatic default,
     /// and an automatic default never carries an action.
-    pub(crate) fn from_reply(reply: &Message) -> Self {
+    pub(crate) fn from_reply(reply: &Message, is_answer: bool) -> Self {
         let automatic =
             metadata_field(reply, "auto_default").and_then(Value::as_bool) == Some(true);
-        let action = if automatic {
+        let action = if automatic || !is_answer {
             None
         } else {
             metadata_field(reply, "action")
@@ -67,8 +70,10 @@ impl ReplyReport {
         };
         let outcome = if automatic {
             ReplyOutcome::AutoDefault
-        } else {
+        } else if is_answer {
             ReplyOutcome::Reply
+        } else {
+            ReplyOutcome::NotAnAnswer
         };
         Self {
             reply_id: reply.id.clone(),
@@ -91,6 +96,10 @@ impl ReplyReport {
                 "Reply {} [auto_default]: {body}\n{source}  {AUTO_DEFAULT_NOTE}\n",
                 self.reply_id
             ),
+            ReplyOutcome::NotAnAnswer => format!(
+                "Reply {} [not an answer]: {body}\n{source}",
+                self.reply_id
+            ),
             ReplyOutcome::Reply => {
                 let action = self.action.as_deref().map(|a| format!("  Action: {a}\n"));
                 let action = action.unwrap_or_default();
@@ -107,7 +116,10 @@ impl StatusReport {
             message_id: message.id.clone(),
             direction: message.direction.clone(),
             status: message.status.clone(),
-            replies: replies.iter().map(ReplyReport::from_reply).collect(),
+            replies: replies
+                .iter()
+                .map(|reply| ReplyReport::from_reply(reply, answers(message, reply)))
+                .collect(),
             options_expired: metadata_field(message, "options_expired").and_then(Value::as_bool)
                 == Some(true),
         }

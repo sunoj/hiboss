@@ -11,7 +11,7 @@ fn message(value: Value) -> Message {
 fn explicit_auto_default_drops_the_stored_action() {
     let reply = ReplyReport::from_reply(&message(json!({
         "id": "r1", "body": "Approve", "metadata": {"auto_default": true, "action": "deploy"},
-    })));
+    })), true);
     assert_eq!(reply.outcome, ReplyOutcome::AutoDefault);
     assert_eq!(reply.action, None);
     assert!(reply
@@ -23,7 +23,7 @@ fn explicit_auto_default_drops_the_stored_action() {
 fn non_boolean_auto_default_is_not_a_discriminator() {
     let reply = ReplyReport::from_reply(&message(json!({
         "id": "r1", "body": "Approve", "metadata": {"auto_default": "true", "action": "deploy"},
-    })));
+    })), true);
     assert_eq!(reply.outcome, ReplyOutcome::Reply);
     assert_eq!(reply.action.as_deref(), Some("deploy"));
     assert_eq!(
@@ -43,14 +43,14 @@ fn boss_replies_carry_the_verifier_assurance_label() {
         reply["metadata"] = meta;
         message(reply)
     };
-    let api = ReplyReport::from_reply(&attributed("api", "not_configured", json!({})));
+    let api = ReplyReport::from_reply(&attributed("api", "not_configured", json!({})), true);
     assert_eq!(api.assurance, "api/not_configured");
     assert_eq!(
         api.text(),
         "Reply r1 [reply]: Approve\n  Source: api/not_configured\n"
     );
     let auto_meta = json!({"auto_default": true});
-    let auto = ReplyReport::from_reply(&attributed("system", "not_applicable", auto_meta));
+    let auto = ReplyReport::from_reply(&attributed("system", "not_applicable", auto_meta), true);
     assert_eq!(auto.assurance, "system/not_applicable");
     assert!(auto
         .text()
@@ -59,7 +59,7 @@ fn boss_replies_carry_the_verifier_assurance_label() {
 
 #[test]
 fn reply_without_body_or_string_action_reports_nulls() {
-    let reply = ReplyReport::from_reply(&message(json!({"id": "r1", "metadata": {"action": 7}})));
+    let reply = ReplyReport::from_reply(&message(json!({"id": "r1", "metadata": {"action": 7}})), true);
     assert_eq!((reply.body, reply.action), (None, None));
 }
 
@@ -94,9 +94,31 @@ fn device_name_is_added_to_json_and_text_without_changing_assurance() {
         "id": "r1", "direction": "boss_to_agent", "body": "Ship", "metadata": {"source": "api",
             "provenance": {"version": 1, "source": "api", "signature": {"status": "not_configured"}},
             "answered_by": {"client_id": "phone", "kind": "ios", "label": "Ming's iPhone"}}
-    })));
+    })), true);
     assert!(reply.text().contains("Source: Ming's iPhone"));
     let json = serde_json::to_value(&reply).expect("JSON reply");
     assert_eq!(json["device_label"], "Ming's iPhone");
     assert_eq!(reply.assurance, "api/not_configured");
+}
+
+#[test]
+fn status_marks_rows_that_cannot_answer_the_ask() {
+    let report = StatusReport::from_message(&message(json!({
+        "id": "ask-1", "agent_id": "agent-a", "direction": "agent_to_boss", "replies": [
+            {"id": "own-1", "agent_id": "agent-a", "direction": "agent_to_boss", "body": "Yes"},
+            {"id": "fwd-1", "agent_id": "agent-a", "direction": "agent_to_boss", "type": "forwarded",
+                "body": "[Forwarded from api] Deploy?"},
+            {"id": "boss-1", "agent_id": "agent-a", "direction": "boss_to_agent", "body": "No"},
+        ],
+    })));
+    let outcomes = serde_json::to_value(&report).expect("JSON")["replies"]
+        .as_array()
+        .expect("replies")
+        .iter()
+        .map(|reply| reply["outcome"].as_str().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    // CONTROL: the boss row stays a reply.
+    assert_eq!(outcomes[2], "reply");
+    assert_eq!(outcomes[..2], ["not_an_answer", "not_an_answer"]);
+    assert!(report.text().contains("Reply own-1 [not an answer]: Yes"));
 }

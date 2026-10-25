@@ -25,6 +25,8 @@ enum Scenario {
     Backoff,
     DroppedBody,
     MalformedJson,
+    SelfReplyOnly,
+    PollSelfReply,
 }
 
 struct Server {
@@ -126,6 +128,9 @@ async fn answer(
     send_body(&mut stream, scenario, has_reply, index).await;
 }
 
+/// The thread read of an unanswered ask: only the asker's own follow-up is a child.
+const SELF_REPLY_BODY: &str = r#"{"id":"ask-1","agent_id":"agent-a","direction":"agent_to_boss","replies":[{"id":"own-1","agent_id":"agent-a","direction":"agent_to_boss","body":"Yes"}]}"#;
+
 async fn send_body(stream: &mut TcpStream, scenario: Scenario, has_reply: bool, index: usize) {
     if index > 0
         && matches!(
@@ -158,8 +163,12 @@ async fn send_body(stream: &mut TcpStream, scenario: Scenario, has_reply: bool, 
     }
     let body = if matches!(scenario, Scenario::MalformedJson) {
         "{broken"
+    } else if (matches!(scenario, Scenario::SelfReplyOnly) && index > 0)
+        || (matches!(scenario, Scenario::PollSelfReply) && index == 0)
+    {
+        SELF_REPLY_BODY
     } else if has_reply {
-        r#"{"id":"ask-1","replies":[{"id":"reply-1","body":"B"}]}"#
+        r#"{"id":"ask-1","direction":"agent_to_boss","replies":[{"id":"reply-1","direction":"boss_to_agent","body":"B","metadata":{"source":"api","provenance":{"version":1,"source":"api","signature":{"status":"not_configured"}}}}]}"#
     } else {
         r#"{"id":"ask-1","replies":[]}"#
     };
@@ -184,11 +193,7 @@ async fn empty_windows_end_at_deadline_and_use_local_default() {
         actions: Default::default(),
         default_option: Some("A".into()),
     };
-    let result = AskResult::from_poll(
-        "ask-1",
-        message.as_ref().and_then(|m| m.replies.as_deref()),
-        &choices,
-    );
+    let result = AskResult::from_poll("ask-1", message.as_ref(), &choices);
     assert_eq!(
         serde_json::to_value(result).expect("result")["outcome"],
         "local_default"
@@ -199,7 +204,7 @@ async fn empty_windows_end_at_deadline_and_use_local_default() {
     assert_eq!(paths.len(), 3);
     assert!(paths[0].ends_with("timeout=2"));
     assert!(paths[1].ends_with("timeout=1"));
-    assert_eq!(paths[2], "/api/messages/ask-1");
+    assert_eq!(paths[2], "/api/messages/ask-1?replies=decisions");
 }
 
 #[tokio::test]
@@ -215,7 +220,10 @@ async fn deadline_cancels_a_stalled_poll() {
     assert!(start.elapsed() < Duration::from_secs(2));
     assert_eq!(
         server.paths(),
-        ["/api/messages/ask-1/poll?timeout=1", "/api/messages/ask-1"]
+        [
+            "/api/messages/ask-1/poll?timeout=1",
+            "/api/messages/ask-1?replies=decisions"
+        ]
     );
 }
 
@@ -232,7 +240,10 @@ async fn reply_stored_at_half_second_survives_in_flight_poll_cancellation() {
     );
     assert_eq!(
         server.paths(),
-        ["/api/messages/ask-1/poll?timeout=2", "/api/messages/ask-1"]
+        [
+            "/api/messages/ask-1/poll?timeout=2",
+            "/api/messages/ask-1?replies=decisions"
+        ]
     );
 }
 
@@ -249,7 +260,7 @@ async fn reply_stored_during_deadline_ending_backoff_is_reconciled() {
     );
     assert_eq!(
         server.paths().last().map(String::as_str),
-        Some("/api/messages/ask-1")
+        Some("/api/messages/ask-1?replies=decisions")
     );
 }
 

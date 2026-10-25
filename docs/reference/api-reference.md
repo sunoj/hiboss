@@ -56,9 +56,18 @@ Response (200): `{ "messages": [Message], "total": number }`
 
 ### GET /api/messages/:id
 Get a single message with its reply chain. Response includes `replies: Message[]`.
+`?replies=decisions` returns only the replies that can answer the message, the same set
+`/poll` returns: `boss_to_agent` rows for an `agent_to_boss` ask, and rows written by the
+other agent for an `agent_to_agent` ask. The asker's own follow-ups and forward copies are
+left out. The CLI's final ask read uses it.
 
 ### POST /api/messages/:id/reply
 Reply to a message. Request: `{ "body": "string" }`. Response (201): message object.
+A reply to an `agent_to_agent` message is stored under the replier's own session (the session
+the parent addressed, or null when the parent named none) with `target_session_id` set to the
+sender's session; its session event lands in the replier's session. A reply closes its parent
+only when it answers it: for an `agent_to_agent` parent, only a reply from a different agent
+does (see `docs/ask-outcomes.md`).
 An agent reply to a boss reply is stored as an `agent_to_boss` follow-up with `reply_to` set to
 that reply, so clients fold it into the original thread. Follow-ups never decide a question.
 
@@ -73,6 +82,13 @@ stored on every channel in `metadata.reactions` as
 (actor, actor_id, emoji); a change is republished on the boss stream. Legacy entries
 `{emoji, boss_id}` and `{emoji, user}` still read as boss reactions. Metadata writers patch only
 their own keys database-side; stored metadata that is not a JSON object is treated as `{}`.
+
+### POST /api/messages/:id/forward
+Copy a message to another channel. Request: `{ "channel": "telegram"|"discord" }`. The copy has
+`type: 'forwarded'` and `reply_to` set to the original. It is stored `async`, without options or
+a deadline, so a forwarded ask is never a second decision: it is not a pending input, not the
+Telegram bare-text target, and not an ask to claim. `POST /api/boss/messages/:id/forward` stores
+the same copy.
 
 ### POST /api/messages/:id/poll
 Long-poll for reply to a blocking message. Query: `timeout` (default 300, max 300).
@@ -295,7 +311,8 @@ List sub-agent messages. Params: `unread`, `priority`, `limit`, `offset`, `count
 Read message with replies.
 
 ### POST /api/boss/inbox/:id/reply
-Reply as boss. Request: `{ "body" }`.
+Reply as boss. Request: `{ "body" }`. Only `agent_to_boss` messages can be answered (404
+otherwise), and a boss-agent cannot answer its own message (403).
 
 ### PATCH /api/boss/inbox/:id
 Mark as read. Request: `{ "status": "read" }`.

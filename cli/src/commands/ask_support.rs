@@ -22,12 +22,10 @@ pub(crate) struct DefaultReply {
 
 pub(crate) fn resolve_default_reply(
     choices: &ChoicePayload,
-    replies: Option<&[Message]>,
+    answer: Option<&Message>,
 ) -> Option<DefaultReply> {
-    if let Some(replies) = replies {
-        if replies.first().is_some() {
-            return None;
-        }
+    if answer.is_some() {
+        return None;
     }
     let label = choices.default_option.as_ref()?;
     let action = choices.actions.get(label).cloned();
@@ -167,7 +165,7 @@ mod tests {
             session_status: None,
             replies: None,
         };
-        let resolved = resolve_default_reply(&choices, Some(&[reply]));
+        let resolved = resolve_default_reply(&choices, Some(&reply));
         assert!(resolved.is_none());
     }
 
