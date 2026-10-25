@@ -181,9 +181,9 @@ describe('POST /api/webhooks/discord-interactions', () => {
     const actions = { Approve: 'aid merge t-123', Reject: 'echo rejected' };
     await env.DB
       .prepare(
-        "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'boss_to_agent', 'async', 'discord', 'with actions', 'sent', 'normal', ?)"
+        "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', 'with actions', 'delivered', 'normal', ?)"
       )
-      .bind(parentId, TEST_AGENT_ID, JSON.stringify({ actions }))
+      .bind(parentId, TEST_AGENT_ID, JSON.stringify({ options: Object.keys(actions), actions }))
       .run();
 
     const payload = {

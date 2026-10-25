@@ -164,6 +164,7 @@ routes.get('/:id', async (c) => {
 });
 
 routes.delete('/:id', async (c) => {
+  if (isBossAuth(c) && getBossRole(c) === 'viewer') return c.text('viewer cannot delete posts', 403);
   const agentIds = await getScopeAgentIds(c);
   if (!agentIds.length) return c.text('not found', 404);
   const scope = scopedWhere(agentIds);

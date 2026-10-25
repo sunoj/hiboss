@@ -215,7 +215,8 @@ bosses; `boss add` is removed.
 ## Boss device onboarding
 
 - **Pairing issuer:** `admin` and `manager` may create pairing codes. The redeemed device
-  receives the issuer's role or a lower one, never higher.
+  receives the issuer's role or a lower one, never higher. The same roles may mint a client
+  directly with `POST /api/boss/clients`; a viewer gets 403 there too.
 - **macOS:** the first-run screen offers *Pair with code* first: paste a `hiboss://pair?…`
   link or server + code. The app registers the `hiboss://` URL scheme so a clicked link opens
   the redeem sheet. *Use a Boss Token* stays as the secondary path.

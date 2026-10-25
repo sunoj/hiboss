@@ -1,8 +1,9 @@
 // Resolves Telegram message identity within the chat that received it.
 // Exports reply/reaction and pending-message lookups for webhook handlers.
-// Depends on recorded delivery destinations and legacy agent channel configs.
+// Depends on recorded delivery destinations, legacy agent channel configs and boss access.
 
-import type { Env } from '../types';
+import type { Env, MessageRow } from '../types';
+import { hasBossAccess } from './webhook-helpers';
 
 const legacyChatMatch = `json_extract(m.metadata, '$.telegram_chat_id') IS NULL
   AND NOT EXISTS (SELECT 1 FROM message_deliveries md WHERE md.message_id = m.id
@@ -11,22 +12,39 @@ const legacyChatMatch = `json_extract(m.metadata, '$.telegram_chat_id') IS NULL
     AND cc.channel = 'telegram' AND cc.enabled = 1
     AND CAST(json_extract(cc.config, '$.chat_id') AS TEXT) = ?)`;
 
+/** The HiBoss message delivered to this chat as Telegram message `externalId`, whatever its agent. */
 export async function findTelegramMessageInChat(
-  env: Env, agentId: string, chatId: string, externalId: number,
-): Promise<{ id: string; metadata: string | null } | null> {
-  return env.DB.prepare(`SELECT m.id, m.metadata FROM messages m
-    WHERE m.agent_id = ? AND m.channel = 'telegram'
+  env: Env, chatId: string, externalId: number,
+): Promise<MessageRow | null> {
+  return env.DB.prepare(`SELECT m.* FROM messages m
+    WHERE m.channel = 'telegram'
       AND ((json_extract(m.metadata, '$.telegram_message_id') = ?
         AND (CAST(json_extract(m.metadata, '$.telegram_chat_id') AS TEXT) = ?
           OR (${legacyChatMatch})))
         OR EXISTS (SELECT 1 FROM message_deliveries md
           JOIN boss_destinations d ON d.id = md.destination_id
-          WHERE md.message_id = m.id AND md.external_message_id = CAST(? AS TEXT)
+          WHERE md.message_id = m.id AND md.external_message_id = ?
             AND d.kind = 'telegram_chat'
             AND CAST(json_extract(d.target, '$.chat_id') AS TEXT) = ?))
     LIMIT 1`)
-    .bind(agentId, externalId, chatId, chatId, externalId, chatId)
-    .first<{ id: string; metadata: string | null }>();
+    // D1 binds a JS number as REAL, so CAST(? AS TEXT) would give '77.0'; bind the stored text.
+    .bind(externalId, chatId, chatId, String(externalId), chatId)
+    .first<MessageRow>();
+}
+
+/**
+ * The message a Telegram text replies to, when it was delivered to this chat and the replying
+ * boss may access its agent. Null when there is no reply, no match, or no access.
+ */
+export async function findRepliedTelegramMessage(
+  env: Env, chatId: string, message: Record<string, unknown> | undefined,
+  boss: { id: string; role: string } | null,
+): Promise<MessageRow | null> {
+  const replyId = (message?.['reply_to_message'] as Record<string, unknown> | undefined)?.['message_id'];
+  if (typeof replyId !== 'number') return null;
+  const parent = await findTelegramMessageInChat(env, chatId, replyId);
+  if (!parent || (boss && !(await hasBossAccess(env, boss.id, parent.agent_id, boss.role)))) return null;
+  return parent;
 }
 
 export async function findPendingTelegramMessageInChat(

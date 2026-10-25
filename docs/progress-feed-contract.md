@@ -103,7 +103,8 @@ Feeds the iOS filter control. Same visibility rules.
 
 ### `GET /api/progress/:id` — `dualAuth`, same visibility rules, 404 when out of scope.
 
-### `DELETE /api/progress/:id` — `dualAuth`. Author agent or any boss. 404 when out of scope.
+### `DELETE /api/progress/:id` — `dualAuth`. The author agent, or an admin or a manager with access to the
+author agent. A viewer gets 403. 404 when out of scope.
 
 ### Post shape (all responses)
 
