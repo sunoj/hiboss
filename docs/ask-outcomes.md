@@ -52,8 +52,10 @@ An explicit reply that happens to equal the default remains `reply`.
 
 The local polling timeout can occur before server-side expiry. A `local_default`
 is therefore not proof of a persisted answer. Recover using the original message
-ID before relying on server state. This change does not modify server expiration,
-selection, signature verification, or HTTP contracts.
+ID (`hiboss status <id>`) before relying on server state. `status` labels each reply with
+the same rule as `ask`: `reply` for an answer, `auto_default` for a server default, and
+`not_an_answer` (`[not an answer]` in text) for rows that cannot answer the ask, such as the
+asker's own follow-ups and forwarded copies. A `not_an_answer` row carries no action.
 
 Plain text retains ordinary reply bodies. Automatic defaults begin with
 `[auto_default]` or `[local_default]` and explain the lack of authorization.

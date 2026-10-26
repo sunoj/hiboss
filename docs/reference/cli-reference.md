@@ -86,7 +86,8 @@ indicates an actual returned message, not proof of human approval; inspect its
 provenance and the applicable authorization context. Plain-text defaults include
 an explicit outcome marker. Action commands are displayed, never executed by
 `ask`. Existing scripts that compare raw default-answer text must adopt the JSON
-outcome contract. See [ask outcomes](../../docs/ask-outcomes.md).
+outcome contract. `hiboss status <id>` recovers an ask later and labels each reply `reply`,
+`auto_default` or `not_an_answer` by the same rule. See [ask outcomes](../../docs/ask-outcomes.md).
 
 `--option-image LABEL=PATH_OR_URL` attaches an image to a choice so the boss can
 compare two renderings ("A or B?"). It is repeatable (at most 5), splits at the
