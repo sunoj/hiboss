@@ -2,6 +2,7 @@
 // Exports boss lookup, routing evaluation, and message mapping helpers.
 // Depends on Env typings and D1 bindings.
 
+import { parseStoredJSON as safeJson } from '../stored-json';
 import type { Env, MessageResponse, MessageRow } from '../types';
 import { createMessageId } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
@@ -45,14 +46,6 @@ export async function findMessageByIdempotencyKey(env: Env, agentId: string, key
   return row ?? null;
 }
 
-function safeJson(value: string | null): Record<string, unknown> | null {
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
 
 export async function evaluateRoutingRules(env: Env, channel: string, body: string, defaultAgentId: string): Promise<string | null> {
   const rules = await env.DB

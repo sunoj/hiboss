@@ -1,6 +1,7 @@
 // Boss-authenticated API: lets bosses view agents, messages, sessions, and reply.
 // Exports bossApiRouter mounted at /api/boss.
 // Depends on Hono, boss auth middleware, and D1 bindings.
+import { parseStoredJSON as safeParse } from '../stored-json';
 import { mapSessionList, type ListedSession } from './session-list';
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
@@ -43,10 +44,6 @@ routes.route('/', bossMessagesRouter);
 routes.route('/', bossStreamRouter);
 routes.route('/', bossJoinRouter);
 
-function safeParse(value: string | null | undefined): Record<string, unknown> | null {
-  if (!value) return null;
-  try { return JSON.parse(value) as Record<string, unknown>; } catch { return null; }
-}
 
 /** GET /api/boss/me — boss profile */
 routes.get('/me', async (c) => {

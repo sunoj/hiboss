@@ -1,6 +1,7 @@
 // Helper functions for message route handlers: mapping, validation, and utilities.
 // This module re-exports functions from focused modules (queries, options).
 
+import { parseStoredJSON as safeParse } from '../stored-json';
 import { SESSION_NICKNAME_SQL } from './session-nickname';
 import { readAnsweredBy } from '../answered-by';
 import { stripServerOwnedMetadata } from '../message-security';
@@ -41,16 +42,6 @@ export function mapMessageRow(row: MessageRow): MessageResponse {
   };
 }
 
-export function safeParse(value: string | null): Metadata {
-  if (!value) {
-    return null;
-  }
-  try {
-    return JSON.parse(value) as Metadata;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Session a boss→agent reply must be scoped to, for conversation affinity.

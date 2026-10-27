@@ -5,7 +5,7 @@
 import type { Channel, Env, MessageRow, ResolutionSource, Status } from '../types';
 import { mapMessageRow } from './message-helpers';
 import { readAnsweredBy, type AnsweredBy } from '../answered-by';
-import { safeParse } from './message-helpers';
+import { parseStoredJSON as safeParse } from '../stored-json';
 
 const POLL_INTERVAL_MS = 3_000;
 const KEEPALIVE_INTERVAL_MS = 15_000;

@@ -2,6 +2,7 @@
 // Exports GET /stream that pushes boss_to_agent and agent_to_agent messages via SSE.
 // Depends on Hono, D1, auth middleware, and Cloudflare Workers streaming primitives.
 
+import { parseStoredJSON as safeJson } from '../stored-json';
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
@@ -124,10 +125,6 @@ export function buildStreamQuery(agentId: string, sessionId?: string) {
   };
 }
 
-function safeJson(value: string | null): Record<string, unknown> | null {
-  if (!value) return null;
-  try { return JSON.parse(value); } catch { return null; }
-}
 
 export function pruneSeenMessageIds(seenMessageIds: Set<string>, rows: MessageRow[], lastCheck: string): void {
   if (rows.length === 0) {

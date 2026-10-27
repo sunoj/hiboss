@@ -2,6 +2,7 @@
 // Exports POST/GET/PATCH/poll handlers for /api/messages, plus reactions sub-router.
 // Depends on Hono, the auth middleware, channel adapters, and shared types.
 
+import { parseStoredJSON as safeParse } from '../stored-json';
 import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
 import { apiAuth, createAuthValidator, getAgentId, getAgentKeyId } from '../middleware/auth';
@@ -19,7 +20,6 @@ import {
   fetchMessageWithReplies,
   mapMessageRow,
   parsePriorityFilter,
-  safeParse,
   validateOption,
 } from './message-helpers';
 import { messageReplyRouter } from './message-reply';

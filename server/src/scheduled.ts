@@ -2,6 +2,7 @@
 // Exports the scheduled handler used by the Worker cron entrypoint.
 // Depends on D1, message expiry helpers, and the shared agent delivery helper.
 
+import { parseStoredJSON as parseMetadata } from './stored-json';
 import { MESSAGE_METADATA_OBJECT_SQL } from './routes/message-reactions';
 import { appendOptionDescriptions } from './routes/option-descriptions';
 import type { Channel, Env, MessageRow } from './types';
@@ -252,14 +253,6 @@ async function markQueueFailed(env: Env, queueId: string, error: string, nextRet
     .run();
 }
 
-function parseMetadata(value: string | null): Record<string, unknown> | null {
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
 
 function parseOptions(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;

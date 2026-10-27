@@ -2,6 +2,7 @@
 // Exports: message preparation, decision tiers, privacy, and session/result contracts.
 // Dependencies: message snapshots, APNs delivery types, and message priorities.
 
+import { parseStoredJSON as readPreferences } from '../stored-json';
 import type {
   ApnsInterruptionLevel,
   ApnsPayload,
@@ -148,14 +149,6 @@ export function decisionPushTier(priority: Priority, preferences: string | null 
   return { deliver: override.deliver ?? base.deliver, sound, level, apnsPriority: apnsPriorityFor(sound, level) };
 }
 
-function readPreferences(preferences: string | null | undefined): Record<string, unknown> | null {
-  if (!preferences) return null;
-  try {
-    return JSON.parse(preferences) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
 
 function pushTier(priority: Priority, isDecision: boolean, preferences: string | null | undefined): PushTier {
   if (isDecision) {

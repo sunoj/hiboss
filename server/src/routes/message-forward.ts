@@ -2,6 +2,7 @@
 // Exports channel validation plus delivery + persistence for forwarded messages.
 // Depends on message queries/options, delivery helpers, and route-safe metadata parsing.
 
+import { parseStoredJSON as safeParse } from '../stored-json';
 import type { Channel, Env, MessageRow } from '../types';
 import { ensureTopicForAgent } from './message-options';
 import { ensureThreadForSession } from './message-option-threads';
@@ -11,7 +12,6 @@ import {
   deliverToChannelWithOptions,
   deliverWithRetry,
   requireTelegramConfig,
-  safeParse,
 } from './message-helpers';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 import { destinationsMode, dispatchDestinations } from '../delivery';

@@ -2,6 +2,7 @@
 // Exports bossesRouter mounted at /api/bosses.
 // Depends on Hono, auth middleware, and D1 bindings.
 
+import { parseStoredJSON as safeParse } from '../stored-json';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { Env } from '../types';
@@ -47,10 +48,6 @@ export function escapeLike(value: string): string {
   return value.replace(/([\\%_])/g, '\\$1');
 }
 
-function safeParse(value: string | null): Record<string, unknown> | null {
-  if (!value) return null;
-  try { return JSON.parse(value) as Record<string, unknown>; } catch { return null; }
-}
 
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', bossAuth);
