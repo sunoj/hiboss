@@ -1,30 +1,31 @@
 // Tests HTTP error rendering shared by the CLI client.
 // Depends on the parent client error formatter and reqwest status codes.
 use super::http_error;
+use reqwest::StatusCode;
 
 #[test]
 fn http_error_includes_non_empty_request_id() {
-    let message = http_error(
-        "request failed",
-        reqwest::StatusCode::BAD_GATEWAY,
-        Some("req-123".to_owned()),
-        "bad gateway".to_owned(),
-    );
-    assert_eq!(
-        message.to_string(),
-        "request failed (502 Bad Gateway): bad gateway [req-id=req-123]"
-    );
+    for (status, prefix, body, id, expected) in [
+        (StatusCode::BAD_GATEWAY, "request failed", "bad gateway", "req-123",
+         "request failed (502 Bad Gateway): bad gateway [req-id=req-123]"),
+        (StatusCode::BAD_REQUEST, "upload failed", "bad\nbody", " ",
+         "upload failed (400 Bad Request): bad\nbody [req-id= ]"),
+        (StatusCode::NOT_FOUND, "lookup failed", "", "🦀",
+         "lookup failed (404 Not Found):  [req-id=🦀]"),
+    ] {
+        let message = http_error(prefix, status, Some(id.to_owned()), body.to_owned());
+        assert_eq!(message.to_string(), expected);
+    }
 }
 
 #[test]
 fn http_error_omits_empty_request_id() {
-    let message = http_error(
-        "request failed",
-        reqwest::StatusCode::BAD_GATEWAY,
-        Some(String::new()),
-        "bad gateway".to_owned(),
-    );
-    assert_eq!(message.to_string(), "request failed (502 Bad Gateway): bad gateway");
+    for request_id in [None, Some(String::new())] {
+        let message = http_error(
+            "request failed", StatusCode::BAD_GATEWAY, request_id, "bad gateway".to_owned(),
+        );
+        assert_eq!(message.to_string(), "request failed (502 Bad Gateway): bad gateway");
+    }
 }
 
 #[test]

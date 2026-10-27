@@ -33,25 +33,18 @@ pub(crate) fn mime_from_ext(filename: &str) -> String {
 }
 
 /// A non-success HTTP response, kept typed so callers can match the exact server rejection.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "{prefix} ({status}): {body}{}",
+    .request_id.as_deref().filter(|id| !id.is_empty())
+        .map(|id| format!(" [req-id={id}]")).unwrap_or_default()
+)]
 pub struct HttpError {
     pub prefix: &'static str,
     pub status: reqwest::StatusCode,
     pub request_id: Option<String>,
     pub body: String,
 }
-
-impl std::fmt::Display for HttpError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({}): {}", self.prefix, self.status, self.body)?;
-        match self.request_id.as_deref().filter(|id| !id.is_empty()) {
-            Some(id) => write!(f, " [req-id={id}]"),
-            None => Ok(()),
-        }
-    }
-}
-
-impl Error for HttpError {}
 
 fn http_error(
     prefix: &'static str,
