@@ -5,7 +5,6 @@
 use super::{Config, config_path};
 use crate::runtime::RuntimeIdentity;
 use std::error::Error;
-use std::fmt;
 
 #[derive(Clone, Debug)]
 pub struct Credential {
@@ -17,15 +16,9 @@ pub struct Credential {
     pub runtime: RuntimeIdentity,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
 pub struct ProfileError(pub String);
-
-impl fmt::Display for ProfileError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
-    }
-}
-impl Error for ProfileError {}
 
 fn env_value(name: &str) -> Option<String> {
     std::env::var(name)

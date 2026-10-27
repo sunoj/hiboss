@@ -27,7 +27,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn relay_error_includes_next_action() { assert!(relay_error(Some("lease_conflict")).contains("panel state")); }
+    fn relay_error_includes_next_action() {
+        for (codes, action) in [
+            (&["lease_conflict"][..], "Read `hiboss panel state <id>` before taking over a lease"),
+            (&["fenced_epoch", "lease_expired"][..],
+                "Read `hiboss panel state <id>` and claim a current lease"),
+            (&["revision_conflict"][..],
+                "Read `hiboss panel show <id> --json` and retry with the current revision"),
+            (&["unsupported_protocol"][..], "Upgrade the server and CLI together to protocol v2"),
+            (&["unknown", ""][..], "Inspect the relay error and correct the request before retrying"),
+        ] {
+            for code in codes {
+                assert_eq!(
+                    relay_error(Some(code)),
+                    format!("panel relay stopped: {code}. Next action: {action}")
+                );
+            }
+        }
+        assert_eq!(relay_error(None), "panel relay stopped: unknown error. Next action: \
+            Inspect the relay error and correct the request before retrying");
+    }
 
     #[test]
     fn live_epoch_requires_future_expiry() { assert_eq!(live_epoch(&serde_json::json!({"epoch":"old","leaseExpiresAt":"2000-01-01T00:00:00Z"})), None); }

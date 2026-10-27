@@ -48,16 +48,9 @@ pub(super) struct JoinState {
 }
 
 /// A 404; for a join status poll it means the poll token is dead.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("HiBoss request failed (404 Not Found)")]
 pub(super) struct NotFound;
-
-impl std::fmt::Display for NotFound {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("HiBoss request failed (404 Not Found)")
-    }
-}
-
-impl Error for NotFound {}
 
 #[derive(Deserialize, Default)]
 struct Failure {

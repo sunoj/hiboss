@@ -9,7 +9,6 @@ use schema::*;
 use serde_json::{Map, Value};
 use super::json::parse_unique_json;
 use std::error::Error;
-use std::fmt::{Display, Formatter};
 use std::path::Path;
 
 const CATALOG_ID: &str = "hiboss.panel";
@@ -17,21 +16,13 @@ const CATALOG_VERSION: u64 = 1;
 const MAX_ELEMENTS: usize = 200;
 const MAX_DEPTH: usize = 12;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{code} at {}: {message}", if .path.is_empty() { "/" } else { .path })]
 pub struct ValidationError {
     pub code: &'static str,
     pub path: String,
     pub message: String,
 }
-
-impl Display for ValidationError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let path = if self.path.is_empty() { "/" } else { &self.path };
-        write!(f, "{} at {}: {}", self.code, path, self.message)
-    }
-}
-
-impl Error for ValidationError {}
 
 pub fn read_file(path: &Path) -> Result<Value, Box<dyn Error>> {
     let body = std::fs::read_to_string(path)?;

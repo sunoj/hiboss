@@ -41,18 +41,11 @@ pub(crate) struct Connection {
     pub(crate) epoch: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{}", relay_error(Some(.code.as_str())))]
 pub(crate) struct RelayFailure {
     pub(crate) code: String,
 }
-
-impl std::fmt::Display for RelayFailure {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{}", relay_error(Some(&self.code)))
-    }
-}
-
-impl Error for RelayFailure {}
 
 pub(crate) async fn connect(
     client: &HiBossClient,

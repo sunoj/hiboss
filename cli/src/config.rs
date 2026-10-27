@@ -12,21 +12,13 @@ pub use storage::write_private;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::error::Error;
-use std::fmt;
 use std::fs;
 use std::path::PathBuf;
 
 /// Configuration loading failed before command execution; retain exit status 1.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
 pub struct LoadError(String);
-
-impl fmt::Display for LoadError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
-    }
-}
-
-impl Error for LoadError {}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
