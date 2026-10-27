@@ -1,5 +1,5 @@
 // Routing matrix: which channels fire for each message priority.
-// Exports: RoutingSection as a native Form section bound to PreferencesStore.
+// Exports: RoutingSection and the shared PriorityMenuLabel for notification menus.
 // Dependencies: SwiftUI, HibossKit, priority tokens.
 
 import HibossKit
@@ -38,20 +38,7 @@ private struct RoutingRow: View {
                 Toggle(isOn: binding(channel)) { Text(verbatim: channel.title) }
             }
         } label: {
-            LabeledContent {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(verbatim: summary)
-                        .foregroundStyle(Theme.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption2).foregroundStyle(Theme.ink3)
-                }
-            } label: {
-                HStack {
-                    Circle().fill(dotColor).frame(width: 8, height: 8)
-                    Text(verbatim: priority.localizedTitle).foregroundStyle(Theme.ink)
-                }
-            }
+            PriorityMenuLabel(priority: priority, summary: summary)
         }
         .accessibilityIdentifier("settings-channel-\(priority.rawValue)")
     }
@@ -64,13 +51,27 @@ private struct RoutingRow: View {
     private func binding(_ channel: NotificationChannel) -> Binding<Bool> {
         Binding(get: { selected.contains(channel) }, set: { _ in onToggle(channel) })
     }
+}
 
-    private var dotColor: Color {
-        switch priority {
-        case .critical: PriorityColor.critical
-        case .high: PriorityColor.high
-        case .normal: PriorityColor.normal
-        case .low: PriorityColor.low
+// Shared visual label; the owning rows retain their menu actions and identifiers.
+struct PriorityMenuLabel: View {
+    let priority: HibossKit.MessagePriority
+    let summary: String
+
+    var body: some View {
+        LabeledContent {
+            HStack(alignment: .firstTextBaseline) {
+                Text(verbatim: summary)
+                    .foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2).foregroundStyle(Theme.ink3)
+            }
+        } label: {
+            HStack {
+                Circle().fill(MessagePriority(raw: priority.rawValue).color).frame(width: 8, height: 8)
+                Text(verbatim: priority.localizedTitle).foregroundStyle(Theme.ink)
+            }
         }
     }
 }

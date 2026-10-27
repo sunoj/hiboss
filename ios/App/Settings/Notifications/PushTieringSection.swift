@@ -65,20 +65,7 @@ private struct PushTieringRow: View {
             Toggle("Sound", isOn: soundBinding)
                 .disabled(!rule.deliver)
         } label: {
-            LabeledContent {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(verbatim: summary)
-                        .foregroundStyle(Theme.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption2).foregroundStyle(Theme.ink3)
-                }
-            } label: {
-                HStack {
-                    Circle().fill(dotColor).frame(width: 8, height: 8)
-                    Text(verbatim: priority.localizedTitle).foregroundStyle(Theme.ink)
-                }
-            }
+            PriorityMenuLabel(priority: priority, summary: summary)
         }
         .accessibilityIdentifier("settings-push-\(priority.rawValue)")
     }
@@ -106,15 +93,6 @@ private struct PushTieringRow: View {
         case .passive: rule.with(deliver: true, level: .passive)
         case .active: rule.with(deliver: true, level: .active)
         case .timeSensitive: rule.with(deliver: true, level: .timeSensitive)
-        }
-    }
-
-    private var dotColor: Color {
-        switch priority {
-        case .critical: PriorityColor.critical
-        case .high: PriorityColor.high
-        case .normal: PriorityColor.normal
-        case .low: PriorityColor.low
         }
     }
 }
