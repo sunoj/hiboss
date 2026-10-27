@@ -159,22 +159,14 @@ describe('resolveBossForChannel', () => {
     expect(boss!.name).toBe('Webhook Boss');
   });
 
-  it('returns unknown sender for unrecognized user', async () => {
-    const { boss, error } = await resolveBossForChannel(env as any, 'telegram', 'unknown-user', false);
+  it.each([
+    ['returns unknown sender for unrecognized user', 'unknown-user', 'unknown sender'],
+    ['returns unknown sender when no userId', undefined, 'unknown sender'],
+    ['blocks viewer from sending messages', 'tg-viewer-777', 'viewer cannot send messages'],
+  ] as const)('%s', async (_title, userId, expectedError) => {
+    const { boss, error } = await resolveBossForChannel(env as any, 'telegram', userId, false);
     expect(boss).toBeNull();
-    expect(error).toBe('unknown sender');
-  });
-
-  it('returns unknown sender when no userId', async () => {
-    const { boss, error } = await resolveBossForChannel(env as any, 'telegram', undefined, false);
-    expect(boss).toBeNull();
-    expect(error).toBe('unknown sender');
-  });
-
-  it('blocks viewer from sending messages', async () => {
-    const { boss, error } = await resolveBossForChannel(env as any, 'telegram', 'tg-viewer-777', false);
-    expect(boss).toBeNull();
-    expect(error).toBe('viewer cannot send messages');
+    expect(error).toBe(expectedError);
   });
 
   it('allows viewer when allowViewer is true', async () => {
