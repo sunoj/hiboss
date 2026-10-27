@@ -199,3 +199,24 @@ Nine isolated faults expose eleven formerly undetected case failures, including 
 an empty request body and omitted delivery guards. Temporary faults are restored before each
 complete scoped run. All 39 existing case names remain; five notification cases are added.
 The two extractions and stronger oracles together remove 45 source lines.
+
+## Complete rendered silhouettes and nonempty island coverage
+
+The avatar test retains its original top-edge alpha comparison and additionally compares the
+visible silhouette across every pixel. Raw alpha equality over the whole image is inappropriate:
+the initial letters are opaque while their circular background is translucent. An added rectangle
+at the avatar's bottom passes the original top-edge check and fails the complete silhouette check.
+
+The island renderer retains its image and size checks and requires visible content across more
+than half the image with transparent opposite corners. Both a transparent view and a solid
+rectangle of the expected size pass the old checks and fail the corrected case. Exported PNGs
+independently show 15,900 visible pixels normally, zero for the transparent fault, and 24,864 for
+the rectangle, whose corners are opaque. These assertions cover extent and silhouette, rather
+than every painted element or its exact color.
+
+Shared pixel extraction preserves 8-bit premultiplied RGBA drawing and the avatar renderer scale.
+Existing contrast, semantic-color and geometry assertions remain. At
+e4e3efb9fca91de52a1c375107ac88167bee2b7d, all 496 iOS unit cases pass, with the exact previous
+identity set and zero failures or skipped cases. Three selected original fault cases pass; the
+corresponding corrected cases fail. All temporary faults are restored before the complete run.
+The new helper and stronger tests together remove four Swift source lines.
