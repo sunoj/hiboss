@@ -1,6 +1,6 @@
 # Exercises installed agent instructions, refresh, hook prompts, and normal completion.
 # Exports a remote-only CLI E2E entry point with isolated agent/config directories.
-# Dependencies: Python stdlib and the compiled hiboss binary on a grok host.
+# Dependencies: Python stdlib, Cargo metadata and the compiled hiboss binary on a grok host.
 
 import json
 import os
@@ -9,7 +9,11 @@ import subprocess
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-BINARY = ROOT / 'cli/target/debug/hiboss'
+metadata = json.loads(subprocess.check_output(
+    ['cargo', 'metadata', '--format-version', '1', '--no-deps', '--locked'],
+    cwd=ROOT / 'cli',
+))
+BINARY = pathlib.Path(metadata['target_directory']) / 'debug' / 'hiboss'
 BEGIN = '<!-- hiboss:panels:begin -->'
 END = '<!-- hiboss:panels:end -->'
 OLD = '<!-- hiboss:begin -->\nNEVER just stop; ask for next steps.\n<!-- hiboss:end -->'
