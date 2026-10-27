@@ -37,3 +37,36 @@ Every production source byte was restored before the final passing run.
 
 Verdict: the TTL replacement passes. Repository-wide test quality remains unverified; a static
 inventory or an absence of obvious assertion tautologies does not establish behavioral coverage.
+
+## Guardrail workspace isolation
+
+The CLI guardrail fixture formerly named directories with PID plus wall-clock nanoseconds. An
+instrumented run of all three parallel tests recorded identical names in the help and example
+validation tests. The help test removed their shared directory while example validation was active;
+the latter then failed with a missing file and panicked again during cleanup. Two earlier attempts
+passed, so a passing retry alone did not establish isolation.
+
+`cli/tests/panel_guardrail.rs` now uses the existing counter-based `cli_ux_support::Sandbox`.
+The help test checks that two live sandboxes have distinct paths, removes one, then exercises the
+real CLI in the surviving sandbox. Successful tests explicitly check that their directory exists
+before cleanup and is absent afterward. Cleanup assertions run outside the destructor.
+
+A negative control replaced the shared allocator's counter value with zero. The peer-isolation
+assertion failed as required. After restoring the helper, the complete CLI suite passed 539 tests
+across 27 nonempty suites, with zero failures, ignored cases or filtered cases.
+
+## Semantic enum coverage
+
+The console's former semantic tests sampled one member per guard and one valid input per coercion.
+They passed eight isolated faults: deleting a member from each of four enums, accepting normalized
+spellings, accepting a prototype property name, and reducing either coercion to its single example.
+
+`web/src/lib/design/semantics.test.ts` now checks all 17 guard members, malformed spellings, empty
+strings and prototype property names. Both coercions check all valid members, missing values and
+malformed inputs against independent literals. All eight faults fail the corrected checks.
+After restoration, the console check reported zero errors or warnings and all 138 tests passed.
+
+Both repairs were verified at `0fc9708fc8a0e8368985d36f15da8e3c6d41395e`, using `cargo test` in
+`cli/`, `npm run check` in `web/`, and the complete Web Vitest run. Production code is unchanged.
+These findings close the workspace-collision failure and the sampled enum coverage gaps; they do
+not establish completion of the repository-wide review.
