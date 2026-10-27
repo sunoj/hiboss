@@ -4,7 +4,8 @@ This static site serves `hiboss.org`: the home page, download page, self-host an
 
 ## Editing
 
-- Every page repeats the same header and footer; change all pages together.
+- Pages include the shared header and footer in `partials/`, with separate English and Chinese
+  fragments. `render.py` sets each page's current navigation link and language counterpart at build time.
 - The App Store link is a single marked line in `download/index.html` and `zh/download/index.html` (`APP STORE SWITCH`).
 - Screenshots in `assets/shots/` come from the iOS app's demo mode on an iPhone simulator, at 600 px wide, in light and dark variants. Keep every image under 400 KB.
 - A new file must also be added to the list in `build.sh`.
@@ -13,16 +14,23 @@ This static site serves `hiboss.org`: the home page, download page, self-host an
 
 ## Preview
 
-Run the server from `site/` and open `http://localhost:8080/`:
+Build into a new directory, serve that output, and open `http://localhost:8080/`:
 
 ```sh
-cd site
-python3 -m http.server 8080
+site/build.sh /absolute/new/preview-directory
+python3 -m http.server 8080 --directory /absolute/new/preview-directory
 ```
 
 ## Build
 
-Run `site/build.sh /absolute/new/output-directory` from the repository root. The script copies an explicit list of public files into a new directory. It has no runtime dependencies.
+Run `site/build.sh /absolute/new/output-directory` from the repository root. The script renders the listed HTML pages and copies an explicit list of public assets into a new directory.
+Building requires Bash and Python 3.10 or later; the output has no runtime dependencies. Templates and build scripts
+are excluded from the public output.
+
+## Verification
+
+Run `python3 -B site/test_build.py -v` from the repository root. The tests build into an isolated
+output directory and check the public file set, navigation, resource links and output-directory guard.
 
 ## Hosting
 

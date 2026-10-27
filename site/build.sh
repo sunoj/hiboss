@@ -25,6 +25,10 @@ done
 
 for file in "${files[@]}"; do
   mkdir -p -- "$output_dir/$(dirname -- "$file")"
-  cp -- "$source_dir/$file" "$output_dir/$file"
+  if [[ $file == *.html ]]; then
+    python3 "$source_dir/render.py" "$file" > "$output_dir/$file"
+  else
+    cp -- "$source_dir/$file" "$output_dir/$file"
+  fi
 done
 echo "$output_dir"
