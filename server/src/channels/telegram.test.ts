@@ -10,6 +10,8 @@ import {
   formatTelegramAttachmentCaption,
   isImageUrl,
   sendTelegramMediaGroup,
+  sendTelegramMessage,
+  sendTelegramDocument,
   sendTelegramPhoto,
 } from './telegram';
 
@@ -170,4 +172,61 @@ describe('option media delivery', () => {
     const payload = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as { media: { caption: string }[] };
     expect(payload.media.map((item) => item.caption)).toEqual(['A · before', 'B · after']);
   });
+});
+
+describe('send payloads and fallbacks', () => {
+  const config = { bot_token: 'tg:token', chat_id: 'chat-1', message_thread_id: 4 };
+  const keyboard = [[{ text: 'Choose', callback_data: 'pick' }]];
+  const senders = ['message', 'photo', 'document'] as const;
+  it.each(senders)('preserves %s routing and malformed-response handling', async (kind) => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response('invalid json'));
+    vi.stubGlobal('fetch', fetchMock);
+    const options = { messageThreadId: 7, replyToMessageId: 9, inlineKeyboard: keyboard };
+    const result = kind === 'message'
+      ? await sendTelegramMessage(config, 'body', options)
+      : await (kind === 'photo' ? sendTelegramPhoto : sendTelegramDocument)(
+        config, 'https://files.test/a', '', options,
+      );
+    expect(result).toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.telegram.org/bottg%3Atoken/sendChatAction');
+    const request = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(request).toMatchObject({ method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    expect(JSON.parse(String(request.body))).toEqual({
+      chat_id: 'chat-1', message_thread_id: 7, reply_parameters: { message_id: 9 },
+      reply_markup: { inline_keyboard: keyboard },
+      ...(kind === 'message' ? { text: 'body', parse_mode: 'HTML' } : { [kind]: 'https://files.test/a' }),
+    });
+  });
+
+  const fallbackSenders = ['message', 'document'] as const;
+  it.each(fallbackSenders)('keeps routing when %s falls back to plain text', async (kind) => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{}'))
+      .mockResolvedValueOnce(new Response("can't parse entities", { status: 400 }))
+      .mockResolvedValueOnce(new Response('{"result":{"message_id":42}}'));
+    vi.stubGlobal('fetch', fetchMock);
+    const options = { replyToMessageId: 9, inlineKeyboard: keyboard };
+    const result = kind === 'message'
+      ? await sendTelegramMessage(config, '<b>A &amp; B</b>', options)
+      : await sendTelegramDocument(config, 'https://files.test/a.pdf', '<b>A &amp; B</b>', options);
+    expect(result).toBe(42);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[2][0]).toBe('https://api.telegram.org/bottg%3Atoken/sendMessage');
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toEqual({
+      chat_id: 'chat-1', message_thread_id: 4, reply_parameters: { message_id: 9 },
+      reply_markup: { inline_keyboard: keyboard },
+      text: kind === 'message' ? 'A & B' : 'A & B\n📎 https://files.test/a.pdf',
+    });
+  });
+});
+
+it('rejects failed photos without attempting the document text fallback', async () => {
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response('{}'))
+    .mockResolvedValueOnce(new Response('unavailable', { status: 503 }));
+  vi.stubGlobal('fetch', fetchMock);
+  await expect(sendTelegramPhoto({ bot_token: 'tg-token', chat_id: 'chat-1' }, 'https://files.test/a'))
+    .rejects.toThrow('telegram sendPhoto failed 503');
+  expect(fetchMock).toHaveBeenCalledTimes(2);
 });
