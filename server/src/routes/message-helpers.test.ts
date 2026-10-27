@@ -13,7 +13,7 @@ import {
 } from './message-helpers';
 import type { MessageRow } from '../types';
 
-const baseRow: MessageRow = {
+const baseRow: MessageRow = Object.freeze({
   id: 'msg-1',
   agent_id: 'a1',
   direction: 'agent_to_boss',
@@ -31,7 +31,7 @@ const baseRow: MessageRow = {
   metadata: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-};
+});
 
 describe('mapMessageRow', () => {
   it('parses valid JSON metadata', () => {
@@ -53,7 +53,7 @@ describe('mapMessageRow', () => {
   });
 
   it('preserves all other row fields', () => {
-    expect(mapMessageRow(baseRow)).toEqual(baseRow);
+    expect(mapMessageRow({ ...baseRow })).toEqual(baseRow);
     const addressed = {
       ...baseRow,
       reply_to: 'parent',
@@ -63,7 +63,7 @@ describe('mapMessageRow', () => {
       session_id: 'sender',
       idempotency_key: 'key',
     };
-    expect(mapMessageRow(addressed)).toEqual(addressed);
+    expect(mapMessageRow({ ...addressed })).toEqual(addressed);
   });
 });
 
