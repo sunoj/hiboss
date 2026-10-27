@@ -107,3 +107,21 @@ Each blank-view fault independently fails its existing UI case: the approval cas
 verification at `266f653d517de5b8000207f22a313f98903e10e9` passes all 496 surviving iOS unit cases
 and the three related UI cases, with zero failures or skips. The unit identities match the prior
 497-case run minus exactly the reviewed renderer case. No additional test deletion is inferred.
+
+## Routing-table ordering and state transitions
+
+The routing tests sampled priority descending, known target names ascending and one toggle. The
+case named for priority/enabled defaults never clicked enabled. All seven cases are retained, with
+the priority case renamed for its expanded scalar-column matrix. They now check all five columns
+in both directions, input preservation, missing target-name fallback, case-insensitive ID ties,
+ten same-column toggle transitions and forty switches between columns and previous directions.
+
+Nine independent faults pass the old selected suite and fail the corrected assertions: omitting
+enabled's descending default, toggling only to ascending, substituting the channel/pattern/enabled
+sort values, dropping unknown target IDs, sorting input in place, limiting ID ties to priority,
+and using case-sensitive comparison. Production source is restored before final verification.
+
+At `c0e0aff9a51cffb0ef8421b9b36118520cadef65`, all 138 Web tests pass and the console check reports
+zero errors or warnings. Identities are compared by file path and full case name: two files contain
+the same short-ID case name, so names alone are not unique. The final set matches the previous
+138 cases with only the documented priority-case rename. No production code changed.
