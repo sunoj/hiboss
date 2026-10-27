@@ -150,7 +150,8 @@ describe('quiet-hours delivery integration', () => {
       'quiet-hours-route-critical', 'hb_quiet_hours_critical_key_00');
     const { id } = await testJson(201, testRequest('POST', 'https://test.local/api/messages', headers,
       { body: 'quiet-hours:deliver-now', priority: 'critical' })) as { id: string };
-    const queueCount = await env.DB.prepare('SELECT COUNT(*) AS total FROM delivery_queue WHERE message_id = ?')
+    const queueCount = await env.DB
+      .prepare('SELECT COUNT(*) AS total FROM delivery_queue WHERE message_id = ?')
       .bind(id).first<{ total: number }>();
     const message = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
       .bind(id).first<{ status: string }>();
