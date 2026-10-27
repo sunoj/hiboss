@@ -386,6 +386,7 @@ dependencies = [
  "ring",
  "serde",
  "serde_json",
+ "thiserror",
  "time",
  "tokio",
  "tokio-tungstenite",

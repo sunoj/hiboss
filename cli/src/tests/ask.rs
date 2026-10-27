@@ -114,7 +114,7 @@ fn more_than_five_options_are_rejected() {
         .args
         .choice_payload()
         .expect_err("six options must fail");
-    assert!(error.to_string().contains("at most 5"));
+    assert_eq!(error.to_string(), "a message can contain at most 5 choices");
 }
 
 #[test]
@@ -131,7 +131,10 @@ fn default_unknown_label_is_rejected() {
         .args
         .choice_payload()
         .expect_err("unknown default must fail");
-    assert!(error.to_string().contains("--default 'Z'"));
+    assert_eq!(
+        error.to_string(),
+        "--default 'Z' must match one of the --option/--action labels"
+    );
 }
 
 #[test]
@@ -141,7 +144,10 @@ fn default_without_options_is_rejected() {
         .args
         .choice_payload()
         .expect_err("default without options must fail");
-    assert!(error.to_string().contains("--default 'A'"));
+    assert_eq!(
+        error.to_string(),
+        "--default 'A' must match one of the --option/--action labels"
+    );
 }
 
 #[test]
@@ -202,7 +208,10 @@ fn option_image_with_unknown_label_is_rejected() {
     let choices = command.args.choice_payload().expect("valid options");
     let images = parse_option_images(&command.args.option_images).expect("valid option image");
     let error = validate_option_image_labels(&images, &choices).expect_err("unknown label fails");
-    assert!(error.to_string().contains("'Z'"));
+    assert_eq!(
+        error.to_string(),
+        "option image label 'Z' must match one of the --option/--action labels"
+    );
 }
 
 #[test]

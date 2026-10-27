@@ -11,7 +11,6 @@ use clap::{ArgAction, Args};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::fmt::{Display, Formatter};
 
 const MAX_CHOICES: usize = 5;
 
@@ -127,39 +126,21 @@ pub(crate) struct ChoicePayload {
     pub(crate) default_option: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub(crate) enum AskInputError {
+    #[error("options and action labels cannot be empty")]
     EmptyChoice,
+    #[error("actions must use LABEL=COMMAND with non-empty values")]
     InvalidAction,
+    #[error("--option and --action cannot be combined")]
     MixedChoiceTypes,
+    #[error("a message can contain at most {MAX_CHOICES} choices")]
     TooManyChoices,
+    #[error("duplicate choice: {0}")]
     DuplicateChoice(String),
+    #[error("--default '{0}' must match one of the --option/--action labels")]
     DefaultNotInChoices(String),
 }
-
-impl Display for AskInputError {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::EmptyChoice => write!(formatter, "options and action labels cannot be empty"),
-            Self::InvalidAction => write!(
-                formatter,
-                "actions must use LABEL=COMMAND with non-empty values"
-            ),
-            Self::MixedChoiceTypes => write!(formatter, "--option and --action cannot be combined"),
-            Self::TooManyChoices => write!(
-                formatter,
-                "a message can contain at most {MAX_CHOICES} choices"
-            ),
-            Self::DuplicateChoice(choice) => write!(formatter, "duplicate choice: {choice}"),
-            Self::DefaultNotInChoices(label) => write!(
-                formatter,
-                "--default '{label}' must match one of the --option/--action labels"
-            ),
-        }
-    }
-}
-
-impl Error for AskInputError {}
 
 impl AskArgs {
     pub(crate) fn choice_payload(&self) -> Result<ChoicePayload, AskInputError> {

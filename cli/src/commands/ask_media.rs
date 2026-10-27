@@ -9,7 +9,6 @@ use crate::client::HiBossClient;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::error::Error;
-use std::fmt::{Display, Formatter};
 
 const MAX_OPTION_IMAGES: usize = 5;
 
@@ -20,37 +19,17 @@ pub(crate) struct OptionImage {
     pub(crate) source: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub(crate) enum OptionMediaError {
+    #[error("option images must use LABEL=PATH_OR_URL with non-empty values")]
     Invalid,
+    #[error("a message can contain at most {MAX_OPTION_IMAGES} option images")]
     TooMany,
+    #[error("duplicate option image label: {0}")]
     DuplicateLabel(String),
+    #[error("option image label '{0}' must match one of the --option/--action labels")]
     UnknownLabel(String),
 }
-
-impl Display for OptionMediaError {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Invalid => write!(
-                formatter,
-                "option images must use LABEL=PATH_OR_URL with non-empty values"
-            ),
-            Self::TooMany => write!(
-                formatter,
-                "a message can contain at most {MAX_OPTION_IMAGES} option images"
-            ),
-            Self::DuplicateLabel(label) => {
-                write!(formatter, "duplicate option image label: {label}")
-            }
-            Self::UnknownLabel(label) => write!(
-                formatter,
-                "option image label '{label}' must match one of the --option/--action labels"
-            ),
-        }
-    }
-}
-
-impl Error for OptionMediaError {}
 
 /// Split each value at its first '=' and reject empty sides or repeated labels.
 pub(crate) fn parse_option_images(raw: &[String]) -> Result<Vec<OptionImage>, OptionMediaError> {
