@@ -34,20 +34,24 @@ final class MessageAlertPolicyTests: XCTestCase {
         let quiet = BossPreferences(quietHours: QuietHours(enabled: true, start: "11:00", end: "13:00",
             timezone: "UTC", days: [], criticalBypass: false))
         XCTAssertNil(MessageAlertPolicy.messageAlert(priority: "normal", preferences: quiet, now: noon))
-        XCTAssertNotNil(MessageAlertPolicy.messageAlert(priority: "high", preferences: quiet, now: noon))
-        XCTAssertNotNil(MessageAlertPolicy.messageAlert(priority: "normal", preferences: quiet,
-            now: noon.addingTimeInterval(2 * 3600)))
+        XCTAssertEqual(MessageAlertPolicy.messageAlert(priority: "high", preferences: quiet, now: noon),
+                       MessageAlert(sound: true, level: .active))
+        XCTAssertEqual(MessageAlertPolicy.messageAlert(priority: "normal", preferences: quiet,
+            now: noon.addingTimeInterval(2 * 3600)), MessageAlert(sound: false, level: .passive))
         let off = BossPreferences(quietHours: QuietHours(enabled: false, start: "11:00", end: "13:00",
             timezone: "UTC", days: [], criticalBypass: false))
-        XCTAssertNotNil(MessageAlertPolicy.messageAlert(priority: "normal", preferences: off, now: noon))
+        XCTAssertEqual(MessageAlertPolicy.messageAlert(priority: "normal", preferences: off, now: noon),
+                       MessageAlert(sound: false, level: .passive))
     }
 
     func testQuietHoursWrapMidnightInTheBossTimeZone() {
         let night = QuietHours(enabled: true, start: "22:00", end: "08:00", timezone: "Asia/Shanghai",
             days: [], criticalBypass: true)
-        XCTAssertFalse(MessageAlertPolicy.isQuiet(night, at: noon), "20:00 in Shanghai")
-        XCTAssertTrue(MessageAlertPolicy.isQuiet(night, at: noon.addingTimeInterval(3 * 3600)), "23:00")
-        XCTAssertTrue(MessageAlertPolicy.isQuiet(night, at: noon.addingTimeInterval(10 * 3600)), "06:00")
+        // Hours after 20:00 in Shanghai: the quiet interval includes 22:00 and excludes 08:00.
+        for (hours, expected) in [(0, false), (2, true), (3, true), (10, true), (12, false)] {
+            let date = noon.addingTimeInterval(Double(hours) * 3600)
+            XCTAssertEqual(MessageAlertPolicy.isQuiet(night, at: date), expected, "offset: \(hours)h")
+        }
         let same = QuietHours(enabled: true, start: "08:00", end: "08:00", timezone: "UTC",
             days: [], criticalBypass: true)
         XCTAssertFalse(MessageAlertPolicy.isQuiet(same, at: noon))
@@ -59,8 +63,9 @@ final class MessageAlertPolicyTests: XCTestCase {
         for priority in ["normal", "low"] {
             XCTAssertNil(MessageAlertPolicy.decisionAlert(priority: priority, preferences: preferences, now: noon))
         }
-        for priority in ["high", "critical"] {
-            XCTAssertNotNil(MessageAlertPolicy.decisionAlert(priority: priority, preferences: preferences, now: noon))
+        for (priority, level) in [("high", PushLevel.active), ("critical", .timeSensitive)] {
+            XCTAssertEqual(MessageAlertPolicy.decisionAlert(priority: priority,
+                preferences: preferences, now: noon), MessageAlert(sound: true, level: level))
         }
     }
 

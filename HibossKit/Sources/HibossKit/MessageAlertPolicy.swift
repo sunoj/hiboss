@@ -21,7 +21,7 @@ public enum MessageAlertPolicy {
         let parsed = MessagePriority(rawValue: priority)
         let urgent = parsed == .critical || parsed == .high
         if !urgent, isQuiet(preferences.quietHours, at: now) { return nil }
-        return applying(parsed.flatMap { preferences.push?[$0] }, to: statusTier(parsed))
+        return alert(parsed.flatMap { preferences.push?[$0] } ?? statusTier(parsed))
     }
 
     /// A blocking request: loud while decision alerts are on, otherwise the status tier; the
@@ -31,9 +31,9 @@ public enum MessageAlertPolicy {
     ) -> MessageAlert? {
         let parsed = MessagePriority(rawValue: priority)
         if parsed != .high, parsed != .critical, isQuiet(preferences.quietHours, at: now) { return nil }
-        let base: Tier = preferences.decisionAlerts == false ? statusTier(parsed)
-            : Tier(deliver: true, sound: true, level: parsed == .critical ? .timeSensitive : .active)
-        return applying(parsed.flatMap { preferences.push?[$0] }, to: base)
+        let base: PushRule = preferences.decisionAlerts == false ? statusTier(parsed)
+            : PushRule(deliver: true, sound: true, level: parsed == .critical ? .timeSensitive : .active)
+        return alert(parsed.flatMap { preferences.push?[$0] } ?? base)
     }
 
     /// Server `isInQuietHours`: an explicit `enabled: false` turns the window off; days and
@@ -51,23 +51,16 @@ public enum MessageAlertPolicy {
         return start < end ? current >= start && current < end : current >= start || current < end
     }
 
-    private struct Tier {
-        let deliver: Bool
-        let sound: Bool
-        let level: PushLevel
-    }
-
-    private static func statusTier(_ priority: MessagePriority?) -> Tier {
+    private static func statusTier(_ priority: MessagePriority?) -> PushRule {
         switch priority {
-        case .critical: Tier(deliver: true, sound: true, level: .timeSensitive)
-        case .high: Tier(deliver: true, sound: true, level: .active)
-        case .low: Tier(deliver: false, sound: false, level: .passive)
-        case .normal, nil: Tier(deliver: true, sound: false, level: .passive)
+        case .critical: PushRule(deliver: true, sound: true, level: .timeSensitive)
+        case .high: PushRule(deliver: true, sound: true, level: .active)
+        case .low: PushRule(deliver: false, sound: false, level: .passive)
+        case .normal, nil: PushRule(deliver: true, sound: false, level: .passive)
         }
     }
 
-    private static func applying(_ rule: PushRule?, to base: Tier) -> MessageAlert? {
-        let tier = rule.map { Tier(deliver: $0.deliver, sound: $0.sound, level: $0.level) } ?? base
+    private static func alert(_ tier: PushRule) -> MessageAlert? {
         return tier.deliver ? MessageAlert(sound: tier.sound, level: tier.level) : nil
     }
 
