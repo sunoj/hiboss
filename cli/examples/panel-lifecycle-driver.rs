@@ -2,6 +2,7 @@
 // Exports an isolated integration driver without changing the user's CLI config.
 // Dependencies: clap, tokio, and the hiboss library command/client modules.
 
+use hiboss::commands::SubcommandArgs;
 use clap::Parser;
 use hiboss::{client::HiBossClient, commands::panel};
 
@@ -12,7 +13,7 @@ struct Arguments {
     #[arg(long)]
     key: String,
     #[command(flatten)]
-    panel: panel::PanelArgs,
+    panel: SubcommandArgs<panel::PanelCommand>,
 }
 
 #[tokio::main]

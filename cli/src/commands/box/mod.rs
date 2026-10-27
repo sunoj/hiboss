@@ -1,5 +1,5 @@
 // Purpose: Dispatch Box ingestion (with thumbnails), reads, media saving, deletion and share links.
-// Exports: BoxArgs, BoxCommand, run; depends on the existing client and configuration.
+// Exports: BoxCommand, BoxCommand, run; depends on the existing client and configuration.
 mod args;
 pub(crate) mod collections;
 #[cfg(test)]
@@ -16,16 +16,21 @@ pub(crate) mod share;
 mod tests;
 mod thumbnail;
 
+use crate::commands::SubcommandArgs;
 use crate::{
     box_types::{BoxItem, BoxMetadata},
     client::HiBossClient,
     config::Config,
 };
 use args::{AddArgs, ListArgs, SavedOutput};
-pub use args::{BoxArgs, BoxCommand};
+pub use args::BoxCommand;
 use std::error::Error;
 
-pub async fn run(args: &BoxArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &SubcommandArgs<BoxCommand>,
+    config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     match &args.command {
         BoxCommand::Collections(args) => collections::run(args, client).await,
         BoxCommand::Add(args) => {

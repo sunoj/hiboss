@@ -1,19 +1,14 @@
 // Purpose: Manage routing rules via the hiboss CLI.
-// Exports: RouteArgs, RouteCommand, and run().
+// Exports: RouteCommand, RouteCommand, and run().
 // Dependencies: clap, colored, crate::client, crate::config.
 
+use crate::commands::SubcommandArgs;
 use crate::client::HiBossClient;
 use crate::config::Config;
 use crate::helpers::short_id;
 use clap::{Args, Subcommand};
 use colored::Colorize;
 use std::error::Error;
-
-#[derive(Debug, Args)]
-pub struct RouteArgs {
-    #[command(subcommand)]
-    pub command: RouteCommand,
-}
 
 #[derive(Debug, Subcommand)]
 pub enum RouteCommand {
@@ -48,7 +43,7 @@ pub struct RouteRemoveArgs {
 }
 
 pub async fn run(
-    args: &RouteArgs,
+    args: &SubcommandArgs<RouteCommand>,
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {

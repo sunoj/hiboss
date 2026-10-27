@@ -1,5 +1,5 @@
 // Purpose: Manage agent identities (create, list).
-// Exports: AgentArgs and run().
+// Exports: AgentCommand and run().
 // Dependencies: clap, colored, crate::client, crate::config.
 
 use crate::client::HiBossClient;
@@ -7,12 +7,6 @@ use crate::config::Config;
 use clap::{Args, Subcommand};
 use colored::Colorize;
 use std::error::Error;
-
-#[derive(Debug, Args)]
-pub struct AgentArgs {
-    #[command(subcommand)]
-    pub command: AgentCommand,
-}
 
 #[derive(Debug, Subcommand)]
 pub enum AgentCommand {

@@ -8,10 +8,10 @@ use std::path::Path;
 #[derive(Parser)]
 struct CommandLine {
     #[command(flatten)]
-    args: BoxArgs,
+    args: SubcommandArgs<BoxCommand>,
 }
 
-pub(super) fn parse(arguments: &[&str]) -> BoxArgs {
+pub(super) fn parse(arguments: &[&str]) -> SubcommandArgs<BoxCommand> {
     CommandLine::try_parse_from(arguments)
         .expect("Box arguments parse")
         .args

@@ -2,11 +2,6 @@
 // Exports clap argument types; depends on clap derives.
 use clap::{Args, Subcommand};
 
-#[derive(Debug, Args)]
-pub struct BossArgs {
-    #[command(subcommand)]
-    pub command: BossCommand,
-}
 #[derive(Debug, Subcommand)]
 pub enum BossCommand {
     List,

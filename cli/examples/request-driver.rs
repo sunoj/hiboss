@@ -2,6 +2,7 @@
 // Exports a test driver with explicit credentials, without changing CLI configuration.
 // Dependencies: clap, tokio, and the hiboss request/client modules.
 
+use hiboss::commands::SubcommandArgs;
 use clap::Parser;
 use hiboss::{client::HiBossClient, commands::request};
 
@@ -9,7 +10,7 @@ use hiboss::{client::HiBossClient, commands::request};
 struct Arguments {
     #[arg(long)] server: String,
     #[arg(long)] key: String,
-    #[command(flatten)] request: request::RequestArgs,
+    #[command(flatten)] request: SubcommandArgs<request::RequestCommand>,
 }
 
 #[tokio::main]

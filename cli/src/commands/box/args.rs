@@ -1,14 +1,8 @@
 // Purpose: clap layout for Box ingestion, scoped reads, author-owned deletion and share links.
-// Exports: BoxArgs, BoxCommand and typed options; depends on clap and BoxKind.
+// Exports: BoxCommand, BoxCommand and typed options; depends on clap and BoxKind.
 use crate::box_types::{BoxBy, BoxFilter, BoxKind};
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
-
-#[derive(Debug, Args)]
-pub struct BoxArgs {
-    #[command(subcommand)]
-    pub command: BoxCommand,
-}
 
 #[derive(Debug, Subcommand)]
 pub enum BoxCommand {

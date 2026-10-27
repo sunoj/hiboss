@@ -1,5 +1,5 @@
 // Purpose: Expose agent-facing panel validation, publication, and reads.
-// Exports: PanelArgs, PanelCommand, and run.
+// Exports: PanelCommand, PanelCommand, and run.
 // Dependencies: clap, ring, serde_json, panel validation, client, and config.
 
 #[path = "panel/doctor.rs"]
@@ -20,18 +20,13 @@ mod control;
 mod relay_helpers;
 #[path = "panel/transport.rs"]
 mod transport;
+use crate::commands::SubcommandArgs;
 use crate::client::{HiBossClient, PanelPublishResponse};
 use clap::{Args, Subcommand};
 use ring::digest::{digest, SHA256};
 use serde_json::{json, Value};
 use std::error::Error;
 use std::path::PathBuf;
-#[derive(Debug, Args)]
-pub struct PanelArgs {
-    #[command(subcommand)]
-    pub command: PanelCommand,
-}
-
 #[derive(Debug, Subcommand)]
 pub enum PanelCommand {
     #[command(about = "Read the built-in live panel and message delivery guide")]
@@ -107,7 +102,7 @@ pub struct PanelShowArgs {
     #[arg(long, help = "Print JSON instead of a human-readable summary")] pub json: bool,
 }
 
-pub async fn run(args: &PanelArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(args: &SubcommandArgs<PanelCommand>, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     match &args.command {
         PanelCommand::Guide => { println!("{}", crate::commands::setup_agents::PANEL_GUIDE); Ok(()) },
         PanelCommand::Example { name } => { print!("{}", examples::render(name.as_deref())?); Ok(()) },

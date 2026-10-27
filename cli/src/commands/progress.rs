@@ -1,10 +1,11 @@
 // Purpose: hiboss progress subcommand — post, list, delete, and team management.
-// Exports: ProgressArgs, run.
+// Exports: ProgressCommand, run.
 // Dependencies: clap, colored, crate::client, crate::config, crate::session, crate::types.
 #[path = "progress_media.rs"]
 pub(crate) mod progress_media;
 #[path = "progress_upload.rs"]
 mod progress_upload;
+use crate::commands::SubcommandArgs;
 use progress_upload::collect_media;
 #[cfg(test)]
 use progress_upload::{make_item, url_media_item};
@@ -25,12 +26,6 @@ use colored::Colorize;
 use std::error::Error;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
-#[derive(Debug, Args)]
-pub struct ProgressArgs {
-    #[command(subcommand)]
-    pub command: ProgressCommand,
-}
-
 #[derive(Debug, Subcommand)]
 pub enum ProgressCommand {
     #[command(about = "Post a progress update to the project timeline")]
@@ -40,7 +35,7 @@ pub enum ProgressCommand {
     #[command(about = "Delete a progress post")]
     Rm(RmArgs),
     #[command(hide = true, about = "Deprecated alias for hiboss project")]
-    Team(progress_team::TeamArgs),
+    Team(SubcommandArgs<progress_team::TeamCommand>),
 }
 
 #[derive(Debug, Args)]
@@ -86,7 +81,7 @@ pub struct RmArgs {
 }
 
 pub async fn run(
-    args: &ProgressArgs,
+    args: &SubcommandArgs<ProgressCommand>,
     config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {

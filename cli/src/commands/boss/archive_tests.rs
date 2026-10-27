@@ -1,11 +1,15 @@
 // Archive CLI tests for parsing, output, dates, HTTP paths, and API error propagation.
 // Uses a loopback mock HTTP server and in-memory output; no external services.
+use crate::commands::SubcommandArgs;
 use super::*;
 use clap::Parser;
 use std::{io::Read, net::TcpListener, thread};
 
 #[derive(Parser)]
-struct Args { #[command(flatten)] boss: crate::commands::boss::BossArgs }
+struct Args {
+    #[command(flatten)]
+    boss: SubcommandArgs<crate::commands::boss::BossCommand>,
+}
 
 fn mock(action: &str, status: u16, body: &str) -> (HiBossClient, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");

@@ -7,7 +7,7 @@ use hiboss::client;
 use hiboss::commands::{
     agent, ask, boss, bot, box_cmd, channel, config as config_cmd, daemon, doctor, edit, forward, group,
     device, hook, inbox, key, onboarding, panel, progress, react, read, reply, request, route, send, setup, ss,
-    status, watch, whoami,
+    status, watch, whoami, SubcommandArgs,
 };
 use hiboss::config;
 use hiboss::help;
@@ -43,7 +43,7 @@ enum Commands {
     #[command(about = "Check the status of a sent message")]
     Status(status::StatusArgs),
     #[command(about = "Manage agent identities")]
-    Agent(agent::AgentArgs),
+    Agent(SubcommandArgs<agent::AgentCommand>),
     #[command(about = "List, rotate and revoke agent credentials")]
     Key(key::KeyArgs),
     #[command(about = "Auto-reply to messages using an external handler")]
@@ -51,9 +51,9 @@ enum Commands {
     #[command(about = "Watch for new messages with desktop notifications")]
     Watch(watch::WatchArgs),
     #[command(about = "Invite another machine using the active profile")]
-    Device(device::DeviceArgs),
+    Device(SubcommandArgs<device::DeviceCommand>),
     #[command(about = "Manage local configuration")]
-    Config(config_cmd::ConfigArgs),
+    Config(SubcommandArgs<config_cmd::ConfigCommand>),
     #[command(about = "Run Claude Code hook events")]
     Hook(hook::HookArgs),
     #[command(about = "Set up runtime profiles or configure integrations")]
@@ -63,27 +63,27 @@ enum Commands {
     #[command(about = "Show the active local credential identity")]
     Whoami(whoami::WhoamiArgs),
     #[command(about = "Configure messaging channels (Discord, Telegram)")]
-    Channel(channel::ChannelArgs),
+    Channel(SubcommandArgs<channel::ChannelCommand>),
     #[command(about = "Manage routing rules for incoming messages")]
-    Route(route::RouteArgs),
+    Route(SubcommandArgs<route::RouteCommand>),
     #[command(about = "Manage agent groups for broadcast messaging")]
-    Group(group::GroupArgs),
+    Group(SubcommandArgs<group::GroupCommand>),
     #[command(about = "Manage boss identities and permissions")]
-    Boss(boss::BossArgs),
+    Boss(SubcommandArgs<boss::BossCommand>),
     #[command(about = "Session status board")]
     Ss(ss::SsArgs),
     #[command(about = "Background SSE daemon for real-time message delivery")]
-    Daemon(daemon::DaemonArgs),
+    Daemon(SubcommandArgs<daemon::DaemonCommand>),
     #[command(about = "Post and browse project progress updates")]
-    Progress(progress::ProgressArgs),
+    Progress(SubcommandArgs<progress::ProgressCommand>),
     #[command(about = "Add and read Box reference material")]
-    Box(box_cmd::BoxArgs),
+    Box(SubcommandArgs<box_cmd::BoxCommand>),
     #[command(about = "Manage project profiles and aliases")]
-    Project(progress::progress_team::TeamArgs),
+    Project(SubcommandArgs<progress::progress_team::TeamCommand>),
     #[command(about = "Display live state the boss can watch change in panels")]
-    Panel(panel::PanelArgs),
+    Panel(SubcommandArgs<panel::PanelCommand>),
     #[command(about = "Publish and receive durable structured questionnaire answers")]
-    Request(request::RequestArgs),
+    Request(SubcommandArgs<request::RequestCommand>),
 }
 
 #[tokio::main]

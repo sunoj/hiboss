@@ -55,6 +55,16 @@ fn bare_invocation_requests_help() {
         ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
     );
     assert_eq!(err.exit_code(), 2);
+    for path in [
+        "agent", "device", "config", "channel", "route", "group", "boss", "daemon",
+        "progress", "box", "project", "panel", "request", "progress team",
+        "project aliases", "progress team aliases",
+    ] {
+        let args = std::iter::once("hiboss").chain(path.split_whitespace());
+        let err = grouped_root_command(Cli::command()).try_get_matches_from(args)
+            .expect_err("nested command is required");
+        assert_eq!(err.exit_code(), 2, "{path}");
+    }
 }
 
 #[test]
@@ -63,12 +73,19 @@ fn grouped_command_still_parses_subcommands() {
         .try_get_matches_from(["hiboss", "panel", "guide"])
         .expect("panel guide parses");
     let cli = Cli::from_arg_matches(&matches).expect("matches convert");
-    assert!(matches!(cli.command, Commands::Panel(_)));
+    assert!(matches!(cli.command,
+        Commands::Panel(args) if matches!(&args.command, panel::PanelCommand::Guide)
+    ));
     let matches = grouped_root_command(Cli::command())
         .try_get_matches_from(["hiboss", "request", "list", "panel-id"])
         .expect("questionnaire example parses");
     let cli = Cli::from_arg_matches(&matches).expect("matches convert");
-    assert!(matches!(cli.command, Commands::Request(_)));
+    assert!(matches!(cli.command,
+        Commands::Request(args) if matches!(&args.command,
+            request::RequestCommand::List { panel_id } if panel_id == "panel-id")
+    ));
+    let cli = Cli::try_parse_from(["hiboss", "ss"]).expect("session board accepts no subcommand");
+    assert!(matches!(cli.command, Commands::Ss(args) if args.command.is_none()));
 }
 
 #[test]
@@ -77,5 +94,8 @@ fn grouped_command_parses_box_reference_reads() {
         .try_get_matches_from(["hiboss", "box", "latest", "--kind", "image", "--json"])
         .expect("Box reference read parses");
     let cli = Cli::from_arg_matches(&matches).expect("matches convert");
-    assert!(matches!(cli.command, Commands::Box(_)));
+    assert!(matches!(cli.command,
+        Commands::Box(args) if matches!(&args.command, box_cmd::BoxCommand::Latest(latest)
+            if matches!(&latest.filters.kind, Some(hiboss::box_types::BoxKind::Image)) && latest.output.json)
+    ));
 }

@@ -1,19 +1,14 @@
 // Purpose: Manage agent groups via the hiboss CLI.
-// Exports: GroupArgs, GroupCommand, and run().
+// Exports: GroupCommand, GroupCommand, and run().
 // Dependencies: clap, colored, crate::client, crate::config.
 
+use crate::commands::SubcommandArgs;
 use crate::client::HiBossClient;
 use crate::config::Config;
 use crate::helpers::short_id;
 use clap::{Args, Subcommand};
 use colored::Colorize;
 use std::error::Error;
-
-#[derive(Debug, Args)]
-pub struct GroupArgs {
-    #[command(subcommand)]
-    pub command: GroupCommand,
-}
 
 #[derive(Debug, Subcommand)]
 pub enum GroupCommand {
@@ -74,7 +69,7 @@ pub struct GroupBroadcastArgs {
 }
 
 pub async fn run(
-    args: &GroupArgs,
+    args: &SubcommandArgs<GroupCommand>,
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {

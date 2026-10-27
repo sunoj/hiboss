@@ -1,6 +1,13 @@
 // Purpose: Aggregate hiboss CLI command modules for easier imports.
-// Exports: submodules for send, ask, inbox, read, reply, status, config.
+// Exports: command modules and the required SubcommandArgs envelope.
 // Dependencies: none beyond the command modules themselves.
+
+// A required nested command with its original typed leaf options.
+#[derive(Debug, clap::Args)]
+pub struct SubcommandArgs<C: clap::Subcommand> {
+    #[command(subcommand)]
+    pub command: C,
+}
 
 pub mod agent;
 pub mod ask;

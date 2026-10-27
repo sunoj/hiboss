@@ -1,10 +1,11 @@
 // Purpose: Project profiles, aliases and local team.json synchronization.
-// Exports: TeamArgs, run.
+// Exports: TeamCommand, run.
 // Dependencies: clap, colored, crate::client, crate::config, crate::session, crate::team.
 
 #[path = "project_aliases.rs"]
 mod project_aliases;
 
+use crate::commands::SubcommandArgs;
 use crate::{
     client::HiBossClient,
     config::Config,
@@ -17,12 +18,6 @@ use clap::{Args, Subcommand};
 use colored::Colorize;
 use std::error::Error;
 
-#[derive(Debug, Args)]
-pub struct TeamArgs {
-    #[command(subcommand)]
-    pub command: TeamCommand,
-}
-
 #[derive(Debug, Subcommand)]
 pub enum TeamCommand {
     #[command(about = "Show the canonical project profile")]
@@ -32,7 +27,7 @@ pub enum TeamCommand {
     #[command(hide = true, about = "Upload and set the project avatar")]
     SetAvatar(SetAvatarArgs),
     #[command(about = "Add or remove project aliases")]
-    Aliases(project_aliases::AliasArgs),
+    Aliases(SubcommandArgs<project_aliases::AliasCommand>),
 }
 
 #[derive(Debug, Args)]
@@ -64,7 +59,7 @@ pub struct SetAvatarArgs {
 }
 
 pub async fn run(
-    args: &TeamArgs,
+    args: &SubcommandArgs<TeamCommand>,
     config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {

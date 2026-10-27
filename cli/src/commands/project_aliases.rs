@@ -1,14 +1,9 @@
 // Purpose: Parse and execute hiboss project aliases add/remove.
-// Exports: AliasArgs and run; depends on clap, the project resolver and HTTP client.
+// Exports: AliasCommand and run; depends on clap, the project resolver and HTTP client.
+use crate::commands::SubcommandArgs;
 use clap::{Args, Subcommand};
 use crate::{client::HiBossClient, session};
 use std::error::Error;
-
-#[derive(Debug, Args)]
-pub struct AliasArgs {
-    #[command(subcommand)]
-    pub command: AliasCommand,
-}
 
 #[derive(Debug, Subcommand)]
 pub enum AliasCommand {
@@ -23,7 +18,7 @@ pub struct AliasValue {
     pub project: Option<String>,
 }
 
-pub async fn run(args: &AliasArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(args: &SubcommandArgs<AliasCommand>, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let (value, remove) = match &args.command {
         AliasCommand::Add(value) => (value, false),
         AliasCommand::Remove(value) => (value, true),

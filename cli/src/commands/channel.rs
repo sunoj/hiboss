@@ -1,17 +1,12 @@
 // Purpose: Manage channel configuration via the hiboss CLI.
-// Exports: ChannelArgs, ChannelCommand, and run().
+// Exports: ChannelCommand, ChannelCommand, and run().
 // Dependencies: clap, crate::client, crate::config, reqwest, serde_json.
 
+use crate::commands::SubcommandArgs;
 use crate::{client::HiBossClient, config::Config};
 use clap::{Args, Subcommand, ValueEnum};
 use serde_json::json;
 use std::error::Error;
-
-#[derive(Debug, Args)]
-pub struct ChannelArgs {
-    #[command(subcommand)]
-    pub command: ChannelCommand,
-}
 
 #[derive(Debug, Subcommand)]
 pub enum ChannelCommand {
@@ -78,7 +73,7 @@ pub struct ChannelSetArgs {
 }
 
 pub async fn run(
-    args: &ChannelArgs,
+    args: &SubcommandArgs<ChannelCommand>,
     config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {

@@ -1,7 +1,8 @@
 // Mints a single-use device invite and renders a self-contained onboarding prompt.
-// Exports DeviceArgs and run; only the invite is printed or copied, never agent keys.
+// Exports DeviceCommand and run; only the invite is printed or copied, never agent keys.
 // Dependencies: resolved config, bounded HTTP transport, and platform clipboard commands.
 
+use crate::commands::SubcommandArgs;
 use super::onboarding::{api, selection::normalize_server};
 use crate::config::{self, Config};
 use clap::{Args, Subcommand};
@@ -11,12 +12,6 @@ use std::{
     io::Write,
     process::{Command, Stdio},
 };
-
-#[derive(Debug, Args)]
-pub struct DeviceArgs {
-    #[command(subcommand)]
-    pub command: DeviceCommand,
-}
 
 #[derive(Debug, Subcommand)]
 pub enum DeviceCommand {
@@ -39,7 +34,7 @@ struct Invite {
     inviter_label: String,
 }
 
-pub async fn run(args: &DeviceArgs, config: &Config) -> Result<(), Box<dyn Error>> {
+pub async fn run(args: &SubcommandArgs<DeviceCommand>, config: &Config) -> Result<(), Box<dyn Error>> {
     let DeviceCommand::Invite(args) = &args.command;
     let credential = config::resolve_credentials(config)?;
     let server = normalize_server(&credential.server)?;

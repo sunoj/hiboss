@@ -6,12 +6,6 @@ use crate::config::{Config, save_config};
 use clap::{Args, Subcommand, ValueEnum};
 use std::error::Error;
 
-#[derive(Debug, Args)]
-pub struct ConfigArgs {
-    #[command(subcommand)]
-    pub command: ConfigCommand,
-}
-
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommand {
     Set(SetArgs),

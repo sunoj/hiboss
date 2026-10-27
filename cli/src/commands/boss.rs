@@ -1,6 +1,7 @@
 // Purpose: Manage boss identities and access control.
-// Exports BossArgs and run().
+// Exports BossCommand and run().
 // Dependencies: clap, colored, crate::client, crate::config.
+use crate::commands::SubcommandArgs;
 use crate::{client::HiBossClient, config::Config, helpers::short_id};
 #[path = "boss_args.rs"]
 mod args;
@@ -11,7 +12,7 @@ use serde_json::{Map, Value};
 use std::error::Error;
 
 pub async fn run(
-    args: &BossArgs,
+    args: &SubcommandArgs<BossCommand>,
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {

@@ -1,18 +1,13 @@
 // Purpose: Background SSE daemon for real-time message delivery via local file.
-// Exports: DaemonArgs with start/stop/status subcommands.
+// Exports: DaemonCommand with start/stop/status subcommands.
 // Dependencies: clap, tokio, crate::config, crate::session, crate::sse.
 
+use crate::commands::SubcommandArgs;
 use super::hook_helpers::{start_daemon_if_needed, stop_daemon};
 use crate::{config, session, sse};
-use clap::{Args, Subcommand};
+use clap::Subcommand;
 use std::error::Error;
 use tokio::time::{Duration, sleep};
-
-#[derive(Debug, Args)]
-pub struct DaemonArgs {
-    #[command(subcommand)]
-    pub command: DaemonCommand,
-}
 
 #[derive(Debug, Subcommand)]
 pub enum DaemonCommand {
@@ -26,7 +21,7 @@ pub enum DaemonCommand {
     Run,
 }
 
-pub async fn run(args: &DaemonArgs) -> Result<(), Box<dyn Error>> {
+pub async fn run(args: &SubcommandArgs<DaemonCommand>) -> Result<(), Box<dyn Error>> {
     match &args.command {
         DaemonCommand::Start => start_daemon(),
         DaemonCommand::Stop => stop_daemon_command(),

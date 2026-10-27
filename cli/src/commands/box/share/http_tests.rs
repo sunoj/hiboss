@@ -1,7 +1,8 @@
 // Purpose: Share-link HTTP tests: request paths and bodies, rendered output, ttl bounds and
 // the `box add --share` partial failure that keeps the added item.
+use crate::commands::SubcommandArgs;
 use super::super::{
-    BoxArgs,
+    BoxCommand,
     http_tests::{client, execute, wire_item},
     mock::{Mock, Reply},
     run,
@@ -168,7 +169,7 @@ async fn share_access_errors_surface_with_status() {
 #[derive(Parser)]
 struct CommandLine {
     #[command(flatten)]
-    args: BoxArgs,
+    args: SubcommandArgs<BoxCommand>,
 }
 
 #[test]

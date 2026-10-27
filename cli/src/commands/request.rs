@@ -1,18 +1,13 @@
 // Purpose: Publish, inspect, revise, withdraw, and wait for durable questionnaires.
-// Exports: RequestArgs and run; answers stay structured JSON and timeouts stay pending.
+// Exports: RequestCommand and run; answers stay structured JSON and timeouts stay pending.
 // Dependencies: clap, HiBossClient, serde_json, and tokio timers.
 
+use crate::commands::SubcommandArgs;
 use crate::client::HiBossClient;
-use clap::{Args, Subcommand};
+use clap::Subcommand;
 use reqwest::Method;
 use serde_json::{json, Value};
 use std::{error::Error, path::PathBuf, time::Duration};
-
-#[derive(Debug, Args)]
-pub struct RequestArgs {
-    #[command(subcommand)]
-    pub command: RequestCommand,
-}
 
 #[derive(Debug, Subcommand)]
 pub enum RequestCommand {
@@ -32,7 +27,7 @@ pub enum RequestCommand {
     Ack { id: String, submission_id: String },
 }
 
-pub async fn run(args: &RequestArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(args: &SubcommandArgs<RequestCommand>, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let output = match &args.command {
         RequestCommand::Publish { panel_id, file, idempotency_key } => {
             client.questionnaire_http(Method::POST, &format!("panels/{panel_id}/requests"), Some(read_file(file)?), Some(idempotency_key)).await?
