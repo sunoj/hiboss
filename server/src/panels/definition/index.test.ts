@@ -84,7 +84,8 @@ describe('panel publication and reads', () => {
     expect(Date.parse(panel.lifecycle.expiresAt) - Date.parse(panel.createdAt)).toBe(milliseconds);
   });
 
-  it.each([59, 604801, 60.5, '60', true, [], {}])('rejects invalid lifecycle expiry %j', async ttlSeconds => {
+  it.for([59, 604801, 60.5, '60', true, undefined, [], {}])(
+    'rejects invalid lifecycle expiry %j', async ttlSeconds => {
     expect(await testJson(422, publish('panel-invalid-expiry', panelBody({ lifecycle: { ttlSeconds } }))))
       .toMatchObject({ error: { code: 'invalid_lifecycle', retryable: false } });
     const stored = await env.DB.prepare('SELECT COUNT(*) AS count FROM panels').first<{ count: number }>();
@@ -153,9 +154,8 @@ describe('panel publication and reads', () => {
       initialState: { task: { series: [12, null, 18] } },
     }));
     expect(await invalidInitialState.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/initialState/task/series/1' } });
-    const unknown = await publish('panel-unknown-catalog', panelBody({ catalogId: 'other.catalog' }));
-    expect(unknown.status).toBe(400);
-    expect(await unknown.json()).toMatchObject({ error: { code: 'unsupported_catalog', path: '/catalogId' } });
+    expect(await testJson(400, publish('panel-unknown-catalog', panelBody({ catalogId: 'other.catalog' }))))
+      .toMatchObject({ error: { code: 'unsupported_catalog', path: '/catalogId' } });
   });
 
   it('accepts a declared summary headline and rejects an undeclared headline path', async () => {
