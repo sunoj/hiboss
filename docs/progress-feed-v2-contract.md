@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS progress_likes (
 );
 ```
 
-`server/schema.sql` holds the current shape of both.
+`sh server/scripts/check-schema.sh --emit` renders the current shape of both from migrations.
 
 ## Team profile in every post response
 

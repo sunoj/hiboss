@@ -40,7 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_progress_project ON progress_posts(project, creat
 CREATE INDEX IF NOT EXISTS idx_progress_agent ON progress_posts(agent_id, created_at DESC, id DESC);
 ```
 
-Mirror the table into `server/schema.sql` (that file tracks the consolidated final state).
+Add the documented object to `server/schema.template.sql`; its definition is rendered from migrations.
 
 ### MediaItem (JSON, stored in `media`, echoed verbatim in API responses)
 

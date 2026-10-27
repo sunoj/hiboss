@@ -62,9 +62,9 @@ Three principal types, all authenticated by unsalted SHA-256 hash lookup of a be
 
 | Principal | Table | Token format | Created by |
 |---|---|---|---|
-| Agent | `api_keys` (`schema.sql:5-18`) | `hb_` + 32 hex (128-bit) | bootstrap, join flow, boss approval, admin-agent `POST /api/keys` |
-| Boss | `bosses` (`schema.sql:116-131`) | `hb_boss_` + 48 hex (192-bit) | admin boss `POST /api/bosses`, token minted via `POST /api/bosses/:id/token` |
-| Session | `sessions` (`schema.sql:171-188`) | client-supplied UUID id | agent `POST /api/sessions` |
+| Agent | `api_keys` (`server/migrations/0001_init.sql`) | `hb_` + 32 hex (128-bit) | bootstrap, join flow, boss approval, admin-agent `POST /api/keys` |
+| Boss | `bosses` (`server/migrations/0006_bosses.sql`) | `hb_boss_` + 48 hex (192-bit) | admin boss `POST /api/bosses`, token minted via `POST /api/bosses/:id/token` |
+| Session | `sessions` (`server/migrations/0012_sessions.sql`) | client-supplied UUID id | agent `POST /api/sessions` |
 
 Provisioning flows:
 
@@ -77,7 +77,7 @@ Provisioning flows:
 - **Agent-as-boss**: `bosses.agent_id` links an agent to a boss identity; that agent then drives
   `/api/boss/inbox` with the linked boss's role (`boss-inbox.ts:20-47`). Linking is admin-only
   (`bosses.ts:105-109`), so escalation requires an existing admin.
-- **Boss roles**: `admin | manager | viewer` (`schema.sql:120`). Admin sees all agents;
+- **Boss roles**: `admin | manager | viewer` (`server/migrations/0006_bosses.sql`). Admin sees all agents;
   manager/viewer see only rows in `boss_agent_access` (`boss-api.ts:51-61`). Viewer is read-only
   (enforced per-route, not by middleware).
 - `api_keys.role` for agents: self-service config allows only `orchestrator|worker|reviewer`
@@ -141,7 +141,7 @@ admin-gated key minting on every approval channel.
 
 - **Registration**: agent-owned upsert with cross-agent collision → 409 (`sessions.ts:32-62`).
   Heartbeat via `PATCH` bumps `last_seen_at` and optionally status (`sessions.ts:81-108`).
-- **Status**: `working | blocked | waiting | idle | completed` (`schema.sql:177`). Auto-inference on
+- **Status**: `working | blocked | waiting | idle | completed` (`server/migrations/0012_sessions.sql`). Auto-inference on
   agent sends: blocking or high/critical priority → `waiting`, else `working`
   (`message-helpers.ts:175-200`). `blocked`/`idle` are reachable only via explicit `hiboss ss set`
   — dashboards should not expect them organically.
@@ -163,7 +163,7 @@ concurrent Claude sessions in the same repo share all of them (F-M10).
 
 ## 6. Message lifecycle
 
-**Data model** (`schema.sql:21-50`): status `sent → delivered → read → replied | expired`;
+**Data model** (rendered migration schema): status `sent → delivered → read → replied | expired`;
 direction `agent_to_boss | boss_to_agent | agent_to_agent` (broadcast = N individual rows);
 `mode async|blocking`; priority `critical|high|normal|low`; threading via `reply_to`; idempotency
 via unique `(agent_id, idempotency_key)`. Status transitions are validated only on the agent PATCH

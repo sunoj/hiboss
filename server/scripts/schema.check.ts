@@ -7,7 +7,9 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
 const directory = mkdtempSync(join(tmpdir(), 'hiboss-schema-test-'));
-const schema = readFileSync('schema.sql', 'utf8');
+const emitted = spawnSync('sh', ['scripts/check-schema.sh', '--emit'], { encoding: 'utf8' });
+if (emitted.status !== 0) throw new Error(emitted.stderr || 'Schema generation failed');
+const schema = emitted.stdout;
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
 
 function check(sql: string): { status: number | null; output: string } {

@@ -6,7 +6,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler d1 migrations apply hiboss-db --remote && wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "db:init": "wrangler d1 execute hiboss-db --local --file=schema.sql",
+    "db:init": "wrangler d1 migrations apply hiboss-db --local",
     "test": "vitest run && vitest run --config scripts/schema.vitest.config.mts && node --test scripts/*.node-test.cjs",
     "check:schema": "sh scripts/check-schema.sh",
     "test:watch": "vitest"

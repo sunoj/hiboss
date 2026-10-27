@@ -1,5 +1,5 @@
-"""Check migration/schema parity using two fresh SQLite databases, or emit repair patches.
-CLI: check-schema.sh [--regenerate] [--schema PATH]; uses Python standard library only.
+"""Render documented migration schemas, compare SQLite databases, or emit repair patches.
+CLI: check-schema.sh [--emit | --regenerate] [--schema PATH]; uses Python standard library only.
 """
 
 import argparse
@@ -77,14 +77,16 @@ def regenerated(document: str, rows: list[SchemaRow], version: str) -> str:
     for start, end, replacement in reversed(replacements):
         document = document[:start] + replacement + document[end:]
     header = (f'-- hiboss D1 schema: generated from migrations through {version}; '
-              'regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql')
+              'regenerate with sh scripts/check-schema.sh --emit > schema.sql')
     return re.sub(r'\A[^\n]*', lambda _: header, document)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--schema', type=Path, default=SERVER / 'schema.sql')
-    parser.add_argument('--regenerate', action='store_true', help='emit a targeted unified patch')
+    parser.add_argument('--schema', type=Path, help='compare or repair an external schema document')
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument('--regenerate', action='store_true', help='emit a targeted unified patch')
+    output.add_argument('--emit', action='store_true', help='emit the complete documented schema')
     args = parser.parse_args()
     # Filename order includes both historical 0002 migrations, without deduplication.
     migrations = sorted((SERVER / 'migrations').glob('[0-9][0-9][0-9][0-9]_*.sql'))
@@ -94,17 +96,23 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix='hiboss-schema-') as directory:
         root = Path(directory)
         migrated = snapshot(root / 'migrations.sqlite', migrations)
-        if args.regenerate:
-            original = args.schema.read_text()
+        original = (args.schema.read_text() if args.schema else
+                    regenerated((SERVER / 'schema.template.sql').read_text(), migrated, version))
+        candidate = root / 'candidate.sql'
+        candidate.write_text(original)
+        if args.regenerate or args.emit:
             updated = regenerated(original, migrated, version)
-            candidate = root / 'candidate.sql'
             candidate.write_text(updated)
             if normalized(snapshot(root / 'candidate.sqlite', [candidate])) != normalized(migrated):
                 raise RuntimeError('Regenerated schema failed parity validation')
-            sys.stdout.writelines(difflib.unified_diff(original.splitlines(True), updated.splitlines(True),
-                                                     fromfile='schema.sql', tofile='schema.sql'))
+            if args.emit:
+                sys.stdout.write(updated)
+            else:
+                changes = difflib.unified_diff(original.splitlines(True), updated.splitlines(True),
+                                               fromfile='schema.sql', tofile='schema.sql')
+                sys.stdout.writelines(changes)
             return 0
-        consolidated = snapshot(root / 'schema.sqlite', [args.schema])
+        consolidated = snapshot(root / 'schema.sqlite', [candidate])
         difference = list(difflib.unified_diff(normalized(migrated), normalized(consolidated),
                                              fromfile='migrations', tofile='schema.sql'))
         if difference:

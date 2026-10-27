@@ -43,7 +43,7 @@ malformed line results in `None`, not a failure.
 ## Server
 
 Add `agent_label TEXT` and `model TEXT` to `progress_posts` (migration `0029`, mirrored in
-`schema.sql`). Accept both as optional strings on `POST /api/progress` (max 64 chars each,
+the rendered schema). Accept both as optional strings on `POST /api/progress` (max 64 chars each,
 reject anything longer). Echo both on every post response, `null` when absent. No other
 behaviour changes.
 

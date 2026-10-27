@@ -32,3 +32,6 @@ docs/internal/
 ios/Screenshots/
 .polish-shots/
 docs/live-panels/screenshots/
+
+# Optional consolidated SQLite schema rendered from the migration history.
+/server/schema.sql

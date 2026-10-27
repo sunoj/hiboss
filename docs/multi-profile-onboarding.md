@@ -10,7 +10,7 @@ comes from a path recorded under `$HOME`.
 
 | # | Observation | Evidence |
 |---|---|---|
-| 1 | Every runtime and project on a machine uses one agent key. Nothing tells Claude, Codex, a dispatched agent or a second machine apart. | `cli/src/config.rs:31`; `server/schema.sql:255` |
+| 1 | Every runtime and project on a machine uses one agent key. Nothing tells Claude, Codex, a dispatched agent or a second machine apart. | `cli/src/config.rs:31`; `server/schema.template.sql` |
 | 2 | The CLI has no env override. A clean `$HOME` finds no config. A symlinked `$HOME` (aid) finds the operator's config and silently acts as the operator. | `config.rs:38-42` |
 | 3 | The session file is `/tmp/hiboss-session-<hash(project_dir)>`, shared by every runtime and concurrent session in a checkout. SessionStart deletes every marker in it. | `session.rs:117`; `hook_start.rs:30` |
 | 4 | A dispatched headless agent inherits Claude Stop hooks that block on `hiboss ask`. | ai-dispatch `src/agent/grok.rs:39` works around this |

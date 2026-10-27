@@ -166,11 +166,15 @@ upgrading native clients. A failed publication signal is recovered by the fallba
 
 ## Schema consolidation
 
-From `server/`, run `sh scripts/check-schema.sh --regenerate | patch schema.sql`
-to repair declarations from all migrations while preserving domain order and comments.
-The generator emits a validated, targeted patch; for newly introduced objects, first
-add a documented `CREATE TABLE name ();` or index declaration in its domain section.
-Run `npm run check:schema` to compare two fresh SQLite databases. This requires
+From `server/`, run `sh scripts/check-schema.sh --emit > schema.sql` to render the
+complete schema from all migrations. `schema.template.sql` holds documented object placeholders;
+columns, indexes, constraints and trigger bodies come from migrations. New objects need a named
+placeholder in the appropriate domain section. `schema.sql` is an optional generated document.
+`npm run db:init` applies the migration history directly to the local D1 database.
+
+Run `npm run check:schema` to validate rendering against a fresh migration database. Use
+`sh scripts/check-schema.sh --schema <path>` to check an external document, or add `--regenerate`
+to emit a targeted repair patch that preserves its surrounding documentation. This requires
 Python 3.10+ with SQLite 3.35+; no Python packages are needed. `npm test` also runs
 the same comparison through Vitest. The full suite includes E2E tests. Migration failures stop regeneration; migrations
 are authoritative, including defaults unchanged by data-only updates 0036/0037.
