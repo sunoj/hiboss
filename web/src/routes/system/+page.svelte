@@ -157,34 +157,8 @@
 </section>
 
 <style>
-	.head {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		gap: 1rem;
-		margin-bottom: 1rem;
-	}
-	h1 {
-		margin: 0;
-		font-size: 1.25rem;
-		font-weight: 700;
-		letter-spacing: -0.02em;
-	}
-	.sub {
-		margin: 0.15rem 0 0;
-		color: var(--hb-text-muted);
-	}
-	.refresh {
-		border: 1px solid var(--hb-border);
-		background: var(--hb-bg-panel);
-		border-radius: var(--hb-radius-sm);
-		padding: 0.35rem 0.7rem;
-		cursor: pointer;
-	}
-	.refresh:disabled {
-		opacity: 0.6;
-		cursor: wait;
-	}
+	@import '../../lib/design/page-header.css';
+
 	.grid {
 		display: grid;
 		gap: 0.75rem;

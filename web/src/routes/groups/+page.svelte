@@ -215,38 +215,17 @@
 </section>
 
 <style>
+	@import '../../lib/design/page-header.css';
 	.head {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		gap: 1rem;
 		margin-bottom: 0.85rem;
 	}
-	h1 {
-		margin: 0;
-		font-size: 1.25rem;
-		font-weight: 700;
-		letter-spacing: -0.02em;
-	}
-	.sub {
-		margin: 0.15rem 0 0;
-		color: var(--hb-text-muted);
-	}
 	.refresh {
-		border: 1px solid var(--hb-border);
-		background: var(--hb-bg-panel);
-		border-radius: var(--hb-radius-sm);
-		padding: 0.35rem 0.7rem;
 		font: inherit;
 		font-size: 12px;
 		color: var(--hb-text);
-		cursor: pointer;
 		flex-shrink: 0;
 	}
-	.refresh:disabled {
-		opacity: 0.6;
-		cursor: wait;
-	}
+
 	.layout {
 		display: grid;
 		grid-template-columns: minmax(0, 1.6fr) minmax(240px, 0.9fr);
