@@ -4,7 +4,7 @@
 
 import type { Channel, Env } from '../types';
 import { createDiscordThread, addDiscordThreadMember } from '../channels/discord';
-import { fetchAgentName } from './message-queries';
+import { fetchAgentName, fetchDiscordThreadId } from '../message-context';
 
 /** Auto-create a Discord thread for this session if use_threads is enabled. */
 export async function ensureThreadForSession(
@@ -20,11 +20,8 @@ export async function ensureThreadForSession(
   if (!cfg['use_threads']) return undefined;
   if (!sessionId) return undefined;
 
-  const session = await env.DB
-    .prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
-    .bind(sessionId)
-    .first<{ discord_thread_id: string | null }>();
-  if (session?.discord_thread_id) return session.discord_thread_id;
+  const existingThread = await fetchDiscordThreadId(env, sessionId);
+  if (existingThread) return existingThread;
   if (!discordMessageId) return undefined;
 
   const botToken = cfg['bot_token'] as string | undefined;

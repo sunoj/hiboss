@@ -2,6 +2,7 @@
 // Exports propagateMessageEdit() for PATCH /api/messages body updates.
 // Depends on channel adapters, delivery formatters, and route query helpers.
 
+import { fetchAgentName, fetchSessionLabel, resolveDiscordConfig } from '../message-context';
 import { editDiscordMessage } from '../channels/discord';
 import {
   editTelegramCaption,
@@ -11,7 +12,7 @@ import {
 } from '../channels/telegram';
 import type { Env, MessageRow } from '../types';
 import { formatAgentMessage, requireDiscordConfig, requireTelegramConfig } from './delivery';
-import { extractTelegramMessageId, fetchAgentName, selectChannelConfig } from './message-helpers';
+import { extractTelegramMessageId, selectChannelConfig } from './message-helpers';
 
 export async function propagateMessageEdit(env: Env, message: MessageRow): Promise<void> {
   if (message.channel === 'discord') {
@@ -54,29 +55,8 @@ async function editTelegramMirror(env: Env, message: MessageRow): Promise<void> 
 async function fetchDisplayName(env: Env, message: MessageRow): Promise<string> {
   const agentName = await fetchAgentName(env, message.agent_id) ?? 'agent';
   if (!message.session_id) return agentName;
-  const session = await env.DB
-    .prepare('SELECT label FROM sessions WHERE id = ?')
-    .bind(message.session_id)
-    .first<{ label: string | null }>();
-  return session?.label ? `${session.label} (${agentName})` : agentName;
-}
-
-async function resolveDiscordConfig(
-  env: Env,
-  message: MessageRow,
-  config: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  if (!message.session_id || !config['use_threads']) return config;
-  const session = await env.DB
-    .prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
-    .bind(message.session_id)
-    .first<{ discord_thread_id: string | null }>();
-  if (!session?.discord_thread_id) return config;
-  return {
-    ...config,
-    channel_id: session.discord_thread_id,
-    thread_id: session.discord_thread_id,
-  };
+  const sessionLabel = await fetchSessionLabel(env, message.session_id);
+  return sessionLabel ? `${sessionLabel} (${agentName})` : agentName;
 }
 
 function extractDiscordMessageId(metadata: string | null): string | undefined {

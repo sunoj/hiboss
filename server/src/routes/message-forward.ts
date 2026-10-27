@@ -2,11 +2,12 @@
 // Exports channel validation plus delivery + persistence for forwarded messages.
 // Depends on message queries/options, delivery helpers, and route-safe metadata parsing.
 
+import { fetchAgentName, fetchSessionLabel, fetchDiscordThreadId } from '../message-context';
 import { parseStoredJSON as safeParse } from '../stored-json';
 import type { Channel, Env, MessageRow } from '../types';
 import { ensureTopicForAgent } from './message-options';
 import { ensureThreadForSession } from './message-option-threads';
-import { fetchAgentName, selectChannelConfig } from './message-queries';
+import { selectChannelConfig } from './message-queries';
 import { ensureTopicForSession } from './session-channels';
 import {
   deliverToChannelWithOptions,
@@ -134,15 +135,6 @@ async function fetchForwardAvatar(env: Env, agentId: string): Promise<string | u
   return row?.avatar_url ?? undefined;
 }
 
-async function fetchSessionLabel(env: Env, sessionId: string | null): Promise<string | null> {
-  if (!sessionId) return null;
-  const row = await env.DB
-    .prepare('SELECT label FROM sessions WHERE id = ?')
-    .bind(sessionId)
-    .first<{ label: string | null }>();
-  return row?.label ?? null;
-}
-
 async function ensureForwardTelegramTopic(
   env: Env,
   sessionId: string | null,
@@ -162,15 +154,12 @@ async function resolveForwardConfig(
   if (channelConfig.channel !== 'discord' || !sessionId || !channelConfig.config['use_threads']) {
     return { ...channelConfig.config };
   }
-  const session = await env.DB
-    .prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
-    .bind(sessionId)
-    .first<{ discord_thread_id: string | null }>();
-  if (!session?.discord_thread_id) return { ...channelConfig.config };
+  const threadId = await fetchDiscordThreadId(env, sessionId);
+  if (!threadId) return { ...channelConfig.config };
   return {
     ...channelConfig.config,
-    channel_id: session.discord_thread_id,
-    thread_id: session.discord_thread_id,
+    channel_id: threadId,
+    thread_id: threadId,
   };
 }
 

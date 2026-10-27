@@ -84,14 +84,6 @@ export async function fetchMessageWithReplies(env: Env, agentId: string, message
   return { ...mapMessageRow(row), replies: decisionsOnly ? replyList.filter(reply => isDecisionReply(row, reply)) : replyList };
 }
 
-export async function fetchAgentName(env: Env, agentId: string): Promise<string | null> {
-  const row = await env.DB
-    .prepare('SELECT name FROM api_keys WHERE id = ?')
-    .bind(agentId)
-    .first<{ name: string }>();
-  return row?.name ?? null;
-}
-
 export async function checkRateLimit(env: Env, agentId: string, limit: number): Promise<boolean> {
   const recent = await env.DB
     .prepare("SELECT COUNT(*) AS count FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND created_at > datetime('now', '-1 minute')")

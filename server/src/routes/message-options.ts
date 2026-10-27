@@ -3,6 +3,7 @@
  * Handles parsing options, building keyboards, and expiring old message options.
  */
 
+import { fetchAgentName, resolveDiscordConfig } from '../message-context';
 import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
 import type { Channel, Env, MessageRow } from '../types';
 import { createForumTopic, editTelegramCaption, editMessageReplyMarkup, formatTelegramAttachmentCaption, removeInlineKeyboard } from '../channels/telegram';
@@ -11,7 +12,7 @@ import {
   requireTelegramConfig as _requireTelegramConfig, requireDiscordConfig as _requireDiscordConfig,
   formatAgentMessage as _formatAgentMessage,
 } from './delivery';
-import { selectChannelConfig, fetchAgentName } from './message-queries';
+import { selectChannelConfig } from './message-queries';
 import { extractTelegramMessageId, replyTargetSession } from './message-helpers';
 import { notifyAgentCallback } from '../notify';
 import { createMessageId } from '../session-events';
@@ -230,18 +231,6 @@ async function removeDiscordOptions(
   const channel = await selectChannelConfig(env, agentId, 'discord');
   const effectiveConfig = await resolveDiscordConfig(env, message, channel.config);
   await editDiscordMessage(_requireDiscordConfig(effectiveConfig), messageId, undefined, []);
-}
-
-async function resolveDiscordConfig(
-  env: Env,
-  message: MessageRow,
-  config: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  if (!message.session_id || !config['use_threads']) return config;
-  const session = await env.DB.prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
-    .bind(message.session_id).first<{ discord_thread_id: string | null }>();
-  if (!session?.discord_thread_id) return config;
-  return { ...config, channel_id: session.discord_thread_id, thread_id: session.discord_thread_id };
 }
 
 export async function expirePreviousOptions(

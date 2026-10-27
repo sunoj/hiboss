@@ -2,6 +2,7 @@
 // Exports agent callbacks and boss message/questionnaire push delivery.
 // Depends on D1 for callback lookup and global fetch for delivery.
 
+import { fetchAgentName } from './message-context';
 import { pushMode, sendDevicePush, type PushDevice } from './push/send';
 import { liveDeviceSql } from './push/devices';
 import { prepareBossPush, type BossPushSession, type PreparedBossPush } from './push/boss-payload';
@@ -128,14 +129,6 @@ async function sendBossDevicePush(env: Env, device: BossDeviceRow, prepared: Pre
   } catch {
     // Best-effort per device.
   }
-}
-
-async function fetchAgentName(env: Env, agentId: string): Promise<string | null> {
-  const row = await env.DB
-    .prepare('SELECT name FROM api_keys WHERE id = ?')
-    .bind(agentId)
-    .first<{ name: string }>();
-  return row?.name ?? null;
 }
 
 async function fetchSessionLabel(

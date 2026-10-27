@@ -2,6 +2,7 @@
 // Preserves the named message-helper regression scenarios.
 // Depends on Vitest and message helpers with Cloudflare D1.
 
+import { fetchAgentName } from '../../message-context';
 import { describe, expect, it, beforeAll } from 'vitest';
 import { agentId, rateAgentId, msgId, parentId, sessId, seedMessageQueries, testEnv } from './fixtures';
 import {
@@ -9,7 +10,6 @@ import {
   fetchMessageRow,
   fetchReplies,
   fetchMessageWithReplies,
-  fetchAgentName,
   fetchAllChannelConfigs,
   checkRateLimit,
   findByIdempotencyKey,

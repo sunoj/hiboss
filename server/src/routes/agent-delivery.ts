@@ -2,6 +2,7 @@
 // Exports one helper that prepares session routing and invokes the channel adapter.
 // Depends on delivery primitives plus message/session channel helpers.
 
+import { fetchSessionLabel, fetchDiscordThreadId } from '../message-context';
 import type { Channel, Env, OptionMedia } from '../types';
 import { deliverToChannelWithOptions, deliverWithRetry, type DeliveryResult, requireTelegramConfig } from './delivery';
 import { ensureTopicForAgent } from './message-options';
@@ -63,15 +64,6 @@ export async function deliverAgentMessage(
   return result;
 }
 
-async function fetchSessionLabel(env: Env, sessionId: string | null): Promise<string | null> {
-  if (!sessionId) return null;
-  const row = await env.DB
-    .prepare('SELECT label FROM sessions WHERE id = ?')
-    .bind(sessionId)
-    .first<{ label: string | null }>();
-  return row?.label ?? null;
-}
-
 async function buildEffectiveConfig(
   env: Env,
   channelConfig: { channel: Channel; config: Record<string, unknown> },
@@ -100,9 +92,6 @@ export async function resolveDiscordChannelId(
 ): Promise<string | undefined> {
   const base = typeof config['channel_id'] === 'string' ? config['channel_id'] : undefined;
   if (!sessionId || !config['use_threads']) return base;
-  const session = await env.DB
-    .prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
-    .bind(sessionId)
-    .first<{ discord_thread_id: string | null }>();
-  return session?.discord_thread_id ?? base;
+  const threadId = await fetchDiscordThreadId(env, sessionId);
+  return threadId ?? base;
 }
