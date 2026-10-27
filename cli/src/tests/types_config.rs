@@ -25,38 +25,11 @@ mod tests {
         );
     }
 
-    fn minimal_message(id: &str) -> Message {
-        Message {
-            id: id.to_string(),
-            agent_id: None,
-            agent_name: None,
-            direction: None,
-            mode: None,
-            channel: None,
-            body: None,
-            status: None,
-            reply_to: None,
-            priority: None,
-            message_type: None,
-            metadata: None,
-            created_at: None,
-            updated_at: None,
-            session_id: None,
-            target_agent_id: None,
-            target_session_id: None,
-            session_label: None,
-            session_branch: None,
-            session_status: None,
-            replies: None,
-        }
-    }
-
     #[test]
     fn message_roundtrips_full_fields() {
         let mut metadata = HashMap::new();
         metadata.insert("topic".to_string(), serde_json::json!("hello"));
         let message = Message {
-            id: "full".to_string(),
             agent_id: Some("agent-1".to_string()),
             agent_name: Some("Agent".to_string()),
             direction: Some("out".to_string()),
@@ -66,31 +39,24 @@ mod tests {
             status: Some("sent".to_string()),
             reply_to: Some("root".to_string()),
             priority: Some("high".to_string()),
-            message_type: None,
             metadata: Some(metadata),
             created_at: Some("2026-03-16T00:00:00Z".to_string()),
             updated_at: Some("2026-03-16T00:01:00Z".to_string()),
-            session_id: None,
-            target_agent_id: None,
-            target_session_id: None,
-            session_label: None,
-            session_branch: None,
-            session_status: None,
-            replies: None,
+            ..crate::tests::message("full".to_string())
         };
         assert_roundtrip(&message);
     }
 
     #[test]
     fn message_roundtrips_minimal_fields() {
-        let message = minimal_message("minimal");
+        let message = crate::tests::message("minimal".to_string());
         assert_roundtrip(&message);
     }
 
     #[test]
     fn message_roundtrips_with_replies() {
-        let reply = minimal_message("reply");
-        let mut parent = minimal_message("parent");
+        let reply = crate::tests::message("reply".to_string());
+        let mut parent = crate::tests::message("parent".to_string());
         parent.replies = Some(vec![reply]);
         parent.metadata = Some({
             let mut info = HashMap::new();
@@ -178,7 +144,10 @@ mod tests {
     #[test]
     fn messages_response_handles_multiple_messages() {
         let response = MessagesResponse {
-            messages: vec![minimal_message("first"), minimal_message("second")],
+            messages: vec![
+                crate::tests::message("first".to_string()),
+                crate::tests::message("second".to_string())
+            ],
             total: 2,
         };
         assert_roundtrip(&response);

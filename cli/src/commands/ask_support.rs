@@ -143,27 +143,8 @@ mod tests {
     fn real_reply_suppresses_the_default() {
         let choices = payload(Some("A"), &["A", "B"]);
         let reply = crate::types::Message {
-            id: "r1".to_owned(),
-            agent_id: None,
-            agent_name: None,
-            direction: None,
-            mode: None,
-            channel: None,
             body: Some("boss".to_owned()),
-            status: None,
-            reply_to: None,
-            priority: None,
-            message_type: None,
-            metadata: None,
-            created_at: None,
-            updated_at: None,
-            session_id: None,
-            target_agent_id: None,
-            target_session_id: None,
-            session_label: None,
-            session_branch: None,
-            session_status: None,
-            replies: None,
+            ..crate::tests::message("r1".to_owned())
         };
         let resolved = resolve_default_reply(&choices, Some(&reply));
         assert!(resolved.is_none());

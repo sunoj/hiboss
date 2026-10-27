@@ -94,9 +94,6 @@ fn base_message(
     metadata: std::collections::HashMap<String, serde_json::Value>,
 ) -> Message {
     Message {
-        id: "reply-1".to_owned(),
-        agent_id: None,
-        agent_name: None,
         direction: Some("boss_to_agent".to_owned()),
         mode: Some("async".to_owned()),
         channel: Some("api".to_owned()),
@@ -106,15 +103,7 @@ fn base_message(
         priority: Some("normal".to_owned()),
         message_type: Some("text".to_owned()),
         metadata: Some(metadata),
-        created_at: None,
-        updated_at: None,
-        session_id: None,
-        target_agent_id: None,
-        target_session_id: None,
-        session_label: None,
-        session_branch: None,
-        session_status: None,
-        replies: None,
+        ..crate::tests::message("reply-1".to_owned())
     }
 }
 

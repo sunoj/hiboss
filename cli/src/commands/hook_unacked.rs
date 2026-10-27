@@ -85,27 +85,11 @@ mod tests {
 
     fn message(id: &str, status: &str, session_id: &str, created_at: &str) -> Message {
         Message {
-            id: id.to_owned(),
-            agent_id: None,
-            agent_name: None,
             direction: Some("agent_to_agent".to_owned()),
-            mode: None,
-            channel: None,
-            body: None,
             status: Some(status.to_owned()),
-            reply_to: None,
-            priority: None,
-            message_type: None,
-            metadata: None,
             created_at: Some(created_at.to_owned()),
-            updated_at: None,
             session_id: Some(session_id.to_owned()),
-            target_agent_id: None,
-            target_session_id: None,
-            session_label: None,
-            session_branch: None,
-            session_status: None,
-            replies: None,
+            ..crate::tests::message(id.to_owned())
         }
     }
 
