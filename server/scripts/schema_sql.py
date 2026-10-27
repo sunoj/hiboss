@@ -54,6 +54,6 @@ def format_sql(sql: str) -> str:
         elif token == ',':
             result = result.rstrip() + (',\n  ' if table and depth == 1 else ', ')
         else:
-            separator = '' if not result or result[-1] in ' (\n' else ' '
+            separator = '' if not result or token == '.' or result[-1] in ' (\n.' else ' '
             result += separator + token
     return result + ';'
