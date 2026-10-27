@@ -2,6 +2,7 @@
 // Covers invalid credentials, accessible agents, empty scope, and invalid cursors.
 // Depends on the real Worker router, D1, and shared synthetic test identities.
 
+import { returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -47,7 +48,5 @@ it('returns an explicit complete empty page for an empty scope', async () => {
   expect(await response.json()).toEqual({ messages: [], next_cursor: null });
 });
 
-it('rejects a malformed cursor rather than silently restarting discovery', async () => {
-  const response = await SELF.fetch(`${endpoint}?cursor=invalid`, { headers });
-  expect(response.status).toBe(400);
-});
+it('rejects a malformed cursor rather than silently restarting discovery', returnsStatus(400, () =>
+  SELF.fetch(`${endpoint}?cursor=invalid`, { headers })));

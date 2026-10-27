@@ -2,7 +2,7 @@
 // Covers boss auth flow, message listing with search, and reply.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import type { MessageRow } from '../types';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -48,17 +48,12 @@ function bossHeaders(): Record<string, string> {
 }
 
 describe('Boss auth', () => {
-  it('rejects invalid token', async () => {
-    const res = await testRequest('GET', 'http://localhost/api/boss/me',
-      { Authorization: 'Bearer hb_boss_invalid', 'Content-Type': 'application/json' });
-    expect(res.status).toBe(401);
-  });
+  it('rejects invalid token', returnsStatus(401, () => testRequest('GET', 'http://localhost/api/boss/me',
+      { Authorization: 'Bearer hb_boss_invalid', 'Content-Type': 'application/json' })));
 
-  it('rejects agent key on boss endpoint', async () => {
-    const res = await testRequest('GET', 'http://localhost/api/boss/me',
-      { Authorization: 'Bearer hb_test_key_0000000000000000', 'Content-Type': 'application/json' });
-    expect(res.status).toBe(401);
-  });
+  it('rejects agent key on boss endpoint', returnsStatus(401, () =>
+    testRequest('GET', 'http://localhost/api/boss/me',
+      { Authorization: 'Bearer hb_test_key_0000000000000000', 'Content-Type': 'application/json' })));
 });
 
 describe('GET /api/boss/me', () => {
@@ -211,8 +206,6 @@ describe('GET /api/boss/messages/:id', () => {
     expect(data.replies).toBeInstanceOf(Array);
   });
 
-  it('returns 404 for unknown message', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/messages/nonexistent', { headers: bossHeaders() });
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for unknown message', returnsStatus(404, () =>
+    SELF.fetch('http://localhost/api/boss/messages/nonexistent', { headers: bossHeaders() })));
 });

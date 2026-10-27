@@ -2,7 +2,7 @@
 // Covers session CRUD and status management.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId, seedBossToken } from '../test-helpers';
@@ -70,10 +70,8 @@ describe('POST /api/sessions validation', () => {
     expect(data.status).toBe('working');
   });
 
-  it('rejects missing id', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/sessions', authHeaders(), {});
-    expect(res.status).toBe(400);
-  });
+  it('rejects missing id', returnsStatus(400, () =>
+    testRequest('POST', 'http://localhost/api/sessions', authHeaders(), {})));
 });
 
 describe('POST /api/sessions ownership and updates', () => {
@@ -158,28 +156,20 @@ describe('GET /api/sessions boss access', () => {
 });
 
 describe('PATCH /api/sessions/:id', () => {
-  it('heartbeats a session', async () => {
-    const res = await testRequest('PATCH', 'http://localhost/api/sessions/sess-test-1',
-      { Authorization: authHeaders().Authorization });
-    expect(res.status).toBe(200);
-  });
+  it('heartbeats a session', returnsStatus(200, () =>
+    testRequest('PATCH', 'http://localhost/api/sessions/sess-test-1',
+      { Authorization: authHeaders().Authorization })));
 
-  it('updates status via heartbeat', async () => {
-    const res = await testRequest('PATCH', 'http://localhost/api/sessions/sess-test-1', authHeaders(),
-      { status: 'waiting', status_text: 'Waiting for deploy' });
-    expect(res.status).toBe(200);
-  });
+  it('updates status via heartbeat', returnsStatus(200, () =>
+    testRequest('PATCH', 'http://localhost/api/sessions/sess-test-1', authHeaders(),
+      { status: 'waiting', status_text: 'Waiting for deploy' })));
 
-  it('returns 404 for unknown session', async () => {
-    const res = await testRequest('PATCH', 'http://localhost/api/sessions/nonexistent',
-      { Authorization: authHeaders().Authorization });
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for unknown session', returnsStatus(404, () =>
+    testRequest('PATCH', 'http://localhost/api/sessions/nonexistent',
+      { Authorization: authHeaders().Authorization })));
 });
 
 describe('DELETE /api/sessions/:id', () => {
-  it('deletes a session', async () => {
-    const res = await testRequest('DELETE', 'http://localhost/api/sessions/sess-test-4', authHeaders());
-    expect(res.status).toBe(200);
-  });
+  it('deletes a session', returnsStatus(200, () =>
+    testRequest('DELETE', 'http://localhost/api/sessions/sess-test-4', authHeaders())));
 });

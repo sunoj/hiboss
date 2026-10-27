@@ -2,7 +2,7 @@
 // Covers SQL generation, ID pruning, and integration headers.
 // Depends on cloudflare:test, vitest, and stream.ts.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -84,10 +84,9 @@ describe('stream helpers', () => {
 });
 
 describe('GET /api/messages/stream', () => {
-  it('rejects unknown sessions', async () => {
-    const response = await SELF.fetch('https://test.local/api/messages/stream?session=unknown-session', { headers: authHeaders() });
-    expect(response.status).toBe(404);
-  });
+  it('rejects unknown sessions', returnsStatus(404, () =>
+    SELF.fetch('https://test.local/api/messages/stream?session=unknown-session',
+      { headers: authHeaders() })));
 
   it('delivers own-session and agent-wide messages while excluding another session', async () => {
     const agentId = getTestAgentId();

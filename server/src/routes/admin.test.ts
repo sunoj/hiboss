@@ -2,7 +2,7 @@
 // Exports channel configuration checks and API key endpoints used by the admin router.
 // Depends on the cloudflare:test runtime and shared test helpers for auth and seeding.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env } from 'cloudflare:test';
 import { describe, expect, it, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -140,11 +140,8 @@ describe('POST /api/keys', () => {
     expect(typeof data.key).toBe('string');
   });
 
-  it('rejects empty names', async () => {
-    const res = await testRequest('POST', `${API_BASE}/keys`, authHeaders(), { name: '   ' });
-
-    expect(res.status).toBe(400);
-  });
+  it('rejects empty names', returnsStatus(400, () =>
+    testRequest('POST', `${API_BASE}/keys`, authHeaders(), { name: '   ' })));
 });
 
 describe('GET /api/keys', () => {

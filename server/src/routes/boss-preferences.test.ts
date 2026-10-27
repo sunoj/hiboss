@@ -1,6 +1,6 @@
 // Admin preference API regression coverage for quiet hours and removed settings.
 // Depends on authenticated Worker requests and isolated boss fixtures.
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
@@ -29,22 +29,16 @@ describe('Admin preferences', () => {
     expect(data.preferences.quiet_hours.start).toBe('22:00');
   });
 
-  it('rejects removed preferred_channel', async () => {
-    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
-      { preferences: { preferred_channel: 'slack' } });
-    expect(res.status).toBe(400);
-  });
+  it('rejects removed preferred_channel', returnsStatus(400, () =>
+    testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { preferences: { preferred_channel: 'slack' } })));
 
-  it('rejects removed notify_priorities', async () => {
-    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
-      { preferences: { notify_priorities: ['invalid'] } });
-    expect(res.status).toBe(400);
-  });
+  it('rejects removed notify_priorities', returnsStatus(400, () =>
+    testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { preferences: { notify_priorities: ['invalid'] } })));
 
-  it('clears preferences with null', async () => {
-    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
-      { preferences: null });
-    expect(res.status).toBe(200);
-  });
+  it('clears preferences with null', returnsStatus(200, () =>
+    testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { preferences: null })));
 
 });

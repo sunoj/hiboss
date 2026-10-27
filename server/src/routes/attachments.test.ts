@@ -2,6 +2,7 @@
 // Covers upload (multipart + raw) and download flows.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
+import { returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -49,29 +50,24 @@ describe('POST /api/attachments/upload', () => {
     expect(json.size).toBe(3);
   });
 
-  it('rejects unsupported raw content types', async () => {
-    const res = await SELF.fetch('https://test.local/api/attachments/upload', {
+  it('rejects unsupported raw content types', returnsStatus(400, () =>
+    SELF.fetch('https://test.local/api/attachments/upload', {
       method: 'POST',
       headers: {
         Authorization: authHeaders().Authorization,
         'Content-Type': 'text/plain',
       },
       body: new TextEncoder().encode('not media'),
-    });
-    expect(res.status).toBe(400);
-  });
+    })));
 
-  it('rejects empty file', async () => {
-    const res = await SELF.fetch('https://test.local/api/attachments/upload', {
+  it('rejects empty file', returnsStatus(400, () => SELF.fetch('https://test.local/api/attachments/upload', {
       method: 'POST',
       headers: {
         Authorization: authHeaders().Authorization,
         'Content-Type': 'image/png',
       },
       body: new ArrayBuffer(0),
-    });
-    expect(res.status).toBe(400);
-  });
+    })));
 
   it('rejects unauthenticated upload', async () => {
     const data = new TextEncoder().encode('no auth');
@@ -117,8 +113,6 @@ describe('GET /api/attachments/:key', () => {
     expect(body).toBe(content);
   });
 
-  it('returns 404 for unknown key', async () => {
-    const res = await SELF.fetch('https://test.local/api/attachments/nonexistent-key');
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for unknown key', returnsStatus(404, () =>
+    SELF.fetch('https://test.local/api/attachments/nonexistent-key')));
 });

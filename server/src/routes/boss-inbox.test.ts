@@ -1,7 +1,7 @@
 // Tests for boss-inbox routes: agent-as-boss reads and replies to sub-agent messages.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -42,10 +42,8 @@ function subHeaders(): Record<string, string> {
 }
 
 describe('GET /api/boss/inbox', () => {
-  it('returns 403 for non-boss agent', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/inbox', { headers: authHeaders() });
-    expect(res.status).toBe(403);
-  });
+  it('returns 403 for non-boss agent', returnsStatus(403, () =>
+    SELF.fetch('http://localhost/api/boss/inbox', { headers: authHeaders() })));
 
   it('lists messages from sub-agents', async () => {
     // Sub-agent sends a message
@@ -88,10 +86,8 @@ describe('GET /api/boss/inbox/:id', () => {
     expect(data.replies).toBeDefined();
   });
 
-  it('returns 404 for non-existent message', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/inbox/nonexistent', { headers: bossHeaders() });
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for non-existent message', returnsStatus(404, () =>
+    SELF.fetch('http://localhost/api/boss/inbox/nonexistent', { headers: bossHeaders() })));
 });
 
 describe('POST /api/boss/inbox/:id/reply', () => {

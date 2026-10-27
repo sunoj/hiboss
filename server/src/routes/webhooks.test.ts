@@ -2,7 +2,7 @@
 // Covers telegram and discord webhook handling and error paths.
 // Depends on cloudflare:test env and shared test helpers.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { authHeaders, seedDatabase, getTestAgentId } from '../test-helpers';
@@ -177,25 +177,18 @@ describe('POST /api/webhooks/telegram', () => {
     expect(event?.session_id).toBe('tg-topic-session-1');
   });
 
-  it('returns 400 when chat is missing', async () => {
-    const res = await postTelegramWebhook({ message: { text: 'no chat' } });
-    expect(res.status).toBe(400);
-  });
+  it('returns 400 when chat is missing', returnsStatus(400, () =>
+    postTelegramWebhook({ message: { text: 'no chat' } })));
 
-  it('returns 400 when body is missing', async () => {
-    const res = await postTelegramWebhook({ message: { chat: { id: 'test-chat' } } });
-    expect(res.status).toBe(400);
-  });
+  it('returns 400 when body is missing', returnsStatus(400, () =>
+    postTelegramWebhook({ message: { chat: { id: 'test-chat' } } })));
 
-  it('returns 403 for unknown chat_id', async () => {
-    const res = await postTelegramWebhook({
+  it('returns 403 for unknown chat_id', returnsStatus(403, () => postTelegramWebhook({
       message: {
         chat: { id: 'missing-chat' },
         text: 'hello',
       },
-    });
-    expect(res.status).toBe(403);
-  });
+    })));
 
   it('ignores bot messages', async () => {
     const res = await postTelegramWebhook({
@@ -502,20 +495,14 @@ describe('POST /api/webhooks/discord', () => {
     expect(data.target_session_id).toBe('discord-thread-session-1');
   });
 
-  it('returns 400 when channel is missing', async () => {
-    const res = await postDiscordWebhook({ message: { content: 'no channel' } });
-    expect(res.status).toBe(400);
-  });
+  it('returns 400 when channel is missing', returnsStatus(400, () =>
+    postDiscordWebhook({ message: { content: 'no channel' } })));
 
-  it('returns 400 when body is missing', async () => {
-    const res = await postDiscordWebhook({ channel_id: 'test-discord-ch' });
-    expect(res.status).toBe(400);
-  });
+  it('returns 400 when body is missing', returnsStatus(400, () =>
+    postDiscordWebhook({ channel_id: 'test-discord-ch' })));
 
-  it('returns 403 for unknown channel_id', async () => {
-    const res = await postDiscordWebhook({ channel_id: 'unknown', message: { content: 'none' } });
-    expect(res.status).toBe(403);
-  });
+  it('returns 403 for unknown channel_id', returnsStatus(403, () =>
+    postDiscordWebhook({ channel_id: 'unknown', message: { content: 'none' } })));
 
   it('ignores bot messages', async () => {
     const res = await postDiscordWebhook({

@@ -2,7 +2,7 @@
 // Covers boss bearer auth, token upsert, and deletion.
 // Depends on cloudflare:test, test helpers, and the Hono app.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
@@ -64,12 +64,9 @@ describe('POST /api/boss/devices updates and validation', () => {
     expect(row?.environment).toBe('production');
   });
 
-  it('rejects invalid registrations', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/boss/devices', bossHeaders(),
-      { token: 'not-hex', bundleId: '', environment: 'dev', platform: 'web' });
-
-    expect(res.status).toBe(400);
-  });
+  it('rejects invalid registrations', returnsStatus(400, () =>
+    testRequest('POST', 'http://localhost/api/boss/devices', bossHeaders(),
+      { token: 'not-hex', bundleId: '', environment: 'dev', platform: 'web' })));
 });
 
 describe('POST /api/boss/devices ownership', () => {

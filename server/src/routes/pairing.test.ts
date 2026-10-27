@@ -2,7 +2,7 @@
 // Covers issuance, redemption, expiry, single-use concurrency, and revocation.
 // Depends on cloudflare:test, shared seed helpers, and the worker app.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -47,17 +47,13 @@ describe('POST /api/boss/pairing', () => {
     expect(row?.code_hash).not.toBe(data.code);
   });
 
-  it('rejects agent authentication', async () => {
-    const response = await testRequest('POST', 'http://localhost/api/boss/pairing',
-      { Authorization: 'Bearer hb_test_key_0000000000000000' });
-    expect(response.status).toBe(401);
-  });
+  it('rejects agent authentication', returnsStatus(401, () =>
+    testRequest('POST', 'http://localhost/api/boss/pairing',
+      { Authorization: 'Bearer hb_test_key_0000000000000000' })));
 
-  it('requires an admin boss to mint pairing codes', async () => {
-    const response = await testRequest('POST', 'http://localhost/api/boss/pairing',
-      bossHeaders(VIEWER_TOKEN));
-    expect(response.status).toBe(403);
-  });
+  it('requires an admin boss to mint pairing codes', returnsStatus(403, () =>
+    testRequest('POST', 'http://localhost/api/boss/pairing',
+      bossHeaders(VIEWER_TOKEN))));
 
   it('caps active pairing codes without counting a consumed code', async () => {
     const codes: string[] = [];

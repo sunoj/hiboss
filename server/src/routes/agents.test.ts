@@ -2,7 +2,7 @@
 // Covers /api/agents/me profile, listing, and callback endpoints.
 // Depends on cloudflare:test infrastructure and shared test helpers.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, expect, it, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -117,12 +117,9 @@ describe('PUT /api/agents/me/callback', () => {
     expect(profileData.callback_url).toBe(callbackUrl);
   });
 
-  it('rejects empty URLs', async () => {
-    const res = await testRequest('PUT', 'https://test.local/api/agents/me/callback', authHeaders(),
-      { url: '   ' });
-
-    expect(res.status).toBe(400);
-  });
+  it('rejects empty URLs', returnsStatus(400, () =>
+    testRequest('PUT', 'https://test.local/api/agents/me/callback', authHeaders(),
+      { url: '   ' })));
 });
 
 describe('DELETE /api/agents/me/callback', () => {
@@ -164,22 +161,16 @@ describe('PUT /api/agents/me/config', () => {
     expect(data.rate_limit).toBeNull();
   });
 
-  it('rejects invalid default_priority', async () => {
-    const res = await testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
-      { default_priority: 'invalid' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects invalid default_priority', returnsStatus(400, () =>
+    testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
+      { default_priority: 'invalid' })));
 
-  it('rejects negative rate_limit', async () => {
-    const res = await testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
-      { rate_limit: -1 });
-    expect(res.status).toBe(400);
-  });
+  it('rejects negative rate_limit', returnsStatus(400, () =>
+    testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
+      { rate_limit: -1 })));
 
-  it('rejects empty payload', async () => {
-    const res = await testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(), {});
-    expect(res.status).toBe(400);
-  });
+  it('rejects empty payload', returnsStatus(400, () =>
+    testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(), {})));
 
   it('updates both fields at once', async () => {
     const res = await testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),

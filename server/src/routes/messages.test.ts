@@ -2,7 +2,7 @@
 // Covers send, list, get, reply, patch, and poll flows.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { createAgentAuth } from './messages-tests/support';
 import './messages-tests/queries';
 import './messages-tests/mutations';
@@ -65,21 +65,15 @@ describe('POST /api/messages', () => {
     expect(data.created_at).toBeTruthy();
   });
 
-  it('rejects empty body', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/messages', authHeaders(), { body: '' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects empty body', returnsStatus(400, () =>
+    testRequest('POST', 'https://test.local/api/messages', authHeaders(), { body: '' })));
 
-  it('rejects missing body', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/messages', authHeaders(), {});
-    expect(res.status).toBe(400);
-  });
+  it('rejects missing body', returnsStatus(400, () =>
+    testRequest('POST', 'https://test.local/api/messages', authHeaders(), {})));
 
-  it('accepts priority and mode', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
-      { body: 'Urgent!', priority: 'high', mode: 'blocking' });
-    expect(res.status).toBe(201);
-  });
+  it('accepts priority and mode', returnsStatus(201, () =>
+    testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+      { body: 'Urgent!', priority: 'high', mode: 'blocking' })));
 
   it('resolves a session by project label prefix and returns the target', async () => {
     await createAgentAuth('address-peer', 'hb_test_key_address_peer_000000');

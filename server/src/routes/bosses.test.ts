@@ -1,7 +1,7 @@
 // Tests for /api/bosses CRUD, access management, preferences, and token generation.
 // Covers create, get, update, delete, grant/revoke access, token issuance.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, seedBossToken } from '../test-helpers';
@@ -29,11 +29,9 @@ function viewerHeaders(): Record<string, string> {
 }
 
 describe('POST /api/bosses', () => {
-  it('rejects agent tokens', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/bosses', authHeaders(),
-      { name: 'Agent Rejected' });
-    expect(res.status).toBe(401);
-  });
+  it('rejects agent tokens', returnsStatus(401, () =>
+    testRequest('POST', 'http://localhost/api/bosses', authHeaders(),
+      { name: 'Agent Rejected' })));
 
   it('creates a boss with defaults', async () => {
     const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
@@ -55,16 +53,12 @@ describe('POST /api/bosses', () => {
     expect(data.telegram_user_id).toBe('12345');
   });
 
-  it('rejects empty name', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(), { name: '' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects empty name', returnsStatus(400, () =>
+    testRequest('POST', 'http://localhost/api/bosses', adminHeaders(), { name: '' })));
 
-  it('rejects non-admin bosses', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/bosses', viewerHeaders(),
-      { name: 'Forbidden Boss' });
-    expect(res.status).toBe(403);
-  });
+  it('rejects non-admin bosses', returnsStatus(403, () =>
+    testRequest('POST', 'http://localhost/api/bosses', viewerHeaders(),
+      { name: 'Forbidden Boss' })));
 
   it('defaults invalid role to admin', async () => {
     const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
@@ -102,10 +96,8 @@ describe('GET /api/bosses/:id', () => {
     expect(data.id).toBe(createdBossId);
   });
 
-  it('returns 404 for unknown boss', async () => {
-    const res = await SELF.fetch('http://localhost/api/bosses/nonexistent', { headers: viewerHeaders() });
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for unknown boss', returnsStatus(404, () =>
+    SELF.fetch('http://localhost/api/bosses/nonexistent', { headers: viewerHeaders() })));
 });
 
 describe('PATCH /api/bosses/:id', () => {
@@ -125,61 +117,41 @@ describe('PATCH /api/bosses/:id', () => {
     expect(data.role).toBe('manager');
   });
 
-  it('rejects invalid role', async () => {
-    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
-      { role: 'superadmin' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects invalid role', returnsStatus(400, () =>
+    testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { role: 'superadmin' })));
 
-  it('rejects empty name', async () => {
-    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
-      { name: '  ' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects empty name', returnsStatus(400, () =>
+    testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { name: '  ' })));
 
-  it('rejects no valid fields', async () => {
-    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
-      { unknown_field: 'value' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects no valid fields', returnsStatus(400, () =>
+    testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { unknown_field: 'value' })));
 
-  it('rejects non-admin bosses', async () => {
-    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, viewerHeaders(),
-      { name: 'Forbidden Update' });
-    expect(res.status).toBe(403);
-  });
+  it('rejects non-admin bosses', returnsStatus(403, () =>
+    testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, viewerHeaders(),
+      { name: 'Forbidden Update' })));
 });
 
 describe('Boss access management', () => {
-  it('grants agent access', async () => {
-    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/access`,
-      adminHeaders(), { agent_id: 'test-agent-id' });
-    expect(res.status).toBe(201);
-  });
+  it('grants agent access', returnsStatus(201, () =>
+    testRequest('POST', `http://localhost/api/bosses/${createdBossId}/access`,
+      adminHeaders(), { agent_id: 'test-agent-id' })));
 
-  it('rejects grant without agent_id', async () => {
-    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/access`,
-      adminHeaders(), {});
-    expect(res.status).toBe(400);
-  });
+  it('rejects grant without agent_id', returnsStatus(400, () =>
+    testRequest('POST', `http://localhost/api/bosses/${createdBossId}/access`,
+      adminHeaders(), {})));
 
-  it('revokes agent access', async () => {
-    const res = await testRequest('DELETE',
-      `http://localhost/api/bosses/${createdBossId}/access/test-agent-id`, adminHeaders());
-    expect(res.status).toBe(200);
-  });
+  it('revokes agent access', returnsStatus(200, () => testRequest('DELETE',
+      `http://localhost/api/bosses/${createdBossId}/access/test-agent-id`, adminHeaders())));
 
-  it('returns 404 revoking non-existent access', async () => {
-    const res = await testRequest('DELETE',
-      `http://localhost/api/bosses/${createdBossId}/access/nonexistent`, adminHeaders());
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 revoking non-existent access', returnsStatus(404, () => testRequest('DELETE',
+      `http://localhost/api/bosses/${createdBossId}/access/nonexistent`, adminHeaders())));
 
-  it('rejects non-admin access changes', async () => {
-    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/access`,
-      viewerHeaders(), { agent_id: 'test-agent-id' });
-    expect(res.status).toBe(403);
-  });
+  it('rejects non-admin access changes', returnsStatus(403, () =>
+    testRequest('POST', `http://localhost/api/bosses/${createdBossId}/access`,
+      viewerHeaders(), { agent_id: 'test-agent-id' })));
 });
 
 describe('POST /api/bosses/:id/token', () => {
@@ -208,10 +180,8 @@ describe('POST /api/bosses/:id/token', () => {
     expect((await SELF.fetch('http://localhost/api/boss/me', { headers: adminHeaders() })).status).toBe(200);
   });
 
-  it('returns 404 for unknown boss', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/bosses/nonexistent/token', adminHeaders());
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for unknown boss', returnsStatus(404, () =>
+    testRequest('POST', 'http://localhost/api/bosses/nonexistent/token', adminHeaders())));
 
   it('rejects non-admin bosses', async () => {
     const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/token`,
@@ -222,13 +192,9 @@ describe('POST /api/bosses/:id/token', () => {
 });
 
 describe('DELETE /api/bosses/:id', () => {
-  it('deletes a boss', async () => {
-    const res = await testRequest('DELETE', `http://localhost/api/bosses/${createdBossId}`, adminHeaders());
-    expect(res.status).toBe(200);
-  });
+  it('deletes a boss', returnsStatus(200, () =>
+    testRequest('DELETE', `http://localhost/api/bosses/${createdBossId}`, adminHeaders())));
 
-  it('returns 404 for already deleted boss', async () => {
-    const res = await testRequest('DELETE', `http://localhost/api/bosses/${createdBossId}`, adminHeaders());
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for already deleted boss', returnsStatus(404, () =>
+    testRequest('DELETE', `http://localhost/api/bosses/${createdBossId}`, adminHeaders())));
 });

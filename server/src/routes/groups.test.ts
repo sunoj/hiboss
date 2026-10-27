@@ -2,7 +2,7 @@
 // Covers group CRUD, membership, and broadcast.
 // Depends on cloudflare:test env, auth hashing, and shared test helpers.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -63,10 +63,8 @@ describe('POST /api/groups', () => {
     expect(data.description).toBe('A test group');
   });
 
-  it('rejects empty name', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/groups', authHeaders(), { name: '' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects empty name', returnsStatus(400, () =>
+    testRequest('POST', 'https://test.local/api/groups', authHeaders(), { name: '' })));
 });
 
 describe('GET /api/groups/:id', () => {
@@ -82,15 +80,11 @@ describe('GET /api/groups/:id', () => {
     expect(data.members).toBeInstanceOf(Array);
   });
 
-  it('looks up group by name', async () => {
-    const res = await testRequest('GET', 'https://test.local/api/groups/detail-group', authHeaders());
-    expect(res.status).toBe(200);
-  });
+  it('looks up group by name', returnsStatus(200, () =>
+    testRequest('GET', 'https://test.local/api/groups/detail-group', authHeaders())));
 
-  it('returns 404 for non-existent group', async () => {
-    const res = await testRequest('GET', 'https://test.local/api/groups/nonexistent', authHeaders());
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for non-existent group', returnsStatus(404, () =>
+    testRequest('GET', 'https://test.local/api/groups/nonexistent', authHeaders())));
 });
 
 describe('POST /api/groups/:id/members', () => {
@@ -162,8 +156,6 @@ describe('DELETE /api/groups/:id', () => {
     expect(res.status).toBe(200);
   });
 
-  it('returns 404 for non-existent group', async () => {
-    const res = await testRequest('DELETE', 'https://test.local/api/groups/nonexistent', authHeaders());
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for non-existent group', returnsStatus(404, () =>
+    testRequest('DELETE', 'https://test.local/api/groups/nonexistent', authHeaders())));
 });

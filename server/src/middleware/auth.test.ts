@@ -2,7 +2,7 @@
 // Verifies bearer authentication outcomes and hash consistency.
 // Depends on cloudflare:test, test-helpers, and the middleware hash utility.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, authHeaders } from '../test-helpers';
@@ -13,24 +13,18 @@ beforeAll(async () => {
 });
 
 describe('auth middleware integration', () => {
-  it('returns 401 when no Authorization header', async () => {
-    const res = await SELF.fetch('https://test.local/api/messages');
-    expect(res.status).toBe(401);
-  });
+  it('returns 401 when no Authorization header', returnsStatus(401, () =>
+    SELF.fetch('https://test.local/api/messages')));
 
-  it('returns 401 for invalid bearer token', async () => {
-    const res = await testRequest('GET', 'https://test.local/api/messages', {
+  it('returns 401 for invalid bearer token', returnsStatus(401, () =>
+    testRequest('GET', 'https://test.local/api/messages', {
         Authorization: 'Bearer invalid-token',
-      });
-    expect(res.status).toBe(401);
-  });
+      })));
 
-  it('returns 401 for empty bearer token', async () => {
-    const res = await testRequest('GET', 'https://test.local/api/messages', {
+  it('returns 401 for empty bearer token', returnsStatus(401, () =>
+    testRequest('GET', 'https://test.local/api/messages', {
         Authorization: 'Bearer ',
-      });
-    expect(res.status).toBe(401);
-  });
+      })));
 
   it('succeeds with valid bearer token', async () => {
     const res = await testRequest('GET', 'https://test.local/api/messages', authHeaders());

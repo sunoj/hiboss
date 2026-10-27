@@ -1,6 +1,6 @@
 // Boss reply, forwarding, and session-command HTTP regression tests.
 // Uses the authenticated Worker API, seeded D1 messages, and mocked provider fetch.
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase, getTestAgentId, authHeaders, seedBossToken } from '../test-helpers';
@@ -68,17 +68,13 @@ describe('POST /api/boss/messages/:id/reply', () => {
 });
 
 describe('POST /api/boss/messages/:id/reply', () => {
-  it('rejects empty reply body', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/boss/messages/boss-api-msg-2/reply',
-      bossHeaders(), { body: '' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects empty reply body', returnsStatus(400, () =>
+    testRequest('POST', 'http://localhost/api/boss/messages/boss-api-msg-2/reply',
+      bossHeaders(), { body: '' })));
 
-  it('returns 404 for unknown parent', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/boss/messages/nonexistent/reply',
-      bossHeaders(), { body: 'Reply' });
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for unknown parent', returnsStatus(404, () =>
+    testRequest('POST', 'http://localhost/api/boss/messages/nonexistent/reply',
+      bossHeaders(), { body: 'Reply' })));
 
 });
 
@@ -183,9 +179,7 @@ describe('POST /api/boss/sessions/:id/message', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 404 for unknown session', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/boss/sessions/nope-nope/message',
-      bossHeaders(), { body: 'hi' });
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for unknown session', returnsStatus(404, () =>
+    testRequest('POST', 'http://localhost/api/boss/sessions/nope-nope/message',
+      bossHeaders(), { body: 'hi' })));
 });

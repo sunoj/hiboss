@@ -1,7 +1,7 @@
 // Channel toggle integration tests through the authenticated Worker API.
 // Covers scope, validation, projection, persistence, warnings, and auditing.
 // Depends on cloudflare:test, Vitest, and shared database fixtures.
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -95,8 +95,7 @@ describe('boss channel toggle authorization and validation', () => {
     expect(await env.DB.prepare("SELECT enabled FROM channel_configs WHERE id = 'toggle-email'").first()).toEqual({ enabled: 1 });
   });
 
-  it('rejects malformed JSON', async () => {
-    const response = await SELF.fetch('https://test.local/api/boss/channels/toggle-email', { method: 'PATCH', headers: headers(), body: '{' });
-    expect(response.status).toBe(400);
-  });
+  it('rejects malformed JSON', returnsStatus(400, () =>
+    SELF.fetch('https://test.local/api/boss/channels/toggle-email',
+      { method: 'PATCH', headers: headers(), body: '{' })));
 });

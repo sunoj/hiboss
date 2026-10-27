@@ -2,7 +2,7 @@
 // Covers single-use/expiry, role permissions, tenant separation, and header transport.
 // Dependencies: cloudflare:test, Hono worker, D1 seed helpers, and PanelRoom.
 
-import { testRequest } from '../../test-request';
+import { testRequest, returnsStatus } from '../../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../../middleware/auth';
@@ -134,10 +134,8 @@ describe('panel connection authorization', () => {
     producer.ws.close();
   });
 
-  it('refuses a boss with no relationship to the panel', async () => {
-    const response = await requestTicket(OTHER_BOSS_TOKEN, PANEL_A, 'subscriber');
-    expect(response.status).toBe(404);
-  });
+  it('refuses a boss with no relationship to the panel', returnsStatus(404, () =>
+    requestTicket(OTHER_BOSS_TOKEN, PANEL_A, 'subscriber')));
 
   it('does not let one agent request another agent producer ticket', async () => {
     const denied = await requestTicket(OWNER_KEY, PANEL_OTHER, 'producer');

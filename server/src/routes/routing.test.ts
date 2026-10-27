@@ -2,7 +2,7 @@
 // Covers CRUD operations and regex validation.
 // Depends on cloudflare:test env and shared test helpers.
 
-import { testRequest } from '../test-request';
+import { testRequest, returnsStatus } from '../test-request';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 
@@ -34,23 +34,17 @@ describe('POST /api/routing-rules', () => {
     expect(data.priority).toBe(10);
   });
 
-  it('rejects invalid channel', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/routing-rules', authHeaders(),
-      { channel: 'sms', pattern: '.*', target_agent_id: 'x' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects invalid channel', returnsStatus(400, () =>
+    testRequest('POST', 'https://test.local/api/routing-rules', authHeaders(),
+      { channel: 'sms', pattern: '.*', target_agent_id: 'x' })));
 
-  it('rejects missing pattern', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/routing-rules', authHeaders(),
-      { channel: 'telegram', pattern: '', target_agent_id: 'x' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects missing pattern', returnsStatus(400, () =>
+    testRequest('POST', 'https://test.local/api/routing-rules', authHeaders(),
+      { channel: 'telegram', pattern: '', target_agent_id: 'x' })));
 
-  it('rejects invalid regex', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/routing-rules', authHeaders(),
-      { channel: 'telegram', pattern: '[invalid', target_agent_id: 'x' });
-    expect(res.status).toBe(400);
-  });
+  it('rejects invalid regex', returnsStatus(400, () =>
+    testRequest('POST', 'https://test.local/api/routing-rules', authHeaders(),
+      { channel: 'telegram', pattern: '[invalid', target_agent_id: 'x' })));
 });
 
 describe('DELETE /api/routing-rules/:id', () => {
@@ -66,9 +60,7 @@ describe('DELETE /api/routing-rules/:id', () => {
     expect(del.status).toBe(200);
   });
 
-  it('returns 404 for non-existent rule', async () => {
-    const res = await testRequest('DELETE', 'https://test.local/api/routing-rules/nonexistent',
-      authHeaders());
-    expect(res.status).toBe(404);
-  });
+  it('returns 404 for non-existent rule', returnsStatus(404, () =>
+    testRequest('DELETE', 'https://test.local/api/routing-rules/nonexistent',
+      authHeaders())));
 });
