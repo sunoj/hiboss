@@ -124,9 +124,7 @@ private actor HeldAgentsAPI: AgentsServing {
     }
 }
 
-private final class AgentsURLProtocol: URLProtocol, @unchecked Sendable {
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+private final class AgentsURLProtocol: HTTPTestProtocol, @unchecked Sendable {
 
     override func startLoading() {
         XCTAssertEqual(request.url?.path, "/api/boss/agents")
@@ -141,6 +139,4 @@ private final class AgentsURLProtocol: URLProtocol, @unchecked Sendable {
         client?.urlProtocol(self, didLoad: Data(payload.utf8))
         client?.urlProtocolDidFinishLoading(self)
     }
-
-    override func stopLoading() {}
 }

@@ -139,14 +139,11 @@ private struct Registration: Decodable {
     let label: String
 }
 
-private final class ClientsURLProtocol: URLProtocol, @unchecked Sendable {
+private final class ClientsURLProtocol: HTTPTestProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var handler: ((URLRequest) throws -> (Int, String))?
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func stopLoading() {}
 
     override func startLoading() {
-        do {
+        complete {
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer pasted-token")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
             let expectedPath = request.httpMethod == "DELETE" ? "/base/api/boss/clients/client-1" : "/base/api/boss/clients"
@@ -156,11 +153,7 @@ private final class ClientsURLProtocol: URLProtocol, @unchecked Sendable {
             let response = try XCTUnwrap(HTTPURLResponse(
                 url: try XCTUnwrap(request.url), statusCode: status, httpVersion: nil, headerFields: nil
             ))
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: Data(json.utf8))
-            client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            client?.urlProtocol(self, didFailWithError: error)
+            return (response, Data(json.utf8))
         }
     }
 }

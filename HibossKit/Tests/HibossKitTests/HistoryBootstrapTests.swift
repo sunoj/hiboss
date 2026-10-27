@@ -67,12 +67,10 @@ private struct BootstrapHistoryAPI: BossServing {
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome { .accepted }
 }
 
-private final class BootstrapURLProtocol: URLProtocol, @unchecked Sendable {
+private final class BootstrapURLProtocol: HTTPTestProtocol, @unchecked Sendable {
     static let cursor = "2026-10-10 10:20:30"
     static let full = Data(#"{"messages":[],"total":0,"cursor":"2026-10-10 10:20:30"}"#.utf8)
     nonisolated(unsafe) static var delta: XCTestExpectation?
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let items = request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }?.queryItems
         let cursor = items?.first { $0.name == "updated_after" }?.value
@@ -91,5 +89,4 @@ private final class BootstrapURLProtocol: URLProtocol, @unchecked Sendable {
         client?.urlProtocol(self, didLoad: payload)
         client?.urlProtocolDidFinishLoading(self)
     }
-    override func stopLoading() {}
 }

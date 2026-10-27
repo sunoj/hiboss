@@ -65,13 +65,11 @@ final class RequiredInputStreamTests: XCTestCase {
     }
 }
 
-private final class ReadyStreamProtocol: URLProtocol, @unchecked Sendable {
+private final class ReadyStreamProtocol: HTTPTestProtocol, @unchecked Sendable {
     static let message = HistoryMessage(
         id: "ask", body: "Choose 🏠?", direction: "agent_to_boss", status: "sent",
         priority: "normal", mode: "blocking", createdAt: "2026-10-11T00:00:00Z"
     )
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         let response = HTTPURLResponse(
@@ -89,6 +87,4 @@ private final class ReadyStreamProtocol: URLProtocol, @unchecked Sendable {
             }
         }
     }
-
-    override func stopLoading() {}
 }

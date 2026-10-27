@@ -66,12 +66,9 @@ private actor FrameLog {
 }
 
 /// Sends the SSE chunks and never finishes loading, like a live server stream.
-private final class HeldOpenSSEProtocol: URLProtocol, @unchecked Sendable {
+private final class HeldOpenSSEProtocol: HTTPTestProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var chunks: [String] = []
     nonisolated(unsafe) static var lastEventID: String?
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         Self.lastEventID = request.value(forHTTPHeaderField: "Last-Event-ID")
@@ -88,6 +85,4 @@ private final class HeldOpenSSEProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didLoad: Data(chunk.utf8))
         }
     }
-
-    override func stopLoading() {}
 }

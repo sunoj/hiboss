@@ -77,9 +77,7 @@ final class AnsweringDeviceTests: XCTestCase {
     }
 }
 
-private final class DeviceReplyProtocol: URLProtocol, @unchecked Sendable {
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+private final class DeviceReplyProtocol: HTTPTestProtocol, @unchecked Sendable {
     override func startLoading() {
         let response = HTTPURLResponse(url: request.url!, statusCode: 201,
                                        httpVersion: nil, headerFields: nil)!
@@ -91,5 +89,4 @@ private final class DeviceReplyProtocol: URLProtocol, @unchecked Sendable {
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)
     }
-    override func stopLoading() {}
 }

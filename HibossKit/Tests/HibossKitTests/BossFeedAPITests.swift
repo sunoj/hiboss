@@ -48,9 +48,7 @@ final class BossFeedAPITests: XCTestCase {
     }
 }
 
-private final class FeedURLProtocol: URLProtocol, @unchecked Sendable {
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+private final class FeedURLProtocol: HTTPTestProtocol, @unchecked Sendable {
 
     override func startLoading() {
         XCTAssertEqual(request.url?.path, "/api-base/api/boss/stream")
@@ -66,6 +64,4 @@ private final class FeedURLProtocol: URLProtocol, @unchecked Sendable {
         client?.urlProtocol(self, didLoad: Data(event.utf8))
         // Deliberately keep the response open: notification delivery cannot wait for EOF.
     }
-
-    override func stopLoading() {}
 }

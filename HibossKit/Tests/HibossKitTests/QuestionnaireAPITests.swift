@@ -89,19 +89,14 @@ final class QuestionnaireAPITests: XCTestCase {
     }
 }
 
-private final class QuestionnaireURLProtocol: URLProtocol, @unchecked Sendable {
+private final class QuestionnaireURLProtocol: HTTPTestProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var handler: ((URLRequest) throws -> (Int, Data))?
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
-        do {
+        complete {
             guard let handler = Self.handler else { throw HibossAPIError.invalidResponse }
             let (status, data) = try handler(request)
             let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: data)
-            client?.urlProtocolDidFinishLoading(self)
-        } catch { client?.urlProtocol(self, didFailWithError: error) }
+            return (response, data)
+        }
     }
-    override func stopLoading() {}
 }

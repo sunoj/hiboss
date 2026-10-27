@@ -66,9 +66,7 @@ final class RequiredInputClientTests: XCTestCase {
     }
 }
 
-private final class PendingInputProtocol: URLProtocol, @unchecked Sendable {
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+private final class PendingInputProtocol: HTTPTestProtocol, @unchecked Sendable {
 
     override func startLoading() {
         let cursor = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
@@ -99,6 +97,4 @@ private final class PendingInputProtocol: URLProtocol, @unchecked Sendable {
         client?.urlProtocol(self, didLoad: Data(body.utf8))
         client?.urlProtocolDidFinishLoading(self)
     }
-
-    override func stopLoading() {}
 }

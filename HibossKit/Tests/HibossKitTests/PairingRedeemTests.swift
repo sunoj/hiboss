@@ -108,27 +108,18 @@ private func requestBody(_ request: URLRequest) throws -> Data {
     return data
 }
 
-private final class RedeemURLProtocol: URLProtocol, @unchecked Sendable {
+private final class RedeemURLProtocol: HTTPTestProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var handler: ((URLRequest) throws -> (Int, String))?
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         guard let handler = Self.handler, let url = request.url else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
         }
-        do {
+        complete {
             let (status, body) = try handler(request)
             let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)
-            client?.urlProtocol(self, didReceive: response ?? HTTPURLResponse(), cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: Data(body.utf8))
-            client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            client?.urlProtocol(self, didFailWithError: error)
+            return (response ?? HTTPURLResponse(), Data(body.utf8))
         }
     }
-
-    override func stopLoading() {}
 }

@@ -130,14 +130,11 @@ final class JoinRequestsAPITests: XCTestCase {
     }
 }
 
-private final class JoinURLProtocol: URLProtocol, @unchecked Sendable {
+private final class JoinURLProtocol: HTTPTestProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var handler: ((URLRequest) throws -> (Int, String))?
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func stopLoading() {}
 
     override func startLoading() {
-        do {
+        complete {
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer boss-token")
             let handler = try XCTUnwrap(Self.handler)
             let (status, body) = try handler(request)
@@ -145,11 +142,7 @@ private final class JoinURLProtocol: URLProtocol, @unchecked Sendable {
                 url: try XCTUnwrap(request.url), statusCode: status, httpVersion: nil,
                 headerFields: ["Content-Type": status < 300 ? "application/json" : "text/plain"]
             ))
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: Data(body.utf8))
-            client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            client?.urlProtocol(self, didFailWithError: error)
+            return (response, Data(body.utf8))
         }
     }
 }
