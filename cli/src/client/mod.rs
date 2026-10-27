@@ -55,6 +55,14 @@ fn http_error(
     HttpError { prefix, status, request_id, body }
 }
 
+async fn response_error(resp: reqwest::Response, prefix: &'static str) -> HttpError {
+    let status = resp.status();
+    let request_id = resp.headers().get("x-request-id")
+        .and_then(|value| value.to_str().ok()).map(str::to_owned);
+    let body = resp.text().await.unwrap_or_default();
+    http_error(prefix, status, request_id, body)
+}
+
 pub struct HiBossClient {
     base_url: String,
     api_key: String,
@@ -163,16 +171,7 @@ impl HiBossClient {
             .json(&serde_json::json!({ "emoji": emoji }))
             .send()
             .await?;
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let req_id = resp
-                .headers()
-                .get("x-request-id")
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string());
-            let body = resp.text().await.unwrap_or_default();
-            return Err(http_error("react failed", status, req_id, body).into());
-        }
+        Self::checked_response(resp, "react failed").await?;
         Ok(())
     }
     pub async fn get_reactions(&self, id: &str) -> Result<ReactionsResponse, Box<dyn Error>> {
@@ -219,18 +218,16 @@ impl HiBossClient {
     pub(crate) async fn parse_response<T: serde::de::DeserializeOwned>(
         resp: reqwest::Response,
     ) -> Result<T, Box<dyn Error>> {
+        Ok(Self::checked_response(resp, "request failed").await?.json::<T>().await?)
+    }
+    async fn checked_response(
+        resp: reqwest::Response,
+        prefix: &'static str,
+    ) -> Result<reqwest::Response, Box<dyn Error>> {
         if resp.status().is_success() {
-            let parsed = resp.json::<T>().await?;
-            Ok(parsed)
+            Ok(resp)
         } else {
-            let status = resp.status();
-            let req_id = resp
-                .headers()
-                .get("x-request-id")
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string());
-            let body = resp.text().await.unwrap_or_default();
-            Err(http_error("request failed", status, req_id, body).into())
+            Err(response_error(resp, prefix).await.into())
         }
     }
 }
@@ -250,3 +247,7 @@ mod projects;
 mod routing;
 
 pub use panels::{PanelConnectionTicket, PanelPublishResponse};
+
+#[cfg(test)]
+#[path = "../../tests/onboarding_support/http.rs"]
+mod test_http;

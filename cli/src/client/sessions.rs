@@ -1,6 +1,6 @@
 // Session registration, discovery and heartbeat HTTP methods.
 // Exports HiBossClient session methods; depends on reqwest and project resolution.
-use super::{HiBossClient, http_error};
+use super::HiBossClient;
 use reqwest::Method;
 use std::error::Error;
 use serde_json::Value;
@@ -35,16 +35,7 @@ impl HiBossClient {
             .json(&body)
             .send()
             .await?;
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let req_id = resp
-                .headers()
-                .get("x-request-id")
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string());
-            let text = resp.text().await.unwrap_or_default();
-            return Err(http_error("session register failed", status, req_id, text).into());
-        }
+        let resp = Self::checked_response(resp, "session register failed").await?;
         let accepted: Value = resp.json().await.unwrap_or(Value::Null);
         crate::session::accept_session_nickname(id, &accepted)?;
         if parent_rejected(&accepted) {

@@ -46,18 +46,7 @@ impl HiBossClient {
         let resp = self.request(Method::DELETE, &format!("/api/progress/{}", id))
             .send()
             .await?;
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let req_id = resp
-                .headers()
-                .get("x-request-id")
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string());
-            let body = resp.text().await.unwrap_or_default();
-            return Err(
-                super::http_error("delete progress failed", status, req_id, body).into(),
-            );
-        }
+        Self::checked_response(resp, "delete progress failed").await?;
         Ok(())
     }
 
@@ -102,15 +91,13 @@ impl HiBossClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::test_http::{Http, Response};
+    use serde_json::{Value, json};
 
     // Old servers reject object-valued project fields and ignore unknown metadata.
     #[derive(serde::Deserialize)]
     struct OldServerProject {
         project: String,
-    }
-
-    fn old_server_fixture(body: serde_json::Value) -> Result<OldServerProject, serde_json::Error> {
-        serde_json::from_value(body)
     }
 
     #[test]
@@ -122,8 +109,10 @@ mod tests {
         };
         let body = serde_json::to_value(request).unwrap();
         assert_eq!(body["project_identity"]["aliases"][0], "checkout");
-        assert_eq!(old_server_fixture(body).unwrap().project, "repo");
-        assert!(old_server_fixture(serde_json::json!({"project": {"slug": "repo", "aliases": []}})).is_err());
+        assert_eq!(serde_json::from_value::<OldServerProject>(body).unwrap().project, "repo");
+        assert!(serde_json::from_value::<OldServerProject>(
+            serde_json::json!({"project": {"slug": "repo", "aliases": []}})
+        ).is_err());
     }
 
     #[test]
@@ -132,16 +121,12 @@ mod tests {
         let body = super::super::sessions::session_body("session", identity);
         assert_eq!(body["id"], "session");
         assert_eq!(body["project_identity"]["slug"], "repo");
-        assert_eq!(old_server_fixture(body).unwrap().project, "repo");
-    }
-
-    fn make_client() -> HiBossClient {
-        HiBossClient::new("http://localhost:19999", "test-key")
+        assert_eq!(serde_json::from_value::<OldServerProject>(body).unwrap().project, "repo");
     }
 
     #[tokio::test]
     async fn upload_raw_binary_rejects_missing_file() {
-        let client = make_client();
+        let client = HiBossClient::new("http://localhost:19999", "test-key");
         let err = client
             .upload_raw_binary("/nonexistent/hiboss-test-progress.mp4", "hiboss-test.mp4")
             .await
@@ -149,16 +134,34 @@ mod tests {
         assert!(err.to_string().contains("file not found"));
     }
 
-    #[test]
-    fn list_progress_compiles_with_all_none() {
-        let client = make_client();
-        let _f = client.list_progress(None, None, None);
-        drop(_f);
+    fn serve(body: Value) -> (Http, HiBossClient) {
+        let server = Http::start(move |_| Response::json(200, body.clone()));
+        let client = HiBossClient::new(&server.url, "test-key");
+        (server, client)
     }
 
-    #[test]
-    fn post_progress_compiles_with_minimal_request() {
-        let client = make_client();
+    fn request(server: Http, method: &str, path: &str) -> Value {
+        let requests = server.requests();
+        assert_eq!(requests.len(), 1);
+        let request = requests.into_iter().next().unwrap();
+        assert_eq!((&*request.method, &*request.path), (method, path));
+        assert_eq!(request.header("authorization"), Some("Bearer test-key"));
+        request.body
+    }
+
+    #[tokio::test]
+    async fn list_progress_omits_absent_filters() {
+        let (server, client) = serve(json!({"posts": [], "next_cursor": null}));
+        let page = client.list_progress(None, None, None).await.unwrap();
+        assert!(page.posts.is_empty() && page.next_cursor.is_none());
+        assert_eq!(request(server, "GET", "/api/progress"), Value::Null);
+    }
+
+    #[tokio::test]
+    async fn post_progress_sends_minimal_body_and_decodes_post() {
+        let post = json!({"id": "post-1", "project": "repo", "agent_id": "agent-1",
+                          "body": "test body", "created_at": "2026-10-28T00:00:00Z"});
+        let (server, client) = serve(post);
         let req = ProgressPostRequest {
             body: "test body".into(),
             project: None,
@@ -169,45 +172,63 @@ mod tests {
             agent_label: None,
             model: None,
         };
-        let _f = client.post_progress(&req);
-        drop(_f);
+        let result = client.post_progress(&req).await.unwrap();
+        assert_eq!((result.id.as_str(), result.body.as_str()), ("post-1", "test body"));
+        assert_eq!(request(server, "POST", "/api/progress"), json!({"body": "test body"}));
     }
 
-    #[test]
-    fn delete_progress_compiles_with_id() {
-        let client = make_client();
-        let _f = client.delete_progress("some-id");
-        drop(_f);
+    #[tokio::test]
+    async fn delete_progress_checks_status_and_preserves_typed_errors() {
+        for status in [200, 204, 400, 503] {
+            let server = Http::start(move |_| Response::json(status, json!("rejected")));
+            let client = HiBossClient::new(&server.url, "test-key");
+            let result = client.delete_progress("some-id").await;
+            match status {
+                200 | 204 => assert!(result.is_ok()),
+                _ => {
+                    let error = result.unwrap_err();
+                    let error = error.downcast_ref::<super::super::HttpError>().unwrap();
+                    assert_eq!(error.status.as_u16(), status);
+                    assert_eq!((error.prefix, error.body.as_str()), ("delete progress failed", "rejected"));
+                    assert_eq!(error.request_id, None);
+                }
+            }
+            assert_eq!(request(server, "DELETE", "/api/progress/some-id"), Value::Null);
+        }
     }
 
-    #[test]
-    fn upsert_progress_team_compiles() {
-        let client = make_client();
-        let req = crate::team::ProgressTeamRequest {
-            display_name: Some("My Team".into()),
-            handle: Some("my-team".into()),
-            bio: None,
-            avatar_url: None,
+    #[tokio::test]
+    async fn upsert_progress_team_sends_profile_and_decodes_team() {
+        let team = json!({"project": "my-project", "display_name": "My Team", "handle": "my-team"});
+        let (server, client) = serve(team);
+        let req = ProgressTeamRequest {
+            display_name: Some("My Team".into()), handle: Some("my-team".into()),
+            bio: None, avatar_url: None,
         };
-        let _f = client.upsert_progress_team("my-project", &req);
-        drop(_f);
+        assert_eq!(client.upsert_progress_team("my-project", &req).await.unwrap().handle, "my-team");
+        assert_eq!(request(server, "PUT", "/api/progress/teams/my-project"),
+                   json!({"display_name": "My Team", "handle": "my-team"}));
     }
 
-    #[test]
-    fn list_progress_teams_compiles() {
-        let client = make_client();
-        let _f = client.list_progress_teams();
-        drop(_f);
+    #[tokio::test]
+    async fn list_progress_teams_decodes_visible_teams() {
+        let (server, client) = serve(json!({"teams": [{"project": "repo", "display_name": "Team",
+                                                     "handle": "team"}]}));
+        let teams = client.list_progress_teams().await.unwrap().teams;
+        assert_eq!(teams.len(), 1);
+        assert_eq!(teams[0].project, "repo");
+        assert_eq!(request(server, "GET", "/api/progress/teams"), Value::Null);
     }
 
-    #[test]
-    fn upsert_progress_team_url_contains_project() {
-        // Verify the URL is constructed correctly (inspectable only by checking the
-        // future/pending struct, not by actually sending it here without a server).
-        let client = make_client();
-        // The method should encode the project into the URL path verbatim.
-        let req = crate::team::ProgressTeamRequest::default();
-        let _f = client.upsert_progress_team("hiboss", &req);
-        drop(_f);
+    #[tokio::test]
+    async fn upsert_progress_team_encodes_project_as_one_segment() {
+        // The project must remain one encoded path segment, including reserved characters.
+        for (project, path) in [("hiboss", "hiboss"), ("team/a ?#", "team%2Fa%20%3F%23")] {
+            let team = json!({"project": project, "display_name": "Team", "handle": "team"});
+            let (server, client) = serve(team);
+            let result = client.upsert_progress_team(project, &ProgressTeamRequest::default()).await.unwrap();
+            assert_eq!(result.project, project);
+            assert_eq!(request(server, "PUT", &format!("/api/progress/teams/{path}")), json!({}));
+        }
     }
 }

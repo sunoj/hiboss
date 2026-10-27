@@ -60,15 +60,9 @@ pub(crate) async fn parse_send_response(
     if resp.status().is_success() {
         return Ok(resp.json::<SendResponse>().await?);
     }
-    let status = resp.status();
-    let req_id = resp
-        .headers()
-        .get("x-request-id")
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    let body = resp.text().await.unwrap_or_default();
-    let body = format_target_error(status, &body).unwrap_or(body);
-    Err(super::http_error("request failed", status, req_id, body).into())
+    let mut error = super::response_error(resp, "request failed").await;
+    error.body = format_target_error(error.status, &error.body).unwrap_or(error.body);
+    Err(error.into())
 }
 
 impl HiBossClient {
@@ -132,14 +126,10 @@ impl HiBossClient {
 
     /// The ask reconcile read: the message with only the replies that can answer it.
     pub async fn get_decisions(&self, id: &str) -> Result<Message, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/messages/{}", self.base_url, id))
-            .query(&[("replies", "decisions")])
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        verified_message(Self::parse_response(resp).await?)
+        verified_message(Self::send_json(
+            self.request(Method::GET, &format!("/api/messages/{}", id))
+                .query(&[("replies", "decisions")])
+        ).await?)
     }
 
     pub async fn send_message(&self, req: &SendRequest) -> Result<SendResponse, Box<dyn Error>> {
@@ -152,22 +142,18 @@ impl HiBossClient {
     }
     pub async fn reply_to(&self, id: &str, body: &str) -> Result<Message, Box<dyn Error>> {
         let (id, req) = self.signed_reply(id, body).await?;
-        let resp = self.request(Method::POST, &format!("/api/messages/{}/reply", id))
-            .json(&req)
-            .send()
-            .await?;
-        verified_message(Self::parse_response(resp).await?)
+        verified_message(Self::send_json(
+            self.request(Method::POST, &format!("/api/messages/{}/reply", id)).json(&req)
+        ).await?)
     }
 
     pub async fn update_status(&self, id: &str, status: &str) -> Result<Message, Box<dyn Error>> {
         let req = StatusUpdate {
             status: status.to_owned(),
         };
-        let resp = self.request(Method::PATCH, &format!("/api/messages/{}", id))
-            .json(&req)
-            .send()
-            .await?;
-        verified_message(Self::parse_response(resp).await?)
+        verified_message(Self::send_json(
+            self.request(Method::PATCH, &format!("/api/messages/{}", id)).json(&req)
+        ).await?)
     }
 
     pub async fn edit_message_body(&self, id: &str, body: &str) -> Result<Message, Box<dyn Error>> {
