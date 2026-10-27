@@ -1,5 +1,6 @@
 // Boss reply, forwarding, and session-command HTTP regression tests.
 // Uses the authenticated Worker API, seeded D1 messages, and mocked provider fetch.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase, getTestAgentId, authHeaders, seedBossToken } from '../test-helpers';
@@ -19,11 +20,8 @@ function bossHeaders(): Record<string, string> {
 
 describe('POST /api/boss/messages/:id/reply', () => {
   it('boss replies to agent message', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-api-msg-1/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Good work!' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/messages/boss-api-msg-1/reply',
+      bossHeaders(), { body: 'Good work!' });
     expect(res.status).toBe(201);
     const data = await res.json() as { direction: string; reply_to: string; body: string };
     expect(data.direction).toBe('boss_to_agent');
@@ -47,11 +45,8 @@ describe('POST /api/boss/messages/:id/reply', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal', ?)"
     ).bind('affinity-parent', getTestAgentId(), 'Question from session A', 'affinity-sess-a').run();
 
-    const res = await SELF.fetch('http://localhost/api/boss/messages/affinity-parent/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Do the two immediate fixes' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/messages/affinity-parent/reply',
+      bossHeaders(), { body: 'Do the two immediate fixes' });
     expect(res.status).toBe(201);
     const reply = await res.json() as { id: string; target_session_id: string | null };
     expect(reply.target_session_id).toBe('affinity-sess-a');
@@ -60,10 +55,9 @@ describe('POST /api/boss/messages/:id/reply', () => {
 
     // Session A sees it as unread; session B does not.
     const unreadFor = async (sid: string) => {
-      const r = await SELF.fetch(
+      const r = await testRequest('GET',
         `https://test.local/api/messages?unread=true&direction=boss_to_agent&target_session=${sid}`,
-        { headers: authHeaders() },
-      );
+        authHeaders());
       const body = await r.json() as { messages: { id: string }[] };
       return body.messages.some((m) => m.id === reply.id);
     };
@@ -75,20 +69,14 @@ describe('POST /api/boss/messages/:id/reply', () => {
 
 describe('POST /api/boss/messages/:id/reply', () => {
   it('rejects empty reply body', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-api-msg-2/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: '' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/messages/boss-api-msg-2/reply',
+      bossHeaders(), { body: '' });
     expect(res.status).toBe(400);
   });
 
   it('returns 404 for unknown parent', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/messages/nonexistent/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Reply' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/messages/nonexistent/reply',
+      bossHeaders(), { body: 'Reply' });
     expect(res.status).toBe(404);
   });
 
@@ -116,11 +104,8 @@ describe('POST /api/boss/messages/:id/reply', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = await SELF.fetch(`http://localhost/api/boss/messages/${messageId}/reply`, {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Approve' }),
-    });
+    const res = await testRequest('POST', `http://localhost/api/boss/messages/${messageId}/reply`,
+      bossHeaders(), { body: 'Approve' });
 
     expect(res.status).toBe(201);
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -140,11 +125,8 @@ describe('POST /api/boss/messages/:id/forward', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'sent', 'normal')"
     ).bind('boss-forward-source', getTestAgentId(), 'Ship this update').run();
 
-    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-forward-source/forward', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ channel: 'api' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/messages/boss-forward-source/forward',
+      bossHeaders(), { channel: 'api' });
     expect(res.status).toBe(400);
     expect(await res.text()).toContain('channel must be discord or telegram');
   });
@@ -154,11 +136,8 @@ describe('POST /api/boss/messages/:id/forward', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'boss_to_agent', 'async', 'api', ?, 'sent', 'normal')"
     ).bind('boss-forward-blocked', getTestAgentId(), 'Do not forward this').run();
 
-    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-forward-blocked/forward', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ channel: 'telegram' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/messages/boss-forward-blocked/forward',
+      bossHeaders(), { channel: 'telegram' });
     expect(res.status).toBe(403);
     expect(await res.text()).toBe('cannot forward boss messages');
   });
@@ -183,11 +162,8 @@ describe('POST /api/boss/sessions/:id/message', () => {
     await env.DB.prepare(
       "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
     ).bind('boss-sess-cmd', getTestAgentId(), 'cmd-session').run();
-    const res = await SELF.fetch('http://localhost/api/boss/sessions/boss-sess-cmd/message', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Run the deploy', priority: 'high' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/sessions/boss-sess-cmd/message',
+      bossHeaders(), { body: 'Run the deploy', priority: 'high' });
     expect(res.status).toBe(201);
     const data = await res.json() as { id: string; direction: string; target_session_id: string; priority: string; body: string };
     expect(data.direction).toBe('boss_to_agent');
@@ -202,20 +178,14 @@ describe('POST /api/boss/sessions/:id/message', () => {
     await env.DB.prepare(
       "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
     ).bind('boss-sess-cmd-2', getTestAgentId(), 'cmd-session-2').run();
-    const res = await SELF.fetch('http://localhost/api/boss/sessions/boss-sess-cmd-2/message', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: '  ' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/sessions/boss-sess-cmd-2/message',
+      bossHeaders(), { body: '  ' });
     expect(res.status).toBe(400);
   });
 
   it('returns 404 for unknown session', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/sessions/nope-nope/message', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'hi' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/sessions/nope-nope/message',
+      bossHeaders(), { body: 'hi' });
     expect(res.status).toBe(404);
   });
 });

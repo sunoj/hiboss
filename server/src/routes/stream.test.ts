@@ -2,6 +2,7 @@
 // Covers SQL generation, ID pruning, and integration headers.
 // Depends on cloudflare:test, vitest, and stream.ts.
 
+import { testRequest } from '../test-request';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -128,9 +129,7 @@ describe('GET /api/messages/stream', () => {
   });
 
   it('returns SSE content-type headers', async () => {
-    const res = await SELF.fetch('https://test.local/api/messages/stream', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/messages/stream', authHeaders());
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('text/event-stream');
     expect(res.headers.get('Cache-Control')).toBe('no-cache');
@@ -147,9 +146,7 @@ describe('GET /api/messages/stream', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, body, status) VALUES (?, ?, 'boss_to_agent', 'async', 'Stream this', 'sent')"
     ).bind(msgId, agentId).run();
 
-    const res = await SELF.fetch('https://test.local/api/messages/stream', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/messages/stream', authHeaders());
     
     expect(res.status).toBe(200);
     const reader = res.body?.getReader();
@@ -177,9 +174,7 @@ describe('GET /api/messages/stream', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'A2A stream', 'sent', ?)"
     ).bind(msgId, agentId, agentId).run();
 
-    const res = await SELF.fetch('https://test.local/api/messages/stream', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/messages/stream', authHeaders());
     const reader = res.body?.getReader();
     if (!reader) throw new Error('No reader');
     const { value } = await reader.read();

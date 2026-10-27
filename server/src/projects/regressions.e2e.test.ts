@@ -1,5 +1,6 @@
 // Reproduces phase 3a wire, historical merge, targeting and validation failures.
 // Exercises Worker endpoints and verifies durable D1 relationships and audit rows.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
@@ -7,12 +8,10 @@ import type { Project } from './index';
 import { mergeStatements } from './merge';
 
 beforeAll(seedDatabase);
-const post = (path: string, body: Record<string, unknown>): Promise<Response> => SELF.fetch(`https://test.local/api/${path}`, {
-  method: 'POST', headers: authHeaders(), body: JSON.stringify(body),
-});
-const put = (project: string, body: Record<string, unknown>): Promise<Response> => SELF.fetch(`https://test.local/api/progress/teams/${encodeURIComponent(project)}`, {
-  method: 'PUT', headers: authHeaders(), body: JSON.stringify(body),
-});
+const post = (path: string, body: Record<string, unknown>): Promise<Response> => testRequest('POST',
+  `https://test.local/api/${path}`, authHeaders(), body);
+const put = (project: string, body: Record<string, unknown>): Promise<Response> => testRequest('PUT',
+  `https://test.local/api/progress/teams/${encodeURIComponent(project)}`, authHeaders(), body);
 
 it('prefers additive identity metadata over legacy project text', async () => {
   for (const path of ['sessions', 'progress']) {

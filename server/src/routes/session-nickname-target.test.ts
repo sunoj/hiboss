@@ -1,6 +1,7 @@
 // Worker API tests for --to nickname scoping, precedence, and resolved target receipts.
 // Depends on real D1 sessions, the message endpoint, and seeded agent authentication.
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, seedDatabase } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
@@ -23,10 +24,8 @@ async function session(
 }
 
 async function send(to: string, sender: string | null): Promise<Response> {
-  return SELF.fetch('http://localhost/api/messages', {
-    method: 'POST', headers: authHeaders(),
-    body: JSON.stringify({ body: 'Peer message', to, session_id: sender }),
-  });
+  return testRequest('POST', 'http://localhost/api/messages', authHeaders(),
+    { body: 'Peer message', to, session_id: sender });
 }
 
 it('resolves an exact nickname in the sender project before label and agent id prefixes', async () => {

@@ -2,6 +2,7 @@
 // Covers: fan-out to two streams, first-selection wins, and resolved SSE events.
 // Depends on cloudflare:test, boss API routes, and shared database seeding.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getTestAgentId, seedDatabase, seedBossToken } from '../test-helpers';
@@ -148,11 +149,8 @@ async function readEvent(
 }
 
 function replyTo(messageId: string, body: string, source?: string): Promise<Response> {
-  return SELF.fetch(`http://localhost/api/boss/messages/${messageId}/reply`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify(source ? { body, source } : { body }),
-  });
+  return testRequest('POST', `http://localhost/api/boss/messages/${messageId}/reply`, headers(),
+    source ? { body, source } : { body });
 }
 
 function headers(): Record<string, string> {

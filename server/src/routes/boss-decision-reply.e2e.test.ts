@@ -2,6 +2,7 @@
 // Exercises blocking and option asks, ordinary replies, and agent delivery side effects.
 // Depends on the Worker API, seeded D1 sessions, boss auth, and mocked callbacks.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -133,9 +134,7 @@ async function insertParent(fields: ParentFields): Promise<string> {
 }
 
 function reply(id: string, body: string): Promise<Response> {
-  return SELF.fetch(`http://localhost/api/boss/messages/${id}/reply`, {
-    method: 'POST', headers: HEADERS, body: JSON.stringify({ body }),
-  });
+  return testRequest('POST', `http://localhost/api/boss/messages/${id}/reply`, HEADERS, { body });
 }
 
 async function expectClosed(id: string): Promise<void> {

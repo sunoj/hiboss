@@ -2,6 +2,7 @@
 // Covers telegram and discord webhook handling and error paths.
 // Depends on cloudflare:test env and shared test helpers.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { authHeaders, seedDatabase, getTestAgentId } from '../test-helpers';
@@ -33,25 +34,17 @@ afterEach(() => {
 });
 
 async function postTelegramWebhook(payload: Record<string, unknown>): Promise<Response> {
-  return SELF.fetch('https://test.local/api/webhooks/telegram', {
-    method: 'POST',
-    headers: {
+  return testRequest('POST', 'https://test.local/api/webhooks/telegram', {
       'Content-Type': 'application/json',
       'X-Telegram-Bot-Api-Secret-Token': TELEGRAM_SECRET,
-    },
-    body: JSON.stringify(payload),
-  });
+    }, payload);
 }
 
 async function postDiscordWebhook(payload: Record<string, unknown>): Promise<Response> {
-  return SELF.fetch('https://test.local/api/webhooks/discord', {
-    method: 'POST',
-    headers: {
+  return testRequest('POST', 'https://test.local/api/webhooks/discord', {
       'Content-Type': 'application/json',
       'X-Webhook-Secret': DISCORD_SECRET,
-    },
-    body: JSON.stringify(payload),
-  });
+    }, payload);
 }
 
 describe('POST /api/webhooks/telegram', () => {
@@ -559,11 +552,8 @@ describe('POST /api/webhooks/telegram/register-commands', () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true, result: true }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram/register-commands', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ bot_token: 'telegram-register-token' }),
-    });
+    const res = await testRequest('POST', 'https://test.local/api/webhooks/telegram/register-commands',
+      authHeaders(), { bot_token: 'telegram-register-token' });
 
     expect(res.status).toBe(201);
     const registerCall = fetchMock.mock.calls[0] as unknown as [RequestInfo | URL, RequestInit];

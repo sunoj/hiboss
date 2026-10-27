@@ -2,6 +2,7 @@
 // Covers posting, validation, cursors, projects, deletion, and dual-auth scope.
 // Depends on cloudflare:test, the progress router, and shared database seeding.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -38,17 +39,13 @@ describe('POST /api/progress', () => {
       body: new Uint8Array([1, 2, 3]),
     });
     const attachment = await upload.json() as { url: string };
-    const res = await SELF.fetch('https://test.local/api/progress', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({
+    const res = await testRequest('POST', 'https://test.local/api/progress', authHeaders(), {
         body: 'Shipped the feed',
         agent_label: 'claude-code',
         model: 'claude-opus-5',
         media: [{ url: attachment.url, kind: 'image', content_type: 'image/png', size: 3 }],
         tags: ['release'],
-      }),
-    });
+      });
     expect(res.status).toBe(201);
     const post = await res.json() as { id: string; project: string; agent_name: string; agent_label: string | null; model: string | null; media: unknown[]; tags: string[]; created_at: string; team: { handle: string; display_name: string; avatar_url: string; registered: boolean }; like_count: number; liked: boolean };
     expect(post.project).toBe('test-agent');
@@ -72,28 +69,20 @@ describe('POST /api/progress', () => {
 
 describe('POST /api/progress', () => {
   it('rejects remote media URLs and oversized media lists', async () => {
-    const remote = await SELF.fetch('https://test.local/api/progress', {
-      method: 'POST', headers: authHeaders(),
-      body: JSON.stringify({ body: 'bad media', media: [{ url: 'https://example.com/a.png', kind: 'image', content_type: 'image/png', size: 1 }] }),
-    });
+    const remote = await testRequest('POST', 'https://test.local/api/progress', authHeaders(),
+      { body: 'bad media', media: [{ url: 'https://example.com/a.png', kind: 'image', content_type: 'image/png', size: 1 }] });
     expect(remote.status).toBe(400);
-    const tooMany = await SELF.fetch('https://test.local/api/progress', {
-      method: 'POST', headers: authHeaders(),
-      body: JSON.stringify({ body: 'too many', media: [1, 2, 3, 4, 5] }),
-    });
+    const tooMany = await testRequest('POST', 'https://test.local/api/progress', authHeaders(),
+      { body: 'too many', media: [1, 2, 3, 4, 5] });
     expect(tooMany.status).toBe(400);
-    const tooLong = await SELF.fetch('https://test.local/api/progress', {
-      method: 'POST', headers: authHeaders(),
-      body: JSON.stringify({ body: 'too long attribution', model: 'm'.repeat(65) }),
-    });
+    const tooLong = await testRequest('POST', 'https://test.local/api/progress', authHeaders(),
+      { body: 'too long attribution', model: 'm'.repeat(65) });
     expect(tooLong.status).toBe(400);
   });
 
   it('rejects missing and foreign attachment keys, including poster URLs', async () => {
-    const missing = await SELF.fetch('https://test.local/api/progress', {
-      method: 'POST', headers: authHeaders(),
-      body: JSON.stringify({ body: 'missing media', media: [{ url: 'https://test.local/api/attachments/missing', kind: 'image', content_type: 'image/png', size: 1 }] }),
-    });
+    const missing = await testRequest('POST', 'https://test.local/api/progress', authHeaders(),
+      { body: 'missing media', media: [{ url: 'https://test.local/api/attachments/missing', kind: 'image', content_type: 'image/png', size: 1 }] });
     expect(missing.status).toBe(400);
 
     await env.ATTACHMENTS.put('owned-progress-video', new Uint8Array([1]), {
@@ -104,13 +93,10 @@ describe('POST /api/progress', () => {
       httpMetadata: { contentType: 'image/jpeg' },
       customMetadata: { agent_id: OTHER_AGENT_ID },
     });
-    const foreignPoster = await SELF.fetch('https://test.local/api/progress', {
-      method: 'POST', headers: authHeaders(),
-      body: JSON.stringify({
+    const foreignPoster = await testRequest('POST', 'https://test.local/api/progress', authHeaders(), {
         body: 'foreign poster',
         media: [{ url: 'https://test.local/api/attachments/owned-progress-video', kind: 'video', content_type: 'video/mp4', size: 1, poster_url: 'https://test.local/api/attachments/foreign-progress-poster' }],
-      }),
-    });
+      });
     expect(foreignPoster.status).toBe(400);
   });
 
@@ -120,9 +106,8 @@ describe('POST /api/progress', () => {
   it('does not insert a message or delivery row', async () => {
     const before = await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first<{ count: number }>();
     const queueBefore = await env.DB.prepare('SELECT COUNT(*) AS count FROM delivery_queue').first<{ count: number }>();
-    const res = await SELF.fetch('https://test.local/api/progress', {
-      method: 'POST', headers: authHeaders(), body: JSON.stringify({ body: 'no notification' }),
-    });
+    const res = await testRequest('POST', 'https://test.local/api/progress', authHeaders(),
+      { body: 'no notification' });
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({ agent_label: null, model: null });
     const after = await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first<{ count: number }>();
@@ -221,9 +206,8 @@ describe('progress teams and likes', () => {
     expect(fallbackData.team).toMatchObject({ handle: 'unregistered-project', display_name: 'unregistered project', registered: false });
     expect(fallbackData.team.avatar_url).toContain('/api/progress/teams/unregistered-project/avatar.png');
 
-    const registered = await SELF.fetch('https://test.local/api/progress/teams/hiboss', {
-      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ handle: 'hiboss', display_name: 'Hiboss Team', bio: 'shipping' }),
-    });
+    const registered = await testRequest('PUT', 'https://test.local/api/progress/teams/hiboss',
+      authHeaders(), { handle: 'hiboss', display_name: 'Hiboss Team', bio: 'shipping' });
     expect(registered.status).toBe(200);
     const team = await registered.json() as { handle: string; display_name: string; avatar_url: string; registered: boolean; bio: string };
     expect(team).toMatchObject({ handle: 'hiboss', display_name: 'Hiboss Team', registered: true, bio: 'shipping' });

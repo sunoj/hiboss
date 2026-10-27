@@ -2,6 +2,7 @@
 // Exercises option/message replies, history JSON, and resolved stream replay.
 // Depends on seeded D1, bearer boss auth, and the Worker API.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -38,18 +39,16 @@ describe('answering device attribution', () => {
     const detail = await SELF.fetch(`http://localhost/api/boss/messages/${id}`, { headers: headers(TOKEN) });
     const message = await detail.json() as MessageResponse;
     expect(message.replies?.[0]?.answered_by).toEqual(DEVICE);
-    const history = await SELF.fetch('http://localhost/api/boss/messages?limit=100&direction=all', {
-      headers: headers(TOKEN),
-    });
+    const history = await testRequest('GET', 'http://localhost/api/boss/messages?limit=100&direction=all',
+      headers(TOKEN));
     const page = await history.json() as { messages: MessageResponse[] };
     expect(page.messages.find(row => row.id === stored.id)?.metadata?.['answered_by']).toEqual(DEVICE);
   });
 
   it('adds the device to a live resolution while preserving the legacy event fields', async () => {
     const id = await parent(true);
-    const response = await SELF.fetch('http://localhost/api/boss/stream?options=true', {
-      headers: headers(TOKEN),
-    });
+    const response = await testRequest('GET', 'http://localhost/api/boss/stream?options=true',
+      headers(TOKEN));
     const reader = response.body!.getReader();
     expect(new TextDecoder().decode((await reader.read()).value)).toContain(id);
     expect((await reply(id, TOKEN)).status).toBe(201);
@@ -123,8 +122,6 @@ function headers(token: string): Record<string, string> {
 }
 
 function reply(id: string, token: string): Promise<Response> {
-  return SELF.fetch(`http://localhost/api/boss/messages/${id}/reply`, {
-    method: 'POST', headers: headers(token),
-    body: JSON.stringify({ body: 'Ship', answered_by: SPOOF, metadata: { answered_by: SPOOF } }),
-  });
+  return testRequest('POST', `http://localhost/api/boss/messages/${id}/reply`, headers(token),
+    { body: 'Ship', answered_by: SPOOF, metadata: { answered_by: SPOOF } });
 }

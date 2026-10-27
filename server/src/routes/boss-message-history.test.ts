@@ -1,6 +1,7 @@
 // Worker integration coverage for incremental and legacy boss message history.
 // Exercises timestamp validation, filtering, paging, and access with real D1.
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
 import type { MessageResponse, MessageRow } from '../types';
@@ -45,9 +46,8 @@ beforeAll(async () => {
 });
 
 async function request(params: Record<string, string> = {}, token = TOKEN): Promise<Response> {
-  return SELF.fetch(`https://test.local/api/boss/messages?${new URLSearchParams(params)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  return testRequest('GET', `https://test.local/api/boss/messages?${new URLSearchParams(params)}`,
+    { Authorization: `Bearer ${token}` });
 }
 
 async function delta(params: Record<string, string> = {}, token = TOKEN): Promise<Page> {
@@ -169,9 +169,8 @@ describe('boss message delta', () => {
   });
 
   it('includes updated_at in message details and every reply', async () => {
-    const response = await SELF.fetch('https://test.local/api/boss/messages/delta-old', {
-      headers: { Authorization: `Bearer ${TOKEN}` },
-    });
+    const response = await testRequest('GET', 'https://test.local/api/boss/messages/delta-old',
+      { Authorization: `Bearer ${TOKEN}` });
     expect(response.status).toBe(200);
     const message = await response.json() as MessageResponse;
     expect(message.updated_at).toBe('2026-01-02 03:04:04');

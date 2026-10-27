@@ -2,7 +2,8 @@
 // Covers: all-direction delivery and that it does NOT mutate message status.
 // Depends on cloudflare:test, boss API routes, and shared database seeding.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getTestAgentId, seedDatabase, seedBossToken } from '../test-helpers';
 
@@ -42,11 +43,8 @@ describe('Boss console feed stream', () => {
     try {
       expect(await readEvent(reader, 6_000, id)).toContain(id);
       for (const emoji of ['👍', '🚀']) {
-        const response = await SELF.fetch(`http://localhost/api/boss/messages/${id}/react`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ emoji }),
-        });
+        const response = await testRequest('POST', `http://localhost/api/boss/messages/${id}/react`,
+          { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, { emoji });
         expect(response.status).toBe(200);
         const event = await readEvent(reader, 6_000, emoji);
         expect(event).toContain(id);
@@ -59,9 +57,8 @@ describe('Boss console feed stream', () => {
 });
 
 async function openFeed(): Promise<ReadableStreamDefaultReader<Uint8Array>> {
-  const response = await SELF.fetch(FEED_URL, {
-    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-  });
+  const response = await testRequest('GET', FEED_URL,
+    { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' });
   expect(response.status).toBe(200);
   const reader = response.body?.getReader();
   if (!reader) throw new Error('feed stream has no reader');

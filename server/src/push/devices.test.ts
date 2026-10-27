@@ -1,6 +1,7 @@
 // Verifies device deletion/pruning removes APNs inventory through API and delivery paths.
 // Depends on real D1, boss authentication, notification delivery, and mocked APNs sends.
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
 import { liveTokenId } from './resolution-test-support';
@@ -41,9 +42,8 @@ async function message(): Promise<MessageRow> {
 }
 
 it('keeps device and destination when another boss attempts deletion', async () => {
-  const response = await SELF.fetch(`https://test/api/boss/devices/${deviceToken}`, {
-    method: 'DELETE', headers: { Authorization: 'Bearer other-boss-token' },
-  });
+  const response = await testRequest('DELETE', `https://test/api/boss/devices/${deviceToken}`,
+    { Authorization: 'Bearer other-boss-token' });
   expect(response.status).toBe(200);
   expect(await env.DB.prepare("SELECT id FROM boss_devices WHERE id = 'cleanup-device'").first()).not.toBeNull();
   expect(await env.DB.prepare("SELECT id FROM boss_destinations WHERE id = 'cleanup-destination'").first()).not.toBeNull();
@@ -57,9 +57,8 @@ it.each(['api', 'notify', 'destination'])('cleans only the removed device invent
   vi.spyOn(apns, 'sendPush').mockImplementation(async (_env, token) => token === deviceToken
     ? { ok: false, prune: true, reason: 'Unregistered' } : { ok: true, prune: false });
   if (path === 'api') {
-    const response = await SELF.fetch(`https://test/api/boss/devices/${deviceToken.toUpperCase()}`, {
-      method: 'DELETE', headers: { Authorization: `Bearer ${bossToken}` },
-    });
+    const response = await testRequest('DELETE',
+      `https://test/api/boss/devices/${deviceToken.toUpperCase()}`, { Authorization: `Bearer ${bossToken}` });
     expect(response.status).toBe(200);
   } else if (path === 'notify') {
     await notifyBossAgents(env, row.agent_id, row);

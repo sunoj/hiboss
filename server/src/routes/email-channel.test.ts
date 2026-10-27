@@ -2,6 +2,7 @@
 // Covers channel config, agent and boss channel routing, routing rules, and send routing.
 // Depends on the Worker (SELF), seeded D1, and test-helpers.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -24,18 +25,16 @@ async function expectRejected(res: Response): Promise<void> {
 
 describe('email channel writes', () => {
   it('rejects an email channel config', async () => {
-    await expectRejected(await SELF.fetch('https://test.local/api/channels/email', {
-      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ smtp_host: 'smtp.example.com' }),
-    }));
+    await expectRejected(await testRequest('PUT', 'https://test.local/api/channels/email', authHeaders(),
+      { smtp_host: 'smtp.example.com' }));
     const row = await env.DB.prepare("SELECT id FROM channel_configs WHERE agent_id = ? AND channel = 'email'")
       .bind(getTestAgentId()).first();
     expect(row).toBeNull();
   });
 
   it('rejects email in agent and boss channel routing', async () => {
-    await expectRejected(await SELF.fetch('https://test.local/api/agents/me/config', {
-      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ channel_routing: { normal: 'email' } }),
-    }));
+    await expectRejected(await testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
+      { channel_routing: { normal: 'email' } }));
     await expectRejected(await SELF.fetch(`https://test.local/api/boss/agents/${getTestAgentId()}/config`, {
       method: 'PATCH', headers: boss, body: JSON.stringify({ channel_routing: { normal: 'email' } }),
     }));
@@ -43,12 +42,10 @@ describe('email channel writes', () => {
 
   it('rejects email routing rules from agents and bosses', async () => {
     const rule = { channel: 'email', pattern: '.*', target_agent_id: getTestAgentId() };
-    await expectRejected(await SELF.fetch('https://test.local/api/routing-rules', {
-      method: 'POST', headers: authHeaders(), body: JSON.stringify(rule),
-    }));
-    await expectRejected(await SELF.fetch('https://test.local/api/boss/routing-rules', {
-      method: 'POST', headers: boss, body: JSON.stringify({ ...rule, owner_agent_id: getTestAgentId() }),
-    }));
+    await expectRejected(await testRequest('POST', 'https://test.local/api/routing-rules', authHeaders(),
+      rule));
+    await expectRejected(await testRequest('POST', 'https://test.local/api/boss/routing-rules', boss,
+      { ...rule, owner_agent_id: getTestAgentId() }));
   });
 
   it('ignores a stored email route when choosing the send channel', () => {

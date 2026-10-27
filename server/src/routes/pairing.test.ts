@@ -2,6 +2,7 @@
 // Covers issuance, redemption, expiry, single-use concurrency, and revocation.
 // Depends on cloudflare:test, shared seed helpers, and the worker app.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -29,10 +30,7 @@ function bossHeaders(token: string = BOSS_TOKEN): Record<string, string> {
 }
 
 async function issueCode(token: string = BOSS_TOKEN): Promise<{ code: string; expires_at: string }> {
-  const response = await SELF.fetch('http://localhost/api/boss/pairing', {
-    method: 'POST',
-    headers: bossHeaders(token),
-  });
+  const response = await testRequest('POST', 'http://localhost/api/boss/pairing', bossHeaders(token));
   expect(response.status).toBe(200);
   return await response.json() as { code: string; expires_at: string };
 }
@@ -50,26 +48,22 @@ describe('POST /api/boss/pairing', () => {
   });
 
   it('rejects agent authentication', async () => {
-    const response = await SELF.fetch('http://localhost/api/boss/pairing', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer hb_test_key_0000000000000000' },
-    });
+    const response = await testRequest('POST', 'http://localhost/api/boss/pairing',
+      { Authorization: 'Bearer hb_test_key_0000000000000000' });
     expect(response.status).toBe(401);
   });
 
   it('requires an admin boss to mint pairing codes', async () => {
-    const response = await SELF.fetch('http://localhost/api/boss/pairing', {
-      method: 'POST', headers: bossHeaders(VIEWER_TOKEN),
-    });
+    const response = await testRequest('POST', 'http://localhost/api/boss/pairing',
+      bossHeaders(VIEWER_TOKEN));
     expect(response.status).toBe(403);
   });
 
   it('caps active pairing codes without counting a consumed code', async () => {
     const codes: string[] = [];
     for (let index = 0; index < 5; index += 1) codes.push((await issueCode(RATE_LIMIT_TOKEN)).code);
-    const response = await SELF.fetch('http://localhost/api/boss/pairing', {
-      method: 'POST', headers: bossHeaders(RATE_LIMIT_TOKEN),
-    });
+    const response = await testRequest('POST', 'http://localhost/api/boss/pairing',
+      bossHeaders(RATE_LIMIT_TOKEN));
     expect(response.status).toBe(429);
     const redeemed = await SELF.fetch('http://localhost/api/pairing/redeem', {
       method: 'POST', body: JSON.stringify({ code: codes[0], device_label: 'Rate-limited device' }),
@@ -83,11 +77,8 @@ describe('POST /api/boss/pairing', () => {
     const pending = await pairingStatus(code);
     expect(pending).toEqual({ status: 'pending' });
 
-    const redeemed = await SELF.fetch('http://localhost/api/pairing/redeem', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, device_label: 'Status iPhone' }),
-    });
+    const redeemed = await testRequest('POST', 'http://localhost/api/pairing/redeem',
+      { 'Content-Type': 'application/json' }, { code, device_label: 'Status iPhone' });
     expect(redeemed.status).toBe(200);
 
     const paired = await pairingStatus(code);
@@ -99,11 +90,8 @@ describe('POST /api/boss/pairing', () => {
 describe('POST /api/pairing/redeem', () => {
   it('returns a new labeled token while the existing token remains valid', async () => {
     const { code } = await issueCode();
-    const response = await SELF.fetch('http://localhost/api/pairing/redeem', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, device_label: 'Alice iPhone' }),
-    });
+    const response = await testRequest('POST', 'http://localhost/api/pairing/redeem',
+      { 'Content-Type': 'application/json' }, { code, device_label: 'Alice iPhone' });
     expect(response.status).toBe(200);
     const data = await response.json() as { token: string; boss: { id: string; name: string; role: string } };
     expect(data.token).toMatch(/^hb_boss_[0-9a-f]{64}$/);
@@ -123,11 +111,8 @@ describe('POST /api/pairing/redeem', () => {
 
   it('consumes a code only once', async () => {
     const { code } = await issueCode();
-    const request = () => SELF.fetch('http://localhost/api/pairing/redeem', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, device_label: 'One-use device' }),
-    });
+    const request = () => testRequest('POST', 'http://localhost/api/pairing/redeem',
+      { 'Content-Type': 'application/json' }, { code, device_label: 'One-use device' });
     const responses = await Promise.all([request(), request()]);
     expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
   });
@@ -169,9 +154,8 @@ describe('boss token management', () => {
     const data = await redeemed.json() as { token: string };
     const tokenRow = await env.DB.prepare('SELECT id FROM boss_tokens WHERE token_hash = ?')
       .bind(await hashApiKey(data.token)).first<{ id: string }>();
-    const response = await SELF.fetch(`http://localhost/api/boss/tokens/${tokenRow?.id}`, {
-      method: 'DELETE', headers: bossHeaders(TOKEN_MANAGEMENT_TOKEN),
-    });
+    const response = await testRequest('DELETE', `http://localhost/api/boss/tokens/${tokenRow?.id}`,
+      bossHeaders(TOKEN_MANAGEMENT_TOKEN));
     expect(response.status).toBe(200);
     expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(data.token) })).status).toBe(401);
   });
@@ -193,24 +177,21 @@ describe('boss token management', () => {
   it('requires admin for listing, revoke-others, and revoking another token', async () => {
     const list = await SELF.fetch('http://localhost/api/boss/tokens', { headers: bossHeaders(VIEWER_TOKEN) });
     expect(list.status).toBe(403);
-    const revokeOthers = await SELF.fetch('http://localhost/api/boss/tokens/revoke-others', {
-      method: 'POST', headers: bossHeaders(VIEWER_TOKEN),
-    });
+    const revokeOthers = await testRequest('POST', 'http://localhost/api/boss/tokens/revoke-others',
+      bossHeaders(VIEWER_TOKEN));
     expect(revokeOthers.status).toBe(403);
     const adminToken = await env.DB.prepare('SELECT id FROM boss_tokens WHERE token_hash = ?')
       .bind(await hashApiKey(TOKEN_MANAGEMENT_TOKEN)).first<{ id: string }>();
-    const revokeOther = await SELF.fetch(`http://localhost/api/boss/tokens/${adminToken?.id}`, {
-      method: 'DELETE', headers: bossHeaders(VIEWER_TOKEN),
-    });
+    const revokeOther = await testRequest('DELETE', `http://localhost/api/boss/tokens/${adminToken?.id}`,
+      bossHeaders(VIEWER_TOKEN));
     expect(revokeOther.status).toBe(403);
   });
 
   it('allows a non-admin token to revoke itself and then rejects it', async () => {
     const viewerToken = await env.DB.prepare('SELECT id FROM boss_tokens WHERE token_hash = ?')
       .bind(await hashApiKey(VIEWER_TOKEN)).first<{ id: string }>();
-    const response = await SELF.fetch(`http://localhost/api/boss/tokens/${viewerToken?.id}`, {
-      method: 'DELETE', headers: bossHeaders(VIEWER_TOKEN),
-    });
+    const response = await testRequest('DELETE', `http://localhost/api/boss/tokens/${viewerToken?.id}`,
+      bossHeaders(VIEWER_TOKEN));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, authenticated: false });
     expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(VIEWER_TOKEN) })).status).toBe(401);
@@ -219,9 +200,8 @@ describe('boss token management', () => {
 
 describe('boss token rotation', () => {
   it('revokes every token on self-rotation and returns the only live token', async () => {
-    const response = await SELF.fetch(`http://localhost/api/bosses/${selfRotateBossId}/token`, {
-      method: 'POST', headers: bossHeaders(SELF_ROTATE_TOKEN),
-    });
+    const response = await testRequest('POST', `http://localhost/api/bosses/${selfRotateBossId}/token`,
+      bossHeaders(SELF_ROTATE_TOKEN));
     expect(response.status).toBe(200);
     const data = await response.json() as { token: string };
     const live = await env.DB.prepare('SELECT token_hash FROM boss_tokens WHERE boss_id = ? AND revoked_at IS NULL')
@@ -247,11 +227,8 @@ describe('boss token authentication', () => {
 });
 
 async function pairingStatus(code: string): Promise<Record<string, unknown>> {
-  const response = await SELF.fetch('http://localhost/api/boss/pairing/status', {
-    method: 'POST',
-    headers: bossHeaders(),
-    body: JSON.stringify({ code }),
-  });
+  const response = await testRequest('POST', 'http://localhost/api/boss/pairing/status', bossHeaders(),
+    { code });
   expect(response.status).toBe(200);
   return await response.json() as Record<string, unknown>;
 }

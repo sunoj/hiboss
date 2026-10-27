@@ -2,6 +2,7 @@
 // Covers Telegram and Discord approval callbacks plus poll-token status delivery.
 // Depends on cloudflare:test, D1 fixtures, webhook secrets, and signed Discord payloads.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { approveAndCollect, getTestAgentId, mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
@@ -154,9 +155,8 @@ describe('Join flow', () => {
     await createBoss('join-flow-telegram-admin', 'telegram', '9001');
     await createBoss('join-flow-discord-admin', 'discord', '777');
     const responses = [
-      await SELF.fetch(`https://test.local/api/boss/join-requests/${join.request_id}/approve`, {
-        method: 'POST', headers: { Authorization: 'Bearer join-duplicate-token' },
-      }),
+      await testRequest('POST', `https://test.local/api/boss/join-requests/${join.request_id}/approve`,
+        { Authorization: 'Bearer join-duplicate-token' }),
       await postTelegramCallback(`join:approve:${join.request_id}`, '9001'),
       await signedDiscordFetch({ type: 3, channel_id: DISCORD_CHANNEL_ID,
         data: { custom_id: `join:approve:${join.request_id}` }, member: { user: { id: '777' } } }),
@@ -173,11 +173,8 @@ describe('Join flow', () => {
     await env.DB.prepare('DELETE FROM boss_agent_access').run();
     await env.DB.prepare('DELETE FROM api_keys').run();
     const previous = env.BOOTSTRAP_SECRET;
-    const firstJoin = (headers: Record<string, string>) => SELF.fetch(JOIN_BASE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body: JSON.stringify(joinBody('join-flow-bootstrap')),
-    });
+    const firstJoin = (headers: Record<string, string>) => testRequest('POST', JOIN_BASE,
+      { 'Content-Type': 'application/json', ...headers }, joinBody('join-flow-bootstrap'));
     env.BOOTSTRAP_SECRET = '';
     const unconfigured = await firstJoin({});
     env.BOOTSTRAP_SECRET = 'join-flow-bootstrap-secret';
@@ -198,11 +195,8 @@ describe('Join flow', () => {
 });
 
 async function createJoinRequest(name: string): Promise<{ request_id: string; poll_token: string; status: string }> {
-  const res = await SELF.fetch(JOIN_BASE, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...joinBody(name), invite: await mintTestInvite() }),
-  });
+  const res = await testRequest('POST', JOIN_BASE, { 'Content-Type': 'application/json' },
+    { ...joinBody(name), invite: await mintTestInvite() });
   expect(res.status).toBe(201);
   return res.json() as Promise<{ request_id: string; poll_token: string; status: string }>;
 }
@@ -218,13 +212,10 @@ async function createBoss(name: string, channel: 'telegram' | 'discord', userId:
 }
 
 async function postTelegramCallback(data: string, userId: string): Promise<Response> {
-  return SELF.fetch('https://test.local/api/webhooks/telegram', {
-    method: 'POST',
-    headers: {
+  return testRequest('POST', 'https://test.local/api/webhooks/telegram', {
       'Content-Type': 'application/json',
       'X-Telegram-Bot-Api-Secret-Token': TELEGRAM_SECRET,
-    },
-    body: JSON.stringify({
+    }, {
       callback_query: {
         id: `cb-${userId}`,
         data,
@@ -235,8 +226,7 @@ async function postTelegramCallback(data: string, userId: string): Promise<Respo
           chat: { id: TELEGRAM_CHAT_ID },
         },
       },
-    }),
-  });
+    });
 }
 
 async function signedDiscordFetch(body: Record<string, unknown>, timestamp = String(Math.floor(Date.now() / 1000))): Promise<Response> {

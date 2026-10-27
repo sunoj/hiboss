@@ -2,7 +2,8 @@
 // Covers /msg, /status, and regular text flows through POST /api/webhooks/telegram.
 // Depends on cloudflare:test, shared seeded fixtures, and mocked global fetch for replies.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getTestAgentId, seedDatabase } from '../test-helpers';
 
@@ -87,12 +88,8 @@ describe('Telegram command handling', () => {
 });
 
 async function postTelegramWebhook(payload: Record<string, unknown>): Promise<Response> {
-  return SELF.fetch(WEBHOOK_URL, {
-    method: 'POST',
-    headers: {
+  return testRequest('POST', WEBHOOK_URL, {
       'Content-Type': 'application/json',
       'X-Telegram-Bot-Api-Secret-Token': TELEGRAM_SECRET,
-    },
-    body: JSON.stringify(payload),
-  });
+    }, payload);
 }

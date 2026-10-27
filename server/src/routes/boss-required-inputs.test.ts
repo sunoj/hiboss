@@ -2,6 +2,7 @@
 // Exports Vitest cases; depends on D1 fixtures and the boss HTTP routes.
 // Verifies more than one keyset page and text resolution discovery.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -63,10 +64,8 @@ describe('required-input discovery', () => {
     const id = `null-expiry-${Date.now()}`;
     await insert(id, 'blocking', JSON.stringify({ options: ['Proceed'] }), 'normal');
     expect(await allPages()).toContain(id);
-    const reply = await SELF.fetch(`${BASE}/messages/${id}/reply`, {
-      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: 'Proceed' }),
-    });
+    const reply = await testRequest('POST', `${BASE}/messages/${id}/reply`,
+      { ...headers, 'Content-Type': 'application/json' }, { body: 'Proceed' });
     expect(reply.status).toBe(201);
     expect(await allPages()).not.toContain(id);
   });

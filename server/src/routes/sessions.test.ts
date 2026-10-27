@@ -2,6 +2,7 @@
 // Covers session CRUD and status management.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId, seedBossToken } from '../test-helpers';
@@ -33,11 +34,8 @@ function bossHeaders(): Record<string, string> {
 
 describe('POST /api/sessions', () => {
   it('registers a session with a legacy text project', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ id: 'sess-test-1', project: 'test-project' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/sessions', authHeaders(),
+      { id: 'sess-test-1', project: 'test-project' });
     expect(res.status).toBe(201);
     const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.id).toBe('sess-test-1');
@@ -45,18 +43,14 @@ describe('POST /api/sessions', () => {
   });
 
   it('registers with branch, cwd, label, and status', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({
+    const res = await testRequest('POST', 'http://localhost/api/sessions', authHeaders(), {
         id: 'sess-test-2',
         branch: 'feat/test',
         cwd: '/home/user/project',
         label: 'test-session',
         status: 'idle',
         status_text: 'Waiting for input',
-      }),
-    });
+      });
     expect(res.status).toBe(201);
     const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.branch).toBe('feat/test');
@@ -69,55 +63,39 @@ describe('POST /api/sessions', () => {
 
 describe('POST /api/sessions validation', () => {
   it('defaults invalid status to working', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ id: 'sess-test-3', project: 'test-project', status: 'invalid' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/sessions', authHeaders(),
+      { id: 'sess-test-3', project: 'test-project', status: 'invalid' });
     expect(res.status).toBe(201);
     const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.status).toBe('working');
   });
 
   it('rejects missing id', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({}),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/sessions', authHeaders(), {});
     expect(res.status).toBe(400);
   });
 });
 
 describe('POST /api/sessions ownership and updates', () => {
   it('upserts on conflict (re-register same ID)', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ id: 'sess-test-1', status: 'blocked', status_text: 'Need help' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/sessions', authHeaders(),
+      { id: 'sess-test-1', status: 'blocked', status_text: 'Need help' });
     expect(res.status).toBe(201);
     const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.status).toBe('blocked');
   });
 
   it('auto-generates label from cwd and branch', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ id: 'sess-test-4', cwd: '/project', branch: 'main' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/sessions', authHeaders(),
+      { id: 'sess-test-4', cwd: '/project', branch: 'main' });
     expect(res.status).toBe(201);
     const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.label).toBe('/project/main');
   });
 
   it('rejects cross-agent overwrites', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions', {
-      method: 'POST',
-      headers: otherAgentHeaders(),
-      body: JSON.stringify({ id: 'sess-test-1', status: 'idle' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/sessions', otherAgentHeaders(),
+      { id: 'sess-test-1', status: 'idle' });
     expect(res.status).toBe(409);
     expect(await res.text()).toBe('session belongs to another agent');
   });
@@ -133,11 +111,8 @@ describe('GET /api/sessions', () => {
   });
 
   it('ignores ?all=true for agent callers', async () => {
-    await SELF.fetch('http://localhost/api/sessions', {
-      method: 'POST',
-      headers: otherAgentHeaders(),
-      body: JSON.stringify({ id: 'sess-other-agent-1', project: 'test-project', status: 'idle' }),
-    });
+    await testRequest('POST', 'http://localhost/api/sessions', otherAgentHeaders(),
+      { id: 'sess-other-agent-1', project: 'test-project', status: 'idle' });
     const res = await SELF.fetch('http://localhost/api/sessions?all=true', { headers: authHeaders() });
     expect(res.status).toBe(200);
     const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
@@ -163,9 +138,8 @@ describe('GET /api/sessions boss access', () => {
       .bind(bossId, getTestAgentId()).run();
     await env.DB.prepare("INSERT INTO sessions (id, agent_id, last_seen_at) VALUES (?, ?, datetime('now', '-16 minutes'))")
       .bind(`stale-viewer-${query}`, getTestAgentId()).run();
-    const res = await SELF.fetch(`http://localhost/api/sessions${query}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await testRequest('GET', `http://localhost/api/sessions${query}`,
+      { Authorization: `Bearer ${token}` });
     expect(res.status).toBe(200);
     const data = await res.json() as { sessions: { id: string; agent_id: string }[] };
     expect(data.sessions.length).toBeGreaterThan(0);
@@ -176,9 +150,8 @@ describe('GET /api/sessions boss access', () => {
   it.each(['?all=true', '', '?all=false'])('returns no sessions for managers without grants with %s', async (query) => {
     const token = `hb_boss_manager_sessions_${query}`;
     await seedBossToken('Session Manager', 'manager', token);
-    const res = await SELF.fetch(`http://localhost/api/sessions${query}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await testRequest('GET', `http://localhost/api/sessions${query}`,
+      { Authorization: `Bearer ${token}` });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ sessions: [] });
   });
@@ -186,37 +159,27 @@ describe('GET /api/sessions boss access', () => {
 
 describe('PATCH /api/sessions/:id', () => {
   it('heartbeats a session', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions/sess-test-1', {
-      method: 'PATCH',
-      headers: { Authorization: authHeaders().Authorization },
-    });
+    const res = await testRequest('PATCH', 'http://localhost/api/sessions/sess-test-1',
+      { Authorization: authHeaders().Authorization });
     expect(res.status).toBe(200);
   });
 
   it('updates status via heartbeat', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions/sess-test-1', {
-      method: 'PATCH',
-      headers: authHeaders(),
-      body: JSON.stringify({ status: 'waiting', status_text: 'Waiting for deploy' }),
-    });
+    const res = await testRequest('PATCH', 'http://localhost/api/sessions/sess-test-1', authHeaders(),
+      { status: 'waiting', status_text: 'Waiting for deploy' });
     expect(res.status).toBe(200);
   });
 
   it('returns 404 for unknown session', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions/nonexistent', {
-      method: 'PATCH',
-      headers: { Authorization: authHeaders().Authorization },
-    });
+    const res = await testRequest('PATCH', 'http://localhost/api/sessions/nonexistent',
+      { Authorization: authHeaders().Authorization });
     expect(res.status).toBe(404);
   });
 });
 
 describe('DELETE /api/sessions/:id', () => {
   it('deletes a session', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions/sess-test-4', {
-      method: 'DELETE',
-      headers: authHeaders(),
-    });
+    const res = await testRequest('DELETE', 'http://localhost/api/sessions/sess-test-4', authHeaders());
     expect(res.status).toBe(200);
   });
 });

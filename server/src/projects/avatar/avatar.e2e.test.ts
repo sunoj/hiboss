@@ -1,6 +1,7 @@
 // Exercises avatar-only project authorization through the Worker profile endpoint.
 // Verifies boss overlap, strict mixed writes, attachment ownership and durable audit rows.
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../../test-request';
+import { env } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedDatabase } from '../../test-helpers';
 
@@ -47,9 +48,8 @@ async function seedProject(slug: string, owners: string[] = [caller, peerA]): Pr
 }
 
 function put(project: string, body: Record<string, unknown>): Promise<Response> {
-  return SELF.fetch(`https://test.local/api/progress/teams/${encodeURIComponent(project)}`, {
-    method: 'PUT', headers: authHeaders(), body: JSON.stringify(body),
-  });
+  return testRequest('PUT', `https://test.local/api/progress/teams/${encodeURIComponent(project)}`,
+    authHeaders(), body);
 }
 
 async function stored(project: string): Promise<Record<string, unknown> | null> {
@@ -222,9 +222,8 @@ it('rejects a caller who registers a session on another boss project', async () 
   const project = 'avatar-joined';
   await seedProject(project, [outsider]);
   await env.DB.prepare('UPDATE projects SET created_by_agent_id = ? WHERE id = ?').bind(outsider, project).run();
-  const joined = await SELF.fetch('https://test.local/api/sessions', {
-    method: 'POST', headers: authHeaders(), body: JSON.stringify({ id: 'avatar-joined-caller', project }),
-  });
+  const joined = await testRequest('POST', 'https://test.local/api/sessions', authHeaders(),
+    { id: 'avatar-joined-caller', project });
   expect(joined.status).toBe(201);
   expect((await put(project, { avatar_url: avatar })).status).toBe(409);
   expect(await stored(project)).toMatchObject({ avatar_url: priorAvatar });

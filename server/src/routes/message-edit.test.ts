@@ -2,7 +2,8 @@
 // Covers body edits, ownership checks, audit logging, and combined status/body updates.
 // Depends on cloudflare:test, D1 fixtures, and shared auth helpers.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
@@ -20,18 +21,12 @@ afterEach(() => {
 
 describe('PATCH /api/messages/:id', () => {
   it('updates an agent-owned message body after creation', async () => {
-    const createRes = await SELF.fetch(API_BASE, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'message-edit:create-body' }),
-    });
+    const createRes = await testRequest('POST', API_BASE, authHeaders(),
+      { body: 'message-edit:create-body' });
     const created = await createRes.json() as { id: string };
 
-    const editRes = await SELF.fetch(`${API_BASE}/${created.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'message-edit:updated-body' }),
-    });
+    const editRes = await testRequest('PATCH', `${API_BASE}/${created.id}`, authHeaders(),
+      { body: 'message-edit:updated-body' });
 
     expect(editRes.status).toBe(200);
     expect(await editRes.json()).toMatchObject({ id: created.id, body: 'message-edit:updated-body' });
@@ -45,11 +40,8 @@ describe('PATCH /api/messages/:id', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'boss_to_agent', 'async', 'api', ?, 'sent', 'normal')"
     ).bind('message-edit-non-agent', getTestAgentId(), 'message-edit:boss-to-agent').run();
 
-    const res = await SELF.fetch(`${API_BASE}/message-edit-non-agent`, {
-      method: 'PATCH',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'message-edit:forbidden' }),
-    });
+    const res = await testRequest('PATCH', `${API_BASE}/message-edit-non-agent`, authHeaders(),
+      { body: 'message-edit:forbidden' });
 
     expect(res.status).toBe(403);
     expect(await res.text()).toBe('only agent_to_boss messages can be edited');
@@ -61,29 +53,20 @@ describe('PATCH /api/messages/:id', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'api', ?, 'sent', 'normal', ?)"
     ).bind('message-edit-owned-by-other', 'message-edit-owner', 'message-edit:other-owner', getTestAgentId()).run();
 
-    const res = await SELF.fetch(`${API_BASE}/message-edit-owned-by-other`, {
-      method: 'PATCH',
-      headers: authHeaders(),
-      body: JSON.stringify({ status: 'delivered' }),
-    });
+    const res = await testRequest('PATCH', `${API_BASE}/message-edit-owned-by-other`, authHeaders(),
+      { status: 'delivered' });
 
     expect(res.status).toBe(403);
     expect(await res.text()).toBe('only message owner can update message');
   });
 
   it('writes an audit log entry when a message body is edited', async () => {
-    const createRes = await SELF.fetch(API_BASE, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'message-edit:audit-source' }),
-    });
+    const createRes = await testRequest('POST', API_BASE, authHeaders(),
+      { body: 'message-edit:audit-source' });
     const created = await createRes.json() as { id: string };
 
-    const editRes = await SELF.fetch(`${API_BASE}/${created.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'message-edit:audit-updated' }),
-    });
+    const editRes = await testRequest('PATCH', `${API_BASE}/${created.id}`, authHeaders(),
+      { body: 'message-edit:audit-updated' });
     expect(editRes.status).toBe(200);
 
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -102,18 +85,12 @@ describe('PATCH /api/messages/:id', () => {
   });
 
   it('updates status and body in the same patch request', async () => {
-    const createRes = await SELF.fetch(API_BASE, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'message-edit:combined-source' }),
-    });
+    const createRes = await testRequest('POST', API_BASE, authHeaders(),
+      { body: 'message-edit:combined-source' });
     const created = await createRes.json() as { id: string };
 
-    const res = await SELF.fetch(`${API_BASE}/${created.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'message-edit:combined-updated', status: 'delivered' }),
-    });
+    const res = await testRequest('PATCH', `${API_BASE}/${created.id}`, authHeaders(),
+      { body: 'message-edit:combined-updated', status: 'delivered' });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({
@@ -138,11 +115,8 @@ describe('PATCH /api/messages/:id', () => {
       JSON.stringify({ telegram_message_id: 42, file_url: 'https://files.test/report.pdf' }),
     ).run();
 
-    const res = await SELF.fetch(`${API_BASE}/message-edit-telegram-caption`, {
-      method: 'PATCH',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'message-edit:caption-updated' }),
-    });
+    const res = await testRequest('PATCH', `${API_BASE}/message-edit-telegram-caption`, authHeaders(),
+      { body: 'message-edit:caption-updated' });
 
     expect(res.status).toBe(200);
     await new Promise((resolve) => setTimeout(resolve, 50));

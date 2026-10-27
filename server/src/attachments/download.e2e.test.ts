@@ -2,6 +2,7 @@
 // Covers playback probes, seeking, validators, HEAD, and invalid ranges against R2.
 // Dependencies: cloudflare:test SELF, Vitest, and isolated test authentication.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, seedDatabase } from '../test-helpers';
@@ -98,15 +99,11 @@ describe('media byte-range delivery', () => {
     const head = await SELF.fetch(mediaUrl, { method: 'HEAD' });
     const etag = head.headers.get('etag');
     expect(etag).toBeTruthy();
-    const response = await SELF.fetch(mediaUrl, {
-      headers: { Range: 'bytes=2-3', 'If-Range': etag! },
-    });
+    const response = await testRequest('GET', mediaUrl, { Range: 'bytes=2-3', 'If-Range': etag! });
     expect(response.status).toBe(206);
     expect(await response.text()).toBe('23');
     for (const validator of ['"old"', `W/${etag}`, 'Wed, 01 Jan 2020 00:00:00 GMT']) {
-      const full = await SELF.fetch(mediaUrl, {
-        headers: { Range: 'bytes=2-3', 'If-Range': validator },
-      });
+      const full = await testRequest('GET', mediaUrl, { Range: 'bytes=2-3', 'If-Range': validator });
       expect(full.status).toBe(200);
       expect(await full.text()).toBe(CONTENT);
     }

@@ -1,5 +1,6 @@
 // Exercises first-install authorization through real Worker HTTP requests.
 // Covers stored bootstrap grants, boss administration, and last-admin survival.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, beforeEach, expect, it } from 'vitest';
 import { getTestAgentId, mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
@@ -30,14 +31,11 @@ it('rule 3 grants every bootstrap profile admin only after approval', async () =
   await env.DB.prepare('DELETE FROM boss_agent_access').run();
   await env.DB.prepare('DELETE FROM api_keys').run();
   env.BOOTSTRAP_SECRET = 'synthetic-install-secret';
-  const response = await SELF.fetch('https://test.local/api/join', {
-    method: 'POST', headers: {
+  const response = await testRequest('POST', 'https://test.local/api/join', {
       'Content-Type': 'application/json', 'X-Bootstrap-Secret': 'synthetic-install-secret',
-    },
-    body: JSON.stringify({ device: { label: 'install' }, profiles: [
+    }, { device: { label: 'install' }, profiles: [
       { profile: 'aid', name: 'install-aid' }, { profile: 'codex', name: 'install-codex' },
-    ] }),
-  });
+    ] });
   expect(response.status).toBe(201);
   expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM api_keys').first('n')).toBe(0);
   const pending = await response.json() as { request_id: string };
@@ -52,11 +50,9 @@ it('rule 3 grants every bootstrap profile admin only after approval', async () =
 });
 
 it('rule 3 keeps invited profiles ordinary even with a forged bootstrap admin field', async () => {
-  const response = await SELF.fetch('https://test.local/api/join', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ device: { label: 'invited' }, invite: await mintTestInvite(),
-      profiles: [{ profile: 'aid', name: 'invited-aid' }], bootstrap_admin: 1 }),
-  });
+  const response = await testRequest('POST', 'https://test.local/api/join',
+    { 'Content-Type': 'application/json' }, { device: { label: 'invited' }, invite: await mintTestInvite(),
+      profiles: [{ profile: 'aid', name: 'invited-aid' }], bootstrap_admin: 1 });
   expect(response.status).toBe(201);
   const pending = await response.json() as { request_id: string };
   expect((await write(`boss/join-requests/${pending.request_id}/approve`, {}, 'POST')).status).toBe(200);

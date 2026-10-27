@@ -1,6 +1,7 @@
 // Live Activity token registration tests: auth, validation, 404 for unreadable asks, 409 outside
 // direct mode or for a closed ask, upsert per device and ask, deletion with the device or its move.
 // Calls the boss devices router with a direct-mode env; tokens are fake fixtures.
+import { testRequest } from '../test-request';
 import { createExecutionContext, env, SELF, waitOnExecutionContext } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedBossToken, seedDatabase } from '../test-helpers';
@@ -52,9 +53,8 @@ describe('POST /api/boss/devices/live-activities', () => {
   });
 
   it('answers 409 outside direct mode', async () => {
-    const response = await SELF.fetch('https://test/api/boss/devices/live-activities', {
-      method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
-      body: JSON.stringify(valid) });
+    const response = await testRequest('POST', 'https://test/api/boss/devices/live-activities',
+      { Authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' }, valid);
     expect(response.status).toBe(409);
     expect(await storedTokens('la-reg-ask')).toEqual([]);
   });
@@ -97,9 +97,8 @@ describe('POST /api/boss/devices/live-activities', () => {
   it('drops the tokens of a device registered again under another boss', async () => {
     // Runs after the upsert test removed dd01, so dd03 is this boss's only direct device.
     const device = { token: 'dd03', bundleId: 'ai.hiboss.app', environment: 'sandbox', platform: 'ios' };
-    const registerDevice = (token: string) => SELF.fetch('https://test/api/boss/devices', {
-      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify(device) });
+    const registerDevice = (token: string) => testRequest('POST', 'https://test/api/boss/devices',
+      { Authorization: `Bearer ${token}`, 'content-type': 'application/json' }, device);
     expect((await registerDevice(TOKEN)).status).toBe(200);
     expect((await register({ ...valid, messageId: 'la-reg-moved' })).status).toBe(204);
     expect(await storedTokens('la-reg-moved')).toHaveLength(1);

@@ -1,5 +1,6 @@
 // Worker API tests for nickname allocation and additive session inventory fields.
 // Exercises real D1 through registration, heartbeat, and both session lists.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, seedBossToken, seedDatabase } from '../test-helpers';
@@ -26,19 +27,16 @@ beforeAll(async () => {
 async function register(
   id: string, project: string, nickname?: string, other = false,
 ): Promise<Session> {
-  const response = await SELF.fetch('http://localhost/api/sessions', {
-    method: 'POST',
-    headers: other ? { ...authHeaders(), Authorization: `Bearer ${OTHER_KEY}` } : authHeaders(),
-    body: JSON.stringify({ id, project, branch: 'main', nickname }),
-  });
+  const response = await testRequest('POST', 'http://localhost/api/sessions',
+    other ? { ...authHeaders(), Authorization: `Bearer ${OTHER_KEY}` } : authHeaders(),
+    { id, project, branch: 'main', nickname });
   expect(response.status).toBe(201);
   return response.json() as Promise<Session>;
 }
 
 async function heartbeat(id: string, nickname?: string): Promise<string | null> {
-  const response = await SELF.fetch(`http://localhost/api/sessions/${id}`, {
-    method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ nickname, status: 'working' }),
-  });
+  const response = await testRequest('PATCH', `http://localhost/api/sessions/${id}`, authHeaders(),
+    { nickname, status: 'working' });
   expect(response.status).toBe(200);
   return (await response.json() as { nickname: string | null }).nickname;
 }

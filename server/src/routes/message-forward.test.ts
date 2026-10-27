@@ -2,7 +2,8 @@
 // Covers helper validation plus route-level forwarding, ownership, and missing-message checks.
 // Depends on cloudflare:test env, seeded D1 state, shared auth helpers, and mocked fetch.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
@@ -93,11 +94,8 @@ describe('POST /api/messages/:id/forward', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ result: { message_id: 71 } }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = await SELF.fetch('https://test.local/api/messages/forward-route-source/forward', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ channel: 'telegram' }),
-    });
+    const res = await testRequest('POST', 'https://test.local/api/messages/forward-route-source/forward',
+      authHeaders(), { channel: 'telegram' });
 
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({
@@ -117,22 +115,17 @@ describe('POST /api/messages/:id/forward', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'api', ?, 'sent', 'normal', ?)"
     ).bind('forward-route-owned-by-other', 'forward-route-owner', 'forward-route:other-owner', getTestAgentId()).run();
 
-    const res = await SELF.fetch('https://test.local/api/messages/forward-route-owned-by-other/forward', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ channel: 'discord' }),
-    });
+    const res = await testRequest('POST',
+      'https://test.local/api/messages/forward-route-owned-by-other/forward', authHeaders(),
+      { channel: 'discord' });
 
     expect(res.status).toBe(403);
     expect(await res.text()).toBe('forbidden');
   });
 
   it('returns 404 when the source message does not exist', async () => {
-    const res = await SELF.fetch('https://test.local/api/messages/forward-route-missing/forward', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ channel: 'telegram' }),
-    });
+    const res = await testRequest('POST', 'https://test.local/api/messages/forward-route-missing/forward',
+      authHeaders(), { channel: 'telegram' });
 
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('not found');

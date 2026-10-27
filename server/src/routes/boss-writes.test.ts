@@ -2,6 +2,7 @@
 // Covers groups, routing rules, agent config, channel projection, and system doctor.
 // Depends on cloudflare:test env, shared test helpers, and boss token auth.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -37,15 +38,11 @@ function bossHeaders(token = ADMIN_TOKEN): Record<string, string> {
 
 describe('boss write contract', () => {
   it('creates a group for an accessible owner', async () => {
-    const res = await SELF.fetch('https://test.local/api/boss/groups', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({
+    const res = await testRequest('POST', 'https://test.local/api/boss/groups', bossHeaders(), {
         name: `boss-writes-group-${Date.now()}`,
         description: 'created by boss write tests',
         owner_agent_id: getTestAgentId(),
-      }),
-    });
+      });
     expect(res.status).toBe(201);
     const data = await res.json() as { id: string; owner_id: string };
     expect(data.owner_id).toBe(getTestAgentId());
@@ -53,18 +50,12 @@ describe('boss write contract', () => {
   });
 
   it('adds a member and broadcasts to the group', async () => {
-    const add = await SELF.fetch(`https://test.local/api/boss/groups/${groupId}/members`, {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ agent_id: getTestAgentId() }),
-    });
+    const add = await testRequest('POST', `https://test.local/api/boss/groups/${groupId}/members`,
+      bossHeaders(), { agent_id: getTestAgentId() });
     expect(add.status).toBe(201);
 
-    const broadcast = await SELF.fetch(`https://test.local/api/boss/groups/${groupId}/broadcast`, {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Boss write broadcast', priority: 'high' }),
-    });
+    const broadcast = await testRequest('POST', `https://test.local/api/boss/groups/${groupId}/broadcast`,
+      bossHeaders(), { body: 'Boss write broadcast', priority: 'high' });
     expect(broadcast.status).toBe(201);
     const data = await broadcast.json() as { count: number; messages: { agent_id: string }[] };
     expect(data.count).toBe(1);
@@ -72,17 +63,13 @@ describe('boss write contract', () => {
   });
 
   it('creates a routing rule for accessible owner and target agents', async () => {
-    const res = await SELF.fetch('https://test.local/api/boss/routing-rules', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({
+    const res = await testRequest('POST', 'https://test.local/api/boss/routing-rules', bossHeaders(), {
         owner_agent_id: getTestAgentId(),
         channel: 'telegram',
         pattern: 'boss-write.*',
         target_agent_id: getTestAgentId(),
         priority: 7,
-      }),
-    });
+      });
     expect(res.status).toBe(201);
     const data = await res.json() as { id: string; owner_id: string; priority: number };
     expect(data.owner_id).toBe(getTestAgentId());
@@ -91,11 +78,9 @@ describe('boss write contract', () => {
   });
 
   it('updates agent config through boss scope', async () => {
-    const res = await SELF.fetch(`https://test.local/api/boss/agents/${getTestAgentId()}/config`, {
-      method: 'PATCH',
-      headers: bossHeaders(),
-      body: JSON.stringify({ default_priority: 'critical', rate_limit: 11, channel_routing: { alerts: 'telegram' } }),
-    });
+    const res = await testRequest('PATCH', `https://test.local/api/boss/agents/${getTestAgentId()}/config`,
+      bossHeaders(),
+      { default_priority: 'critical', rate_limit: 11, channel_routing: { alerts: 'telegram' } });
     expect(res.status).toBe(200);
     const data = await res.json() as { default_priority: string; rate_limit: number; channel_routing: { alerts: string } };
     expect(data.default_priority).toBe('critical');
@@ -123,32 +108,22 @@ describe('boss write contract', () => {
   });
 
   it('rejects viewer writes and non-accessible manager writes', async () => {
-    const viewer = await SELF.fetch('https://test.local/api/boss/groups', {
-      method: 'POST',
-      headers: bossHeaders(VIEWER_TOKEN),
-      body: JSON.stringify({ name: `viewer-denied-${Date.now()}`, owner_agent_id: getTestAgentId() }),
-    });
+    const viewer = await testRequest('POST', 'https://test.local/api/boss/groups', bossHeaders(VIEWER_TOKEN),
+      { name: `viewer-denied-${Date.now()}`, owner_agent_id: getTestAgentId() });
     expect(viewer.status).toBe(403);
 
-    const manager = await SELF.fetch('https://test.local/api/boss/groups', {
-      method: 'POST',
-      headers: bossHeaders(MANAGER_TOKEN),
-      body: JSON.stringify({ name: `manager-denied-${Date.now()}`, owner_agent_id: OTHER_AGENT_ID }),
-    });
+    const manager = await testRequest('POST', 'https://test.local/api/boss/groups',
+      bossHeaders(MANAGER_TOKEN), { name: `manager-denied-${Date.now()}`, owner_agent_id: OTHER_AGENT_ID });
     expect(manager.status).toBe(403);
   });
 
   it('deletes boss-created routing rule and group', async () => {
-    const deleteRule = await SELF.fetch(`https://test.local/api/boss/routing-rules/${ruleId}`, {
-      method: 'DELETE',
-      headers: bossHeaders(),
-    });
+    const deleteRule = await testRequest('DELETE', `https://test.local/api/boss/routing-rules/${ruleId}`,
+      bossHeaders());
     expect(deleteRule.status).toBe(200);
 
-    const deleteGroup = await SELF.fetch(`https://test.local/api/boss/groups/${groupId}`, {
-      method: 'DELETE',
-      headers: bossHeaders(),
-    });
+    const deleteGroup = await testRequest('DELETE', `https://test.local/api/boss/groups/${groupId}`,
+      bossHeaders());
     expect(deleteGroup.status).toBe(200);
   });
 });

@@ -1,5 +1,6 @@
 // Verifies long agent bodies survive send, blocking ask, and edits without client metadata changes.
 // Exercises Worker routes and D1 storage, including the existing surrounding-whitespace trim.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Mode } from '../types';
@@ -28,11 +29,8 @@ beforeAll(seedDatabase);
 async function createMessage(
   body: string, mode: Mode, metadata: Record<string, unknown> | undefined,
 ): Promise<string> {
-  const response = await SELF.fetch('https://test.local/api/messages', {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ body, mode, metadata }),
-  });
+  const response = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+    { body, mode, metadata });
   expect(response.status).toBe(201);
   return (await response.json() as { id: string }).id;
 }
@@ -75,11 +73,8 @@ describe('Long agent message bodies', () => {
 
       it(`accepts ${label} on PATCH with ${metadataLabel} and preserves trimmed storage`, async () => {
         const id = await createMessage('Ready', 'async', metadata);
-        const response = await SELF.fetch(`https://test.local/api/messages/${id}`, {
-          method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({ body: ` \t\n\u2003${body}\u2003\n\t ` }),
-        });
+        const response = await testRequest('PATCH', `https://test.local/api/messages/${id}`, authHeaders(),
+          { body: ` \t\n\u2003${body}\u2003\n\t ` });
         expect(response.status).toBe(200);
         await expectStoredMessage(id, body, 'async', metadata);
       });

@@ -1,6 +1,7 @@
 // Round-two lifecycle regressions for session reuse and merged destination delivery.
 // Covers stale replies, boss cascade deletion, and deletion during an active send.
 // Depends on the Worker API, seeded D1, and the destination drain.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent-keys';
@@ -33,9 +34,8 @@ async function parentMessage(agentId: string, sessionId: string): Promise<string
 }
 
 async function reply(token: string, parentId: string): Promise<Response> {
-  return SELF.fetch(`${api}/boss/messages/${parentId}/reply`, {
-    method: 'POST', headers: headers(token), body: JSON.stringify({ body: unique('reply') }),
-  });
+  return testRequest('POST', `${api}/boss/messages/${parentId}/reply`, headers(token),
+    { body: unique('reply') });
 }
 
 async function deliveryPair(name: string): Promise<{
@@ -97,9 +97,8 @@ it('R2 deleted session reply stores its message but cannot seed events for a new
   const staleMessage = await stale.json() as { id: string };
   expect(await env.DB.prepare('SELECT id FROM messages WHERE id = ?').bind(staleMessage.id).first()).toEqual({ id: staleMessage.id });
   expect(await env.DB.prepare('SELECT id FROM session_events WHERE message_id = ?').bind(staleMessage.id).first()).toBeNull();
-  const registered = await SELF.fetch(`${api}/sessions`, {
-    method: 'POST', headers: headers(next.key), body: JSON.stringify({ id: session, project: unique('project') }),
-  });
+  const registered = await testRequest('POST', `${api}/sessions`, headers(next.key),
+    { id: session, project: unique('project') });
   expect(registered.status).toBe(201);
   const reused = await SELF.fetch(eventsPath, { headers: headers(next.key) });
   expect(reused.status).toBe(200);
@@ -116,9 +115,8 @@ it('R2 deleting a primary boss promotes the surviving delivery and drains once',
 
   send.mockClear();
   const target = await deliveryPair('boss-delete');
-  const deleted = await SELF.fetch(`${api}/bosses/${target.primaryBoss.id}`, {
-    method: 'DELETE', headers: headers(target.primaryBoss.token),
-  });
+  const deleted = await testRequest('DELETE', `${api}/bosses/${target.primaryBoss.id}`,
+    headers(target.primaryBoss.token));
   expect(deleted.status).toBe(200);
   expect(await deliveryRows(target.message)).toEqual([{ destination_id: target.secondary, merged_into: null, status: 'queued' }]);
   await drainDestinationDeliveries(on());
@@ -144,9 +142,8 @@ it('R2 deleting a claimed primary returns 409, then succeeds without a second se
   const draining = drainDestinationDeliveries(on());
   await started;
   try {
-    const blocked = await SELF.fetch(`${api}/boss/destinations/${target.primary}`, {
-      method: 'DELETE', headers: headers(target.primaryBoss.token),
-    });
+    const blocked = await testRequest('DELETE', `${api}/boss/destinations/${target.primary}`,
+      headers(target.primaryBoss.token));
     expect(blocked.status).toBe(409);
     expect(await blocked.json()).toEqual({ error: 'delivery in progress, retry' });
     expect((await deliveryRows(target.message)).map(row => row.merged_into === null)).toEqual([true, false]);
@@ -154,9 +151,8 @@ it('R2 deleting a claimed primary returns 409, then succeeds without a second se
     completeSend?.();
     await draining;
   }
-  const deleted = await SELF.fetch(`${api}/boss/destinations/${target.primary}`, {
-    method: 'DELETE', headers: headers(target.primaryBoss.token),
-  });
+  const deleted = await testRequest('DELETE', `${api}/boss/destinations/${target.primary}`,
+    headers(target.primaryBoss.token));
   expect(deleted.status).toBe(200);
   await drainDestinationDeliveries(on());
   expect(send).toHaveBeenCalledTimes(1);

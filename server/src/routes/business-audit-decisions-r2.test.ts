@@ -2,6 +2,7 @@
 // Covers decision-only reconcile reads, boss-agent self-answers, a2a timeouts and superseded asks.
 // Depends on SELF, seeded D1 fixtures, the scheduled sweep and option expiry helpers.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createAgent } from '../agent-keys';
@@ -57,9 +58,7 @@ describe('MA1 the reconcile read returns only decision replies', () => {
   it('omits the asking agent\'s own reply from the decision view', async () => {
     const asker = await agent('ma1');
     const id = await ask({ agentId: asker.id });
-    const own = await SELF.fetch(`${api}/messages/${id}/reply`, {
-      method: 'POST', headers: headers(asker.key), body: JSON.stringify({ body: 'Yes' }),
-    });
+    const own = await testRequest('POST', `${api}/messages/${id}/reply`, headers(asker.key), { body: 'Yes' });
     expect(own.status).toBe(201);
     // CONTROL: the plain thread read still shows the agent's own follow-up.
     const thread = await (await SELF.fetch(`${api}/messages/${id}`, { headers: headers(asker.key) }))
@@ -76,9 +75,7 @@ describe('MA1 the reconcile read returns only decision replies', () => {
     const id = await ask({ agentId: asker.id, direction: 'agent_to_agent', target: peer.id });
     const statuses: string[] = [];
     for (const [key, body] of [[asker.key, 'self'], [peer.key, 'peer']] as const) {
-      const response = await SELF.fetch(`${api}/messages/${id}/reply`, {
-        method: 'POST', headers: headers(key), body: JSON.stringify({ body }),
-      });
+      const response = await testRequest('POST', `${api}/messages/${id}/reply`, headers(key), { body });
       expect(response.status).toBe(201);
       statuses.push((await row(id)).status);
     }
@@ -98,14 +95,12 @@ describe('MA5 a boss-agent cannot answer its own ask through the inbox', () => {
       .bind(unique('boss'), unique('boss-name'), bossAgent.id).run();
     // CONTROL: the boss-agent answers a sub-agent's ask.
     const subAsk = await ask({ agentId: sub.id });
-    const control = await SELF.fetch(`${api}/boss/inbox/${subAsk}/reply`, {
-      method: 'POST', headers: headers(bossAgent.key), body: JSON.stringify({ body: 'Yes' }),
-    });
+    const control = await testRequest('POST', `${api}/boss/inbox/${subAsk}/reply`, headers(bossAgent.key),
+      { body: 'Yes' });
     expect(control.status).toBe(201);
     const ownAsk = await ask({ agentId: bossAgent.id });
-    const response = await SELF.fetch(`${api}/boss/inbox/${ownAsk}/reply`, {
-      method: 'POST', headers: headers(bossAgent.key), body: JSON.stringify({ body: 'Yes' }),
-    });
+    const response = await testRequest('POST', `${api}/boss/inbox/${ownAsk}/reply`, headers(bossAgent.key),
+      { body: 'Yes' });
     expect({ status: response.status, answers: await answers(ownAsk), parent: (await row(ownAsk)).status })
       .toEqual({ status: 403, answers: 0, parent: 'sent' });
   });
@@ -168,9 +163,8 @@ describe('only a decision reply closes an agent-to-agent ask', () => {
     await env.DB.prepare("INSERT INTO bosses (id, name, role, agent_id) VALUES (?, ?, 'admin', ?)")
       .bind(unique('boss'), unique('boss-name'), bossAgent.id).run();
     const id = await ask({ agentId: sub.id, direction: 'agent_to_agent', target: peer.id });
-    const response = await SELF.fetch(`${api}/boss/inbox/${id}/reply`, {
-      method: 'POST', headers: headers(bossAgent.key), body: JSON.stringify({ body: 'Yes' }),
-    });
+    const response = await testRequest('POST', `${api}/boss/inbox/${id}/reply`, headers(bossAgent.key),
+      { body: 'Yes' });
     expect({ status: response.status, parent: (await row(id)).status }).toEqual({ status: 404, parent: 'sent' });
   });
 
@@ -180,9 +174,8 @@ describe('only a decision reply closes an agent-to-agent ask', () => {
     const token = `hb_${unique('boss-token')}`;
     await seedBossToken(unique('close-api-boss'), 'admin', token);
     const id = await ask({ agentId: sub.id, direction: 'agent_to_agent', target: peer.id });
-    const response = await SELF.fetch(`${api}/boss/messages/${id}/reply`, {
-      method: 'POST', headers: headers(token), body: JSON.stringify({ body: 'Yes' }),
-    });
+    const response = await testRequest('POST', `${api}/boss/messages/${id}/reply`, headers(token),
+      { body: 'Yes' });
     expect(response.status).toBe(201);
     // The route closes a parent in waitUntil; give that write time to land before reading.
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -200,9 +193,7 @@ describe('a reply from the asking agent never answers its agent-to-agent ask', (
   }
 
   async function replyAndRead(id: string, key: string, body: Record<string, unknown>) {
-    const response = await SELF.fetch(`${api}/messages/${id}/reply`, {
-      method: 'POST', headers: headers(key), body: JSON.stringify(body),
-    });
+    const response = await testRequest('POST', `${api}/messages/${id}/reply`, headers(key), body);
     const decisions = await (await SELF.fetch(`${api}/messages/${id}?replies=decisions`, { headers: headers(key) }))
       .json() as { replies: unknown[] };
     return { status: response.status, parent: (await row(id)).status, decisions: decisions.replies.length };

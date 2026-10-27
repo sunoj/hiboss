@@ -2,6 +2,7 @@
 // Exercises public Worker routes with isolated D1 fixtures.
 // Depends on Cloudflare SELF, shared seeding, agent keys, and Web Crypto.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent-keys';
@@ -64,11 +65,9 @@ describe('Business audit access boundaries', () => {
     const oldSecret = env.TELEGRAM_WEBHOOK_SECRET;
     env.TELEGRAM_WEBHOOK_SECRET = 'audit-f5-webhook';
     try {
-      const send = (text: string): Promise<Response> => SELF.fetch(`${base}/api/webhooks/telegram`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'audit-f5-webhook' },
-        body: JSON.stringify({ message: { chat: { id: 'audit-f5-chat' }, from: { id: 'audit-f5-user' }, text } }),
-      });
+      const send = (text: string): Promise<Response> => testRequest('POST', `${base}/api/webhooks/telegram`,
+        { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'audit-f5-webhook' },
+        { message: { chat: { id: 'audit-f5-chat' }, from: { id: 'audit-f5-user' }, text } });
       const control = await send('ordinary message');
       expect(control.status).toBe(201);
       expect(await control.json()).toMatchObject({ agent_id: allowed.id });
@@ -100,10 +99,9 @@ describe('Business audit access boundaries', () => {
     await env.DB.prepare('INSERT INTO destination_routes (id, destination_id, session_id, project_id) VALUES (?, ?, ?, ?), (?, ?, ?, ?)')
       .bind('audit-f3-good-route', 'audit-f3-destination', 'audit-f3-good-session', 'audit-f3-good-from',
         'audit-f3-hidden-route', 'audit-f3-destination', 'audit-f3-hidden-session', 'audit-f3-mixed-from').run();
-    const merge = (from: string, into: string): Promise<Response> => SELF.fetch(`${base}/api/boss/projects/${from}`, {
-      method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ merge_into: into }),
-    });
+    const merge = (from: string, into: string): Promise<Response> => testRequest('PATCH',
+      `${base}/api/boss/projects/${from}`,
+      { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, { merge_into: into });
     expect((await merge('audit-f3-good-from', 'audit-f3-good-to')).status).toBe(200);
     expect(await sessionProject('audit-f3-good-session')).toBe('audit-f3-good-to');
     expect(await env.DB.prepare("SELECT project_id FROM destination_routes WHERE id = 'audit-f3-good-route'").first())
@@ -123,10 +121,9 @@ describe('Business audit access boundaries', () => {
     await project('audit-f2-other', hidden.id);
     await session('audit-f2-other-session', hidden.id, 'audit-f2-other');
     const post = (projectIdentity: { slug: string; aliases: string[] }, body: string): Promise<Response> =>
-      SELF.fetch(`${base}/api/progress`, {
-        method: 'POST', headers: { Authorization: `Bearer ${caller.key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body, project: projectIdentity }),
-      });
+      testRequest('POST', `${base}/api/progress`,
+        { Authorization: `Bearer ${caller.key}`, 'Content-Type': 'application/json' },
+        { body, project: projectIdentity });
     const control = await post({ slug: 'audit-f2-winner', aliases: [] }, 'control progress');
     expect(control.status).toBe(201);
     expect(await control.json()).toMatchObject({ project_ref: { id: 'audit-f2-winner' } });
@@ -152,10 +149,9 @@ describe('Business audit access boundaries', () => {
     }
     await env.DB.prepare("INSERT INTO messages (id, agent_id, direction, mode, body, status) VALUES (?, ?, 'agent_to_boss', 'async', 'control', 'sent'), (?, ?, 'agent_to_boss', 'async', 'viewer attempt', 'sent')")
       .bind('audit-f11-control', sub.id, 'audit-f11-target', sub.id).run();
-    const patch = (id: string, key: string): Promise<Response> => SELF.fetch(`${base}/api/boss/inbox/${id}`, {
-      method: 'PATCH', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'read' }),
-    });
+    const patch = (id: string, key: string): Promise<Response> => testRequest('PATCH',
+      `${base}/api/boss/inbox/${id}`, { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      { status: 'read' });
     expect((await patch('audit-f11-control', manager.key)).status).toBe(200);
     expect(await env.DB.prepare("SELECT status FROM messages WHERE id = 'audit-f11-control'").first()).toEqual({ status: 'read' });
     expect(await env.DB.prepare("SELECT status FROM messages WHERE id = 'audit-f11-target'").first()).toEqual({ status: 'sent' });

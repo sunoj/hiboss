@@ -2,7 +2,8 @@
 // Covers pairing key binding, downgrade rejection, tampering, and replay idempotency.
 // Depends on the worker API, D1 test fixtures, and Web Crypto P-256 support.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import type { AnsweredBy } from '../answered-by';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -73,9 +74,7 @@ describe('paired-device message signing', () => {
       signed_message: signedMessage,
     });
 
-    const fetched = await SELF.fetch(`http://localhost/api/messages/${message.id}`, {
-      headers: authHeaders(),
-    });
+    const fetched = await testRequest('GET', `http://localhost/api/messages/${message.id}`, authHeaders());
     expect(fetched.status).toBe(200);
     expect((await fetched.json() as SignedReplyResponse).metadata.provenance)
       .toEqual(message.metadata.provenance);
@@ -136,10 +135,7 @@ async function pairSigningClient(): Promise<{
   signingKeyId: string;
   privateKey: CryptoKey;
 }> {
-  const issued = await SELF.fetch('http://localhost/api/boss/pairing', {
-    method: 'POST',
-    headers: bossHeaders(ROOT_TOKEN),
-  });
+  const issued = await testRequest('POST', 'http://localhost/api/boss/pairing', bossHeaders(ROOT_TOKEN));
   const { code } = await issued.json() as { code: string };
   const keys = await crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify'],
@@ -150,15 +146,12 @@ async function pairSigningClient(): Promise<{
     keys.privateKey,
     pairingProof(code, 'ios', publicKey).buffer as ArrayBuffer,
   )));
-  const response = await SELF.fetch('http://localhost/api/pairing/redeem', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  const response = await testRequest('POST', 'http://localhost/api/pairing/redeem',
+    { 'Content-Type': 'application/json' }, {
       code,
       device_label: 'Signed iPhone',
       signing: { algorithm: 'ES256', client_kind: 'ios', public_key: publicKey, proof },
-    }),
-  });
+    });
   expect(response.status).toBe(200);
   const grant = await response.json() as { token: string; signing_key_id: string };
   return { token: grant.token, signingKeyId: grant.signing_key_id, privateKey: keys.privateKey };
@@ -185,11 +178,8 @@ async function signReply(body: string, messageId: string, parentId = PARENT_ID):
 }
 
 function reply(payload: Record<string, unknown>, parentId = PARENT_ID): Promise<Response> {
-  return SELF.fetch(`http://localhost/api/boss/messages/${parentId}/reply`, {
-    method: 'POST',
-    headers: bossHeaders(signedToken),
-    body: JSON.stringify(payload),
-  });
+  return testRequest('POST', `http://localhost/api/boss/messages/${parentId}/reply`,
+    bossHeaders(signedToken), payload);
 }
 
 function bossHeaders(token: string): Record<string, string> {

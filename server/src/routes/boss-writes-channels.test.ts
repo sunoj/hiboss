@@ -1,6 +1,7 @@
 // Channel toggle integration tests through the authenticated Worker API.
 // Covers scope, validation, projection, persistence, warnings, and auditing.
 // Depends on cloudflare:test, Vitest, and shared database fixtures.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -37,9 +38,7 @@ function headers(role = 'manager'): Record<string, string> {
 }
 
 function patch(id: string, body: unknown, role = 'manager'): Promise<Response> {
-  return SELF.fetch(`https://test.local/api/boss/channels/${id}`, {
-    method: 'PATCH', headers: headers(role), body: JSON.stringify(body),
-  });
+  return testRequest('PATCH', `https://test.local/api/boss/channels/${id}`, headers(role), body);
 }
 
 describe('boss channel toggle', () => {

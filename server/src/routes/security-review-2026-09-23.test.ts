@@ -1,4 +1,5 @@
 // Security regressions for foreign-session streams, active attachments, and bootstrap.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { approveAndCollect, authHeaders, mintTestInvite, seedDatabase } from '../test-helpers';
@@ -28,9 +29,8 @@ describe('Security review 2026-09-23 regressions', () => {
       // The query must remain isolated even if a caller bypasses session preflight.
       const query = buildStreamQuery('test-agent-id', session);
       expect((await env.DB.prepare(query.sql).bind(...query.buildBinds('2000-01-01')).all()).results).toEqual([]);
-      const authorized = await SELF.fetch(`${base}/api/messages/stream?session=${session}`, {
-        headers: { Authorization: `Bearer ${victim.key}` },
-      });
+      const authorized = await testRequest('GET', `${base}/api/messages/stream?session=${session}`,
+        { Authorization: `Bearer ${victim.key}` });
       expect(authorized.status).toBe(200);
       const reader = authorized.body!.getReader();
       try {
@@ -81,10 +81,8 @@ describe('Security review 2026-09-23 regressions', () => {
       expect(bootstrap.status).toBe(401);
       const invalidHeaders: Record<string, string>[] = [{}, { Authorization: 'Bearer wrong' }, { 'X-Bootstrap-Secret': 'wrong' }];
       for (const headers of invalidHeaders) {
-        const denied = await SELF.fetch(`${base}/api/join`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
-          body: JSON.stringify(joinBody('review-unauthorized-agent')),
-        });
+        const denied = await testRequest('POST', `${base}/api/join`,
+          { 'Content-Type': 'application/json', ...headers }, joinBody('review-unauthorized-agent'));
         expect(denied.status).toBe(401);
       }
       expect(await env.DB.prepare('SELECT COUNT(*) AS count FROM api_keys').first()).toEqual({ count: 0 });
@@ -97,15 +95,12 @@ describe('Security review 2026-09-23 regressions', () => {
       });
       expect(join.status).toBe(201);
       const grant = await approveAndCollect(join);
-      const profile = await SELF.fetch(`${base}/api/agents/me`, {
-        headers: { Authorization: `Bearer ${grant.key}` },
-      });
+      const profile = await testRequest('GET', `${base}/api/agents/me`,
+        { Authorization: `Bearer ${grant.key}` });
       expect(profile.status).toBe(200);
       expect(await profile.json()).toMatchObject({ id: grant.agent_id });
-      const pending = await SELF.fetch(`${base}/api/join`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...joinBody('review-pending-agent'), invite: await mintTestInvite(grant.key) }),
-      });
+      const pending = await testRequest('POST', `${base}/api/join`, { 'Content-Type': 'application/json' },
+        { ...joinBody('review-pending-agent'), invite: await mintTestInvite(grant.key) });
       expect(pending.status).toBe(201);
       expect(await pending.json()).toMatchObject({ status: 'pending' });
     } finally {

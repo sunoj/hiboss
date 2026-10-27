@@ -2,6 +2,7 @@
 // Covers concurrent sequence allocation, cursor replay, resync, visibility, and backfill ordering.
 // Depends on cloudflare:test, the Hono app, and shared database/auth helpers.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
@@ -35,11 +36,8 @@ async function createSession(id: string): Promise<void> {
 }
 
 async function sendMessage(sessionId: string, body: string): Promise<string> {
-  const response = await SELF.fetch('https://test.local/api/messages', {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ body, session_id: sessionId }),
-  });
+  const response = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+    { body, session_id: sessionId });
   expect(response.status).toBe(201);
   const data = await response.json() as { id: string };
   return data.id;
@@ -87,18 +85,12 @@ describe('session event history', () => {
     const targetSessionId = `${prefix}-agent-target`;
     await createSession(sessionId);
     await createSession(targetSessionId);
-    const send = await SELF.fetch('https://test.local/api/messages', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'peer request', session_id: sessionId, to: targetSessionId }),
-    });
+    const send = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+      { body: 'peer request', session_id: sessionId, to: targetSessionId });
     expect(send.status).toBe(201);
     const sent = await send.json() as { id: string };
-    const reply = await SELF.fetch(`https://test.local/api/messages/${sent.id}/reply`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'peer reply' }),
-    });
+    const reply = await testRequest('POST', `https://test.local/api/messages/${sent.id}/reply`,
+      authHeaders(), { body: 'peer reply' });
     expect(reply.status).toBe(201);
     const data = await history(sessionId);
     expect(data.events.map((event) => event.message_id)).toEqual([sent.id, (await reply.json() as { id: string }).id]);

@@ -2,7 +2,8 @@
 // and an ask that was answered, expired or timed out while queued is never sent.
 // Depends on the Worker (SELF) send route, seeded D1, and handleScheduled.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from './test-request';
+import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedDatabase } from './test-helpers';
 import { hashApiKey } from './middleware/auth';
@@ -37,10 +38,8 @@ afterEach(() => {
 });
 
 async function queuedSend(body: Record<string, unknown>): Promise<string> {
-  const res = await SELF.fetch('https://test.local/api/messages', {
-    method: 'POST', headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const res = await testRequest('POST', 'https://test.local/api/messages',
+    { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body);
   expect(res.status).toBe(201);
   const { id } = await res.json() as { id: string };
   const due = await env.DB.prepare("UPDATE delivery_queue SET scheduled_at = '2000-01-01T00:00:00.000Z' WHERE message_id = ? RETURNING id")

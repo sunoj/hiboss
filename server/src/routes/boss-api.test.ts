@@ -2,6 +2,7 @@
 // Covers boss auth flow, message listing with search, and reply.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
+import { testRequest } from '../test-request';
 import type { MessageRow } from '../types';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -48,16 +49,14 @@ function bossHeaders(): Record<string, string> {
 
 describe('Boss auth', () => {
   it('rejects invalid token', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/me', {
-      headers: { Authorization: 'Bearer hb_boss_invalid', 'Content-Type': 'application/json' },
-    });
+    const res = await testRequest('GET', 'http://localhost/api/boss/me',
+      { Authorization: 'Bearer hb_boss_invalid', 'Content-Type': 'application/json' });
     expect(res.status).toBe(401);
   });
 
   it('rejects agent key on boss endpoint', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/me', {
-      headers: { Authorization: 'Bearer hb_test_key_0000000000000000', 'Content-Type': 'application/json' },
-    });
+    const res = await testRequest('GET', 'http://localhost/api/boss/me',
+      { Authorization: 'Bearer hb_test_key_0000000000000000', 'Content-Type': 'application/json' });
     expect(res.status).toBe(401);
   });
 });
@@ -84,20 +83,14 @@ describe('Boss preferences', () => {
 
   it('PUT /api/boss/me/preferences sets and merges', async () => {
     // Set initial
-    const res1 = await SELF.fetch('http://localhost/api/boss/me/preferences', {
-      method: 'PUT',
-      headers: bossHeaders(),
-      body: JSON.stringify({ timezone: 'UTC' }),
-    });
+    const res1 = await testRequest('PUT', 'http://localhost/api/boss/me/preferences', bossHeaders(),
+      { timezone: 'UTC' });
     expect(res1.status).toBe(200);
     const data1 = await res1.json() as { timezone: string };
     expect(data1.timezone).toBe('UTC');
     // Merge more
-    const res2 = await SELF.fetch('http://localhost/api/boss/me/preferences', {
-      method: 'PUT',
-      headers: bossHeaders(),
-      body: JSON.stringify({ quiet_hours: { start: '22:00', end: '08:00' } }),
-    });
+    const res2 = await testRequest('PUT', 'http://localhost/api/boss/me/preferences', bossHeaders(),
+      { quiet_hours: { start: '22:00', end: '08:00' } });
     expect(res2.status).toBe(200);
     const data2 = await res2.json() as { timezone: string; quiet_hours: { start: string; end: string } };
     expect(data2.timezone).toBe('UTC');

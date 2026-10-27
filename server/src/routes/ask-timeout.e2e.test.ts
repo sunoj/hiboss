@@ -2,7 +2,8 @@
 // Covers older CLI payloads, poll windows, later boss replies, and default provenance.
 // Dependencies: messagesRouter, Cloudflare test contexts, and seeded D1 fixtures.
 
-import { createExecutionContext, env, SELF, waitOnExecutionContext } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 import { handleScheduled } from '../scheduled';
@@ -92,11 +93,8 @@ describe('explicit ask lifetime', () => {
     expect(JSON.parse(open?.metadata ?? '{}').options_expired).not.toBe(true);
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(Date.parse(ask.expires_at ?? '') - 1000));
-    const reply = await SELF.fetch(`https://test.local/api/boss/messages/${ask.id}/reply`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: 'B' }),
-    });
+    const reply = await testRequest('POST', `https://test.local/api/boss/messages/${ask.id}/reply`,
+      { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' }, { body: 'B' });
     expect(reply.status).toBe(201);
     const response = await request(`/${ask.id}/poll?timeout=300`);
     const result = await response.json() as MessageResponse;
@@ -127,11 +125,8 @@ describe('caller cleanup', () => {
   it('rejects boss reply after legacy text waiter exits', async () => {
     const ask = await send({ options: undefined });
     await endPollWindow(ask.id);
-    const reply = await SELF.fetch(`https://test.local/api/boss/messages/${ask.id}/reply`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: 'late answer' }),
-    });
+    const reply = await testRequest('POST', `https://test.local/api/boss/messages/${ask.id}/reply`,
+      { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' }, { body: 'late answer' });
     expect(reply.status).toBe(409);
   });
 });
@@ -253,10 +248,8 @@ describe('partial expiry writes', () => {
     await endPollWindow(row!.id);
     const stored = await env.DB.prepare('SELECT * FROM messages WHERE id = ?')
       .bind(row!.id).first<MessageRow>();
-    const late = await SELF.fetch(`https://test.local/api/boss/messages/${row!.id}/reply`, {
-      method: 'POST', headers: { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: 'late answer' }),
-    });
+    const late = await testRequest('POST', `https://test.local/api/boss/messages/${row!.id}/reply`,
+      { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' }, { body: 'late answer' });
     expect({ expires_at: stored?.expires_at, status: stored?.status, late: late.status })
       .toEqual({ expires_at: null, status: 'expired', late: 409 });
   });

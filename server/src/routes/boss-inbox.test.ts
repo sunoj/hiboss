@@ -1,6 +1,7 @@
 // Tests for boss-inbox routes: agent-as-boss reads and replies to sub-agent messages.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -95,11 +96,8 @@ describe('GET /api/boss/inbox/:id', () => {
 
 describe('POST /api/boss/inbox/:id/reply', () => {
   it('boss-agent replies to sub-agent message', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/inbox/msg-from-sub-1/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Good work, proceed.' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/inbox/msg-from-sub-1/reply',
+      bossHeaders(), { body: 'Good work, proceed.' });
     expect(res.status).toBe(201);
     const data = await res.json() as any;
     expect(data.direction).toBe('boss_to_agent');
@@ -117,11 +115,8 @@ describe('POST /api/boss/inbox/:id/reply', () => {
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'api', 'Need approval', 'sent', 'normal', ?)",
     ).bind(parentId, subAgentId, sessionId).run();
-    const res = await SELF.fetch(`http://localhost/api/boss/inbox/${parentId}/reply`, {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Approved' }),
-    });
+    const res = await testRequest('POST', `http://localhost/api/boss/inbox/${parentId}/reply`, bossHeaders(),
+      { body: 'Approved' });
     expect(res.status).toBe(201);
     const reply = await res.json() as { id: string };
     const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?')
@@ -140,11 +135,8 @@ describe('POST /api/boss/inbox/:id/reply', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal')"
     ).bind('msg-from-sub-2', subAgentId, 'Need help').run();
 
-    const res = await SELF.fetch('http://localhost/api/boss/inbox/msg-from-sub-2/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: '' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/inbox/msg-from-sub-2/reply',
+      bossHeaders(), { body: '' });
     expect(res.status).toBe(400);
   });
 });
@@ -155,11 +147,8 @@ describe('PATCH /api/boss/inbox/:id', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal')"
     ).bind('msg-from-sub-3', subAgentId, 'Status update').run();
 
-    const res = await SELF.fetch('http://localhost/api/boss/inbox/msg-from-sub-3', {
-      method: 'PATCH',
-      headers: bossHeaders(),
-      body: JSON.stringify({ status: 'read' }),
-    });
+    const res = await testRequest('PATCH', 'http://localhost/api/boss/inbox/msg-from-sub-3', bossHeaders(),
+      { status: 'read' });
     expect(res.status).toBe(200);
     const data = await res.json() as any;
     expect(data.status).toBe('read');
@@ -173,11 +162,8 @@ describe('PATCH /api/boss/inbox/:id', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal')"
     ).bind('msg-prefix-extra', subAgentId, 'Sibling').run();
 
-    const res = await SELF.fetch('http://localhost/api/boss/inbox/msg-prefix', {
-      method: 'PATCH',
-      headers: bossHeaders(),
-      body: JSON.stringify({ status: 'read' }),
-    });
+    const res = await testRequest('PATCH', 'http://localhost/api/boss/inbox/msg-prefix', bossHeaders(),
+      { status: 'read' });
 
     expect(res.status).toBe(200);
 

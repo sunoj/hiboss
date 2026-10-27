@@ -2,6 +2,7 @@
 // Covers one-answer races, unlinked late text, and ignored inserts.
 // Depends on seeded D1 fixtures, SELF routes, and the real default resolver.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Env, MessageRow } from '../types';
@@ -50,17 +51,14 @@ async function answers(id: string): Promise<{ body: string; reply_to: string | n
 }
 
 async function reply(id: string, body: string): Promise<Response> {
-  return SELF.fetch(`${base}/api/boss/messages/${id}/reply`, {
-    method: 'POST', headers: bossHeaders, body: JSON.stringify({ body }),
-  });
+  return testRequest('POST', `${base}/api/boss/messages/${id}/reply`, bossHeaders, { body });
 }
 
 async function telegram(chat: string, text: string, parentMessageId: number, updateId: number): Promise<Response> {
-  return SELF.fetch(`${base}/api/webhooks/telegram`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'ask-r2-secret' },
-    body: JSON.stringify({ update_id: updateId, message: { message_id: updateId, chat: { id: chat },
-      from: { id: telegramUser }, text, reply_to_message: { message_id: parentMessageId } } }),
-  });
+  return testRequest('POST', `${base}/api/webhooks/telegram`,
+    { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'ask-r2-secret' },
+    { update_id: updateId, message: { message_id: updateId, chat: { id: chat },
+      from: { id: telegramUser }, text, reply_to_message: { message_id: parentMessageId } } });
 }
 
 beforeAll(async () => {
@@ -83,11 +81,10 @@ describe('one answer per ask across writers', () => {
     const target = await ask(agent, 'telegram', { options: ['Yes', 'No'], telegram_message_id: 8201, telegram_chat_id: external });
     expect((await telegram(external, 'Yes', 8201, 8202)).status).toBe(201);
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"ok":true,"result":{}}', { status: 200 })));
-    const button = await SELF.fetch(`${base}/api/webhooks/telegram`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'ask-r2-secret' },
-      body: JSON.stringify({ callback_query: { id: fresh(), from: { id: telegramUser },
-        data: `${target.id.slice(0, 12)}:No`, message: { message_id: 8201, chat: { id: external }, text: 'Choose' } } }),
-    });
+    const button = await testRequest('POST', `${base}/api/webhooks/telegram`,
+      { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'ask-r2-secret' },
+      { callback_query: { id: fresh(), from: { id: telegramUser },
+        data: `${target.id.slice(0, 12)}:No`, message: { message_id: 8201, chat: { id: external }, text: 'Choose' } } });
     expect(button.status).toBe(409);
     expect(await answers(target.id)).toEqual([{ body: 'Yes', reply_to: target.id }]);
   });
@@ -121,11 +118,10 @@ describe('one answer per ask across writers', () => {
 
   it('stores a late Discord text reply without linking it to an answered ask', async () => {
     const { agent, external } = await agentWithChannel('discord');
-    const send = (text: string, parentId: string) => SELF.fetch(`${base}/api/webhooks/discord`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Webhook-Secret': 'ask-r2-discord-secret' },
-      body: JSON.stringify({ channel_id: external, message: { id: fresh(), content: text,
-        author: { id: discordUser }, message_reference: { message_id: parentId } } }),
-    });
+    const send = (text: string, parentId: string) => testRequest('POST', `${base}/api/webhooks/discord`,
+      { 'Content-Type': 'application/json', 'X-Webhook-Secret': 'ask-r2-discord-secret' },
+      { channel_id: external, message: { id: fresh(), content: text,
+        author: { id: discordUser }, message_reference: { message_id: parentId } } });
     const controlExternal = fresh();
     const control = await ask(agent, 'discord', { discord_message_id: controlExternal });
     expect((await send('Linked text', controlExternal)).status).toBe(201);

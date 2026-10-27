@@ -2,6 +2,7 @@
 // the session's open asks the same way, removal survives panels, boss deletion refuses history.
 // Depends on the Worker (SELF), seeded D1, and the panel publish route.
 
+import { testRequest } from './test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from './test-helpers';
@@ -31,24 +32,20 @@ async function state(id: string): Promise<{ status: string; replies: number }> {
 }
 
 function register(session: string, status?: string): Promise<Response> {
-  return SELF.fetch('http://localhost/api/sessions', {
-    method: 'POST', headers: authHeaders(),
-    body: JSON.stringify({ id: session, project: 'session-lifecycle', ...(status ? { status } : {}) }),
-  });
+  return testRequest('POST', 'http://localhost/api/sessions', authHeaders(),
+    { id: session, project: 'session-lifecycle', ...(status ? { status } : {}) });
 }
 
 async function publishPanel(session: string, targetBossId = ADMIN_ID): Promise<string> {
-  const res = await SELF.fetch('https://test.local/api/panels', {
-    method: 'POST', headers: { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
-    body: JSON.stringify({
+  const res = await testRequest('POST', 'https://test.local/api/panels',
+    { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() }, {
       protocolVersion: 2, targetBossId, sessionId: session, taskKey: 'lifecycle', title: 'Lifecycle',
       catalogId: 'hiboss.panel', catalogVersion: 1,
       spec: { root: 'metric', elements: { metric: { type: 'Metric', props: { label: 'Done', value: { $state: '/task/done' } }, children: [] } } },
       stateSchema: { type: 'object', properties: { task: { type: 'object', properties: { done: { type: 'integer' } },
         required: ['done'], additionalProperties: false } }, required: ['task'], additionalProperties: false },
       initialState: { task: { done: 0 } },
-    }),
-  });
+    });
   expect(res.status).toBe(201);
   return ((await res.json()) as { panelId: string }).panelId;
 }
@@ -71,9 +68,8 @@ describe('session completion', () => {
     expect((await register(session)).status).toBe(201);
     const ids = Array.from({ length: 60 }, (_, i) => `${session}-ask-${i}`);
     for (const id of ids) await ask(id, session, null);
-    const res = await SELF.fetch(`http://localhost/api/sessions/${session}`, {
-      method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ status: 'completed' }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/sessions/${session}`, authHeaders(),
+      { status: 'completed' });
     expect(res.status).toBe(200);
     const open = await env.DB.prepare("SELECT COUNT(*) AS n FROM messages WHERE session_id = ? AND status != 'expired'")
       .bind(session).first<{ n: number }>();
@@ -116,9 +112,8 @@ describe('boss hard deletion', () => {
     const session = unique('boss');
     expect((await register(session)).status).toBe(201);
     const panelId = await publishPanel(session, bossId);
-    const res = await SELF.fetch(`http://localhost/api/bosses/${bossId}`, {
-      method: 'DELETE', headers: { Authorization: `Bearer ${ADMIN}` },
-    });
+    const res = await testRequest('DELETE', `http://localhost/api/bosses/${bossId}`,
+      { Authorization: `Bearer ${ADMIN}` });
     expect(res.status).toBe(409);
     expect(await res.text()).toContain('archive');
     expect(await env.DB.prepare('SELECT id FROM bosses WHERE id = ?').bind(bossId).first()).not.toBeNull();

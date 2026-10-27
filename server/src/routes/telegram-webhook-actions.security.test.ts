@@ -2,7 +2,8 @@
 // Covers admin-only join approval plus topic-scoped callback, reaction, and message routing.
 // Depends on cloudflare:test env, seeded D1 state, and webhook auth helpers.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
 import { insertPendingJoin, seedDatabase } from '../test-helpers';
@@ -232,14 +233,10 @@ describe('Telegram webhook security', () => {
 });
 
 async function postTelegramWebhook(payload: Record<string, unknown>): Promise<Response> {
-  return SELF.fetch('https://test.local/api/webhooks/telegram', {
-    method: 'POST',
-    headers: {
+  return testRequest('POST', 'https://test.local/api/webhooks/telegram', {
       'Content-Type': 'application/json',
       'X-Telegram-Bot-Api-Secret-Token': TELEGRAM_SECRET,
-    },
-    body: JSON.stringify(payload),
-  });
+    }, payload);
 }
 
 async function createAgent(agentId: string): Promise<void> {

@@ -2,7 +2,8 @@
 // Verifies that logAudit writes entries and GET /api/audit queries them.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 import { logAudit } from '../audit';
@@ -46,9 +47,7 @@ describe('GET /api/audit', () => {
   });
 
   it('returns audit entries', async () => {
-    const res = await SELF.fetch('https://test.local/api/audit', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/audit', authHeaders());
     expect(res.status).toBe(200);
     const data = await res.json() as { entries: unknown[]; total: number };
     expect(data.entries.length).toBeGreaterThan(0);
@@ -58,9 +57,7 @@ describe('GET /api/audit', () => {
   it('returns empty when an agent filters by a non-agent actor_type (scoped, not global)', async () => {
     // An agent's own entries are always actor_type='agent'; asking for boss
     // entries must yield nothing rather than leaking the global boss trail.
-    const res = await SELF.fetch('https://test.local/api/audit?actor_type=boss', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/audit?actor_type=boss', authHeaders());
     expect(res.status).toBe(200);
     const data = (await res.json()) as { entries: unknown[]; total: number };
     expect(data.entries.length).toBe(0);
@@ -68,9 +65,7 @@ describe('GET /api/audit', () => {
   });
 
   it('filters by action', async () => {
-    const res = await SELF.fetch('https://test.local/api/audit?action=message.send', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/audit?action=message.send', authHeaders());
     expect(res.status).toBe(200);
     const data = await res.json() as { entries: { action: string }[] };
     for (const entry of data.entries) {
@@ -79,9 +74,7 @@ describe('GET /api/audit', () => {
   });
 
   it('supports limit and offset', async () => {
-    const res = await SELF.fetch('https://test.local/api/audit?limit=1&offset=0', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/audit?limit=1&offset=0', authHeaders());
     expect(res.status).toBe(200);
     const data = await res.json() as { entries: unknown[] };
     expect(data.entries.length).toBeLessThanOrEqual(1);
@@ -92,9 +85,7 @@ describe('GET /api/audit scoping', () => {
   it("returns only the calling agent's own entries, never other agents' or boss entries", async () => {
     await logAudit(env as never, 'agent', 'other-agent-xyz', 'secret.action', 'thing', 'x-1');
     await logAudit(env as never, 'boss', 'boss-scoped', 'boss.only', 'thing', 'b-1');
-    const res = await SELF.fetch('https://test.local/api/audit?limit=200', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/audit?limit=200', authHeaders());
     expect(res.status).toBe(200);
     const data = (await res.json()) as { entries: { actor_type: string; actor_id: string }[] };
     for (const entry of data.entries) {
@@ -108,9 +99,7 @@ describe('GET /api/audit scoping', () => {
   });
 
   it('returns no entries when filtering by a non-agent actor_type', async () => {
-    const res = await SELF.fetch('https://test.local/api/audit?actor_type=system', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/audit?actor_type=system', authHeaders());
     expect(res.status).toBe(200);
     const data = (await res.json()) as { entries: unknown[]; total: number };
     expect(data.entries.length).toBe(0);
@@ -127,11 +116,8 @@ describe('Audit from message send', () => {
       .first<{ c: number }>();
     const countBefore = before?.c ?? 0;
 
-    await SELF.fetch('https://test.local/api/messages', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ body: 'Audit test message' }),
-    });
+    await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+      { body: 'Audit test message' });
 
     // Wait a tick for waitUntil to complete
     await new Promise((r) => setTimeout(r, 50));

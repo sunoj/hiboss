@@ -2,7 +2,8 @@
 // Exports channel configuration checks and API key endpoints used by the admin router.
 // Depends on the cloudflare:test runtime and shared test helpers for auth and seeding.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { describe, expect, it, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 
@@ -23,9 +24,7 @@ describe('GET /api/channels', () => {
   it('returns an empty channel list when nothing is configured', async () => {
     await clearChannelConfigs();
 
-    const res = await SELF.fetch(`${API_BASE}/channels`, {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', `${API_BASE}/channels`, authHeaders());
 
     expect(res.status).toBe(200);
     const data = (await res.json()) as { channels: Array<unknown> };
@@ -39,9 +38,7 @@ describe('GET /api/channels', () => {
       .bind(0, getTestAgentId())
       .run();
 
-    const res = await SELF.fetch(`${API_BASE}/channels`, {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', `${API_BASE}/channels`, authHeaders());
 
     expect(res.status).toBe(403);
     expect(await res.text()).toBe('admin access required');
@@ -57,11 +54,7 @@ describe('PUT /api/channels/:channel', () => {
     await clearChannelConfigs();
     const payload = { bot_token: 'token-tele', chat_id: '123456' };
 
-    const res = await SELF.fetch(`${API_BASE}/channels/telegram`, {
-      method: 'PUT',
-      headers: authHeaders(),
-      body: JSON.stringify(payload),
-    });
+    const res = await testRequest('PUT', `${API_BASE}/channels/telegram`, authHeaders(), payload);
 
     expect(res.status).toBe(200);
     const data = (await res.json()) as {
@@ -92,11 +85,7 @@ describe('PUT /api/channels/:channel', () => {
     await clearChannelConfigs();
     const payload = { webhook_url: 'https://example.com/webhook' };
 
-    const res = await SELF.fetch(`${API_BASE}/channels/discord`, {
-      method: 'PUT',
-      headers: authHeaders(),
-      body: JSON.stringify(payload),
-    });
+    const res = await testRequest('PUT', `${API_BASE}/channels/discord`, authHeaders(), payload);
 
     expect(res.status).toBe(200);
     const data = (await res.json()) as {
@@ -123,11 +112,7 @@ describe('PUT /api/channels/:channel', () => {
   it('rejects an unsupported channel identifier', async () => {
     await clearChannelConfigs();
 
-    const res = await SELF.fetch(`${API_BASE}/channels/invalid`, {
-      method: 'PUT',
-      headers: authHeaders(),
-      body: JSON.stringify({}),
-    });
+    const res = await testRequest('PUT', `${API_BASE}/channels/invalid`, authHeaders(), {});
 
     expect(res.status).toBe(400);
   });
@@ -135,11 +120,7 @@ describe('PUT /api/channels/:channel', () => {
   it('rejects non-object payloads', async () => {
     await clearChannelConfigs();
 
-    const res = await SELF.fetch(`${API_BASE}/channels/telegram`, {
-      method: 'PUT',
-      headers: authHeaders(),
-      body: JSON.stringify('not-an-object'),
-    });
+    const res = await testRequest('PUT', `${API_BASE}/channels/telegram`, authHeaders(), 'not-an-object');
 
     expect(res.status).toBe(400);
   });
@@ -149,11 +130,7 @@ describe('POST /api/keys', () => {
   it('creates a new API key when provided a valid name', async () => {
     const payload = { name: 'new-agent' };
 
-    const res = await SELF.fetch(`${API_BASE}/keys`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify(payload),
-    });
+    const res = await testRequest('POST', `${API_BASE}/keys`, authHeaders(), payload);
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as { id: string; name: string; key: string };
@@ -164,11 +141,7 @@ describe('POST /api/keys', () => {
   });
 
   it('rejects empty names', async () => {
-    const res = await SELF.fetch(`${API_BASE}/keys`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ name: '   ' }),
-    });
+    const res = await testRequest('POST', `${API_BASE}/keys`, authHeaders(), { name: '   ' });
 
     expect(res.status).toBe(400);
   });
@@ -176,9 +149,7 @@ describe('POST /api/keys', () => {
 
 describe('GET /api/keys', () => {
   it('lists API keys including the test agent key', async () => {
-    const res = await SELF.fetch(`${API_BASE}/keys`, {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', `${API_BASE}/keys`, authHeaders());
 
     expect(res.status).toBe(200);
     const data = (await res.json()) as {

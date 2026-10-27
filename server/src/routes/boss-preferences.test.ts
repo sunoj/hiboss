@@ -1,5 +1,6 @@
 // Admin preference API regression coverage for quiet hours and removed settings.
 // Depends on authenticated Worker requests and isolated boss fixtures.
+import { testRequest } from '../test-request';
 import { SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
@@ -14,18 +15,12 @@ function adminHeaders(): Record<string, string> { return { Authorization: 'Beare
 function viewerHeaders(): Record<string, string> { return { Authorization: 'Bearer pref-viewer' }; }
 describe('Admin preferences', () => {
   it('sets and merges preferences', async () => {
-    const res1 = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: { timezone: 'UTC' } }),
-    });
+    const res1 = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { preferences: { timezone: 'UTC' } });
     expect(res1.status).toBe(200);
     // Merge additional preference
-    const res2 = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: { quiet_hours: { start: '22:00', end: '08:00' } } }),
-    });
+    const res2 = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { preferences: { quiet_hours: { start: '22:00', end: '08:00' } } });
     expect(res2.status).toBe(200);
     // Verify merge
     const getRes = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, { headers: viewerHeaders() });
@@ -35,29 +30,20 @@ describe('Admin preferences', () => {
   });
 
   it('rejects removed preferred_channel', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: { preferred_channel: 'slack' } }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { preferences: { preferred_channel: 'slack' } });
     expect(res.status).toBe(400);
   });
 
   it('rejects removed notify_priorities', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: { notify_priorities: ['invalid'] } }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { preferences: { notify_priorities: ['invalid'] } });
     expect(res.status).toBe(400);
   });
 
   it('clears preferences with null', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: null }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { preferences: null });
     expect(res.status).toBe(200);
   });
 

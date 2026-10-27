@@ -2,6 +2,7 @@
 // expires without an answer. Covers the cron sweep, session end, and pending-input listing.
 // Depends on the Worker (SELF), seeded D1, and handleScheduled.
 
+import { testRequest } from './test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from './test-helpers';
@@ -33,9 +34,8 @@ async function state(id: string): Promise<{ status: string; replies: number }> {
 }
 
 async function register(session: string): Promise<void> {
-  const res = await SELF.fetch('http://localhost/api/sessions', {
-    method: 'POST', headers: authHeaders(), body: JSON.stringify({ id: session, project: 'abandoned-asks' }),
-  });
+  const res = await testRequest('POST', 'http://localhost/api/sessions', authHeaders(),
+    { id: session, project: 'abandoned-asks' });
   expect(res.status).toBe(201);
 }
 
@@ -96,9 +96,8 @@ describe('session end', () => {
     await register(session);
     const pending = unique('pending');
     await ask(pending, { created: hoursAgo(1), session });
-    const patch = (status: string) => SELF.fetch(`http://localhost/api/sessions/${session}`, {
-      method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ status }),
-    });
+    const patch = (status: string) => testRequest('PATCH', `http://localhost/api/sessions/${session}`,
+      authHeaders(), { status });
     expect((await patch('idle')).status).toBe(200);
     expect(await state(pending)).toEqual({ status: 'delivered', replies: 0 });
     expect((await patch('completed')).status).toBe(200);

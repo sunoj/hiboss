@@ -1,6 +1,7 @@
 // Tests for /api/bosses CRUD, access management, preferences, and token generation.
 // Covers create, get, update, delete, grant/revoke access, token issuance.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, seedBossToken } from '../test-helpers';
@@ -29,20 +30,14 @@ function viewerHeaders(): Record<string, string> {
 
 describe('POST /api/bosses', () => {
   it('rejects agent tokens', async () => {
-    const res = await SELF.fetch('http://localhost/api/bosses', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ name: 'Agent Rejected' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/bosses', authHeaders(),
+      { name: 'Agent Rejected' });
     expect(res.status).toBe(401);
   });
 
   it('creates a boss with defaults', async () => {
-    const res = await SELF.fetch('http://localhost/api/bosses', {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ name: 'Test Boss' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
+      { name: 'Test Boss' });
     expect(res.status).toBe(201);
     const data = await res.json() as any;
     expect(data.id).toBeTruthy();
@@ -52,11 +47,8 @@ describe('POST /api/bosses', () => {
   });
 
   it('creates a boss with explicit role and telegram ID', async () => {
-    const res = await SELF.fetch('http://localhost/api/bosses', {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ name: 'Viewer Boss', role: 'viewer', telegram_user_id: '12345' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
+      { name: 'Viewer Boss', role: 'viewer', telegram_user_id: '12345' });
     expect(res.status).toBe(201);
     const data = await res.json() as any;
     expect(data.role).toBe('viewer');
@@ -64,29 +56,19 @@ describe('POST /api/bosses', () => {
   });
 
   it('rejects empty name', async () => {
-    const res = await SELF.fetch('http://localhost/api/bosses', {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ name: '' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(), { name: '' });
     expect(res.status).toBe(400);
   });
 
   it('rejects non-admin bosses', async () => {
-    const res = await SELF.fetch('http://localhost/api/bosses', {
-      method: 'POST',
-      headers: viewerHeaders(),
-      body: JSON.stringify({ name: 'Forbidden Boss' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/bosses', viewerHeaders(),
+      { name: 'Forbidden Boss' });
     expect(res.status).toBe(403);
   });
 
   it('defaults invalid role to admin', async () => {
-    const res = await SELF.fetch('http://localhost/api/bosses', {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ name: 'Invalid Role', role: 'superadmin' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
+      { name: 'Invalid Role', role: 'superadmin' });
     expect(res.status).toBe(201);
     const data = await res.json() as any;
     expect(data.role).toBe('admin');
@@ -128,115 +110,82 @@ describe('GET /api/bosses/:id', () => {
 
 describe('PATCH /api/bosses/:id', () => {
   it('updates boss name', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ name: 'Updated Boss' }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { name: 'Updated Boss' });
     expect(res.status).toBe(200);
     const data = await res.json() as any;
     expect(data.name).toBe('Updated Boss');
   });
 
   it('updates role', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ role: 'manager' }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { role: 'manager' });
     expect(res.status).toBe(200);
     const data = await res.json() as any;
     expect(data.role).toBe('manager');
   });
 
   it('rejects invalid role', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ role: 'superadmin' }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { role: 'superadmin' });
     expect(res.status).toBe(400);
   });
 
   it('rejects empty name', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ name: '  ' }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { name: '  ' });
     expect(res.status).toBe(400);
   });
 
   it('rejects no valid fields', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ unknown_field: 'value' }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+      { unknown_field: 'value' });
     expect(res.status).toBe(400);
   });
 
   it('rejects non-admin bosses', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: viewerHeaders(),
-      body: JSON.stringify({ name: 'Forbidden Update' }),
-    });
+    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, viewerHeaders(),
+      { name: 'Forbidden Update' });
     expect(res.status).toBe(403);
   });
 });
 
 describe('Boss access management', () => {
   it('grants agent access', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/access`, {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({ agent_id: 'test-agent-id' }),
-    });
+    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/access`,
+      adminHeaders(), { agent_id: 'test-agent-id' });
     expect(res.status).toBe(201);
   });
 
   it('rejects grant without agent_id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/access`, {
-      method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify({}),
-    });
+    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/access`,
+      adminHeaders(), {});
     expect(res.status).toBe(400);
   });
 
   it('revokes agent access', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/access/test-agent-id`, {
-      method: 'DELETE',
-      headers: adminHeaders(),
-    });
+    const res = await testRequest('DELETE',
+      `http://localhost/api/bosses/${createdBossId}/access/test-agent-id`, adminHeaders());
     expect(res.status).toBe(200);
   });
 
   it('returns 404 revoking non-existent access', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/access/nonexistent`, {
-      method: 'DELETE',
-      headers: adminHeaders(),
-    });
+    const res = await testRequest('DELETE',
+      `http://localhost/api/bosses/${createdBossId}/access/nonexistent`, adminHeaders());
     expect(res.status).toBe(404);
   });
 
   it('rejects non-admin access changes', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/access`, {
-      method: 'POST',
-      headers: viewerHeaders(),
-      body: JSON.stringify({ agent_id: 'test-agent-id' }),
-    });
+    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/access`,
+      viewerHeaders(), { agent_id: 'test-agent-id' });
     expect(res.status).toBe(403);
   });
 });
 
 describe('POST /api/bosses/:id/token', () => {
   it('generates a boss auth token', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/token`, {
-      method: 'POST',
-      headers: adminHeaders(),
-    });
+    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/token`,
+      adminHeaders());
     expect(res.status).toBe(200);
     const data = await res.json() as any;
     expect(data.token).toMatch(/^hb_boss_/);
@@ -245,18 +194,14 @@ describe('POST /api/bosses/:id/token', () => {
   });
 
   it('revokes the prior target token when rotating', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/token`, {
-      method: 'POST',
-      headers: adminHeaders(),
-    });
+    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/token`,
+      adminHeaders());
     expect(res.status).toBe(200);
     const data = await res.json() as { token: string };
-    expect((await SELF.fetch('http://localhost/api/boss/me', {
-      headers: { Authorization: `Bearer ${generatedToken}` },
-    })).status).toBe(401);
-    expect((await SELF.fetch('http://localhost/api/boss/me', {
-      headers: { Authorization: `Bearer ${data.token}` },
-    })).status).toBe(200);
+    expect((await testRequest('GET', 'http://localhost/api/boss/me',
+      { Authorization: `Bearer ${generatedToken}` })).status).toBe(401);
+    expect((await testRequest('GET', 'http://localhost/api/boss/me',
+      { Authorization: `Bearer ${data.token}` })).status).toBe(200);
     const live = await env.DB.prepare('SELECT token_hash FROM boss_tokens WHERE boss_id = ? AND revoked_at IS NULL')
       .bind(createdBossId).all<{ token_hash: string }>();
     expect(live.results).toHaveLength(1);
@@ -264,18 +209,13 @@ describe('POST /api/bosses/:id/token', () => {
   });
 
   it('returns 404 for unknown boss', async () => {
-    const res = await SELF.fetch('http://localhost/api/bosses/nonexistent/token', {
-      method: 'POST',
-      headers: adminHeaders(),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/bosses/nonexistent/token', adminHeaders());
     expect(res.status).toBe(404);
   });
 
   it('rejects non-admin bosses', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/token`, {
-      method: 'POST',
-      headers: viewerHeaders(),
-    });
+    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/token`,
+      viewerHeaders());
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: 'admin required' });
   });
@@ -283,18 +223,12 @@ describe('POST /api/bosses/:id/token', () => {
 
 describe('DELETE /api/bosses/:id', () => {
   it('deletes a boss', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'DELETE',
-      headers: adminHeaders(),
-    });
+    const res = await testRequest('DELETE', `http://localhost/api/bosses/${createdBossId}`, adminHeaders());
     expect(res.status).toBe(200);
   });
 
   it('returns 404 for already deleted boss', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'DELETE',
-      headers: adminHeaders(),
-    });
+    const res = await testRequest('DELETE', `http://localhost/api/bosses/${createdBossId}`, adminHeaders());
     expect(res.status).toBe(404);
   });
 });

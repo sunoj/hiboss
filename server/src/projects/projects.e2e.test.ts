@@ -1,13 +1,13 @@
 // Exercises project identity through the deployed Worker API surface.
 // Covers aliases, legacy clients, profiles, and session ownership using D1.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, seedDatabase, getTestAgentId } from '../test-helpers';
 
 beforeAll(seedDatabase);
-const post = (path: string, body: Record<string, unknown>): Promise<Response> => SELF.fetch(`https://test.local/api/${path}`, {
-  method: 'POST', headers: authHeaders(), body: JSON.stringify(body),
-});
+const post = (path: string, body: Record<string, unknown>): Promise<Response> => testRequest('POST',
+  `https://test.local/api/${path}`, authHeaders(), body);
 
 it('keeps a renamed checkout, legacy posts, sessions and profiles on one project', async () => {
   const session = await post('sessions', { id: 'project-session', branch: 'main', project: { slug: 'repo', aliases: ['old-checkout'] } });
@@ -18,9 +18,8 @@ it('keeps a renamed checkout, legacy posts, sessions and profiles on one project
   const legacy = await post('progress', { body: 'legacy', project: 'new-checkout' });
   expect(legacy.status).toBe(201);
   expect((await legacy.json() as { project: string }).project).toBe('repo');
-  const profile = await SELF.fetch('https://test.local/api/progress/teams/old-checkout', {
-    method: 'PUT', headers: authHeaders(), body: JSON.stringify({ display_name: 'The Repo', handle: 'repo-team' }),
-  });
+  const profile = await testRequest('PUT', 'https://test.local/api/progress/teams/old-checkout',
+    authHeaders(), { display_name: 'The Repo', handle: 'repo-team' });
   expect(profile.status).toBe(200);
   const rows = await env.DB.prepare('SELECT DISTINCT project_id FROM progress_posts WHERE body IN (?, ?)').bind('renamed', 'legacy').all();
   expect(rows.results).toHaveLength(1);

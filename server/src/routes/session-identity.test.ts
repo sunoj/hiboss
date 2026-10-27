@@ -2,6 +2,7 @@
 // same-device rule for parent_session_id.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase } from '../test-helpers';
@@ -28,11 +29,9 @@ beforeAll(async () => {
 
 async function register(agentId: AgentId, body: Record<string, unknown>): Promise<Response> {
   const agent = AGENTS.find(a => a.id === agentId)!;
-  return SELF.fetch('http://localhost/api/sessions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${agent.key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project: agentId, ...body }),
-  });
+  return testRequest('POST', 'http://localhost/api/sessions',
+    { Authorization: `Bearer ${agent.key}`, 'Content-Type': 'application/json' },
+    { project: agentId, ...body });
 }
 
 async function storedParent(id: string): Promise<string | null> {

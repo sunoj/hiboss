@@ -2,7 +2,8 @@
 // Covers PATCH /api/boss/messages/:id (boss token) and PATCH /api/boss/inbox/:id (boss agent).
 // Depends on the Worker (SELF), seeded D1, and test-helpers.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
@@ -35,10 +36,8 @@ const paths = [
 ];
 
 describe.each(paths)('receipt PATCH via $name', ({ url, bearer }) => {
-  const patch = (id: string, status: string) => SELF.fetch(url(id), {
-    method: 'PATCH', headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  });
+  const patch = (id: string, status: string) => testRequest('PATCH', url(id),
+    { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' }, { status });
 
   it('keeps a read message read when delivered arrives late', async () => {
     const id = await message('read');

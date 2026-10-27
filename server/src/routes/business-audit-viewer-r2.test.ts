@@ -2,6 +2,7 @@
 // Covers Telegram/Discord option callbacks, channel reactions, receipt PATCH, progress delete,
 // client minting, and the rule that a channel callback never stores free text.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { persistDiscordReaction } from '../discord-gateway-reactions';
@@ -60,10 +61,8 @@ async function state(id: string): Promise<{ status: string; answers: number; rea
 }
 
 function telegram(update: Record<string, unknown>): Promise<Response> {
-  return SELF.fetch(`${base}/api/webhooks/telegram`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': secret },
-    body: JSON.stringify(update),
-  });
+  return testRequest('POST', `${base}/api/webhooks/telegram`,
+    { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': secret }, update);
 }
 
 function tap(parent: string, choice: string, from: string): Promise<Response> {

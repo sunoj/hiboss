@@ -1,6 +1,7 @@
 // Round-two regressions: a revoked boss token stops every push to devices registered under it.
 // Covers self-revoke, revoke-others, admin delete, rotation, client-less tokens and destinations.
 // Depends on the Worker API, seeded D1, the legacy push fan-out and destination resolution.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -24,9 +25,8 @@ async function fixture(name: string): Promise<Fixture> {
   const bossId = unique(name);
   const keeper = `hb_${bossId}`;
   await seedBossToken(bossId, 'admin', keeper, bossId);
-  const response = await SELF.fetch(`${api}/boss/clients`, {
-    method: 'POST', headers: headers(keeper), body: JSON.stringify({ kind: 'ios', label: unique('phone') }),
-  });
+  const response = await testRequest('POST', `${api}/boss/clients`, headers(keeper),
+    { kind: 'ios', label: unique('phone') });
   expect(response.status).toBe(201);
   const body = await response.json<{ client: { id: string }; token: string }>();
   return { bossId, keeper, client: { id: body.client.id, token: body.token, tokenId: await tokenId(body.token) } };
@@ -40,10 +40,8 @@ async function tokenId(token: string): Promise<string> {
 
 async function register(token: string): Promise<string> {
   const device = hex();
-  const response = await SELF.fetch(`${api}/boss/devices`, {
-    method: 'POST', headers: headers(token),
-    body: JSON.stringify({ token: device, bundleId: 'ai.hiboss.app', environment: 'sandbox', platform: 'ios' }),
-  });
+  const response = await testRequest('POST', `${api}/boss/devices`, headers(token),
+    { token: device, bundleId: 'ai.hiboss.app', environment: 'sandbox', platform: 'ios' });
   expect(response.status).toBe(200);
   return device;
 }

@@ -2,8 +2,9 @@
 // Covers posting reactions and fetching reactions from metadata.
 // Depends on cloudflare:test, vitest, and reactions.ts.
 
+import { testRequest } from '../test-request';
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
-import { env, SELF } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 
 beforeAll(async () => {
@@ -21,21 +22,15 @@ describe('POST /api/messages/:id/react', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, channel) VALUES (?, ?, 'boss_to_agent', 'async', 'Test msg', 'sent', 'telegram')"
     ).bind(msgId, agentId).run();
 
-    const res = await SELF.fetch(`https://test.local/api/messages/${msgId}/react`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({}),
-    });
+    const res = await testRequest('POST', `https://test.local/api/messages/${msgId}/react`, authHeaders(),
+      {});
     expect(res.status).toBe(400);
     expect(await res.text()).toBe('emoji is required');
   });
 
   it('returns 404 for unknown message', async () => {
-    const res = await SELF.fetch('https://test.local/api/messages/unknown-msg-id/react', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ emoji: '👍' }),
-    });
+    const res = await testRequest('POST', 'https://test.local/api/messages/unknown-msg-id/react',
+      authHeaders(), { emoji: '👍' });
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('not found');
   });
@@ -46,11 +41,8 @@ describe('POST /api/messages/:id/react', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, channel) VALUES (?, ?, 'boss_to_agent', 'async', 'API msg', 'sent', 'api')"
     ).bind(msgId, agentId).run();
 
-    const res = await SELF.fetch(`https://test.local/api/messages/${msgId}/react`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ emoji: '👍' }),
-    });
+    const res = await testRequest('POST', `https://test.local/api/messages/${msgId}/react`, authHeaders(),
+      { emoji: '👍' });
     expect(res.status).toBe(200);
     const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
       .bind(msgId).first<{ metadata: string }>();
@@ -68,11 +60,8 @@ describe('POST /api/messages/:id/react', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, channel, metadata) VALUES (?, ?, 'boss_to_agent', 'async', 'Discord msg', 'sent', 'discord', ?)"
     ).bind(msgId, agentId, JSON.stringify({ discord_message_id: '123' })).run();
 
-    const res = await SELF.fetch(`https://test.local/api/messages/${msgId}/react`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ emoji: '👍' }),
-    });
+    const res = await testRequest('POST', `https://test.local/api/messages/${msgId}/react`, authHeaders(),
+      { emoji: '👍' });
     expect(res.status).toBe(200);
     const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
       .bind(msgId).first<{ metadata: string }>();
@@ -96,9 +85,8 @@ describe('POST /api/messages/:id/react', () => {
       return new Response(JSON.stringify({ ok: true, result: true }));
     });
     vi.stubGlobal('fetch', provider);
-    const response = await SELF.fetch(`https://test.local/api/messages/${id}/react`, {
-      method: 'POST', headers: authHeaders(), body: JSON.stringify({ emoji: '👍' }),
-    });
+    const response = await testRequest('POST', `https://test.local/api/messages/${id}/react`, authHeaders(),
+      { emoji: '👍' });
     expect(response.status).toBe(200);
     expect(provider).toHaveBeenCalledWith(expect.stringContaining('/setMessageReaction'), expect.any(Object));
   });
@@ -113,9 +101,7 @@ describe('GET /api/messages/:id/reactions', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, channel) VALUES (?, ?, 'boss_to_agent', 'async', 'No reactions', 'sent', 'api')"
     ).bind(msgId, agentId).run();
 
-    const res = await SELF.fetch(`https://test.local/api/messages/${msgId}/reactions`, {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', `https://test.local/api/messages/${msgId}/reactions`, authHeaders());
     expect(res.status).toBe(200);
     const data = await res.json() as { reactions: unknown[] };
     expect(data.reactions).toEqual([]);
@@ -128,9 +114,7 @@ describe('GET /api/messages/:id/reactions', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, channel, metadata) VALUES (?, ?, 'boss_to_agent', 'async', 'With meta reactions', 'sent', 'api', ?)"
     ).bind(msgId, agentId, JSON.stringify({ reactions })).run();
 
-    const res = await SELF.fetch(`https://test.local/api/messages/${msgId}/reactions`, {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', `https://test.local/api/messages/${msgId}/reactions`, authHeaders());
     expect(res.status).toBe(200);
     const data = await res.json() as { reactions: unknown[] };
     expect(data.reactions).toEqual(reactions);

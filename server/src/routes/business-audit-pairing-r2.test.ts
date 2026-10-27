@@ -1,6 +1,7 @@
 // Round-two regressions: a pairing code dies with the token (and client) that issued it.
 // Covers admin rotation, client revocation and issuer self-revoke before redemption.
 // Depends on the Worker API and seeded D1.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -26,15 +27,13 @@ async function issue(token: string): Promise<string> {
 }
 
 function redeem(code: string): Promise<Response> {
-  return SELF.fetch(`${api}/pairing/redeem`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, device_label: 'Redeemer' }),
-  });
+  return testRequest('POST', `${api}/pairing/redeem`, { 'Content-Type': 'application/json' },
+    { code, device_label: 'Redeemer' });
 }
 
 async function mintClient(token: string): Promise<{ id: string; token: string }> {
-  const response = await SELF.fetch(`${api}/boss/clients`, {
-    method: 'POST', headers: headers(token), body: JSON.stringify({ kind: 'ios', label: unique('phone') }),
-  });
+  const response = await testRequest('POST', `${api}/boss/clients`, headers(token),
+    { kind: 'ios', label: unique('phone') });
   expect(response.status).toBe(201);
   const body = await response.json<{ client: { id: string }; token: string }>();
   return { id: body.client.id, token: body.token };

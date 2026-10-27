@@ -1,5 +1,6 @@
 // End-to-end admin visibility and explicit viewer grants through panel HTTP/relay.
 // Exercises definition, lifecycle state, and subscriber tickets using real D1/DOs.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -42,16 +43,14 @@ it('publishes to an ungranted admin and lets admins list, read, and subscribe to
     expect((await SELF.fetch(`${url}/${panelId}/state`, { headers: headers(bearer) })).status).toBe(200);
     expect((await ticket(panelId, bearer)).status).toBe(201);
   }
-  const renewed = await SELF.fetch(`${url}/${panelId}/renew`, { method: 'POST',
-    headers: { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
-    body: JSON.stringify({ protocolVersion: 2, expectedMetadataVersion: 1, expectedDefinitionRevision: 1, ttlSeconds: 120 }),
-  });
+  const renewed = await testRequest('POST', `${url}/${panelId}/renew`,
+    { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
+    { protocolVersion: 2, expectedMetadataVersion: 1, expectedDefinitionRevision: 1, ttlSeconds: 120 });
   expect(renewed.status).toBe(200);
-  const ended = await SELF.fetch(`${url}/${panelId}/lifecycle`, { method: 'POST',
-    headers: { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
-    body: JSON.stringify({ protocolVersion: 2, action: 'complete', expectedMetadataVersion: 2,
-      expectedDefinitionRevision: 1, expectedEpoch: null, expectedState: null, openRequests: 'reject' }),
-  });
+  const ended = await testRequest('POST', `${url}/${panelId}/lifecycle`,
+    { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
+    { protocolVersion: 2, action: 'complete', expectedMetadataVersion: 2,
+      expectedDefinitionRevision: 1, expectedEpoch: null, expectedState: null, openRequests: 'reject' });
   expect(ended.status).toBe(200);
   expect((await SELF.fetch(`${url}/${panelId}`, { headers: headers(VIEWER) })).status).toBe(404);
   expect((await SELF.fetch(`${url}/${panelId}/state`, { headers: headers(VIEWER) })).status).toBe(404);

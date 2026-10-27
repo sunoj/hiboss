@@ -2,6 +2,7 @@
 // Covers single-use/expiry, role permissions, tenant separation, and header transport.
 // Dependencies: cloudflare:test, Hono worker, D1 seed helpers, and PanelRoom.
 
+import { testRequest } from '../../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../../middleware/auth';
@@ -34,16 +35,14 @@ async function seedPanel(panelId: string, agentId = OWNER_ID, bossId = BOSS_ID):
 }
 
 async function requestTicket(token: string, panelId: string, role: 'producer' | 'subscriber'): Promise<Response> {
-  return SELF.fetch('https://test.local/api/panel-connections', {
-    method: 'POST', headers: authHeaders(token), body: JSON.stringify({ panelId, role }),
-  });
+  return testRequest('POST', 'https://test.local/api/panel-connections', authHeaders(token),
+    { panelId, role });
 }
 
 async function connect(ticket: string): Promise<{ ws: WebSocket; messages: RelayMessage[] }> {
   const messages: RelayMessage[] = [];
-  const response = await SELF.fetch('https://test.local/api/panel-relay', {
-    headers: { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticket },
-  });
+  const response = await testRequest('GET', 'https://test.local/api/panel-relay',
+    { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticket });
   const ws = response.webSocket;
   if (!ws) throw new Error(`websocket upgrade failed: ${response.status}`);
   ws.accept();
@@ -89,9 +88,8 @@ describe('panel connection authorization', () => {
     expect(ticket.operations).toEqual(['subscribe', 'lease.claim', 'lease.release', 'state.update']);
     expect(ticket.expiresAt).toBeGreaterThan(Date.now() + 59_000);
     const first = await connect(ticket.ticket);
-    const second = await SELF.fetch('https://test.local/api/panel-relay', {
-      headers: { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticket.ticket },
-    });
+    const second = await testRequest('GET', 'https://test.local/api/panel-relay',
+      { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticket.ticket });
     expect(second.status).toBe(401);
     first.ws.close();
   });
@@ -103,18 +101,16 @@ describe('panel connection authorization', () => {
     }));
     const ticket = await issued.json() as TicketResponse;
     await new Promise((resolve) => setTimeout(resolve, 1_100));
-    const response = await SELF.fetch('https://test.local/api/panel-relay', {
-      headers: { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticket.ticket },
-    });
+    const response = await testRequest('GET', 'https://test.local/api/panel-relay',
+      { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticket.ticket });
     expect(response.status).toBe(410);
   });
 
   it('refuses a ticket whose room scope was changed before the WebSocket upgrade', async () => {
     const response = await requestTicket(OWNER_KEY, PANEL_A, 'producer');
     const ticket = await response.json() as TicketResponse;
-    const responseForWrongRoom = await SELF.fetch('https://test.local/api/panel-relay', {
-      headers: { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticketForRoom(ticket.ticket, OTHER_BOSS_ID) },
-    });
+    const responseForWrongRoom = await testRequest('GET', 'https://test.local/api/panel-relay',
+      { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticketForRoom(ticket.ticket, OTHER_BOSS_ID) });
     expect(responseForWrongRoom.status).toBe(401);
   });
 

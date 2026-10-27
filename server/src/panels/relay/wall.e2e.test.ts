@@ -1,6 +1,7 @@
 // Exercises wall discovery and isolation through authenticated HTTP and relay sockets.
 // Exports Vitest E2E coverage; dependencies: SELF, real D1, and relay test helpers.
 
+import { testRequest } from '../../test-request';
 import { env, SELF, runInDurableObject } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId } from '../../test-helpers';
@@ -16,9 +17,8 @@ async function wall(headers: Record<string, string>) {
   });
   expect(issued.status).toBe(201);
   const { ticket } = await issued.json<{ ticket: string }>();
-  const response = await SELF.fetch('https://test.local/api/panel-relay', {
-    headers: { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticket },
-  });
+  const response = await testRequest('GET', 'https://test.local/api/panel-relay',
+    { Upgrade: 'websocket', 'X-Panel-Connection-Ticket': ticket });
   const socket = response.webSocket;
   if (!socket) throw new Error('Missing wall socket');
   socket.accept();
@@ -66,11 +66,10 @@ it.each(['fail', 'cancel'])('signals %s without a tile subscription', async acti
   try {
     const id = await publish();
     await expect.poll(() => boss.frames.length).toBe(2);
-    const response = await SELF.fetch(`https://test.local/api/panels/${id}/lifecycle`, {
-      method: 'POST', headers: { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify({ protocolVersion: 2, action, expectedMetadataVersion: 1, expectedDefinitionRevision: 1,
-        expectedEpoch: null, expectedState: null, openRequests: 'reject', result: { title: action, code: 'test' } }),
-    });
+    const response = await testRequest('POST', `https://test.local/api/panels/${id}/lifecycle`,
+      { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
+      { protocolVersion: 2, action, expectedMetadataVersion: 1, expectedDefinitionRevision: 1,
+        expectedEpoch: null, expectedState: null, openRequests: 'reject', result: { title: action, code: 'test' } });
     expect(response.status).toBe(200);
     await expect.poll(() => boss.frames.length).toBe(3);
   } finally { boss.socket.close(); }
@@ -89,10 +88,9 @@ it('signals restored visibility on renewal and durable expiry without polling D1
     lifecycle.expiresAt = new Date(Date.now() - 1).toISOString();
     await env.DB.prepare('UPDATE panels SET lifecycle_json = ? WHERE panel_id = ?')
       .bind(JSON.stringify(lifecycle), id).run();
-    const response = await SELF.fetch(`https://test.local/api/panels/${id}/renew`, {
-      method: 'POST', headers: { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify({ protocolVersion: 2, expectedMetadataVersion: 1, expectedDefinitionRevision: 1, ttlSeconds: 120 }),
-    });
+    const response = await testRequest('POST', `https://test.local/api/panels/${id}/renew`,
+      { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
+      { protocolVersion: 2, expectedMetadataVersion: 1, expectedDefinitionRevision: 1, ttlSeconds: 120 });
     expect(response.status).toBe(200);
     const renewed = await response.json<{ expiresAt: string }>();
     await expect.poll(() => boss.frames.length).toBe(3);
@@ -120,11 +118,10 @@ it('renews an active visibility deadline without invalidating the wall or tile m
     await expect.poll(() => boss.frames.length).toBe(2);
     await expect.poll(() => owner.frames.length).toBe(2);
     const before = await state(id);
-    const response = await SELF.fetch(`https://test.local/api/panels/${id}/renew`, {
-      method: 'POST', headers: { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify({ protocolVersion: 2, expectedMetadataVersion: 1,
-        expectedDefinitionRevision: 1, ttlSeconds: 120 }),
-    });
+    const response = await testRequest('POST', `https://test.local/api/panels/${id}/renew`,
+      { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() },
+      { protocolVersion: 2, expectedMetadataVersion: 1,
+        expectedDefinitionRevision: 1, ttlSeconds: 120 });
     expect(response.status).toBe(200);
     const renewed = await response.json<{ expiresAt: string }>();
     expect(await producer.next('state.observation')).toMatchObject({ expiresAt: renewed.expiresAt,

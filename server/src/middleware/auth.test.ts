@@ -2,6 +2,7 @@
 // Verifies bearer authentication outcomes and hash consistency.
 // Depends on cloudflare:test, test-helpers, and the middleware hash utility.
 
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, authHeaders } from '../test-helpers';
@@ -18,27 +19,21 @@ describe('auth middleware integration', () => {
   });
 
   it('returns 401 for invalid bearer token', async () => {
-    const res = await SELF.fetch('https://test.local/api/messages', {
-      headers: {
+    const res = await testRequest('GET', 'https://test.local/api/messages', {
         Authorization: 'Bearer invalid-token',
-      },
-    });
+      });
     expect(res.status).toBe(401);
   });
 
   it('returns 401 for empty bearer token', async () => {
-    const res = await SELF.fetch('https://test.local/api/messages', {
-      headers: {
+    const res = await testRequest('GET', 'https://test.local/api/messages', {
         Authorization: 'Bearer ',
-      },
-    });
+      });
     expect(res.status).toBe(401);
   });
 
   it('succeeds with valid bearer token', async () => {
-    const res = await SELF.fetch('https://test.local/api/messages', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/messages', authHeaders());
     expect(res.status).toBe(200);
     const data = await res.json() as { messages: unknown[]; total: number };
     expect(data.messages).toBeInstanceOf(Array);
@@ -54,9 +49,7 @@ describe('auth middleware integration', () => {
     expect(before).toBeDefined();
     expect(before?.last_used_at).toBeNull();
 
-    const res = await SELF.fetch('https://test.local/api/messages', {
-      headers: authHeaders(),
-    });
+    const res = await testRequest('GET', 'https://test.local/api/messages', authHeaders());
     expect(res.status).toBe(200);
 
     const after = await env.DB.prepare('SELECT last_used_at FROM api_keys WHERE id = ?')

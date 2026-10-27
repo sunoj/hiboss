@@ -1,6 +1,7 @@
 // Worker integration tests for migration 0054's automatic message timestamps.
 // Exercises reactions, option expiry, and scheduled delivery with D1.
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from './test-request';
+import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { persistDiscordReaction } from './discord-gateway-reactions';
 import { handleScheduled } from './scheduled';
@@ -55,13 +56,10 @@ async function expectMoved(id: string): Promise<void> {
 
 async function expectSendExpiryUpdate(): Promise<void> {
   for (const options of [undefined, ['Approve', 'Reject']]) {
-    const response = await SELF.fetch('https://test.local/api/messages', {
-      method: 'POST', headers: authHeaders(),
-      body: JSON.stringify({
+    const response = await testRequest('POST', 'https://test.local/api/messages', authHeaders(), {
         body: `updates-expiry-${options ? 'options' : 'control'}`,
         to: 'test-agent', channel: 'api', options,
-      }),
-    });
+      });
     expect(response.status).toBe(201);
     const message = await response.json() as { id: string };
     if (options) {
@@ -85,15 +83,13 @@ describe('message update timestamps', () => {
     await expectMoved('updates-discord');
 
     await insertMessage('updates-telegram', 'telegram', { telegram_message_id: 101 });
-    const response = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': SECRET },
-      body: JSON.stringify({ message_reaction: {
+    const response = await testRequest('POST', 'https://test.local/api/webhooks/telegram',
+      { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': SECRET },
+      { message_reaction: {
         chat: { id: 'updates-telegram-chat' }, message_id: 101,
         user: { id: 'updates-telegram-boss', first_name: 'Boss' },
         new_reaction: [{ type: 'emoji', emoji: '👍' }],
-      } }),
-    });
+      } });
     expect(response.status).toBe(200);
     await expectMoved('updates-telegram');
     await expectSendExpiryUpdate();

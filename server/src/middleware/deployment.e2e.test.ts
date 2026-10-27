@@ -1,5 +1,6 @@
 // Exercises Worker-first rollout and schema recovery through SELF and real D1.
 // Depends on legacy fixtures and migration 0045; no production database access.
+import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { expect, it } from 'vitest';
 import { authHeaders, seedDatabase, seedBossToken } from '../test-helpers';
@@ -19,13 +20,11 @@ it('keeps agent and dual boss auth available before migration, then honors migra
     expect((await SELF.fetch('https://test.local/api/sessions', { headers })).status).toBe(200);
   }
   for (const path of ['/api/agents/me', '/api/sessions']) {
-    expect((await SELF.fetch(`https://test.local${path}`, {
-      headers: { Authorization: 'Bearer invalid-deployment-token' },
-    })).status).toBe(401);
+    expect((await testRequest('GET', `https://test.local${path}`,
+      { Authorization: 'Bearer invalid-deployment-token' })).status).toBe(401);
   }
-  const sent = await SELF.fetch('https://test.local/api/messages', {
-    method: 'POST', headers: authHeaders(), body: JSON.stringify({ body: 'before signing migration' }),
-  });
+  const sent = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+    { body: 'before signing migration' });
   expect(sent.status).toBe(201);
   expect(await env.DB.prepare('SELECT last_used_at FROM api_keys WHERE id = ?')
     .bind('test-agent-id').first()).toEqual({ last_used_at: expect.any(String) });

@@ -2,7 +2,8 @@
 // Covers boss bearer auth, token upsert, and deletion.
 // Depends on cloudflare:test, test helpers, and the Hono app.
 
-import { env, SELF } from 'cloudflare:test';
+import { testRequest } from '../test-request';
+import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
 
@@ -21,16 +22,12 @@ function bossHeaders(): Record<string, string> {
 
 describe('POST /api/boss/devices', () => {
   it('upserts an iOS APNs device for the authenticated boss', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/devices', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({
+    const res = await testRequest('POST', 'http://localhost/api/boss/devices', bossHeaders(), {
         token: DEVICE_TOKEN.toUpperCase(),
         bundleId: 'com.hiboss.ios',
         environment: 'sandbox',
         platform: 'ios',
-      }),
-    });
+      });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
@@ -50,16 +47,12 @@ describe('POST /api/boss/devices', () => {
 
 describe('POST /api/boss/devices updates and validation', () => {
   it('updates bundle and environment when the same token registers again', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/devices', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({
+    const res = await testRequest('POST', 'http://localhost/api/boss/devices', bossHeaders(), {
         token: DEVICE_TOKEN,
         bundleId: 'com.hiboss.ios.beta',
         environment: 'production',
         platform: 'ios',
-      }),
-    });
+      });
 
     expect(res.status).toBe(200);
     const row = await env.DB
@@ -72,11 +65,8 @@ describe('POST /api/boss/devices updates and validation', () => {
   });
 
   it('rejects invalid registrations', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/devices', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ token: 'not-hex', bundleId: '', environment: 'dev', platform: 'web' }),
-    });
+    const res = await testRequest('POST', 'http://localhost/api/boss/devices', bossHeaders(),
+      { token: 'not-hex', bundleId: '', environment: 'dev', platform: 'web' });
 
     expect(res.status).toBe(400);
   });
@@ -87,11 +77,9 @@ describe('POST /api/boss/devices ownership', () => {
     const token = "cd".repeat(8);
     const newBossToken = 'hb_boss_devices_new_owner';
     const newBossId = await seedBossToken('New Device Boss', 'manager', newBossToken);
-    const register = (bearer: string) => SELF.fetch('http://localhost/api/boss/devices', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, bundleId: 'com.hiboss.ios', environment: 'sandbox', platform: 'ios' }),
-    });
+    const register = (bearer: string) => testRequest('POST', 'http://localhost/api/boss/devices',
+      { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+      { token, bundleId: 'com.hiboss.ios', environment: 'sandbox', platform: 'ios' });
     const initial = await register(BOSS_TOKEN);
     expect(initial.status).toBe(200);
     expect(await initial.json()).toEqual({ ok: true });
@@ -122,10 +110,8 @@ describe('POST /api/boss/devices ownership', () => {
 
 describe('DELETE /api/boss/devices/:token', () => {
   it('deletes the authenticated boss device token', async () => {
-    const res = await SELF.fetch(`http://localhost/api/boss/devices/${DEVICE_TOKEN}`, {
-      method: 'DELETE',
-      headers: bossHeaders(),
-    });
+    const res = await testRequest('DELETE', `http://localhost/api/boss/devices/${DEVICE_TOKEN}`,
+      bossHeaders());
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
