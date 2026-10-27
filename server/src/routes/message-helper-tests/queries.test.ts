@@ -27,7 +27,11 @@ describe('selectChannelConfig', () => {
     ['falls back to most recent when no channel requested', undefined, { channel: 'discord' }],
   ] as const)('%s', async (_name, requested, expected) => {
     // Discord was inserted with later created_at, so it should be the fallback.
-    expect(await selectChannelConfig(testEnv, agentId, requested)).toMatchObject(expected);
+    const result = await selectChannelConfig(testEnv, agentId, requested);
+    expect(result.channel).toBe(expected.channel);
+    if ('config' in expected) {
+      expect(result.config).toEqual(expected.config);
+    }
   });
 
   it('throws when agent has no channels', async () => {
