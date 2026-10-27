@@ -176,3 +176,26 @@ At `0d198571bd09d8754430e9c3cde4d5cb5bf3e8d7`, type checking and all 876 cases a
 test files importing the shared module pass, with zero failures, skipped or filtered cases.
 The complete scoped run occurs after all temporary helper and router faults are restored.
 Including six new calibration cases and the routing repair, this change removes 100 source lines.
+
+## Webhook metadata and callback delivery oracles
+
+The Telegram and Discord attribution cases previously accepted null metadata because they only
+checked the absence of answered_by. They now also require the original message fields, source and
+provider authentication metadata. Both cases reject null metadata and a response that drops only
+the original message. The Telegram no-action case additionally requires the selected parent and
+body and rejects an unexpected action; its provenance checks remain.
+
+Callback tests now require no fetch for absent recipients, and an attempted POST with the complete
+serialized message when transport fails. Delivery cases cover HTTP rejection, transport rejection,
+already-replied messages, boss messages and calls without delivery tracking, alongside acceptance.
+Six populated APNs cases retain their inputs, payload assertions, privacy preferences and pruning
+checks. Shared audience setup preserves SQL, bindings and order; shared captures retain the missing
+request guard. Ephemeral signing keys use the existing resolution fixture with the original narrow
+environment bindings.
+
+At e85ce68083bcbc7893b7cecb6a8df9515176b584, type checking and all 29 webhook cases pass.
+At 2b6b06681cee0afa05bf0f366c4abed3f2122752, type checking and all 15 notification cases pass.
+Nine isolated faults expose eleven formerly undetected case failures, including a no-op callback,
+an empty request body and omitted delivery guards. Temporary faults are restored before each
+complete scoped run. All 39 existing case names remain; five notification cases are added.
+The two extractions and stronger oracles together remove 45 source lines.
