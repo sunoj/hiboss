@@ -1,6 +1,6 @@
 // Purpose: Define HiBossClient plus messaging, admin, and upload helpers.
 // Exports: HiBossClient struct, core messaging + admin methods, upload and helpers.
-// Dependencies: reqwest, serde_json, crate::types, std::error::Error.
+// Dependencies: reqwest, serde_json, thiserror, crate::types, std::error::Error.
 use crate::types::{
     AgentsResponse, ChannelStatsResponse, ChannelsResponse, CreateAgentResponse, ReactionsResponse,
     UploadResponse,
