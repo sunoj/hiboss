@@ -76,7 +76,8 @@ class SiteBuildTests(unittest.TestCase):
                     reference = attrs.get(name) or ''
                     if reference.startswith('/') and not reference.startswith('//'):
                         path = urlsplit(reference).path.lstrip('/')
-                        target = self.output / (path + 'index.html' if path.endswith('/') or not path else path)
+                        target = self.output / (
+                            path + 'index.html' if path.endswith('/') or not path else path)
                         self.assertTrue(target.is_file(), f'{page}: missing {reference}')
 
     def test_build_rejects_missing_relative_and_existing_outputs(self) -> None:
