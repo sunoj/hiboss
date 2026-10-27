@@ -3,7 +3,6 @@
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
 import { testRequest, returnsStatus, testJson } from '../test-request';
-import { createAgentAuth } from './messages-tests/support';
 import './messages-tests/queries';
 import './messages-tests/mutations';
 import './messages-tests/metadata';
@@ -11,7 +10,7 @@ import './messages-tests/idempotency';
 import './messages-tests/sessions';
 import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { seedDatabase, authHeaders } from '../test-helpers';
+import { seedDatabase, authHeaders, createAgentAuth } from '../test-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
