@@ -1,6 +1,6 @@
 // Purpose: Aggregate hiboss CLI command modules for easier imports.
 // Exports: command modules and the required SubcommandArgs envelope.
-// Dependencies: none beyond the command modules themselves.
+// Dependencies: clap derives and the command modules.
 
 // A required nested command with its original typed leaf options.
 #[derive(Debug, clap::Args)]
