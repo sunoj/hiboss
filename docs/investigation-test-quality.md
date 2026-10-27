@@ -89,3 +89,21 @@ all 497 iOS unit tests, all 13 shared attention tests, and the macOS build. No c
 All 24 case names and fixture inputs in the two edited files remain; only the expected vectors,
 the Home projection call and the on-device test header changed. No production change was committed.
 The platform tests are retained rather than removed solely because their fixtures overlap.
+
+## Fixed-size rendering without content checks
+
+The iOS JoinRequestRenderTests case rendered the approval sheet and request list in both appearances,
+but only asserted that each image exceeded 600 points in height. Its renderer always used an
+852-point window. Replacing either production view body with EmptyView left the case passing;
+the corresponding exported images were visibly blank. The assertion did not establish page content.
+
+The case and its private rendering, PNG export and service helpers were removed: 63 Swift lines,
+plus four Xcode project references. Production views and SettingsNavigationUITests are unchanged.
+The retained UI cases observe pushed verification details and approval, failed approval with the
+code and Close action retained, and the empty request list explanation.
+
+Each blank-view fault independently fails its existing UI case: the approval case cannot find
+`join-request.code`, and the list case cannot find `No device requests`. After restoring the views,
+verification at `266f653d517de5b8000207f22a313f98903e10e9` passes all 496 surviving iOS unit cases
+and the three related UI cases, with zero failures or skips. The unit identities match the prior
+497-case run minus exactly the reviewed renderer case. No additional test deletion is inferred.
