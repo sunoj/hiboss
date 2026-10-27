@@ -1,5 +1,5 @@
-// Attention-model tests for contract filtering, ranking, grouping, and expiry.
-// Exports: HomeAttentionModelTests covering the Home root decision order.
+// On-device decision ranking, Home projection and Live Activity consistency tests.
+// Exports: HomeAttentionModelTests covering filtering, ordering, grouping and expiry.
 // Dependencies: XCTest, HiBoss app target, HibossKit HistoryMessage.
 
 import Foundation
@@ -90,7 +90,7 @@ final class HomeAttentionModelTests: XCTestCase {
         ]
         let mixed = decisions + [message("text", priority: "critical", options: [])]
         XCTAssertEqual(AttentionModel.items(from: mixed, now: now).filter { !$0.options.isEmpty }.map(\.id),
-                       AttentionModel.items(from: decisions, now: now).map(\.id))
+                       ["auto", "blocked", "high"])
     }
 
     @MainActor
@@ -104,7 +104,8 @@ final class HomeAttentionModelTests: XCTestCase {
         ]
         let snapshot = TodaySnapshot(history: [], requiredInputs: messages, health: .live(checkedAt: now),
                                      coverageComplete: true, now: now)
-        let home = snapshot.decisions.map(\.id)
+        let home = HomeAttentionSnapshot(messages: [], questionnaires: [],
+            decisions: snapshot.decisions, now: now).groups.flatMap(\.items).map(\.id)
         XCTAssertEqual(home.filter { $0 != "text" }, ["auto", "blocked", "priority"])
         XCTAssertEqual(DecisionActivityManager.rankedMessages(from: messages, now: now).map(\.id), home)
         let later = now.addingTimeInterval(60)

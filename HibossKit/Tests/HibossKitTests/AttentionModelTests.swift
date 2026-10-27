@@ -86,7 +86,7 @@ final class AttentionModelTests: XCTestCase {
         ]
         let mixed = decisions + [message("text", priority: "critical", options: [])]
         XCTAssertEqual(AttentionModel.items(from: mixed, now: now).filter { !$0.options.isEmpty }.map(\.id),
-                       AttentionModel.items(from: decisions, now: now).map(\.id))
+                       ["auto", "blocked", "high"])
     }
 
     func testOptionDecisionOrderAcrossDeadlineWaitingPriorityAndTimeout() {
