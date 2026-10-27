@@ -163,22 +163,6 @@ final class BoxCollectionsTests: XCTestCase {
         }
     }
 
-    private static func bodyData(from request: URLRequest) throws -> Data {
-        if let body = request.httpBody { return body }
-        let stream = try XCTUnwrap(request.httpBodyStream)
-        stream.open()
-        defer { stream.close() }
-
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1024)
-        while true {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            if count < 0 { throw stream.streamError ?? HibossAPIError.invalidResponse }
-            if count == 0 { return data }
-            data.append(buffer, count: count)
-        }
-    }
-
     private func api(
         path: String, method: String, json: String, status: Int = 200,
         name: String? = nil, queries: [String: String] = [:]
@@ -193,7 +177,7 @@ final class BoxCollectionsTests: XCTestCase {
             XCTAssertEqual(actualQueries, queries)
             if let name {
                 XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
-                let body = try Self.bodyData(from: request)
+                let body = try HTTPTestSupport.bodyData(from: request)
                 XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: body), ["name": name])
             } else {
                 XCTAssertNil(request.httpBody)

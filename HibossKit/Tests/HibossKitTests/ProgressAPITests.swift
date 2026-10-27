@@ -25,12 +25,13 @@ final class ProgressAPITests: XCTestCase {
                 ProgressCursor.self, from: Data((encoded ?? "").utf8)
             )
             XCTAssertEqual(decoded, ProgressCursor(createdAt: "2026-08-14T09:00:00Z", id: "p2"))
-            return try Self.response(
+            return try HTTPTestSupport.response(
                 for: request,
                 json: #"{"posts":[{"id":"p1","project": "hiboss", "project_ref": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},"agent_id":"ak1","agent_name":"cli","body":"Hi","media":[],"tags":[],"created_at":"2026-08-14T08:00:00Z"}],"next_cursor":null}"#
             )
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: ProgressURLProtocol.self))
 
         let page = try await api.progressFeed(
             project: "hiboss", limit: 20,
@@ -44,7 +45,7 @@ final class ProgressAPITests: XCTestCase {
 
     func testProgressFeedDecodesMediaVariantsAndCompositeCursor() async throws {
         ProgressURLProtocol.handler = { request in
-            try Self.response(
+            try HTTPTestSupport.response(
                 for: request,
                 json: #"""
                 {"posts":[
@@ -56,7 +57,8 @@ final class ProgressAPITests: XCTestCase {
                 """#
             )
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: ProgressURLProtocol.self))
         let page = try await api.progressFeed()
 
         XCTAssertEqual(page.posts.count, 4)
@@ -73,12 +75,13 @@ final class ProgressAPITests: XCTestCase {
             XCTAssertEqual(request.httpMethod, "GET")
             XCTAssertEqual(request.url?.path, "/api/progress/projects")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
-            return try Self.response(
+            return try HTTPTestSupport.response(
                 for: request,
                 json: #"{"projects":[{"project":"hiboss","count":12,"last_post_at":"2026-08-14T09:00:00Z","agent_id":"ak1"}]}"#
             )
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: ProgressURLProtocol.self))
 
         let projects = try await api.progressProjects()
 
@@ -92,9 +95,10 @@ final class ProgressAPITests: XCTestCase {
             XCTAssertEqual(request.httpMethod, "DELETE")
             XCTAssertEqual(request.url?.path, "/api/progress/p1")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
-            return try Self.response(for: request, json: "{}")
+            return try HTTPTestSupport.response(for: request, json: "{}")
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: ProgressURLProtocol.self))
 
         try await api.deleteProgressPost(id: "p1")
     }
@@ -104,9 +108,10 @@ final class ProgressAPITests: XCTestCase {
             XCTAssertEqual(request.httpMethod, "POST")
             XCTAssertEqual(request.url?.path, "/api/progress/p1/like")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
-            return try Self.response(for: request, json: #"{"like_count":3,"liked":true}"#)
+            return try HTTPTestSupport.response(for: request, json: #"{"like_count":3,"liked":true}"#)
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: ProgressURLProtocol.self))
 
         let state = try await api.likeProgressPost(id: "p1")
 
@@ -118,9 +123,10 @@ final class ProgressAPITests: XCTestCase {
         ProgressURLProtocol.handler = { request in
             XCTAssertEqual(request.httpMethod, "DELETE")
             XCTAssertEqual(request.url?.path, "/api/progress/p1/like")
-            return try Self.response(for: request, json: #"{"like_count":2,"liked":false}"#)
+            return try HTTPTestSupport.response(for: request, json: #"{"like_count":2,"liked":false}"#)
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: ProgressURLProtocol.self))
 
         let state = try await api.unlikeProgressPost(id: "p1")
 
@@ -133,22 +139,7 @@ final class ProgressAPITests: XCTestCase {
         return ConnectionConfig(serverURL: serverURL, bossToken: "test-token")
     }
 
-    private func session() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [ProgressURLProtocol.self]
-        return URLSession(configuration: configuration)
-    }
 
-    private static func response(
-        for request: URLRequest,
-        json: String
-    ) throws -> (HTTPURLResponse, Data) {
-        let url = try XCTUnwrap(request.url)
-        let response = try XCTUnwrap(
-            HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
-        )
-        return (response, Data(json.utf8))
-    }
 }
 
 private final class ProgressURLProtocol: HTTPTestProtocol, @unchecked Sendable {

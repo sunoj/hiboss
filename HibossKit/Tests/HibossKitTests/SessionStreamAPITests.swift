@@ -20,12 +20,13 @@ final class SessionStreamAPITests: XCTestCase {
             let items = URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)?.queryItems
             XCTAssertEqual(items?.first { $0.name == "after" }?.value, "10")
             XCTAssertEqual(items?.first { $0.name == "limit" }?.value, "50")
-            return try Self.response(
+            return try HTTPTestSupport.response(
                 for: request,
                 json: #"{"events":[{"id":"e11","session_id":"sess-1","sequence":11,"kind":"message","payload":{"body":"hi"},"created_at":"2026-08-14T09:00:00Z"}],"next_after":11,"resync":false}"#
             )
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: SessionURLProtocol.self))
         let page = try await api.fetchSessionEvents(sessionID: "sess-1", after: 10, limit: 50)
         XCTAssertEqual(page.events.first?.sequence, 11)
         XCTAssertEqual(page.nextAfter, 11)
@@ -39,22 +40,7 @@ final class SessionStreamAPITests: XCTestCase {
         )
     }
 
-    private func session() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [SessionURLProtocol.self]
-        return URLSession(configuration: configuration)
-    }
 
-    private static func response(
-        for request: URLRequest,
-        json: String
-    ) throws -> (HTTPURLResponse, Data) {
-        let url = try XCTUnwrap(request.url)
-        let response = try XCTUnwrap(
-            HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
-        )
-        return (response, Data(json.utf8))
-    }
 }
 
 private final class SessionURLProtocol: HTTPTestProtocol, @unchecked Sendable {

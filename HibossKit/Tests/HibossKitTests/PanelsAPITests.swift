@@ -18,7 +18,8 @@ final class PanelsAPITests: XCTestCase {
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
             return try Self.response(for: request, json: #"{"panels":[{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","sessionLabel":"checkout/main","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"serverTime":1788828000000,"lifecycle":{"taskState":"running","mode":"run","expectedUpdateIntervalSeconds":15,"terminalAt":null,"dismissAt":null,"dismissalPolicy":null,"result":null},"preference":{"preferenceVersion":0,"placement":"automatic","seenTerminalVersion":null,"acknowledgedTerminalVersion":null},"finalSnapshot":null,"supersedesPanelId":null,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z"}],"nextCursor":null}"#)
         }
-        let panels = try await HibossAPI(config: config(), session: session()).fetchPanels()
+        let panels = try await HibossAPI(config: config(),
+            session: HTTPTestSupport.session(for: PanelsURLProtocol.self)).fetchPanels()
 
         XCTAssertEqual(panels.count, 1)
         XCTAssertEqual(panels[0].id, "panel_1")
@@ -32,7 +33,8 @@ final class PanelsAPITests: XCTestCase {
             XCTAssertEqual(request.url?.path, "/api/panels/panel_1")
             return try Self.response(for: request, json: #"{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","sessionLabel":"checkout/main","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"serverTime":1788828000000,"lifecycle":{"taskState":"running","mode":"run","expectedUpdateIntervalSeconds":15,"terminalAt":null,"dismissAt":null,"dismissalPolicy":null,"result":null},"preference":{"preferenceVersion":0,"placement":"automatic","seenTerminalVersion":null,"acknowledgedTerminalVersion":null},"finalSnapshot":null,"supersedesPanelId":null,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z","definition":{"definitionRevision":1,"protocolVersion":2,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Stack","props":{"direction":"vertical"},"children":["metric"]},"metric":{"type":"Metric","props":{"label":"Completed","value":{"$state":"/task/completed"}},"children":[]}}},"stateSchema":{"type":"object"},"initialState":{"task":{"completed":4}},"createdAt":"2026-09-07T10:00:00Z"}}"#)
         }
-        let detail = try await HibossAPI(config: config(), session: session()).fetchPanel("panel_1")
+        let detail = try await HibossAPI(config: config(),
+            session: HTTPTestSupport.session(for: PanelsURLProtocol.self)).fetchPanel("panel_1")
 
         XCTAssertEqual(detail.metadata.title, "Build")
         XCTAssertEqual(detail.metadata.agentName, "Build Agent")
@@ -50,7 +52,9 @@ final class PanelsAPITests: XCTestCase {
             return try Self.response(for: request, json: #"{"ticket":"ticket-1","roomId":"boss-1","panelId":"panel-1","expiresAt":1788782400000}"#)
         }
 
-        let ticket = try await HibossAPI(config: config(), session: session()).issuePanelConnectionTicket(panelID: "panel-1")
+        let ticket = try await HibossAPI(config: config(),
+            session: HTTPTestSupport.session(for: PanelsURLProtocol.self))
+            .issuePanelConnectionTicket(panelID: "panel-1")
 
         XCTAssertEqual(ticket.ticket, "ticket-1")
         XCTAssertEqual(ticket.roomID, "boss-1")
@@ -59,12 +63,6 @@ final class PanelsAPITests: XCTestCase {
 
     private func config() throws -> ConnectionConfig {
         ConnectionConfig(serverURL: try XCTUnwrap(URL(string: "https://hiboss.example")), bossToken: "test-token")
-    }
-
-    private func session() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [PanelsURLProtocol.self]
-        return URLSession(configuration: configuration)
     }
 
     private static func response(for request: URLRequest, json: String) throws -> (HTTPURLResponse, Data) {

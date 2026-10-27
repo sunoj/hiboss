@@ -94,16 +94,13 @@ final class SigninTests: XCTestCase {
         return SigninTicket(link: link, pollToken: "st_abc", expiresAt: Date())
     }
 
-    private static func session() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [SigninURLProtocol.self]
-        return URLSession(configuration: configuration)
+    private static func client() -> SigninClient {
+        SigninClient(session: HTTPTestSupport.session(for: SigninURLProtocol.self))
     }
 
-    private static func client() -> SigninClient { SigninClient(session: session()) }
-
     private static func api() -> HibossAPI {
-        HibossAPI(config: ConnectionConfig(serverURL: server, bossToken: "hb_boss_phone"), session: session())
+        HibossAPI(config: ConnectionConfig(serverURL: server, bossToken: "hb_boss_phone"),
+            session: HTTPTestSupport.session(for: SigninURLProtocol.self))
     }
 
     private static func json(_ request: URLRequest) throws -> [String: String] {

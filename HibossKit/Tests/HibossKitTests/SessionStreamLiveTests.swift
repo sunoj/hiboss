@@ -21,7 +21,8 @@ final class SessionStreamLiveTests: XCTestCase {
             "event: resync\ndata: {\"resync\":true}\n\n",
             ": keepalive\n\n",
         ]
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: HeldOpenSSEProtocol.self))
         let frames = FrameLog()
         let received = expectation(description: "open, event and resync while open")
         let consumer = Task {
@@ -49,11 +50,7 @@ final class SessionStreamLiveTests: XCTestCase {
         )
     }
 
-    private func session() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [HeldOpenSSEProtocol.self]
-        return URLSession(configuration: configuration)
-    }
+
 }
 
 private actor FrameLog {

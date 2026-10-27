@@ -50,7 +50,7 @@ final class BoxThumbnailAPITests: XCTestCase {
             XCTAssertEqual(request.url?.path, "/api/box/items/bx_1/thumbnail")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "image/jpeg")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
-            XCTAssertEqual(try Self.body(of: request), self.jpeg)
+            XCTAssertEqual(try HTTPTestSupport.bodyData(from: request, bufferSize: 4096), self.jpeg)
             return (200, Self.json(hasThumbnail: true))
         }.uploadBoxThumbnail(id: "bx_1", data: jpeg, contentType: "image/jpeg")
         XCTAssertTrue(item.hasThumbnail)
@@ -68,7 +68,9 @@ final class BoxThumbnailAPITests: XCTestCase {
             let upload = BoxUpload(media: .init(fileURL: file, contentType: "image/png"),
                                    thumbnail: withThumbnail ? .init(fileURL: thumb, contentType: "image/jpeg") : nil)
             let item = try await api { request in
-                let body = String(decoding: try Self.body(of: request), as: UTF8.self)
+                let body = String(
+                    decoding: try HTTPTestSupport.bodyData(from: request, bufferSize: 4096), as: UTF8.self
+                )
                 XCTAssertTrue(body.contains("name=\"file\"; filename=\"photo.png\"\r\nContent-Type: image/png"))
                 XCTAssertTrue(body.contains("original bytes"))
                 let part = "name=\"thumbnail\"; filename=\"thumb.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n"
@@ -86,21 +88,6 @@ final class BoxThumbnailAPITests: XCTestCase {
 
     private static func json(hasThumbnail: Bool) -> Data {
         Data((itemJSON.dropLast() + #","has_thumbnail":\#(hasThumbnail)}"#).utf8)
-    }
-
-    private static func body(of request: URLRequest) throws -> Data {
-        if let body = request.httpBody { return body }
-        let stream = try XCTUnwrap(request.httpBodyStream)
-        stream.open()
-        defer { stream.close() }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 4096)
-        while true {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            if count < 0 { throw stream.streamError ?? HibossAPIError.invalidResponse }
-            if count == 0 { return data }
-            data.append(buffer, count: count)
-        }
     }
 
     private func api(_ handler: @escaping (URLRequest) throws -> (Int, Data)) throws -> HibossAPI {

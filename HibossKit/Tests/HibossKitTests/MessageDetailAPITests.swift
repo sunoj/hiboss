@@ -21,7 +21,8 @@ final class MessageDetailAPITests: XCTestCase {
             return try Self.response(for: request)
         }
 
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: MessageDetailURLProtocol.self))
         let detail = try await api.fetchMessage("m1")
 
         XCTAssertEqual(detail.message.body, "Ship it?")
@@ -33,12 +34,6 @@ final class MessageDetailAPITests: XCTestCase {
             serverURL: try XCTUnwrap(URL(string: "https://hiboss.example")),
             bossToken: "test-token"
         )
-    }
-
-    private func session() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [MessageDetailURLProtocol.self]
-        return URLSession(configuration: configuration)
     }
 
     private static func response(for request: URLRequest) throws -> (HTTPURLResponse, Data) {

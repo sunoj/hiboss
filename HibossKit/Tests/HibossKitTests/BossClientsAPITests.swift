@@ -17,7 +17,9 @@ final class BossClientsAPITests: XCTestCase {
     func testCreateUsesAuthorizedPostAndReturnsFreshCredential() async throws {
         ClientsURLProtocol.handler = { request in
             XCTAssertEqual(request.httpMethod, "POST")
-            let body = try JSONDecoder().decode(Registration.self, from: Self.body(request))
+            let body = try JSONDecoder().decode(
+                Registration.self, from: HTTPTestSupport.bodyData(from: request)
+            )
             XCTAssertEqual(body.kind, "macos")
             XCTAssertEqual(body.label, "Office Mac")
             return (201, "{\"client\":\(Self.clientJSON),\"token\":\"fresh-token\"}")
@@ -118,20 +120,7 @@ final class BossClientsAPITests: XCTestCase {
         ), session: session)
     }
 
-    private static func body(_ request: URLRequest) throws -> Data {
-        if let body = request.httpBody { return body }
-        let stream = try XCTUnwrap(request.httpBodyStream)
-        stream.open()
-        defer { stream.close() }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1024)
-        while true {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            if count < 0 { throw stream.streamError ?? HibossAPIError.invalidResponse }
-            if count == 0 { return data }
-            data.append(buffer, count: count)
-        }
-    }
+
 }
 
 private struct Registration: Decodable {

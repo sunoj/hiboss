@@ -17,12 +17,13 @@ final class HibossAPIPreferencesTests: XCTestCase {
             XCTAssertEqual(request.httpMethod, "GET")
             XCTAssertEqual(request.url?.path, "/api/boss/me/preferences")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
-            return try Self.response(
+            return try HTTPTestSupport.response(
                 for: request,
                 json: #"{"routing":{"critical":["api"]},"quiet_hours":null}"#
             )
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: PreferencesURLProtocol.self))
 
         let preferences = try await api.fetchPreferences()
 
@@ -35,15 +36,16 @@ final class HibossAPIPreferencesTests: XCTestCase {
             XCTAssertEqual(request.httpMethod, "PUT")
             XCTAssertEqual(request.url?.path, "/api/boss/me/preferences")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
-            let body = try Self.bodyData(from: request)
+            let body = try HTTPTestSupport.bodyData(from: request)
             let preferences = try JSONDecoder().decode(BossPreferences.self, from: body)
             XCTAssertEqual(preferences.routing?[.high], [.telegram])
-            return try Self.response(
+            return try HTTPTestSupport.response(
                 for: request,
                 json: #"{"routing":{"critical":["api"],"high":["telegram"]}}"#
             )
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: PreferencesURLProtocol.self))
 
         let preferences = try await api.updatePreferences(
             BossPreferences(routing: [.high: [.telegram]])
@@ -58,44 +60,7 @@ final class HibossAPIPreferencesTests: XCTestCase {
         return ConnectionConfig(serverURL: serverURL, bossToken: "test-token")
     }
 
-    private func session() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [PreferencesURLProtocol.self]
-        return URLSession(configuration: configuration)
-    }
 
-    private static func response(
-        for request: URLRequest,
-        json: String
-    ) throws -> (HTTPURLResponse, Data) {
-        let url = try XCTUnwrap(request.url)
-        let response = try XCTUnwrap(
-            HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
-        )
-        return (response, Data(json.utf8))
-    }
-
-    private static func bodyData(from request: URLRequest) throws -> Data {
-        if let body = request.httpBody {
-            return body
-        }
-        let stream = try XCTUnwrap(request.httpBodyStream)
-        stream.open()
-        defer { stream.close() }
-
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1024)
-        while true {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            if count < 0 {
-                throw stream.streamError ?? HibossAPIError.invalidResponse
-            }
-            if count == 0 {
-                return data
-            }
-            data.append(buffer, count: count)
-        }
-    }
 }
 
 private final class PreferencesURLProtocol: HTTPTestProtocol, @unchecked Sendable {

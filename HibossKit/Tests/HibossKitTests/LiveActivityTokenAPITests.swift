@@ -20,7 +20,8 @@ final class LiveActivityTokenAPITests: XCTestCase {
             body = try JSONDecoder().decode([String: String].self, from: Self.body(of: request))
             return try Self.response(for: request, status: 204)
         }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: LiveActivityTokenURLProtocol.self))
 
         try await api.registerLiveActivityToken(messageID: "m1", token: "abcd", environment: "sandbox")
 
@@ -29,7 +30,8 @@ final class LiveActivityTokenAPITests: XCTestCase {
 
     func testConflictThrows() async throws {
         LiveActivityTokenURLProtocol.handler = { try Self.response(for: $0, status: 409) }
-        let api = HibossAPI(config: try config(), session: session())
+        let api = HibossAPI(config: try config(),
+            session: HTTPTestSupport.session(for: LiveActivityTokenURLProtocol.self))
         do {
             try await api.registerLiveActivityToken(messageID: "m1", token: "abcd", environment: "sandbox")
             XCTFail("409 must throw")
@@ -38,12 +40,6 @@ final class LiveActivityTokenAPITests: XCTestCase {
 
     private func config() throws -> ConnectionConfig {
         ConnectionConfig(serverURL: try XCTUnwrap(URL(string: "https://hiboss.example")), bossToken: "test-token")
-    }
-
-    private func session() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [LiveActivityTokenURLProtocol.self]
-        return URLSession(configuration: configuration)
     }
 
     private static func body(of request: URLRequest) throws -> Data {
