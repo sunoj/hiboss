@@ -42,15 +42,32 @@ mod tests {
             metadata: Some(metadata),
             created_at: Some("2026-03-16T00:00:00Z".to_string()),
             updated_at: Some("2026-03-16T00:01:00Z".to_string()),
+            message_type: Some("decision".to_string()),
+            session_id: Some("session-1".to_string()),
+            target_agent_id: Some("agent-2".to_string()),
+            target_session_id: Some("session-2".to_string()),
+            session_label: Some("project/main".to_string()),
+            session_branch: Some("main".to_string()),
+            session_status: Some("working".to_string()),
             ..crate::tests::message("full".to_string())
         };
         assert_roundtrip(&message);
+        let wire = serde_json::to_value(&message).unwrap();
+        assert_eq!(wire["type"], "decision");
+        assert_eq!(wire["session_id"], "session-1");
+        assert_eq!(wire["target_agent_id"], "agent-2");
+        assert_eq!(wire["target_session_id"], "session-2");
+        assert_eq!(wire["session_label"], "project/main");
+        assert_eq!(wire["session_branch"], "main");
+        assert_eq!(wire["session_status"], "working");
     }
 
     #[test]
     fn message_roundtrips_minimal_fields() {
         let message = crate::tests::message("minimal".to_string());
         assert_roundtrip(&message);
+        let missing: Message = serde_json::from_value(serde_json::json!({"id": "minimal"})).unwrap();
+        assert_eq!(serde_json::to_value(missing).unwrap(), serde_json::to_value(message).unwrap());
     }
 
     #[test]
