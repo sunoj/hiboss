@@ -28,8 +28,7 @@ extension HibossAPI {
         let endpoint = config.serverURL.appendingPathComponent(path)
         var request = authorizedRequest(url: endpoint, method: "POST")
         request.httpBody = try JSONEncoder().encode(body)
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         return try decoder.decode(PanelConnectionTicket.self, from: data)
     }
 }

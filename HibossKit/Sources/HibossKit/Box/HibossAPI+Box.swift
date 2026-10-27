@@ -46,8 +46,7 @@ extension HibossAPI: BoxServing {
     }
 
     public func downloadBoxMedia(id: String, to destination: URL) async throws {
-        let (data, response) = try await session.data(for: boxMediaRequest(id: id))
-        try await validate(response)
+        let data = try await validatedData(for: boxMediaRequest(id: id))
         try Task.checkCancellation()
         try data.write(to: destination, options: [.atomic, .completeFileProtection])
     }
@@ -55,8 +54,7 @@ extension HibossAPI: BoxServing {
     public func patchBoxItem(id: String, patch: BoxPatch) async throws -> BoxItem {
         var request = authorizedRequest(url: boxURL.appendingPathComponent(id), method: "PATCH")
         request.httpBody = try JSONEncoder().encode(patch)
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         return try decoder.decode(BoxItem.self, from: data)
     }
 

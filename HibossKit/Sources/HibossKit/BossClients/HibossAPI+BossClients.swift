@@ -8,8 +8,7 @@ extension HibossAPI: BossClientsServing {
     public func createClient(kind: BossClientKind, label: String) async throws -> BossClientGrant {
         var request = authorizedRequest(url: apiURL.appendingPathComponent("clients"), method: "POST")
         request.httpBody = try JSONEncoder().encode(ClientRegistration(kind: kind, label: label))
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         do {
             let grant = try decoder.decode(BossClientGrant.self, from: data)
             guard !grant.token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

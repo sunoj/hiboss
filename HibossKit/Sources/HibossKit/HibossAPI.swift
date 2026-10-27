@@ -93,32 +93,21 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
 
     public func fetchPreferences() async throws -> BossPreferences {
         let endpoint = apiURL.appendingPathComponent("me").appendingPathComponent("preferences")
-        let request = authorizedRequest(url: endpoint, method: "GET")
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
-        do {
-            return try decoder.decode(BossPreferences.self, from: data)
-        } catch {
-            throw HibossAPIError.decodingFailed(
-                context: "preferences", body: String(data: data, encoding: .utf8) ?? "<non-text>"
-            )
-        }
+        return try await decode(BossPreferences.self, from: endpoint, context: "preferences")
     }
 
     public func updatePreferences(_ preferences: BossPreferences) async throws -> BossPreferences {
         let endpoint = apiURL.appendingPathComponent("me").appendingPathComponent("preferences")
         var request = authorizedRequest(url: endpoint, method: "PUT")
         request.httpBody = try JSONEncoder().encode(preferences)
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         return try decoder.decode(BossPreferences.self, from: data)
     }
 
     public func verifyConnection() async throws {
         let endpoint = apiURL.appendingPathComponent("me")
         let request = authorizedRequest(url: endpoint, method: "GET")
-        let (_, response) = try await session.data(for: request)
-        try await validate(response)
+        _ = try await validatedData(for: request)
     }
 
     /// Registers this device's APNs token so the server can push to it.
@@ -133,8 +122,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         request.httpBody = try JSONEncoder().encode(
             DeviceRegistration(token: token, bundleId: bundleId, environment: environment, platform: platform)
         )
-        let (_, response) = try await session.data(for: request)
-        try await validate(response)
+        _ = try await validatedData(for: request)
     }
 
     var apiURL: URL {
@@ -185,6 +173,12 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         return request
     }
 
+    func validatedData(for request: URLRequest) async throws -> Data {
+        let (data, response) = try await session.data(for: request)
+        try await validate(response)
+        return data
+    }
+
     func validate(_ response: URLResponse) async throws {
         guard let http = response as? HTTPURLResponse else {
             throw HibossAPIError.invalidResponse
@@ -209,8 +203,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         context: String
     ) async throws -> T {
         let request = authorizedRequest(url: url, method: method)
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         do {
             return try decoder.decode(type, from: data)
         } catch {
@@ -223,8 +216,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
 
     func send(_ method: String, url: URL) async throws {
         let request = authorizedRequest(url: url, method: method)
-        let (_, response) = try await session.data(for: request)
-        try await validate(response)
+        _ = try await validatedData(for: request)
     }
 }
 

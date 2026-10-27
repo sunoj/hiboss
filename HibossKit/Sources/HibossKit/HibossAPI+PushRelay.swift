@@ -37,8 +37,7 @@ extension HibossAPI {
             relayHandle: relayHandle, pushKey: pushKey, environment: environment,
             platform: platform, bundleId: bundleId
         ))
-        let (_, response) = try await session.data(for: request)
-        try await validate(response)
+        _ = try await validatedData(for: request)
     }
 
     /// Registers a decision Live Activity's APNs push token so the server can end it (direct mode).
@@ -48,8 +47,7 @@ extension HibossAPI {
         request.httpBody = try JSONEncoder().encode(LiveActivityTokenRegistration(
             messageId: messageID, activityToken: token, environment: environment
         ))
-        let (_, response) = try await session.data(for: request)
-        try await validate(response)
+        _ = try await validatedData(for: request)
     }
 
     /// Deletes one device row; a relay device is addressed as `relay:<handle>`.

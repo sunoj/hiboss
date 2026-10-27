@@ -67,8 +67,7 @@ extension HibossAPI {
             .appendingPathComponent("boss")
             .appendingPathComponent("pairing")
         let request = authorizedRequest(url: endpoint, method: "POST")
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         do {
             return try decoder.decode(PairingGrant.self, from: data)
         } catch {
@@ -85,8 +84,7 @@ extension HibossAPI {
             .appendingPathComponent("status")
         var request = authorizedRequest(url: endpoint, method: "POST")
         request.httpBody = try JSONEncoder().encode(PairingStatusRequest(code: code))
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         do {
             return try decoder.decode(PairingStatusResponse.self, from: data).status
         } catch {

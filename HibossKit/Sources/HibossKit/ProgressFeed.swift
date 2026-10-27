@@ -50,19 +50,6 @@ public struct ProgressMedia: Codable, Equatable, Sendable, Identifiable {
         self.posterUrl = posterUrl
         self.alt = alt
     }
-
-    public init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        url = try values.decode(String.self, forKey: .url)
-        kind = try values.decode(Kind.self, forKey: .kind)
-        contentType = try values.decode(String.self, forKey: .contentType)
-        size = try values.decode(Int.self, forKey: .size)
-        width = try values.decodeIfPresent(Int.self, forKey: .width)
-        height = try values.decodeIfPresent(Int.self, forKey: .height)
-        durationMs = try values.decodeIfPresent(Int.self, forKey: .durationMs)
-        posterUrl = try values.decodeIfPresent(String.self, forKey: .posterUrl)
-        alt = try values.decodeIfPresent(String.self, forKey: .alt)
-    }
 }
 
 public struct ProgressTeam: Codable, Equatable, Sendable {

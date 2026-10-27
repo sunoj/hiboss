@@ -13,8 +13,7 @@ extension HibossAPI: BoxThumbnailServing {
     public func downloadBoxThumbnail(id: String) async throws -> Data {
         var request = authorizedRequest(url: boxThumbnailURL(id: id), method: "GET")
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         return data
     }
 

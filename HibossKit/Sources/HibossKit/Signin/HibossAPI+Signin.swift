@@ -51,8 +51,7 @@ extension HibossAPI {
             .appendingPathComponent("signin-requests")
             .appendingPathComponent(id)
         if let action { endpoint = endpoint.appendingPathComponent(action) }
-        let (data, response) = try await session.data(for: authorizedRequest(url: endpoint, method: method))
-        try await validate(response)
+        let data = try await validatedData(for: authorizedRequest(url: endpoint, method: method))
         do {
             return try decoder.decode(T.self, from: data)
         } catch {

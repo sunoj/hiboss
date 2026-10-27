@@ -49,8 +49,7 @@ extension HibossAPI {
         struct Payload: Encodable { let name: String }
         var request = authorizedRequest(url: url, method: method)
         request.httpBody = try JSONEncoder().encode(Payload(name: name))
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         return try decoder.decode(BoxCollection.self, from: data)
     }
 }

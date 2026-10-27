@@ -11,8 +11,7 @@ extension HibossAPI {
             .appendingPathComponent(messageID.rawValue)
         var request = authorizedRequest(url: endpoint, method: "GET")
         request.timeoutInterval = AppConstants.API.notificationMessageTimeout
-        let (data, response) = try await session.data(for: request)
-        try await validate(response)
+        let data = try await validatedData(for: request)
         return try decoder.decode(MessageDetail.self, from: data)
     }
 }
