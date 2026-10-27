@@ -1,46 +1,43 @@
-// Integration tests for the dashboard PWA routes and HTML hooks.
-// Verifies manifest, icon, service worker, and dashboard shell wiring.
-// Depends on the cloudflare:test worker runtime.
+// Integration coverage for the retired embedded dashboard and retained message API.
+// Checks retired paths, the API root, and reaction identities without a browser.
+// Depends on cloudflare:test, database fixtures, and the production Worker.
 
-import { SELF } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { env, SELF } from 'cloudflare:test';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { authHeaders, getTestAgentId, seedDatabase } from './test-helpers';
 
-describe('dashboard pwa routes', () => {
-  it('serves the manifest and icon', async () => {
-    const manifestRes = await SELF.fetch('https://test.local/manifest.json');
-    expect(manifestRes.status).toBe(200);
-    expect(manifestRes.headers.get('content-type')).toContain('application/json');
-    expect(await manifestRes.json()).toMatchObject({
-      name: 'hiboss',
-      short_name: 'hiboss',
-      start_url: '/dashboard',
-      display: 'standalone',
-      theme_color: '#161b22',
-      background_color: '#0d1117',
-    });
+beforeAll(seedDatabase);
 
-    const iconRes = await SELF.fetch('https://test.local/icon.svg');
-    expect(iconRes.status).toBe(200);
-    expect(iconRes.headers.get('content-type')).toContain('image/svg+xml');
-    expect(await iconRes.text()).toContain('<svg');
+describe('worker routes after dashboard retirement', () => {
+  it('serves the API root without an embedded application', async () => {
+    const response = await SELF.fetch('https://test.local/');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('hiboss server');
+    expect(response.headers.get('x-request-id')).toBeTruthy();
   });
 
-  it('serves the service worker and dashboard pwa hooks', async () => {
-    const swRes = await SELF.fetch('https://test.local/sw.js');
-    expect(swRes.status).toBe(200);
-    expect(swRes.headers.get('cache-control')).toBe('no-cache');
-    const swText = await swRes.text();
-    expect(swText).toContain("const VERSION = 'hiboss-pwa-v1';");
-    expect(swText).toContain('hiboss — reconnecting...');
-    expect(swText).toContain("url.pathname.startsWith('/api/')");
-    expect(swText).toContain('event.respondWith(fetch(request));');
-    expect(swText).toContain("url.hostname === 'unpkg.com' && url.pathname.startsWith('/vue@')");
-    expect(swText).not.toContain('API_CACHE');
+  it('does not serve retired dashboard or PWA assets', async () => {
+    for (const path of ['/dashboard', '/manifest.json', '/icon.svg', '/sw.js']) {
+      const response = await SELF.fetch(`https://test.local${path}`);
+      expect(response.status, path).toBe(404);
+      expect(await response.text(), path).toBe('404 Not Found');
+      expect(response.headers.get('x-request-id'), path).toBeTruthy();
+    }
+  });
 
-    const dashboardRes = await SELF.fetch('https://test.local/dashboard');
-    expect(dashboardRes.status).toBe(200);
-    const dashboardHtml = await dashboardRes.text();
-    expect(dashboardHtml).toContain('<link rel="manifest" href="/manifest.json">');
-    expect(dashboardHtml).toContain("navigator.serviceWorker.register('/sw.js')");
+  it('preserves agent, boss and legacy reaction identities in message reads', async () => {
+    const reactions = [
+      { emoji: '👍', actor: 'agent', actor_id: 'agent-1' },
+      { emoji: '🔥', actor: 'boss', actor_id: '123' },
+      { emoji: '👍', user: 'Alice' },
+    ];
+    await env.DB.prepare(`INSERT INTO messages (id, agent_id, direction, mode, body, metadata)
+      VALUES (?, ?, 'agent_to_boss', 'async', 'reactions', ?)`)
+      .bind('retired-dashboard-reactions', getTestAgentId(), JSON.stringify({ reactions })).run();
+    const response = await SELF.fetch('https://test.local/api/messages/retired-dashboard-reactions', {
+      headers: authHeaders(),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ metadata: { reactions } });
   });
 });

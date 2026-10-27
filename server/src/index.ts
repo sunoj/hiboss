@@ -34,11 +34,6 @@ import { sessionsRouter } from './routes/sessions';
 import { sessionEventsRouter } from './routes/session-events';
 import { progressRouter } from './routes/progress';
 import { progressTeamsRouter } from './routes/progress-teams';
-import dashboardHtml from './dashboard.html';
-// @ts-ignore JS string module exports the service worker source.
-import swJs from './sw.js';
-// @ts-ignore JS string module exports the inline SVG icon markup.
-import iconSvg from './icon.js';
 import { handleScheduled } from './scheduled';
 import { discordGatewayRouter } from './routes/discord-gateway-api';
 import { requestId } from './middleware/request-id';
@@ -55,16 +50,6 @@ import { panelsRouter } from './panels/definition';
 import { panelRelayRouter } from './panels/relay';
 
 const app = new Hono<{ Bindings: Env; Variables: { reqId: string } }>({});
-const manifest = {
-  name: 'hiboss',
-  short_name: 'hiboss',
-  start_url: '/dashboard',
-  display: 'standalone',
-  background_color: '#0d1117',
-  theme_color: '#161b22',
-  icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' }],
-};
-
 app.use('*', requestId);
 
 // CORS for the browser-based web console and local dev. The console origin is
@@ -143,10 +128,6 @@ app.route('/api/bootstrap', bootstrapBossRouter);
 app.route('/api/discord-gateway', discordGatewayRouter);
 app.route('/api', adminRouter);
 
-app.get('/sw.js', (c) => c.body(swJs, { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } }));
-app.get('/manifest.json', (c) => c.json(manifest));
-app.get('/icon.svg', (c) => c.body(iconSvg, { headers: { 'Content-Type': 'image/svg+xml; charset=utf-8' } }));
-app.get('/dashboard', (c) => c.html(dashboardHtml));
 app.get('/', (c) => c.text('hiboss server'));
 
 app.onError((err, c) => {

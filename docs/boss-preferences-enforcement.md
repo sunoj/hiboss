@@ -58,13 +58,12 @@ The design's API column therefore had no backing row: selecting `api` alone left
 boss-agent callbacks and iOS/APNs push. Native-client delivery needs to be a first-class
 preference independent of `channel_configs`.
 
-### 3. Legacy `quiet_hours` shape is still actively written
+### 3. Stored legacy `quiet_hours` preferences
 
-`dashboard.html` (~line 1541) sends the old `quiet_hours: { start, end }` form, and
-`getAgentQuietHoursEnd` still reads `$.quiet_hours.start/end`. Any strict validator on
-`PUT /me/preferences` breaks the web dashboard's quiet-hours save. Validating only the
-incoming payload is *not* sufficient — a live client produces the legacy shape. Migrate the
-dashboard and the stored rows together, or accept both shapes explicitly.
+The retired embedded dashboard wrote `quiet_hours: { start, end }`, and stored preferences
+can still use this shape. `getAgentQuietHoursEnd` continues to read
+`$.quiet_hours.start/end`. Validators must account for existing records even though the
+embedded browser UI is no longer served.
 
 ### 4. `high` priority would silently start being deferred
 
