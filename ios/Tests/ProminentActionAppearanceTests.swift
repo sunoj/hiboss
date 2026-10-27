@@ -57,12 +57,7 @@ final class ProminentActionAppearanceTests: XCTestCase {
     private func labelContrast(_ image: UIImage) throws -> Double {
         let cgImage = try XCTUnwrap(image.cgImage)
         let width = cgImage.width, height = cgImage.height
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
-        let context = try XCTUnwrap(CGContext(
-            data: &pixels, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
-            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ))
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        let pixels = try rgbaPixels(cgImage)
         var luminances: [Double] = []
         // The 360x100 window renders the two buttons in its top ~57%; the left label sits at
         // roughly 20–38% of the height, so sample there rather than the window's middle.

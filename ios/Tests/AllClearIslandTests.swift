@@ -54,11 +54,18 @@ final class AllClearIslandTests: XCTestCase {
         XCTAssertEqual(IslandSwatch.names.count, 11)
     }
 
-    func testIslandRendersStillFrame() {
-        let renderer = ImageRenderer(content: AllClearIslandView())
+    func testIslandRendersStillFrame() throws {
+        let renderer = ImageRenderer(content: AllClearIslandView()
+            .environment(\.accessibilityReduceMotion, true))
         renderer.scale = 1
         let image = renderer.uiImage
         XCTAssertNotNil(image)
         XCTAssertEqual(image?.size, CGSize(width: 168, height: 148))
+        let cgImage = try XCTUnwrap(image?.cgImage)
+        let pixels = try rgbaPixels(cgImage)
+        let alpha = stride(from: 3, to: pixels.count, by: 4).map { pixels[$0] }
+        XCTAssertGreaterThan(alpha.filter { $0 > 0 }.count, cgImage.width * cgImage.height / 2)
+        XCTAssertEqual(alpha.first, 0)
+        XCTAssertEqual(alpha.last, 0)
     }
 }

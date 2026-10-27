@@ -22,11 +22,7 @@ final class StableSurfaceRenderTests: XCTestCase {
         let renderer = ImageRenderer(content: header.environment(\.colorScheme, .light))
         renderer.proposedSize = ProposedViewSize(width: 390, height: nil)
         let image = try XCTUnwrap(renderer.cgImage)
-        var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
-        let context = try XCTUnwrap(CGContext(data: &pixels, width: image.width, height: image.height,
-            bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        let pixels = try rgbaPixels(image)
         let green = stride(from: 0, to: pixels.count, by: 4).filter {
             Int(pixels[$0 + 1]) > Int(pixels[$0]) + 30 && Int(pixels[$0 + 1]) > Int(pixels[$0 + 2]) + 30
         }.count

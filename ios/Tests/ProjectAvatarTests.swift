@@ -56,7 +56,7 @@ final class ProjectAvatarTests: XCTestCase {
     func testAgentAndProgressInitialsAreCircular() throws {
         let agent = try alphaMask(AgentAvatarView(name: "Build Agent", size: 20))
         let circle = try alphaMask(Circle().fill(Theme.surface2).frame(width: 20, height: 20))
-        XCTAssertEqual(Array(agent.prefix(80)), Array(circle.prefix(80)))
+        XCTAssertEqual(agent, circle)
         let expected = try alphaMask(Circle().fill(.black).frame(width: 20, height: 20))
         let chip = ProgressAttributionChip(agentLabel: nil, model: "claude-sonnet")
         XCTAssertEqual(try alphaMask(chip.frame(width: 20, height: 20, alignment: .leading).clipped()),
@@ -88,18 +88,4 @@ final class ProjectAvatarTests: XCTestCase {
         return try XCTUnwrap(renderer.uiImage?.pngData())
     }
 
-    private func alphaMask<Content: View>(_ content: Content) throws -> [UInt8] {
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = 1
-        let image = try XCTUnwrap(renderer.uiImage?.cgImage)
-        var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
-        try pixels.withUnsafeMutableBytes { bytes in
-            let context = try XCTUnwrap(CGContext(data: bytes.baseAddress, width: image.width,
-                height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-        }
-        return stride(from: 3, to: pixels.count, by: 4).map { pixels[$0] }
-    }
 }
