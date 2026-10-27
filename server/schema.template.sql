@@ -1,5 +1,5 @@
--- Documented SQLite objects; authoritative definitions are in migrations/.
--- Render with sh scripts/check-schema.sh --emit; this template is not executable SQL.
+-- SQL documentation template; authoritative definitions are in migrations/.
+-- Render complete executable SQL with sh scripts/check-schema.sh --emit.
 
 -- Agent authentication
 
