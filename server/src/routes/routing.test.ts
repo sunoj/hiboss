@@ -11,10 +11,22 @@ beforeAll(async () => {
 });
 
 describe('GET /api/routing-rules', () => {
-  it('returns empty list initially', async () => {
-    const data = (await testJson(200,
-      testRequest('GET', 'https://test.local/api/routing-rules', authHeaders()))) as { rules: unknown[] };
-    expect(data.rules).toBeInstanceOf(Array);
+  it('lists rules created through the API', async () => {
+    const url = 'https://test.local/api/routing-rules';
+    const list = () => testRequest('GET', url, authHeaders());
+    const initial = await testJson(200, list()) as { rules: unknown[] };
+    expect(initial.rules).toBeInstanceOf(Array);
+    const fields = Object.freeze({
+      channel: 'telegram', pattern: 'list-regression', target_agent_id: getTestAgentId(), priority: 7,
+    });
+    const created = await testJson(201, testRequest('POST', url, authHeaders(), fields)) as { id: string };
+    try {
+      const listed = await testJson(200, list()) as { rules: unknown[] };
+      expect(listed.rules).toContainEqual(expect.objectContaining({ id: created.id, ...fields }));
+    } finally {
+      const deleted = await testRequest('DELETE', `${url}/${created.id}`, authHeaders());
+      expect(deleted.status).toBe(200);
+    }
   });
 });
 
