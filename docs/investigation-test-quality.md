@@ -70,3 +70,22 @@ Both repairs were verified at `0fc9708fc8a0e8368985d36f15da8e3c6d41395e`, using 
 `cli/`, `npm run check` in `web/`, and the complete Web Vitest run. Production code is unchanged.
 These findings close the workspace-collision failure and the sampled enum coverage gaps; they do
 not establish completion of the repository-wide review.
+
+## Non-vacuous native ordering and the Home entry point
+
+The shared and on-device text-ask ordering tests compared filtered results with a second call to the
+same ranking implementation. Replacing the implementation's result with an empty array left both
+tests passing. Both now require the independent order `auto`, `blocked`, `high`.
+
+The Home/Live Activity agreement test formerly compared TodaySnapshot directly with the Live Activity
+adapter, without traversing HomeAttentionSnapshot. Emptying the Home projection's groups left that
+test passing. It now projects the ranked decisions through HomeAttentionSnapshot before comparing
+the displayed order with Live Activity ranking, preserving the literal expected option order.
+
+Three isolated controls verify these gaps: empty ranking results on macOS and iOS, and empty Home
+groups on iOS. Each original selected test passes its fault; each corrected test fails it.
+After restoring production source, verification at `3419ff41db138877fba99a40af107b39a862310a` passed
+all 497 iOS unit tests, all 13 shared attention tests, and the macOS build. No cases were skipped.
+All 24 case names and fixture inputs in the two edited files remain; only the expected vectors,
+the Home projection call and the on-device test header changed. No production change was committed.
+The platform tests are retained rather than removed solely because their fixtures overlap.
