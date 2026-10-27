@@ -3,6 +3,7 @@
 // Dependencies: super::HiBossClient, crate::types, reqwest, serde_json.
 
 use super::HiBossClient;
+use reqwest::Method;
 use crate::message_security;
 use crate::types::{Message, MessagesResponse, PollResponse, SendRequest, SendResponse, StatusUpdate};
 use reqwest::StatusCode;
@@ -103,10 +104,7 @@ impl HiBossClient {
         search: Option<&str>,
         status: Option<&str>,
     ) -> Result<MessagesResponse, Box<dyn Error>> {
-        let mut request = self
-            .http
-            .get(format!("{}/api/messages", self.base_url))
-            .bearer_auth(&self.api_key)
+        let mut request = self.request(Method::GET, "/api/messages")
             .query(&[("limit", limit.to_string())]);
         if unread {
             request = request.query(&[("unread", "true")]);
@@ -114,29 +112,14 @@ impl HiBossClient {
         if all {
             request = request.query(&[("offset", "0")]);
         }
-        if let Some(p) = priority {
-            request = request.query(&[("priority", p)]);
-        }
-        if let Some(t) = msg_type {
-            request = request.query(&[("type", t)]);
-        }
-        if let Some(s) = session {
-            request = request.query(&[("session", s)]);
-        }
-        if let Some(f) = from {
-            request = request.query(&[("from", f)]);
-        }
-        if let Some(d) = direction {
-            request = request.query(&[("direction", d)]);
-        }
-        if let Some(ts) = target_session {
-            request = request.query(&[("target_session", ts)]);
-        }
-        if let Some(s) = search {
-            request = request.query(&[("search", s)]);
-        }
-        if let Some(s) = status {
-            request = request.query(&[("status", s)]);
+        for (key, value) in [
+            ("priority", priority), ("type", msg_type), ("session", session), ("from", from),
+            ("direction", direction), ("target_session", target_session), ("search", search),
+            ("status", status),
+        ] {
+            if let Some(value) = value {
+                request = request.query(&[(key, value)]);
+            }
         }
         let resp = request.send().await?;
         let response: MessagesResponse = Self::parse_response(resp).await?;
@@ -145,10 +128,7 @@ impl HiBossClient {
     }
 
     pub async fn get_message(&self, id: &str) -> Result<Message, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/messages/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::GET, &format!("/api/messages/{}", id))
             .send()
             .await?;
         verified_message(Self::parse_response(resp).await?)
@@ -168,10 +148,7 @@ impl HiBossClient {
 
     pub async fn send_message(&self, req: &SendRequest) -> Result<SendResponse, Box<dyn Error>> {
         let body = self.signed_send_body(req).await?;
-        let resp = self
-            .http
-            .post(format!("{}/api/messages", self.base_url))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::POST, "/api/messages")
             .json(&body)
             .send()
             .await?;
@@ -179,10 +156,7 @@ impl HiBossClient {
     }
     pub async fn reply_to(&self, id: &str, body: &str) -> Result<Message, Box<dyn Error>> {
         let (id, req) = self.signed_reply(id, body).await?;
-        let resp = self
-            .http
-            .post(format!("{}/api/messages/{}/reply", self.base_url, id))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::POST, &format!("/api/messages/{}/reply", id))
             .json(&req)
             .send()
             .await?;
@@ -193,10 +167,7 @@ impl HiBossClient {
         let req = StatusUpdate {
             status: status.to_owned(),
         };
-        let resp = self
-            .http
-            .patch(format!("{}/api/messages/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::PATCH, &format!("/api/messages/{}", id))
             .json(&req)
             .send()
             .await?;
@@ -204,14 +175,10 @@ impl HiBossClient {
     }
 
     pub async fn edit_message_body(&self, id: &str, body: &str) -> Result<Message, Box<dyn Error>> {
-        let resp = self
-            .http
-            .patch(format!("{}/api/messages/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
-            .json(&serde_json::json!({ "body": body }))
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::PATCH, &format!("/api/messages/{}", id))
+                .json(&serde_json::json!({ "body": body }))
+        ).await
     }
 
     pub async fn forward_message(
@@ -220,14 +187,10 @@ impl HiBossClient {
         channel: &str,
     ) -> Result<Message, Box<dyn Error>> {
         let (id, req) = self.signed_forward(id, channel).await?;
-        let resp = self
-            .http
-            .post(format!("{}/api/messages/{}/forward", self.base_url, id))
-            .bearer_auth(&self.api_key)
-            .json(&req)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::POST, &format!("/api/messages/{}/forward", id))
+                .json(&req)
+        ).await
     }
 
     pub async fn poll_reply(&self, id: &str, timeout: u32) -> Result<PollResponse, Box<dyn Error>> {

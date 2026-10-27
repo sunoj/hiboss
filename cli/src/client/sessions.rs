@@ -1,6 +1,7 @@
 // Session registration, discovery and heartbeat HTTP methods.
 // Exports HiBossClient session methods; depends on reqwest and project resolution.
 use super::{HiBossClient, http_error};
+use reqwest::Method;
 use std::error::Error;
 use serde_json::Value;
 
@@ -30,10 +31,7 @@ impl HiBossClient {
         for (field, value) in optional.into_iter().filter_map(|(field, value)| Some((field, value?))) {
             body[field] = Value::String(value.to_owned());
         }
-        let resp = self
-            .http
-            .post(format!("{}/api/sessions", self.base_url))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::POST, "/api/sessions")
             .json(&body)
             .send()
             .await?;
@@ -55,13 +53,7 @@ impl HiBossClient {
         Ok(())
     }
     pub async fn list_sessions(&self) -> Result<crate::types::SessionsResponse, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/sessions", self.base_url))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, "/api/sessions")).await
     }
     pub async fn heartbeat_session(
         &self,
@@ -69,10 +61,7 @@ impl HiBossClient {
         status: Option<&str>,
         status_text: Option<&str>,
     ) -> Result<(), Box<dyn Error>> {
-        let req = self
-            .http
-            .patch(format!("{}/api/sessions/{}", self.base_url, id))
-            .bearer_auth(&self.api_key);
+        let req = self.request(Method::PATCH, &format!("/api/sessions/{}", id));
         let mut body = serde_json::Map::new();
         // The nickname is best-effort: a local state failure must not fail the heartbeat.
         if let Ok(nickname) = crate::session::nickname_for_session(id) {
@@ -96,10 +85,7 @@ impl HiBossClient {
         Ok(())
     }
     pub async fn mark_all_read(&self) -> Result<u32, Box<dyn Error>> {
-        let resp = self
-            .http
-            .post(format!("{}/api/messages/mark-all-read", self.base_url))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::POST, "/api/messages/mark-all-read")
             .send()
             .await?;
         let data: Value = Self::parse_response(resp).await?;

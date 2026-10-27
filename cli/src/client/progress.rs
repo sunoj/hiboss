@@ -3,6 +3,7 @@
 // Dependencies: super::HiBossClient, crate::types, reqwest, std::error::Error.
 
 use super::HiBossClient;
+use reqwest::Method;
 use crate::team::{ProgressTeamFull, ProgressTeamRequest, ProgressTeamsResponse};
 use crate::types::{ProgressCursor, ProgressFeedResponse, ProgressPost, ProgressPostRequest, UploadResponse};
 use std::error::Error;
@@ -13,14 +14,10 @@ impl HiBossClient {
         &self,
         req: &ProgressPostRequest,
     ) -> Result<ProgressPost, Box<dyn Error>> {
-        let resp = self
-            .http
-            .post(format!("{}/api/progress", self.base_url))
-            .bearer_auth(&self.api_key)
-            .json(req)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::POST, "/api/progress")
+                .json(req)
+        ).await
     }
 
     /// GET /api/progress — list progress posts with optional filters.
@@ -30,10 +27,7 @@ impl HiBossClient {
         limit: Option<u32>,
         before: Option<&ProgressCursor>,
     ) -> Result<ProgressFeedResponse, Box<dyn Error>> {
-        let mut req = self
-            .http
-            .get(format!("{}/api/progress", self.base_url))
-            .bearer_auth(&self.api_key);
+        let mut req = self.request(Method::GET, "/api/progress");
         if let Some(p) = project {
             req = req.query(&[("project", p)]);
         }
@@ -50,10 +44,7 @@ impl HiBossClient {
 
     /// DELETE /api/progress/:id — delete a progress post by ID.
     pub async fn delete_progress(&self, id: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self
-            .http
-            .delete(format!("{}/api/progress/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::DELETE, &format!("/api/progress/{}", id))
             .send()
             .await?;
         if !resp.status().is_success() {
@@ -91,13 +82,7 @@ impl HiBossClient {
 
     /// GET /api/progress/teams — list teams within the caller's visibility scope.
     pub async fn list_progress_teams(&self) -> Result<ProgressTeamsResponse, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/progress/teams", self.base_url))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, "/api/progress/teams")).await
     }
 
     /// POST /api/attachments/upload — raw binary upload for videos and converted GIFs.
@@ -113,16 +98,12 @@ impl HiBossClient {
         }
         let data = std::fs::read(file_path)?;
         let ct = super::mime_from_ext(filename);
-        let resp = self
-            .http
-            .post(format!("{}/api/attachments/upload", self.base_url))
-            .bearer_auth(&self.api_key)
-            .header("content-type", ct)
-            .header("x-filename", filename)
-            .body(data)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::POST, "/api/attachments/upload")
+                .header("content-type", ct)
+                .header("x-filename", filename)
+                .body(data)
+        ).await
     }
 }
 

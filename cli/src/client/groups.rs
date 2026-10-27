@@ -2,17 +2,12 @@
 // Exports: list_groups, create_group, get_group, delete_group, membership, broadcast.
 // Dependencies: serde_json::Value, std::error::Error, super::HiBossClient.
 use super::HiBossClient;
+use reqwest::Method;
 use serde_json::Value;
 use std::error::Error;
 impl HiBossClient {
     pub async fn list_groups(&self) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/groups", self.base_url))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, "/api/groups")).await
     }
     pub async fn create_group(
         &self,
@@ -23,29 +18,16 @@ impl HiBossClient {
         if let Some(desc) = description {
             payload["description"] = serde_json::Value::String(desc.to_owned());
         }
-        let resp = self
-            .http
-            .post(format!("{}/api/groups", self.base_url))
-            .bearer_auth(&self.api_key)
-            .json(&payload)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::POST, "/api/groups")
+                .json(&payload)
+        ).await
     }
     pub async fn get_group(&self, id: &str) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/groups/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, &format!("/api/groups/{}", id))).await
     }
     pub async fn delete_group(&self, id: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self
-            .http
-            .delete(format!("{}/api/groups/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::DELETE, &format!("/api/groups/{}", id))
             .send()
             .await?;
         if !resp.status().is_success() {
@@ -60,27 +42,17 @@ impl HiBossClient {
         group_id: &str,
         agent_id: &str,
     ) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .post(format!("{}/api/groups/{}/members", self.base_url, group_id))
-            .bearer_auth(&self.api_key)
-            .json(&serde_json::json!({ "agent_id": agent_id }))
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::POST, &format!("/api/groups/{}/members", group_id))
+                .json(&serde_json::json!({ "agent_id": agent_id }))
+        ).await
     }
     pub async fn remove_group_member(
         &self,
         group_id: &str,
         agent_id: &str,
     ) -> Result<(), Box<dyn Error>> {
-        let resp = self
-            .http
-            .delete(format!(
-                "{}/api/groups/{}/members/{}",
-                self.base_url, group_id, agent_id
-            ))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::DELETE, &format!("/api/groups/{}/members/{}", group_id, agent_id))
             .send()
             .await?;
         if !resp.status().is_success() {
@@ -96,16 +68,9 @@ impl HiBossClient {
         body: &str,
         priority: &str,
     ) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .post(format!(
-                "{}/api/groups/{}/broadcast",
-                self.base_url, group_id
-            ))
-            .bearer_auth(&self.api_key)
-            .json(&serde_json::json!({ "body": body, "priority": priority }))
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::POST, &format!("/api/groups/{}/broadcast", group_id))
+                .json(&serde_json::json!({ "body": body, "priority": priority }))
+        ).await
     }
 }

@@ -5,7 +5,7 @@ use crate::types::{
     AgentsResponse, ChannelStatsResponse, ChannelsResponse, CreateAgentResponse, ReactionsResponse,
     UploadResponse,
 };
-use reqwest::Client;
+use reqwest::{Client, Method};
 use serde_json::Value;
 use std::error::Error;
 use std::time::Duration;
@@ -86,56 +86,38 @@ impl HiBossClient {
                 .expect("failed to build HTTP client"),
         }
     }
-    pub async fn create_agent(&self, name: &str) -> Result<CreateAgentResponse, Box<dyn Error>> {
-        let resp = self
-            .http
-            .post(format!("{}/api/keys", self.base_url))
+    fn request(&self, method: Method, path: &str) -> reqwest::RequestBuilder {
+        self.http
+            .request(method, format!("{}{path}", self.base_url))
             .bearer_auth(&self.api_key)
-            .json(&serde_json::json!({ "name": name }))
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+    }
+    pub async fn create_agent(&self, name: &str) -> Result<CreateAgentResponse, Box<dyn Error>> {
+        Self::send_json(
+            self.request(Method::POST, "/api/keys")
+                .json(&serde_json::json!({ "name": name }))
+        ).await
     }
     pub async fn list_agents(&self) -> Result<AgentsResponse, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/agents", self.base_url))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, "/api/agents")).await
     }
     pub async fn set_channel(
         &self,
         channel: &str,
         config: &Value,
     ) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .put(format!("{}/api/channels/{}", self.base_url, channel))
-            .bearer_auth(&self.api_key)
-            .json(config)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::PUT, &format!("/api/channels/{}", channel))
+                .json(config)
+        ).await
     }
     pub async fn list_channels(&self) -> Result<ChannelsResponse, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/channels", self.base_url))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, "/api/channels")).await
     }
     pub async fn list_channel_stats(
         &self,
         verbose: bool,
     ) -> Result<ChannelStatsResponse, Box<dyn Error>> {
-        let mut req = self
-            .http
-            .get(format!("{}/api/channels/stats", self.base_url))
-            .bearer_auth(&self.api_key);
+        let mut req = self.request(Method::GET, "/api/channels/stats");
         if verbose {
             req = req.query(&[("verbose", "1")]);
         }
@@ -143,33 +125,20 @@ impl HiBossClient {
         Self::parse_response(resp).await
     }
     pub async fn get_agent_config(&self) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/agents/me", self.base_url))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, "/api/agents/me")).await
     }
     pub async fn update_agent_config(&self, config: &Value) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .put(format!("{}/api/agents/me/config", self.base_url))
-            .bearer_auth(&self.api_key)
-            .json(config)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::PUT, "/api/agents/me/config")
+                .json(config)
+        ).await
     }
     pub async fn inbox_count(
         &self,
         priority: Option<&str>,
         session_id: Option<&str>,
     ) -> Result<u32, Box<dyn Error>> {
-        let mut req = self
-            .http
-            .get(format!("{}/api/messages", self.base_url))
-            .bearer_auth(&self.api_key)
+        let mut req = self.request(Method::GET, "/api/messages")
             .query(&[
                 ("direction", "boss_to_agent"),
                 ("unread", "true"),
@@ -186,10 +155,7 @@ impl HiBossClient {
         Ok(data["total"].as_u64().unwrap_or(0) as u32)
     }
     pub async fn inbox_count_a2a(&self, session_id: Option<&str>) -> Result<u32, Box<dyn Error>> {
-        let mut req = self
-            .http
-            .get(format!("{}/api/messages", self.base_url))
-            .bearer_auth(&self.api_key)
+        let mut req = self.request(Method::GET, "/api/messages")
             .query(&[
                 ("direction", "agent_to_agent"),
                 ("unread", "true"),
@@ -203,10 +169,7 @@ impl HiBossClient {
         Ok(data["total"].as_u64().unwrap_or(0) as u32)
     }
     pub async fn react(&self, id: &str, emoji: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self
-            .http
-            .post(format!("{}/api/messages/{}/react", self.base_url, id))
-            .bearer_auth(&self.api_key)
+        let resp = self.request(Method::POST, &format!("/api/messages/{}/react", id))
             .json(&serde_json::json!({ "emoji": emoji }))
             .send()
             .await?;
@@ -223,13 +186,7 @@ impl HiBossClient {
         Ok(())
     }
     pub async fn get_reactions(&self, id: &str) -> Result<ReactionsResponse, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/messages/{}/reactions", self.base_url, id))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, &format!("/api/messages/{}/reactions", id))).await
     }
     pub async fn upload_file(&self, path: &str) -> Result<UploadResponse, Box<dyn Error>> {
         let file_path = std::path::Path::new(path);
@@ -247,14 +204,15 @@ impl HiBossClient {
             .file_name(filename)
             .mime_str(&mime)?;
         let form = reqwest::multipart::Form::new().part("file", part);
-        let resp = self
-            .http
-            .post(format!("{}/api/attachments/upload", self.base_url))
-            .bearer_auth(&self.api_key)
-            .multipart(form)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::POST, "/api/attachments/upload")
+                .multipart(form)
+        ).await
+    }
+    async fn send_json<T: serde::de::DeserializeOwned>(
+        request: reqwest::RequestBuilder,
+    ) -> Result<T, Box<dyn Error>> {
+        Self::parse_response(request.send().await?).await
     }
     pub(crate) async fn parse_response<T: serde::de::DeserializeOwned>(
         resp: reqwest::Response,
