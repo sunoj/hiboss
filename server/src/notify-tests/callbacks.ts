@@ -42,15 +42,19 @@ it('notifyAgentCallback does not throw when callback fetch fails', async () => {
 it.each<[
   string, number | null, MessageRow['status'], MessageRow['direction'], boolean, MessageRow['status'],
 ]>([
-  ['marks a sent a2a message delivered after callback acceptance',
+  ['notifyTargetAgent marks a sent a2a message delivered after callback acceptance',
     204, 'sent', 'agent_to_agent', true, 'delivered'],
-  ['keeps a message sent after HTTP rejection', 500, 'sent', 'agent_to_agent', true, 'sent'],
-  ['keeps a message sent after transport rejection', null, 'sent', 'agent_to_agent', true, 'sent'],
-  ['preserves a replied message after callback acceptance',
+  ['notifyTargetAgent keeps a message sent after HTTP rejection',
+    500, 'sent', 'agent_to_agent', true, 'sent'],
+  ['notifyTargetAgent keeps a message sent after transport rejection',
+    null, 'sent', 'agent_to_agent', true, 'sent'],
+  ['notifyTargetAgent preserves a replied message after callback acceptance',
     204, 'replied', 'agent_to_agent', true, 'replied'],
-  ['preserves boss message status after callback acceptance', 204, 'sent', 'boss_to_agent', true, 'sent'],
-  ['preserves status when delivery tracking is not requested', 204, 'sent', 'agent_to_agent', false, 'sent'],
-])('notifyTargetAgent %s', async (_, response, status, direction, markDelivered, expected) => {
+  ['notifyTargetAgent preserves boss message status after callback acceptance',
+    204, 'sent', 'boss_to_agent', true, 'sent'],
+  ['notifyAgentCallback preserves status when delivery tracking is not requested',
+    204, 'sent', 'agent_to_agent', false, 'sent'],
+])('%s', async (_, response, status, direction, markDelivered, expected) => {
   const agentId = getTestAgentId();
   const messageId = 'notify-target-a2a';
   await env.DB.prepare('UPDATE api_keys SET callback_url = ? WHERE id = ?')
