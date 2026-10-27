@@ -157,6 +157,17 @@ export function authHeaders(): Record<string, string> {
   };
 }
 
+export async function createAgentAuth(agentId: string, apiKey: string): Promise<Record<string, string>> {
+  const keyHash = await hashApiKey(apiKey);
+  await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+    .bind(agentId, agentId, keyHash)
+    .run();
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+}
+
 export function getTestAgentId(): string {
   return 'test-agent-id';
 }

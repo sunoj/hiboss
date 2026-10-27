@@ -5,8 +5,7 @@
 import { testRequest } from '../test-request';
 import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
-import { hashApiKey } from '../middleware/auth';
+import { authHeaders, getTestAgentId, seedDatabase, createAgentAuth } from '../test-helpers';
 
 const API_BASE = 'https://test.local/api/messages';
 
@@ -48,7 +47,7 @@ describe('PATCH /api/messages/:id', () => {
   });
 
   it('does not let a different agent edit another agent message', async () => {
-    await createAgentHeaders('message-edit-owner', 'hb_message_edit_owner_key_000000');
+    await createAgentAuth('message-edit-owner', 'hb_message_edit_owner_key_000000');
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'api', ?, 'sent', 'normal', ?)"
     ).bind('message-edit-owned-by-other', 'message-edit-owner', 'message-edit:other-owner', getTestAgentId()).run();
@@ -129,14 +128,3 @@ describe('PATCH /api/messages/:id', () => {
     });
   });
 });
-
-async function createAgentHeaders(agentId: string, apiKey: string): Promise<Record<string, string>> {
-  const keyHash = await hashApiKey(apiKey);
-  await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
-    .bind(agentId, agentId, keyHash)
-    .run();
-  return {
-    Authorization: `Bearer ${apiKey}`,
-    'Content-Type': 'application/json',
-  };
-}

@@ -1,9 +1,8 @@
 // Message API regression suites extracted to keep each file bounded.
 // Registers cases in messages.test.ts; depends on its shared database setup.
-import { createAgentAuth } from './support';
 import { env, SELF } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { authHeaders, getTestAgentId } from '../../test-helpers';
+import { authHeaders, getTestAgentId, createAgentAuth } from '../../test-helpers';
 
 describe('GET /api/messages', () => {
   it('lists messages for agent', async () => {

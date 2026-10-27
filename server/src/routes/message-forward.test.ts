@@ -5,8 +5,7 @@
 import { testRequest } from '../test-request';
 import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
-import { hashApiKey } from '../middleware/auth';
+import { authHeaders, getTestAgentId, seedDatabase, createAgentAuth } from '../test-helpers';
 import type { MessageRow } from '../types';
 import { forwardMessage, validateForwardChannel } from './message-forward';
 
@@ -110,7 +109,7 @@ describe('POST /api/messages/:id/forward', () => {
   });
 
   it('does not let a different agent forward another agent message', async () => {
-    await createAgentHeaders('forward-route-owner', 'hb_forward_owner_key_000000000000');
+    await createAgentAuth('forward-route-owner', 'hb_forward_owner_key_000000000000');
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'api', ?, 'sent', 'normal', ?)"
     ).bind('forward-route-owned-by-other', 'forward-route-owner', 'forward-route:other-owner', getTestAgentId()).run();
@@ -131,14 +130,3 @@ describe('POST /api/messages/:id/forward', () => {
     expect(await res.text()).toBe('not found');
   });
 });
-
-async function createAgentHeaders(agentId: string, apiKey: string): Promise<Record<string, string>> {
-  const keyHash = await hashApiKey(apiKey);
-  await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
-    .bind(agentId, agentId, keyHash)
-    .run();
-  return {
-    Authorization: `Bearer ${apiKey}`,
-    'Content-Type': 'application/json',
-  };
-}

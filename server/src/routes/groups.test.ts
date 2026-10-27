@@ -5,29 +5,17 @@
 import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
-import { hashApiKey } from '../middleware/auth';
+import { seedDatabase, authHeaders, getTestAgentId, createAgentAuth } from '../test-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
 });
 
-async function createAgentAuth(agentId: string, apiKey: string): Promise<Record<string, string>> {
-  const keyHash = await hashApiKey(apiKey);
-  await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
-    .bind(agentId, agentId, keyHash)
-    .run();
-  return {
-    Authorization: `Bearer ${apiKey}`,
-    'Content-Type': 'application/json',
-  };
-}
-
 describe('GET /api/groups', () => {
   it('returns empty list initially', async () => {
     const data = (await testJson(200,
       testRequest('GET', 'https://test.local/api/groups', authHeaders()))) as { groups: unknown[] };
-    expect(data.groups).toBeInstanceOf(Array);
+    expect(data.groups).toEqual([]);
   });
 
   it('scopes groups to the authenticated owner', async () => {
@@ -60,8 +48,22 @@ describe('POST /api/groups', () => {
     expect(data.description).toBe('A test group');
   });
 
-  it('rejects empty name', returnsStatus(400, () =>
-    testRequest('POST', 'https://test.local/api/groups', authHeaders(), { name: '' })));
+  it.each([
+    ['rejects empty name', ''],
+    ['rejects whitespace name', ' \t\n'],
+    ['rejects missing name', undefined],
+    ['rejects null name', null],
+    ['rejects numeric name', 0],
+    ['rejects boolean name', false],
+    ['rejects object name', {}],
+    ['rejects array name', []],
+  ])('%s', async (_title, name) => {
+    const before = await env.DB.prepare('SELECT COUNT(*) AS total FROM agent_groups').first();
+    const response = await testRequest('POST', 'https://test.local/api/groups', authHeaders(), { name });
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe('name is required');
+    expect(await env.DB.prepare('SELECT COUNT(*) AS total FROM agent_groups').first()).toEqual(before);
+  });
 });
 
 describe('GET /api/groups/:id', () => {
