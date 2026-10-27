@@ -2,6 +2,7 @@
 // Exports: SendArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
+use super::ask_support::warn_unread_messages;
 use super::send_metadata::build_metadata;
 use super::session_register::send_with_session_heal;
 use crate::{
@@ -240,28 +241,4 @@ pub(crate) fn format_peer_target(target: Option<&SendTarget>, requested: &str) -
             )
         })
         .unwrap_or_else(|| requested.to_owned())
-}
-
-/// Check for unread boss messages before sending. Warns via stdout so the AI sees it.
-async fn warn_unread_messages(client: &HiBossClient) {
-    let sid = crate::session::read_session_id();
-    let boss_count = client.inbox_count(None, sid.as_deref()).await.unwrap_or(0);
-    let a2a_count = client.inbox_count_a2a(sid.as_deref()).await.unwrap_or(0);
-    if boss_count > 0 || a2a_count > 0 {
-        if boss_count > 0 {
-            println!(
-                "UNREAD WARNING: You have {} unread boss message(s). Read them FIRST: hiboss inbox",
-                boss_count
-            );
-        }
-        if a2a_count > 0 {
-            println!(
-                "UNREAD WARNING: You have {} unread peer message(s). Read them FIRST: hiboss inbox --direction agent_to_agent",
-                a2a_count
-            );
-        }
-        println!(
-            "Reply to unread messages with: hiboss reply <id> \"response\" BEFORE sending new messages."
-        );
-    }
 }
