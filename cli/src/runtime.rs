@@ -1,20 +1,11 @@
 // Purpose: Identify the supported agent runtime from process environment.
 // Exports: RuntimeIdentity, detection for credential profile selection, DispatchedAsk.
-// Dependencies: std::env only.
+// Dependencies: std::env and thiserror.
 
 /// `hiboss ask` refused because a dispatched agent's questions go to its dispatcher.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("dispatched agents cannot ask the boss; return the question to your dispatcher")]
 pub struct DispatchedAsk;
-
-impl std::fmt::Display for DispatchedAsk {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(
-            "dispatched agents cannot ask the boss; return the question to your dispatcher",
-        )
-    }
-}
-
-impl std::error::Error for DispatchedAsk {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeIdentity {
@@ -75,30 +66,34 @@ mod tests {
         RuntimeIdentity::from_env(|name| env.get(name).map(|value| (*value).into()))
     }
 
+    fn check(values: &[(&str, &str)], runtime: &str, session_key: &str) {
+        assert_eq!(detect(values), RuntimeIdentity {
+            runtime: runtime.into(),
+            session_key: session_key.into(),
+        }, "{values:?}");
+    }
+
     #[test]
     fn aid_precedes_claude_and_uses_task_id() {
-        assert_eq!(
-            detect(&[("AID_TASK_ID", "task-1"), ("CLAUDECODE", "1")]),
-            RuntimeIdentity {
-                runtime: "aid".into(),
-                session_key: "task-1".into()
-            }
-        );
+        for values in [
+            vec![("AID_TASK_ID", "task-1"), ("CLAUDECODE", "1")],
+            vec![("AID_TASK_ID", "task-1"), ("CLAUDECODE", "1"),
+                ("CODEX_THREAD_ID", "thread"), ("CODEX_SESSION_ID", "session")],
+        ] {
+            check(&values, "aid", "task-1");
+        }
     }
 
     #[test]
     fn claude_uses_session_id_or_default() {
-        assert_eq!(
-            detect(&[("CLAUDECODE", "1"), ("CLAUDE_CODE_SESSION_ID", "session-1")]).session_key,
-            "session-1"
-        );
-        assert_eq!(
-            detect(&[("CLAUDECODE", "1")]),
-            RuntimeIdentity {
-                runtime: "claude".into(),
-                session_key: "default".into()
-            }
-        );
+        for (values, key) in [
+            (vec![("CLAUDECODE", "1"), ("CLAUDE_CODE_SESSION_ID", "session-1")], "session-1"),
+            (vec![("CLAUDECODE", "1")], "default"),
+            (vec![("CLAUDECODE", "1"), ("CLAUDE_CODE_SESSION_ID", " \t\n")], "default"),
+            (vec![("AID_TASK_ID", " "), ("CLAUDECODE", "1"), ("CODEX_THREAD_ID", "thread")], "default"),
+        ] {
+            check(&values, "claude", key);
+        }
     }
 
     #[test]
@@ -106,28 +101,25 @@ mod tests {
         for values in [
             vec![("CLAUDE_CODE_SESSION_ID", "id")],
             vec![("CLAUDECODE", "0"), ("CLAUDE_CODE_SESSION_ID", "id")],
+            vec![("AID_TASK_ID", " "), ("CODEX_THREAD_ID", " ")],
+            vec![],
         ] {
-            assert_eq!(detect(&values).runtime, "none");
+            check(&values, "none", "default");
         }
-        assert_eq!(
-            detect(&[("AID_TASK_ID", " "), ("CODEX_THREAD_ID", " ")]),
-            RuntimeIdentity {
-                runtime: "none".into(),
-                session_key: "default".into()
-            }
-        );
     }
 
     #[test]
     fn codex_uses_the_thread_or_session_id_without_collapsing_to_default() {
         for signal in ["CODEX_THREAD_ID", "CODEX_SESSION_ID"] {
-            let found = detect(&[(signal, "codex-1")]);
-            assert_eq!(found.runtime, "codex");
-            assert_eq!(found.session_key, "codex-1");
+            check(&[(signal, "codex-1")], "codex", "codex-1");
         }
-        assert_eq!(
-            detect(&[("CODEX_THREAD_ID", " "), ("CODEX_SESSION_ID", "s")]).session_key,
-            "s"
-        );
+        for (values, key) in [
+            (vec![("CODEX_THREAD_ID", " "), ("CODEX_SESSION_ID", "s")], "s"),
+            (vec![("CODEX_THREAD_ID", "thread"), ("CODEX_SESSION_ID", "session")], "thread"),
+            (vec![("CODEX_THREAD_ID", ""), ("CODEX_SESSION_ID", " session ")], " session "),
+            (vec![("AID_TASK_ID", " "), ("CLAUDECODE", "0"), ("CODEX_THREAD_ID", "thread")], "thread"),
+        ] {
+            check(&values, "codex", key);
+        }
     }
 }
