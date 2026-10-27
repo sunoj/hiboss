@@ -158,6 +158,7 @@
 
 <style>
 	@import '../../lib/design/page-header.css';
+	@import '../../lib/design/panel.css';
 
 	.grid {
 		display: grid;
@@ -170,13 +171,6 @@
 	}
 	.kpis {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-	}
-	.panel {
-		background: var(--hb-bg-panel);
-		border: 1px solid var(--hb-border);
-		border-radius: var(--hb-radius);
-		padding: 0.85rem 1rem;
-		box-shadow: var(--hb-shadow);
 	}
 	h2 {
 		margin: 0;

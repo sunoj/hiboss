@@ -87,17 +87,9 @@
 </div>
 
 <style>
-	.create {
-		margin-bottom: 0.75rem;
-	}
+	@import '../../lib/design/create-form.css';
 	.toggle,
 	.actions button {
-		border: 1px solid var(--hb-border);
-		background: var(--hb-bg-panel);
-		border-radius: var(--hb-radius-sm);
-		padding: 0.35rem 0.7rem;
-		cursor: pointer;
-		color: var(--hb-text);
 		font: inherit;
 		font-size: 12px;
 	}
@@ -106,50 +98,8 @@
 		background: var(--hb-bg-hover);
 	}
 	.form {
-		display: grid;
 		grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 1.2fr) auto;
-		gap: 0.55rem;
-		align-items: end;
-		padding: 0.75rem;
-		border: 1px solid var(--hb-border);
-		border-radius: var(--hb-radius);
-		background: var(--hb-bg-panel);
 		box-shadow: var(--hb-shadow);
-	}
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		font-size: 10px;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: var(--hb-text-muted);
-	}
-	input,
-	select {
-		font: inherit;
-		font-size: 12px;
-		font-weight: 500;
-		text-transform: none;
-		letter-spacing: normal;
-		padding: 0.4rem 0.5rem;
-		border: 1px solid var(--hb-border);
-		border-radius: var(--hb-radius-sm);
-		background: var(--hb-bg-input);
-		color: var(--hb-text);
-	}
-	.actions {
-		display: flex;
-		gap: 0.35rem;
-	}
-	.primary {
-		background: color-mix(in srgb, var(--hb-accent) 22%, var(--hb-bg-elevated));
-		border-color: color-mix(in srgb, var(--hb-accent) 40%, var(--hb-border));
-	}
-	.ghost {
-		background: transparent;
-		color: var(--hb-text-muted);
 	}
 	.hint {
 		margin: 0.45rem 0 0;

@@ -100,19 +100,13 @@
 
 <style>
 	@import '../../lib/design/page-header.css';
+	@import '../../lib/design/panel.css';
 
 	.layout {
 		display: flex;
 		gap: 0;
 		align-items: stretch;
 		min-height: calc(100vh - 8rem);
-	}
-	.panel {
-		background: var(--hb-bg-panel);
-		border: 1px solid var(--hb-border);
-		border-radius: var(--hb-radius);
-		padding: 0.85rem 1rem;
-		box-shadow: var(--hb-shadow);
 	}
 	.table-panel {
 		flex: 1;

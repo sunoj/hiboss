@@ -154,52 +154,7 @@
 </form>
 
 <style>
-	.filters {
-		display: flex;
-		flex-direction: column;
-		gap: 0.65rem;
-		padding: 0.85rem 1rem;
-		background: var(--hb-bg-panel);
-		border: 1px solid var(--hb-border);
-		border-radius: var(--hb-radius);
-		margin-bottom: 0.75rem;
-	}
-	.row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.55rem;
-		align-items: flex-end;
-	}
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.2rem;
-		min-width: 8rem;
-	}
-	.field.grow {
-		flex: 1;
-		min-width: 10rem;
-	}
-	.field.wide {
-		min-width: 14rem;
-	}
-	.label {
-		font-size: 10px;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--hb-text-muted);
-	}
-	select,
-	input {
-		border: 1px solid var(--hb-border);
-		background: var(--hb-bg-input);
-		color: var(--hb-text);
-		border-radius: var(--hb-radius-sm);
-		padding: 0.35rem 0.5rem;
-		font: inherit;
-		font-size: 12px;
-	}
+	@import '../../lib/design/filter-panel.css';
 	.priorities {
 		align-items: center;
 	}
@@ -232,10 +187,7 @@
 		border: 1px solid var(--hb-accent);
 		background: color-mix(in srgb, var(--hb-accent) 22%, var(--hb-bg-elevated));
 		color: var(--hb-text);
-		border-radius: var(--hb-radius-sm);
 		padding: 0.3rem 0.75rem;
-		font-weight: 600;
-		cursor: pointer;
 	}
 	.apply:hover {
 		background: color-mix(in srgb, var(--hb-accent) 35%, var(--hb-bg-elevated));

@@ -149,12 +149,5 @@
 
 <style>
 	@import '../../lib/design/page-header.css';
-
-	.panel {
-		background: var(--hb-bg-panel);
-		border: 1px solid var(--hb-border);
-		border-radius: var(--hb-radius);
-		padding: 0.85rem 1rem;
-		box-shadow: var(--hb-shadow);
-	}
+	@import '../../lib/design/panel.css'
 </style>
