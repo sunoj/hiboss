@@ -26,9 +26,13 @@ pub struct ProgressTeamFull {
     pub avatar_url: Option<String>,
     /// Server-side bookkeeping the CLI never reads. Optional on purpose: requiring fields
     /// we do not use made `team register` fail to decode a perfectly valid 200 response.
+    #[serde(default)]
     pub id: Option<String>,
+    #[serde(default)]
     pub created_at: Option<String>,
+    #[serde(default)]
     pub updated_at: Option<String>,
+    #[serde(default)]
     pub registered: Option<bool>,
 }
 

@@ -27,12 +27,18 @@ pub struct Message {
     pub metadata: Option<HashMap<String, Value>>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
+    #[serde(default)]
     pub session_id: Option<String>,
     /// Recipient of an agent_to_agent row; signed agent messages bind it.
+    #[serde(default)]
     pub target_agent_id: Option<String>,
+    #[serde(default)]
     pub target_session_id: Option<String>,
+    #[serde(default)]
     pub session_label: Option<String>,
+    #[serde(default)]
     pub session_branch: Option<String>,
+    #[serde(default)]
     pub session_status: Option<String>,
     pub replies: Option<Vec<Message>>,
 }
@@ -64,7 +70,7 @@ pub struct SendResponse {
     pub status: String,
     pub created_at: String,
     pub warning: Option<String>,
-    pub target: Option<SendTarget>,
+    #[serde(default)] pub target: Option<SendTarget>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessagesResponse {
@@ -120,6 +126,7 @@ pub struct ChannelStats {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DeliveryErrorInfo {
     pub channel: String,
+    #[serde(default)]
     pub message_id: Option<String>,
     pub last_error: Option<String>,
     pub last_error_at: Option<String>,
@@ -130,6 +137,7 @@ pub struct DeliveryQueueStatus {
     pub total: u32,
     #[serde(default)]
     pub by_status: Vec<QueueStatusCount>,
+    #[serde(default)]
     pub oldest_at: Option<String>,
 }
 
@@ -151,6 +159,7 @@ pub struct ChannelStatsResponse {
     pub channels: Vec<ChannelStats>,
     #[serde(default)]
     pub recent_errors: Vec<DeliveryErrorInfo>,
+    #[serde(default)]
     pub delivery_queue: Option<DeliveryQueueStatus>,
     #[serde(default)]
     pub direction_counts: Vec<DirectionCount>,
@@ -171,9 +180,13 @@ pub type PollResponse = Message;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Reaction {
     pub emoji: String,
+    #[serde(default)]
     pub actor: Option<String>,
+    #[serde(default)]
     pub actor_id: Option<String>,
+    #[serde(default)]
     pub user: Option<String>,
+    #[serde(default)]
     pub count: Option<u32>,
 }
 
@@ -246,8 +259,11 @@ pub struct ProgressPost {
     pub tags: Vec<String>,
     pub created_at: String,
     /// Team identity for this post. None only for posts from pre-v2 server versions.
+    #[serde(default)]
     pub team: Option<ProgressTeam>,
+    #[serde(default)]
     pub agent_label: Option<String>,
+    #[serde(default)]
     pub model: Option<String>,
 }
 /// Response from GET /api/progress.

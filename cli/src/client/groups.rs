@@ -27,11 +27,7 @@ impl HiBossClient {
         Self::send_json(self.request(Method::GET, &format!("/api/groups/{}", id))).await
     }
     pub async fn delete_group(&self, id: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self
-            .request(Method::DELETE, &format!("/api/groups/{}", id))
-            .send()
-            .await?;
-        Self::empty_response(resp, "delete failed").await
+        self.delete(&format!("/api/groups/{}", id), "delete failed").await
     }
     pub async fn add_group_member(
         &self,
@@ -44,14 +40,11 @@ impl HiBossClient {
         ).await
     }
     pub async fn remove_group_member(&self, group_id: &str, agent_id: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self
-            .request(
-                Method::DELETE,
-                &format!("/api/groups/{}/members/{}", group_id, agent_id),
-            )
-            .send()
-            .await?;
-        Self::empty_response(resp, "remove member failed").await
+        self.delete(
+            &format!("/api/groups/{}/members/{}", group_id, agent_id),
+            "remove member failed",
+        )
+        .await
     }
     pub async fn broadcast_to_group(
         &self,

@@ -32,11 +32,8 @@ impl HiBossClient {
         Self::send_json(self.request(Method::POST, &format!("/api/bosses/{}/restore", id))).await
     }
     pub async fn delete_boss(&self, id: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self
-            .request(Method::DELETE, &format!("/api/bosses/{}", id))
-            .send()
-            .await?;
-        Self::empty_response(resp, "request failed").await
+        self.delete(&format!("/api/bosses/{}", id), "request failed")
+            .await
     }
     pub async fn grant_boss_access(&self, boss_id: &str, agent_id: &str) -> Result<(), Box<dyn Error>> {
         let resp = self
@@ -47,14 +44,11 @@ impl HiBossClient {
         Self::empty_response(resp, "request failed").await
     }
     pub async fn revoke_boss_access(&self, boss_id: &str, agent_id: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self
-            .request(
-                Method::DELETE,
-                &format!("/api/bosses/{}/access/{}", boss_id, agent_id),
-            )
-            .send()
-            .await?;
-        Self::empty_response(resp, "request failed").await
+        self.delete(
+            &format!("/api/bosses/{}/access/{}", boss_id, agent_id),
+            "request failed",
+        )
+        .await
     }
     pub async fn boss_inbox(
         &self,
@@ -77,8 +71,7 @@ impl HiBossClient {
         if count_only {
             request = request.query(&[("count", "true")]);
         }
-        let resp = request.send().await?;
-        verified_rows(Self::parse_response(resp).await?)
+        verified_rows(Self::send_json(request).await?)
     }
     pub async fn boss_read(&self, id: &str) -> Result<Value, Box<dyn Error>> {
         let resp = self
@@ -99,24 +92,22 @@ impl HiBossClient {
             serde_json::json!({ "body": body }),
             serde_json::json!({ "kind": "boss_reply", "message_id": id }),
         )?;
-        let resp = self
-            .http
-            .post(format!("{}/api/boss/inbox/{}/reply", self.base_url, id))
-            .bearer_auth(&self.api_key)
-            .json(&request)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.http
+                .post(format!("{}/api/boss/inbox/{}/reply", self.base_url, id))
+                .bearer_auth(&self.api_key)
+                .json(&request),
+        )
+        .await
     }
     pub async fn boss_mark_read(&self, id: &str) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .patch(format!("{}/api/boss/inbox/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
-            .json(&serde_json::json!({ "status": "read" }))
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.http
+                .patch(format!("{}/api/boss/inbox/{}", self.base_url, id))
+                .bearer_auth(&self.api_key)
+                .json(&serde_json::json!({ "status": "read" })),
+        )
+        .await
     }
 }
 

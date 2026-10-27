@@ -9,8 +9,7 @@ impl HiBossClient {
     pub async fn project_profile(&self, project: &str) -> Result<ProgressTeamFull, Box<dyn Error>> {
         let mut url = reqwest::Url::parse(&format!("{}/api/progress/teams/", self.base_url))?;
         url.path_segments_mut().map_err(|_| "invalid server URL")?.pop_if_empty().push(project);
-        let response = self.http.get(url).bearer_auth(&self.api_key).send().await?;
-        Self::parse_response(response).await
+        Self::send_json(self.http.get(url).bearer_auth(&self.api_key)).await
     }
 
     pub async fn change_project_alias(&self, project: &str, alias: &str, remove: bool) -> Result<(), Box<dyn Error>> {

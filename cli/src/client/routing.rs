@@ -25,10 +25,7 @@ impl HiBossClient {
         ).await
     }
     pub async fn delete_routing_rule(&self, id: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self
-            .request(Method::DELETE, &format!("/api/routing-rules/{}", id))
-            .send()
-            .await?;
-        Self::empty_response(resp, "delete failed").await
+        self.delete(&format!("/api/routing-rules/{}", id), "delete failed")
+            .await
     }
 }

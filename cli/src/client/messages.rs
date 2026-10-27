@@ -121,17 +121,13 @@ impl HiBossClient {
                 request = request.query(&[(key, value)]);
             }
         }
-        let resp = request.send().await?;
-        let response: MessagesResponse = Self::parse_response(resp).await?;
+        let response: MessagesResponse = Self::send_json(request).await?;
         message_security::verify_messages(&response.messages)?;
         Ok(response)
     }
 
     pub async fn get_message(&self, id: &str) -> Result<Message, Box<dyn Error>> {
-        let resp = self.request(Method::GET, &format!("/api/messages/{}", id))
-            .send()
-            .await?;
-        verified_message(Self::parse_response(resp).await?)
+        verified_message(Self::send_json(self.request(Method::GET, &format!("/api/messages/{}", id))).await?)
     }
 
     /// The ask reconcile read: the message with only the replies that can answer it.

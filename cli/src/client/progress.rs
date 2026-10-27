@@ -38,8 +38,7 @@ impl HiBossClient {
             let cursor = serde_json::to_string(b)?;
             req = req.query(&[("before", cursor)]);
         }
-        let resp = req.send().await?;
-        Self::parse_response(resp).await
+        Self::send_json(req).await
     }
 
     /// DELETE /api/progress/:id — delete a progress post by ID.
@@ -70,14 +69,7 @@ impl HiBossClient {
     ) -> Result<ProgressTeamFull, Box<dyn Error>> {
         let mut url = reqwest::Url::parse(&format!("{}/api/progress/teams/", self.base_url))?;
         url.path_segments_mut().map_err(|_| "invalid server URL")?.pop_if_empty().push(project);
-        let resp = self
-            .http
-            .put(url)
-            .bearer_auth(&self.api_key)
-            .json(req)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.http.put(url).bearer_auth(&self.api_key).json(req)).await
     }
 
     /// GET /api/progress/teams — list teams within the caller's visibility scope.

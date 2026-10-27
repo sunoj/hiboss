@@ -121,8 +121,7 @@ impl HiBossClient {
         if verbose {
             req = req.query(&[("verbose", "1")]);
         }
-        let resp = req.send().await?;
-        Self::parse_response(resp).await
+        Self::send_json(req).await
     }
     pub async fn get_agent_config(&self) -> Result<Value, Box<dyn Error>> {
         Self::send_json(self.request(Method::GET, "/api/agents/me")).await
@@ -150,8 +149,7 @@ impl HiBossClient {
         if let Some(sid) = session_id {
             req = req.query(&[("target_session", sid)]);
         }
-        let resp = req.send().await?;
-        let data: Value = Self::parse_response(resp).await?;
+        let data: Value = Self::send_json(req).await?;
         Ok(data["total"].as_u64().unwrap_or(0) as u32)
     }
     pub async fn inbox_count_a2a(&self, session_id: Option<&str>) -> Result<u32, Box<dyn Error>> {
@@ -164,8 +162,7 @@ impl HiBossClient {
         if let Some(sid) = session_id {
             req = req.query(&[("target_session", sid)]);
         }
-        let resp = req.send().await?;
-        let data: Value = Self::parse_response(resp).await?;
+        let data: Value = Self::send_json(req).await?;
         Ok(data["total"].as_u64().unwrap_or(0) as u32)
     }
     pub async fn react(&self, id: &str, emoji: &str) -> Result<(), Box<dyn Error>> {
@@ -208,6 +205,9 @@ impl HiBossClient {
             self.request(Method::POST, "/api/attachments/upload")
                 .multipart(form)
         ).await
+    }
+    async fn delete(&self, path: &str, error_prefix: &str) -> Result<(), Box<dyn Error>> {
+        Self::empty_response(self.request(Method::DELETE, path).send().await?, error_prefix).await
     }
     async fn empty_response(resp: reqwest::Response, error_prefix: &str) -> Result<(), Box<dyn Error>> {
         if resp.status().is_success() {

@@ -85,10 +85,7 @@ impl HiBossClient {
         Ok(())
     }
     pub async fn mark_all_read(&self) -> Result<u32, Box<dyn Error>> {
-        let resp = self.request(Method::POST, "/api/messages/mark-all-read")
-            .send()
-            .await?;
-        let data: Value = Self::parse_response(resp).await?;
+        let data: Value = Self::send_json(self.request(Method::POST, "/api/messages/mark-all-read")).await?;
         Ok(data["marked"].as_u64().unwrap_or(0) as u32)
     }
 }
