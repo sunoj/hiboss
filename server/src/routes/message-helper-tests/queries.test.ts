@@ -57,7 +57,6 @@ describe('fetchMessageRow', () => {
 });
 
 describe('fetchReplies', () => {
-  const agentId = agentId;
   it('returns replies ordered by created_at ASC', async () => {
     const replies = await fetchReplies(testEnv, parentId);
     expect(replies).toHaveLength(2);
