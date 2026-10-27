@@ -1,5 +1,5 @@
 // Worker-pool integration tests for panel publication and scoped reads.
-// Covers validation, idempotency, visibility, immutable definitions, and cursors.
+// Covers validation, idempotency, visibility, immutable definitions, and ordered cursor pages.
 // Dependencies: cloudflare:test, panel routes, auth helpers, and D1.
 
 import { env, SELF } from 'cloudflare:test';
@@ -77,40 +77,34 @@ describe('panel publication and reads', () => {
   ])('persists lifecycle expiry %j with TTL %s', async (lifecycle, ttl, milliseconds) => {
     const { panelId } = await testJson(201,
       publish('panel-expiry', panelBody({ lifecycle }))) as { panelId: string };
-    const read = await SELF.fetch(`https://test.local/api/panels/${panelId}`, { headers: authHeaders() });
-    expect(read.status).toBe(200);
-    const panel = await read.json() as { createdAt: string; lifecycle: { ttlSeconds: number; expiresAt: string } };
+    const panel = await readPanel(panelId) as {
+      createdAt: string; lifecycle: { ttlSeconds: number; expiresAt: string };
+    };
     expect(panel.lifecycle.ttlSeconds).toBe(ttl);
     expect(Date.parse(panel.lifecycle.expiresAt) - Date.parse(panel.createdAt)).toBe(milliseconds);
   });
 
   it.each([59, 604801, 60.5, '60', true, [], {}])('rejects invalid lifecycle expiry %j', async ttlSeconds => {
-    const response = await publish('panel-invalid-expiry', panelBody({ lifecycle: { ttlSeconds } }));
-    expect(response.status).toBe(422);
-    expect(await response.json()).toMatchObject({ error: { code: 'invalid_lifecycle', retryable: false } });
+    expect(await testJson(422, publish('panel-invalid-expiry', panelBody({ lifecycle: { ttlSeconds } }))))
+      .toMatchObject({ error: { code: 'invalid_lifecycle', retryable: false } });
     const stored = await env.DB.prepare('SELECT COUNT(*) AS count FROM panels').first<{ count: number }>();
     expect(stored?.count).toBe(0);
   });
 
   it('publishes and reads its own immutable definition', async () => {
-    const published = await publish('panel-own-read');
-    expect(published.status).toBe(201);
-    const receipt = await published.json() as { panelId: string; definitionRevision: number; metadataVersion: number; catalogVersion: number; createdAt: string };
+    const receipt = await testJson(201, publish('panel-own-read')) as { panelId: string };
     expect(receipt).toMatchObject({ definitionRevision: 1, metadataVersion: 1, catalogVersion: 1 });
-    const read = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: authHeaders() });
-    expect(read.status).toBe(200);
-    const panel = await read.json() as { panelId: string; agentName: string; sessionLabel: string; definition: { definitionRevision: number; spec: { root: string } }; summary: { stage: string } };
-    expect(panel.panelId).toBe(receipt.panelId);
-    expect(panel).toMatchObject({ agentName: 'test-agent', sessionLabel: 'panels test' });
-    expect(panel.definition).toMatchObject({ definitionRevision: 1, spec: { root: 'main' } });
-    expect(panel.summary.stage).toBe('Preparing');
+    expect(await readPanel(receipt.panelId)).toMatchObject({
+      panelId: receipt.panelId, agentName: 'test-agent', sessionLabel: 'panels test',
+      definition: { definitionRevision: 1, spec: { root: 'main' } }, summary: { stage: 'Preparing' },
+    });
   });
 
   it('resolves an omitted target for an agent with one boss', async () => {
     const body = panelBody({ targetBossId: undefined, taskKey: 'panel-resolved-defaults' });
     const receipt = await testJson(201, publish('panel-resolved-defaults', body)) as { panelId: string };
-    const read = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: authHeaders() });
-    expect(await read.json()).toMatchObject({ targetBossId: BOSS_ID, sessionId: 'panels-test-session' });
+    expect(await readPanel(receipt.panelId))
+      .toMatchObject({ targetBossId: BOSS_ID, sessionId: 'panels-test-session' });
   });
 
   it('defaults to the sole admin when an agent has several bosses', async () => {
@@ -119,15 +113,13 @@ describe('panel publication and reads', () => {
     await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(secondBoss, getTestAgentId()).run();
     await env.DB.prepare('DELETE FROM boss_agent_access WHERE boss_id = ? AND agent_id = ?').bind(BOSS_ID, getTestAgentId()).run();
     try {
-      const response = await publish('panel-ambiguous-default', panelBody({ targetBossId: undefined, taskKey: 'panel-ambiguous-default' }));
-      expect(response.status).toBe(201);
-      const { panelId } = await response.json() as { panelId: string };
-      const read = await SELF.fetch(`https://test.local/api/panels/${panelId}`, { headers: authHeaders() });
-      expect(await read.json()).toMatchObject({ targetBossId: BOSS_ID });
+      const { panelId } = await testJson(201, publish('panel-ambiguous-default', panelBody({
+        targetBossId: undefined, taskKey: 'panel-ambiguous-default',
+      }))) as { panelId: string };
+      expect(await readPanel(panelId)).toMatchObject({ targetBossId: BOSS_ID });
       const explicit = await testJson(201,
         publish('panel-explicit-manager', panelBody({ targetBossId: secondBoss }))) as { panelId: string };
-      const explicitRead = await SELF.fetch(`https://test.local/api/panels/${explicit.panelId}`, { headers: authHeaders() });
-      expect(await explicitRead.json()).toMatchObject({ targetBossId: secondBoss });
+      expect(await readPanel(explicit.panelId)).toMatchObject({ targetBossId: secondBoss });
     } finally {
       await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(BOSS_ID, getTestAgentId()).run();
       await env.DB.prepare('DELETE FROM panels WHERE target_boss_id = ?').bind(secondBoss).run();
@@ -139,9 +131,8 @@ describe('panel publication and reads', () => {
   it('requires an explicit target when a second admin resolves without a grant row', async () => {
     await env.DB.prepare("INSERT INTO bosses (id, name, role) VALUES ('second-admin', 'Other admin', 'admin')").run();
     try {
-      const response = await publish('panel-two-admins', panelBody({ targetBossId: undefined }));
-      expect(response.status).toBe(400);
-      expect(await response.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/targetBossId',
+      expect(await testJson(400, publish('panel-two-admins', panelBody({ targetBossId: undefined }))))
+        .toMatchObject({ error: { code: 'invalid_spec', path: '/targetBossId',
         message: 'targetBossId is required: 2 bosses resolve and none is the sole admin' } });
     } finally {
       await env.DB.prepare("DELETE FROM bosses WHERE id = 'second-admin'").run();
@@ -176,33 +167,27 @@ describe('panel publication and reads', () => {
   });
 
   it('returns one receipt for an idempotent retry and conflicts on a changed body', async () => {
-    const first = await publish('panel-idempotent');
-    const firstBody = await first.json() as { panelId: string };
+    const firstBody = await testJson(201, publish('panel-idempotent')) as { panelId: string };
     const retry = await publish('panel-idempotent', { ...panelBody(), summary: { stage: 'Preparing' } });
-    expect(await retry.json()).toMatchObject({ panelId: firstBody.panelId });
-    const conflict = await publish('panel-idempotent', panelBody({ title: 'Changed body' }));
-    expect(conflict.status).toBe(409);
-    expect(await conflict.json()).toMatchObject({ error: { code: 'idempotency_conflict' } });
+    expect(await testJson(201, retry)).toMatchObject({ panelId: firstBody.panelId });
+    expect(await testJson(409, publish('panel-idempotent', panelBody({ title: 'Changed body' }))))
+      .toMatchObject({ error: { code: 'idempotency_conflict' } });
     const count = await env.DB.prepare('SELECT COUNT(*) AS count FROM panels').first<{ count: number }>();
     expect(count?.count).toBe(1);
   });
 
   it('hides another agent panel with a non-disclosing 404', async () => {
-    const published = await publish('panel-visibility');
-    const receipt = await published.json() as { panelId: string };
-    const other = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: agentHeaders(OTHER_AGENT_KEY) });
-    expect(other.status).toBe(404);
-    expect(await other.json()).toMatchObject({ error: { code: 'not_found' } });
-    const boss = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: bossHeaders() });
-    expect(boss.status).toBe(200);
+    const receipt = await testJson(201, publish('panel-visibility')) as { panelId: string };
+    expect(await readPanel(receipt.panelId, agentHeaders(OTHER_AGENT_KEY), 404))
+      .toMatchObject({ error: { code: 'not_found' } });
+    await readPanel(receipt.panelId, bossHeaders());
   });
 
   it('does not list another agent panel', async () => {
     // The by-id route was covered; the list route was not. Breaking the agent scope on
     // the list query left every test green, which is why this exists.
-    const mine = await publish('panel-list-scope-mine');
-    expect(mine.status).toBe(201);
-    const minePanelId = (await mine.json() as { panelId: string }).panelId;
+    const { panelId: minePanelId } = await testJson(201,
+      publish('panel-list-scope-mine')) as { panelId: string };
     // Their own session, or the ownership check rejects the publish and the test would
     // pass with nothing to leak.
     const theirs = await publish('panel-list-scope-theirs', panelBody({ taskKey: 'theirs', sessionId: 'panels-other-session' }), OTHER_AGENT_KEY);
@@ -213,18 +198,32 @@ describe('panel publication and reads', () => {
     expect(body.panels.map((panel) => panel.panelId)).toEqual([minePanelId]);
   });
 
-  it('paginates with a stable cursor without repeats or skips', async () => {
-    await publish('panel-page-1', panelBody({ taskKey: 'page-1' }));
-    await publish('panel-page-2', panelBody({ taskKey: 'page-2' }));
-    await publish('panel-page-3', panelBody({ taskKey: 'page-3' }));
-    const first = await SELF.fetch('https://test.local/api/panels?limit=2', { headers: authHeaders() });
-    const pageOne = await first.json() as { panels: Array<{ panelId: string }>; nextCursor: string | null };
-    expect(pageOne.panels).toHaveLength(2);
-    expect(pageOne.nextCursor).toEqual(expect.any(String));
-    const second = await SELF.fetch(`https://test.local/api/panels?limit=2&cursor=${encodeURIComponent(pageOne.nextCursor as string)}`, { headers: authHeaders() });
-    const pageTwo = await second.json() as { panels: Array<{ panelId: string }>; nextCursor: string | null };
-    expect(pageTwo.panels).toHaveLength(1);
-    expect(pageTwo.panels.map((panel) => panel.panelId)).not.toEqual(expect.arrayContaining(pageOne.panels.map((panel) => panel.panelId)));
-    expect(pageTwo.nextCursor).toBeNull();
+  it.each([
+    ['paginates with a stable cursor without repeats or skips', 2],
+    ['paginates one panel at a time across timestamp ties', 1],
+    ['ends pagination at an exactly full page', 3],
+  ])('%s', async (_title, limit) => {
+    const ids: string[] = [];
+    for (let number = 1; number <= 3; number++) {
+      const { panelId } = await testJson(201,
+        publish(`panel-page-${number}`, panelBody({ taskKey: `page-${number}` }))) as { panelId: string };
+      ids.push(panelId);
+      await env.DB.prepare('UPDATE panels SET created_at = ? WHERE panel_id = ?')
+        .bind(`2026-10-01T00:00:0${number === 3 ? 0 : 1}.000Z`, panelId).run();
+    }
+    const expected = [...ids.slice(0, 2).sort().reverse(), ids[2]];
+    let cursor: string | null = null;
+    for (let offset = 0; offset < expected.length; offset += limit) {
+      const query = `limit=${limit}` + (cursor === null ? '' : `&cursor=${encodeURIComponent(cursor)}`);
+      const page = await testJson(200, SELF.fetch(`https://test.local/api/panels?${query}`,
+        { headers: authHeaders() })) as { panels: { panelId: string }[]; nextCursor: string | null };
+      expect(page.panels.map(panel => panel.panelId)).toEqual(expected.slice(offset, offset + limit));
+      expect(page.nextCursor).toEqual(offset + limit < expected.length ? expect.any(String) : null);
+      cursor = page.nextCursor;
+    }
   });
 });
+
+function readPanel(id: string, headers = authHeaders(), status = 200): Promise<unknown> {
+  return testJson(status, SELF.fetch(`https://test.local/api/panels/${id}`, { headers }));
+}
