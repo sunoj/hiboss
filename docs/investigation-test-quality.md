@@ -125,3 +125,30 @@ At `c0e0aff9a51cffb0ef8421b9b36118520cadef65`, all 138 Web tests pass and the co
 zero errors or warnings. Identities are compared by file path and full case name: two files contain
 the same short-ID case name, so names alone are not unique. The final set matches the previous
 138 cases with only the documented priority-case rename. No production code changed.
+
+## Message-helper fixtures and boundary assertions
+
+The original 109-case message-helper suite passed as a whole, but its channel listing case failed
+in isolation because another test group prepared its rows. Query fixtures now initialize before the
+query suite. Disabled and foreign channels, three recent outbound messages and excluded old/inbound
+messages make channel filtering and the exact rate-limit boundary observable independently.
+
+Seven isolated faults passed the original selected checks and fail the corrected assertions:
+dropping an addressed row field, returning null for parsed reply metadata, writing session state
+for a null session, changing the rate limit from inclusive to strict, including disabled channels,
+reducing the valid option limit from five to four, and accepting only the first valid option member.
+The corrected cases check populated fields, nonempty metadata, unchanged session data and both
+sides of the numeric boundary. Option parsing also checks complete rejection errors and keyboards
+compare complete nested results.
+
+Row-preservation expectations use a frozen fixture and separate input copies. A control that
+overwrites the input direction fails the original literal assertions, passes an intermediate
+shared-object expectation, and fails the corrected independent expectation. That intermediate
+expectation is not retained.
+
+The 806-line suite is split by responsibility into five files totaling 728 lines, retaining all
+109 case names. AST comparisons preserve all input/oracle vectors in 33 table cases and the bodies
+of 37 cases; two cases occur in both comparisons. Verification at
+`28e1fd562c2f8d0a4467de91b3fb36b32be77bcd` passes type checking and all 109 cases across four test
+files, with zero failed, skipped or filtered cases. The previously dependent case also passes alone.
+Every temporary production mutation is restored before the final run; production source is unchanged.
