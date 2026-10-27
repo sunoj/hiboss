@@ -209,6 +209,15 @@ impl HiBossClient {
                 .multipart(form)
         ).await
     }
+    async fn empty_response(resp: reqwest::Response, error_prefix: &str) -> Result<(), Box<dyn Error>> {
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            Err(format!("{} ({}): {}", error_prefix, status, body).into())
+        }
+    }
     async fn send_json<T: serde::de::DeserializeOwned>(
         request: reqwest::RequestBuilder,
     ) -> Result<T, Box<dyn Error>> {

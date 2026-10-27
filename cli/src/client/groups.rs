@@ -27,15 +27,11 @@ impl HiBossClient {
         Self::send_json(self.request(Method::GET, &format!("/api/groups/{}", id))).await
     }
     pub async fn delete_group(&self, id: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self.request(Method::DELETE, &format!("/api/groups/{}", id))
+        let resp = self
+            .request(Method::DELETE, &format!("/api/groups/{}", id))
             .send()
             .await?;
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
-            return Err(format!("delete failed ({}): {}", status, body).into());
-        }
-        Ok(())
+        Self::empty_response(resp, "delete failed").await
     }
     pub async fn add_group_member(
         &self,
@@ -47,20 +43,15 @@ impl HiBossClient {
                 .json(&serde_json::json!({ "agent_id": agent_id }))
         ).await
     }
-    pub async fn remove_group_member(
-        &self,
-        group_id: &str,
-        agent_id: &str,
-    ) -> Result<(), Box<dyn Error>> {
-        let resp = self.request(Method::DELETE, &format!("/api/groups/{}/members/{}", group_id, agent_id))
+    pub async fn remove_group_member(&self, group_id: &str, agent_id: &str) -> Result<(), Box<dyn Error>> {
+        let resp = self
+            .request(
+                Method::DELETE,
+                &format!("/api/groups/{}/members/{}", group_id, agent_id),
+            )
             .send()
             .await?;
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
-            return Err(format!("remove member failed ({}): {}", status, body).into());
-        }
-        Ok(())
+        Self::empty_response(resp, "remove member failed").await
     }
     pub async fn broadcast_to_group(
         &self,

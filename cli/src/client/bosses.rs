@@ -3,114 +3,58 @@
 // Dependencies: reqwest, serde_json, crate::client::HiBossClient.
 
 use super::HiBossClient;
+use reqwest::Method;
 use serde_json::Value;
 use std::error::Error;
 
 impl HiBossClient {
     pub async fn list_agent_bosses(&self) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/agents/me/bosses", self.base_url))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, "/api/agents/me/bosses")).await
     }
 
     pub async fn list_bosses(&self) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/bosses", self.base_url))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, "/api/bosses")).await
     }
     pub async fn get_boss(&self, id: &str) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .get(format!("{}/api/bosses/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(self.request(Method::GET, &format!("/api/bosses/{}", id))).await
     }
     pub async fn update_boss(&self, id: &str, body: &Value) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .patch(format!("{}/api/bosses/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
-            .json(body)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
+        Self::send_json(
+            self.request(Method::PATCH, &format!("/api/bosses/{}", id))
+                .json(body),
+        )
+        .await
     }
     pub async fn archive_boss(&self, id: &str) -> Result<Value, Box<dyn Error>> {
-        let response = self.http.post(format!("{}/api/bosses/{}/archive", self.base_url, id))
-            .bearer_auth(&self.api_key).send().await?;
-        Self::parse_response(response).await
+        Self::send_json(self.request(Method::POST, &format!("/api/bosses/{}/archive", id))).await
     }
     pub async fn restore_boss(&self, id: &str) -> Result<Value, Box<dyn Error>> {
-        let response = self.http.post(format!("{}/api/bosses/{}/restore", self.base_url, id))
-            .bearer_auth(&self.api_key).send().await?;
-        Self::parse_response(response).await
+        Self::send_json(self.request(Method::POST, &format!("/api/bosses/{}/restore", id))).await
     }
     pub async fn delete_boss(&self, id: &str) -> Result<(), Box<dyn Error>> {
         let resp = self
-            .http
-            .delete(format!("{}/api/bosses/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
+            .request(Method::DELETE, &format!("/api/bosses/{}", id))
             .send()
             .await?;
-        if resp.status().is_success() {
-            Ok(())
-        } else {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
-            Err(format!("request failed ({}): {}", status, body).into())
-        }
+        Self::empty_response(resp, "request failed").await
     }
-    pub async fn grant_boss_access(
-        &self,
-        boss_id: &str,
-        agent_id: &str,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn grant_boss_access(&self, boss_id: &str, agent_id: &str) -> Result<(), Box<dyn Error>> {
         let resp = self
-            .http
-            .post(format!("{}/api/bosses/{}/access", self.base_url, boss_id))
-            .bearer_auth(&self.api_key)
+            .request(Method::POST, &format!("/api/bosses/{}/access", boss_id))
             .json(&serde_json::json!({ "agent_id": agent_id }))
             .send()
             .await?;
-        if resp.status().is_success() {
-            Ok(())
-        } else {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
-            Err(format!("request failed ({}): {}", status, body).into())
-        }
+        Self::empty_response(resp, "request failed").await
     }
-    pub async fn revoke_boss_access(
-        &self,
-        boss_id: &str,
-        agent_id: &str,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn revoke_boss_access(&self, boss_id: &str, agent_id: &str) -> Result<(), Box<dyn Error>> {
         let resp = self
-            .http
-            .delete(format!(
-                "{}/api/bosses/{}/access/{}",
-                self.base_url, boss_id, agent_id
-            ))
-            .bearer_auth(&self.api_key)
+            .request(
+                Method::DELETE,
+                &format!("/api/bosses/{}/access/{}", boss_id, agent_id),
+            )
             .send()
             .await?;
-        if resp.status().is_success() {
-            Ok(())
-        } else {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
-            Err(format!("request failed ({}): {}", status, body).into())
-        }
+        Self::empty_response(resp, "request failed").await
     }
     pub async fn boss_inbox(
         &self,
