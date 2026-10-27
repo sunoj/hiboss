@@ -105,7 +105,8 @@ def main() -> None:
         dry_run_and_invalid_markers(directory)
         hooks_refresh_and_remove(directory)
         session_hooks(directory)
-    print('PASS: 4 agent guidance flows — install/refresh, dry-run/invalid markers, hook setup/removal, session start/stop')
+    print('PASS: 4 agent guidance flows — install/refresh, dry-run/invalid markers, '
+          'hook setup/removal, session start/stop')
 
 
 if __name__ == '__main__':
