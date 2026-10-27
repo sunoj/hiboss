@@ -55,8 +55,7 @@ final class AllClearIslandTests: XCTestCase {
     }
 
     func testIslandRendersStillFrame() throws {
-        let renderer = ImageRenderer(content: AllClearIslandView()
-            .environment(\.accessibilityReduceMotion, true))
+        let renderer = ImageRenderer(content: AllClearIslandView())
         renderer.scale = 1
         let image = renderer.uiImage
         XCTAssertNotNil(image)
