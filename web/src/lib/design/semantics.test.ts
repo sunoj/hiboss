@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+// Verifies complete semantic guards and coercion boundaries with independent member literals.
+// Depends on Vitest and the console semantic helpers.
+
+import { expect, it } from 'vitest';
 import {
 	coercePriority,
 	coerceSessionStatus,
@@ -8,29 +11,29 @@ import {
 	isSessionStatus
 } from './semantics';
 
-describe('type guards', () => {
-	it('accepts valid enum members and rejects others', () => {
-		expect(isPriority('critical')).toBe(true);
-		expect(isPriority('urgent')).toBe(false);
-		expect(isDirection('agent_to_agent')).toBe(true);
-		expect(isDirection('boss_to_boss')).toBe(false);
-		expect(isMessageStatus('replied')).toBe(true);
-		expect(isMessageStatus('done')).toBe(false);
-		expect(isSessionStatus('blocked')).toBe(true);
-		expect(isSessionStatus('paused')).toBe(false);
-	});
+it.each([
+	['priority', isPriority, ['critical', 'high', 'normal', 'low'], 'urgent'],
+	['direction', isDirection, ['agent_to_boss', 'boss_to_agent', 'agent_to_agent'], 'boss_to_boss'],
+	['message status', isMessageStatus, ['sent', 'delivered', 'read', 'replied', 'expired'], 'done'],
+	['session status', isSessionStatus, ['working', 'waiting', 'blocked', 'completed', 'idle'], 'paused']
+] as const)('%s accepts every member and rejects malformed values', (_name, guard, valid, other) => {
+	const malformed = valid.flatMap(value => [` ${value}`, `${value} `, value.toUpperCase()]);
+	for (const value of valid) {
+		expect(guard(value)).toBe(true);
+	}
+	for (const value of ['', '__proto__', 'constructor', 'toString', other, ...malformed]) {
+		expect(guard(value)).toBe(false);
+	}
 });
 
-describe('coercion', () => {
-	it('coercePriority falls back to normal for missing/invalid input', () => {
-		expect(coercePriority('high')).toBe('high');
-		expect(coercePriority(undefined)).toBe('normal');
-		expect(coercePriority('bogus')).toBe('normal');
-	});
-
-	it('coerceSessionStatus falls back to idle for missing/invalid input', () => {
-		expect(coerceSessionStatus('working')).toBe('working');
-		expect(coerceSessionStatus(null)).toBe('idle');
-		expect(coerceSessionStatus('zombie')).toBe('idle');
-	});
+it.each([
+	['priority', coercePriority, ['critical', 'high', 'normal', 'low'], 'normal'],
+	['session status', coerceSessionStatus, ['working', 'waiting', 'blocked', 'completed', 'idle'], 'idle']
+] as const)('%s coercion preserves members and defaults invalid input', (_name, coerce, valid, fallback) => {
+	for (const value of valid) {
+		expect(coerce(value)).toBe(value);
+	}
+	for (const value of [undefined, null, '', 'bogus', 'zombie', 'HIGH', 'working ', '__proto__']) {
+		expect(coerce(value)).toBe(fallback);
+	}
 });
