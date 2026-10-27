@@ -220,3 +220,27 @@ e4e3efb9fca91de52a1c375107ac88167bee2b7d, all 496 iOS unit cases pass, with the 
 identity set and zero failures or skipped cases. Three selected original fault cases pass; the
 corresponding corrected cases fail. All temporary faults are restored before the complete run.
 The new helper and stronger tests together remove four Swift source lines.
+
+## CLI wire contracts and shared transport
+
+The populated message roundtrip case now fills its type and session fields and checks seven
+independent JSON field names and values. The minimal case also decodes an object containing only
+id, alongside its existing null-field roundtrip. Renaming session_status or skipping it entirely
+passes the old populated roundtrip and fails the independent wire checks.
+
+Serde object-field omission and struct-sequence omission have different default rules. The
+existing SendTarget defaults accept ["target"] with absent label and nickname. Removing those
+defaults rejects that sequence even though all 108 object-field samples retain their results.
+The model declarations and default annotations remain unchanged.
+
+Twelve standard JSON pipelines share send_json; five DELETE methods share request construction
+and the existing empty-response policy. Request expressions, post-decode verification and error
+prefixes are preserved. Seventy-one loopback scenarios produce identical requests and results
+before and after extraction, including queries, authentication, JSON bodies, empty/malformed
+responses, HTTP rejection and forged provenance.
+
+Agent-guidance E2E checks locate their compiled binary through Cargo's effective target_directory,
+including a configured shared build cache. At 806070eed013e3088f55378ea05705ae42234dd7, the complete
+CLI gate passes 539 Rust cases in 27 nonempty suites and all four agent-guidance flows, with the
+same Rust test identities and zero failed, ignored or filtered cases. The extraction, stronger
+tests and binary-location repair together remove thirteen source lines.
