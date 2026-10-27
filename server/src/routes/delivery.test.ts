@@ -35,63 +35,44 @@ beforeEach(() => {
 });
 
 describe('formatAgentMessage', () => {
-  it('wraps name in brackets', () => {
-    expect(formatAgentMessage('bot-1', 'hello world')).toBe('[bot-1] hello world');
-  });
-  it('handles empty name', () => {
-    expect(formatAgentMessage('', 'msg')).toBe('[] msg');
+  it.each([
+    ['wraps name in brackets', 'bot-1', 'hello world', '[bot-1] hello world'],
+    ['handles empty name', '', 'msg', '[] msg'],
+  ])('%s', (_name, agent, body, expected) => {
+    expect(formatAgentMessage(agent, body)).toBe(expected);
   });
 });
 
 describe('requireDiscordConfig', () => {
-  it('extracts bot_token and channel_id', () => {
-    const result = requireDiscordConfig({ channel_id: 'ch-1', bot_token: 'tok-1' });
-    expect(result.channel_id).toBe('ch-1');
-    expect(result.bot_token).toBe('tok-1');
+  it.each([
+    ['extracts bot_token and channel_id', { channel_id: 'ch-1', bot_token: 'tok-1' }],
+    ['extracts webhook_url mode', { webhook_url: 'https://hook.example.com' }],
+    ['includes avatar_url when present',
+      { webhook_url: 'https://hook.example.com', avatar_url: 'https://img.png' }],
+  ] as const)('%s', (_name, config) => {
+    expect(requireDiscordConfig(config)).toMatchObject(config);
   });
-
-  it('extracts webhook_url mode', () => {
-    const result = requireDiscordConfig({ webhook_url: 'https://hook.example.com' });
-    expect(result.webhook_url).toBe('https://hook.example.com');
-  });
-
-  it('includes avatar_url when present', () => {
-    const result = requireDiscordConfig({ webhook_url: 'https://hook.example.com', avatar_url: 'https://img.png' });
-    expect(result.avatar_url).toBe('https://img.png');
-  });
-
-  it('throws on missing channel_id and bot_token without webhook', () => {
-    expect(() => requireDiscordConfig({})).toThrow('discord config malformed');
-  });
-
-  it('throws on non-string values', () => {
-    expect(() => requireDiscordConfig({ channel_id: 123, bot_token: 'tok' })).toThrow('discord config malformed');
+  it.each([
+    ['throws on missing channel_id and bot_token without webhook', {}],
+    ['throws on non-string values', { channel_id: 123, bot_token: 'tok' }],
+  ] as const)('%s', (_name, config) => {
+    expect(() => requireDiscordConfig(config)).toThrow('discord config malformed');
   });
 });
 
 describe('requireTelegramConfig', () => {
-  it('extracts chat_id and bot_token', () => {
-    const result = requireTelegramConfig({ chat_id: 'chat-1', bot_token: 'tg-tok' });
-    expect(result.chat_id).toBe('chat-1');
-    expect(result.bot_token).toBe('tg-tok');
+  it.each([
+    ['extracts chat_id and bot_token', { chat_id: 'chat-1', bot_token: 'tg-tok' }],
+    ['includes message_thread_id when present', { chat_id: 'c', bot_token: 't', message_thread_id: 42 }],
+    ['includes use_topics when present', { chat_id: 'c', bot_token: 't', use_topics: true }],
+  ] as const)('%s', (_name, config) => {
+    expect(requireTelegramConfig(config)).toEqual(config);
   });
-
-  it('includes message_thread_id when present', () => {
-    const result = requireTelegramConfig({ chat_id: 'c', bot_token: 't', message_thread_id: 42 });
-    expect(result.message_thread_id).toBe(42);
-  });
-
-  it('includes use_topics when present', () => {
-    const result = requireTelegramConfig({ chat_id: 'c', bot_token: 't', use_topics: true });
-    expect(result.use_topics).toBe(true);
-  });
-
-  it('throws on missing chat_id', () => {
-    expect(() => requireTelegramConfig({ bot_token: 'tok' })).toThrow('telegram config malformed');
-  });
-
-  it('throws on non-string values', () => {
-    expect(() => requireTelegramConfig({ chat_id: 123, bot_token: 'tok' })).toThrow('telegram config malformed');
+  it.each([
+    ['throws on missing chat_id', { bot_token: 'tok' }],
+    ['throws on non-string values', { chat_id: 123, bot_token: 'tok' }],
+  ] as const)('%s', (_name, config) => {
+    expect(() => requireTelegramConfig(config)).toThrow('telegram config malformed');
   });
 });
 
@@ -181,56 +162,44 @@ describe('telegram session topics', () => {
     vi.unstubAllGlobals();
   });
 
-  it('uses session telegram_topic_id instead of config message_thread_id for replies', async () => {
-    const fetchMock = vi.fn()
+  it.each([
+    ['uses session telegram_topic_id instead of config message_thread_id for replies',
+      'reply', 321, 777, 'sess-1'],
+    ['uses session telegram_topic_id for option deliveries', 'options', 654, 888, 'sess-2'],
+  ] as const)('%s', async (_name, kind, messageId, topic, sessionId) => {
+    const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response('{}', { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { message_id: 321 } }), { status: 200 }));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { message_id: messageId } }),
+        { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
-
-    const result = await deliverReply(
-      'telegram',
-      { chat_id: 'chat-1', bot_token: 'tg-token', message_thread_id: 42 },
-      'agent',
-      'hello',
-      99,
-      undefined,
-      createEnvWithTelegramTopic(777),
-      'sess-1',
-    );
-
-    expect(result).toEqual({ delivered: true, telegramMessageId: 321 });
-    expect(readPayload(fetchMock, 0).message_thread_id).toBe(777);
-    expect(readPayload(fetchMock, 1).message_thread_id).toBe(777);
-  });
-
-  it('uses session telegram_topic_id for option deliveries', async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { message_id: 654 } }), { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const result = await deliverToChannelWithOptions(
-      'telegram',
-      { chat_id: 'chat-1', bot_token: 'tg-token', message_thread_id: 42 },
-      'agent',
-      'hello',
-      [[{ text: 'Pick', callback_data: 'pick' }]],
-      undefined,
-      undefined,
-      createEnvWithTelegramTopic(888),
-      'sess-2',
-    );
-
-    expect(result).toEqual({ delivered: true, telegramMessageId: 654 });
-    expect(readPayload(fetchMock, 0).message_thread_id).toBe(888);
-    expect(readPayload(fetchMock, 1).message_thread_id).toBe(888);
+    const config = { chat_id: 'chat-1', bot_token: 'tg-token', message_thread_id: 42 };
+    const testEnv = createEnvWithTelegramTopic(topic, sessionId);
+    const keyboard = [[{ text: 'Pick', callback_data: 'pick' }]];
+    const result = kind === 'reply'
+      ? await deliverReply('telegram', config, 'agent', 'hello', 99, undefined, testEnv, sessionId)
+      : await deliverToChannelWithOptions('telegram', config, 'agent', 'hello', keyboard,
+        undefined, undefined, testEnv, sessionId);
+    expect(result).toEqual({ delivered: true, telegramMessageId: messageId });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://api.telegram.org/bottg-token/sendChatAction',
+      'https://api.telegram.org/bottg-token/sendMessage',
+    ]);
+    expect(readPayload(fetchMock, 0)).toEqual({
+      chat_id: 'chat-1', action: 'typing', message_thread_id: topic,
+    });
+    expect(readPayload(fetchMock, 1)).toEqual({
+      chat_id: 'chat-1', text: '<b>[agent]</b> hello', parse_mode: 'HTML', message_thread_id: topic,
+      ...(kind === 'reply' ? { reply_parameters: { message_id: 99 } }
+        : { reply_markup: { inline_keyboard: keyboard } }),
+    });
   });
 });
 
 describe('deliverWithRetry', () => {
   it('resolves on first attempt', async () => {
-    const result = await deliverWithRetry(() => Promise.resolve('ok'));
-    expect(result).toBe('ok');
+    const send = vi.fn().mockResolvedValue('ok');
+    expect(await deliverWithRetry(send)).toBe('ok');
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it('retries once on failure then succeeds', async () => {
@@ -245,17 +214,21 @@ describe('deliverWithRetry', () => {
   });
 
   it('throws after max retries', async () => {
-    await expect(deliverWithRetry(async () => { throw new Error('permanent'); }, 1, 0))
-      .rejects.toThrow('permanent');
+    for (const retries of [0, 1, 3]) {
+      const send = vi.fn().mockRejectedValue(new Error('permanent'));
+      await expect(deliverWithRetry(send, retries, 0)).rejects.toThrow('permanent');
+      expect(send).toHaveBeenCalledTimes(retries + 1);
+    }
   });
 });
 
-function createEnvWithTelegramTopic(topicId: number): Env {
+function createEnvWithTelegramTopic(topicId: number, sessionId: string): Env {
   return {
     DB: {
       prepare() {
         return {
-          bind() {
+          bind(id: string) {
+            expect(id).toBe(sessionId);
             return {
               first: async () => ({ telegram_topic_id: topicId }),
             };
@@ -266,6 +239,8 @@ function createEnvWithTelegramTopic(topicId: number): Env {
   } as unknown as Env;
 }
 
-function readPayload(fetchMock: ReturnType<typeof vi.fn>, callIndex: number): Record<string, unknown> {
+function readPayload(
+  fetchMock: ReturnType<typeof vi.fn<typeof fetch>>, callIndex: number,
+): Record<string, unknown> {
   return JSON.parse(fetchMock.mock.calls[callIndex]?.[1]?.body as string) as Record<string, unknown>;
 }
