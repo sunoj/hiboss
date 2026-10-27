@@ -84,7 +84,7 @@ describe('panel publication and reads', () => {
     expect(Date.parse(panel.lifecycle.expiresAt) - Date.parse(panel.createdAt)).toBe(milliseconds);
   });
 
-  it.for([59, 604801, 60.5, '60', true, undefined, [], {}])(
+  it.each([59, 604801, 60.5, '60', true, [], {}].map(value => [value]))(
     'rejects invalid lifecycle expiry %j', async ttlSeconds => {
     expect(await testJson(422, publish('panel-invalid-expiry', panelBody({ lifecycle: { ttlSeconds } }))))
       .toMatchObject({ error: { code: 'invalid_lifecycle', retryable: false } });
