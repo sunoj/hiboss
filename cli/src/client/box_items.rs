@@ -28,11 +28,7 @@ impl HiBossClient {
             .http
             .get(format!("{}/api/box/collections", self.base_url))
             .bearer_auth(&self.api_key);
-        self.box_send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|err| self.box_error(err))
+        self.box_json(request).await
     }
 
     pub async fn collect_box_item(&self, collection: &str, item: &str) -> Result<BoxItem, Box<dyn Error>> {
@@ -41,11 +37,7 @@ impl HiBossClient {
             .map_err(|_| "invalid server URL")?
             .extend([collection, "items", item]);
         let request = self.http.put(url).bearer_auth(&self.api_key);
-        self.box_send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|err| self.box_error(err))
+        self.box_json(request).await
     }
 
     fn box_request(
@@ -83,6 +75,17 @@ impl HiBossClient {
             request_id,
             body + hint,
         )))
+    }
+
+    async fn box_json<T: serde::de::DeserializeOwned>(
+        &self,
+        request: RequestBuilder,
+    ) -> Result<T, Box<dyn Error>> {
+        self.box_send(request)
+            .await?
+            .json()
+            .await
+            .map_err(|err| self.box_error(err))
     }
 
     fn box_error(&self, error: impl std::fmt::Display) -> Box<dyn Error> {
@@ -127,20 +130,12 @@ impl HiBossClient {
         } else {
             request = request.json(metadata);
         }
-        self.box_send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|err| self.box_error(err))
+        self.box_json(request).await
     }
 
     pub async fn latest_box_item(&self, filter: &BoxFilter<'_>) -> Result<BoxItem, Box<dyn Error>> {
         let request = self.box_request(reqwest::Method::GET, &["latest"])?.query(filter);
-        self.box_send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|err| self.box_error(err))
+        self.box_json(request).await
     }
 
     pub async fn list_box_items(
@@ -153,20 +148,12 @@ impl HiBossClient {
         if let Some(query) = query {
             request = request.query(&[("q", query)]);
         }
-        self.box_send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|err| self.box_error(err))
+        self.box_json(request).await
     }
 
     pub async fn show_box_item(&self, id: &str) -> Result<BoxItem, Box<dyn Error>> {
         let request = self.box_request(reqwest::Method::GET, &[id])?;
-        self.box_send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|err| self.box_error(err))
+        self.box_json(request).await
     }
 
     pub async fn box_media(&self, id: &str) -> Result<Response, Box<dyn Error>> {

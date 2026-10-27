@@ -18,20 +18,12 @@ impl HiBossClient {
         let request = self
             .box_request(Method::POST, &[item, "shares"])?
             .json(&body);
-        self.box_send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|err| self.box_error(err))
+        self.box_json(request).await
     }
 
     pub(crate) async fn list_box_shares(&self, item: &str) -> Result<BoxShareList, Box<dyn Error>> {
         let request = self.box_request(Method::GET, &[item, "shares"])?;
-        self.box_send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|err| self.box_error(err))
+        self.box_json(request).await
     }
 
     pub(crate) async fn revoke_box_share(&self, share: &str) -> Result<(), Box<dyn Error>> {

@@ -20,10 +20,6 @@ impl HiBossClient {
         if let Some(body) = body {
             request = request.json(&body);
         }
-        self.box_send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|err| self.box_error(err))
+        self.box_json(request).await
     }
 }
