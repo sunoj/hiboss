@@ -152,3 +152,27 @@ of 37 cases; two cases occur in both comparisons. Verification at
 `28e1fd562c2f8d0a4467de91b3fb36b32be77bcd` passes type checking and all 109 cases across four test
 files, with zero failed, skipped or filtered cases. The previously dependent case also passes alone.
 Every temporary production mutation is restored before the final run; production source is unchanged.
+
+## Checked JSON reads and a nonempty routing list
+
+Shared `testJson` checks the caller's exact expected status before consuming JSON. Its response
+shape accepts both synchronous responses and promises, returns unknown JSON, and propagates request
+and parse failures. It supplies no authorization, content-type or success-status defaults.
+The 111 extracted reads in 50 test files retain their request expressions, result casts, comments,
+hooks and subsequent assertions. Reversing the recorded edits reproduces every original caller byte;
+AST comparison verifies each extraction, including literal and template contents.
+
+Six calibration cases check expected 200/201/422 responses, unexpected status before body use,
+malformed JSON and request-error identity. Removing the status check, reading the body first and
+swallowing request failures each independently fail the intended calibration case.
+
+The routing-list case formerly only checked that a result was an array. A router that always
+returned an empty array passed it. The corrected case retains the initial array check, creates a
+rule through the API, requires the returned list to contain its ID and supplied fields, and deletes
+the fixture in finally. Expected fields are frozen independently of the returned representation.
+The empty-list fault now fails this case; the other six routing cases retain their names and checks.
+
+At `0d198571bd09d8754430e9c3cde4d5cb5bf3e8d7`, type checking and all 876 cases across the 83
+test files importing the shared module pass, with zero failures, skipped or filtered cases.
+The complete scoped run occurs after all temporary helper and router faults are restored.
+Including six new calibration cases and the routing repair, this change removes 100 source lines.
