@@ -4,14 +4,14 @@
 
 import Foundation
 
-actor BoxMediaLimiter {
+public actor BoxMediaLimiter {
     private let limit: Int
     private var running = 0
     private var waiters: [(id: UUID, continuation: CheckedContinuation<Void, Error>)] = []
 
-    init(limit: Int) { self.limit = limit }
+    public init(limit: Int) { self.limit = limit }
 
-    func run<T: Sendable>(_ operation: @Sendable () async throws -> T) async throws -> T {
+    public func run<T: Sendable>(_ operation: @Sendable () async throws -> T) async throws -> T {
         try await acquire()
         defer { release() }
         try Task.checkCancellation()

@@ -1,20 +1,21 @@
-// Account-session state for thumbnail backfill PUTs, shared by every Box browser window.
+// Session state for thumbnail backfill PUTs, shared by Box media stores.
 // Exports BoxBackfillSession: 405 turns backfill off, 404 or a rejection settles one item,
-// a transient failure allows one retry on a later load. Dependencies: HibossKit.
+// a transient failure allows one retry on a later load. Dependencies: HibossAPIError.
 
-import HibossKit
-
+/// iOS keeps one app session; macOS resets this state on an account change.
 @MainActor
-final class BoxBackfillSession {
-    static let shared = BoxBackfillSession()
-    static let attemptsPerItem = 2
+public final class BoxBackfillSession {
+    public static let shared = BoxBackfillSession()
+    public static let attemptsPerItem = 2
 
-    private(set) var enabled = true
+    public private(set) var enabled = true
     private var settled: Set<String> = []
     private var attempts: [String: Int] = [:]
 
+    public init() {}
+
     /// Claims one PUT for `id`; false when backfill is off, the item is settled or out of attempts.
-    func begin(_ id: String) -> Bool {
+    public func begin(_ id: String) -> Bool {
         guard enabled, !settled.contains(id), attempts[id, default: 0] < Self.attemptsPerItem
         else { return false }
         attempts[id, default: 0] += 1
@@ -22,11 +23,11 @@ final class BoxBackfillSession {
     }
 
     /// An account change starts over: backfill on, nothing settled.
-    func reset() { (enabled, settled, attempts) = (true, [], [:]) }
+    public func reset() { (enabled, settled, attempts) = (true, [], [:]) }
 
-    func succeeded(_ id: String) { settled.insert(id) }
+    public func succeeded(_ id: String) { settled.insert(id) }
 
-    func failed(_ id: String, error: Error) {
+    public func failed(_ id: String, error: Error) {
         guard case let HibossAPIError.requestFailed(status, _) = error else { return }
         if status == 405 {
             enabled = false
