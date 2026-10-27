@@ -1,7 +1,7 @@
 // Tests for boss-inbox routes: agent-as-boss reads and replies to sub-agent messages.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -51,9 +51,8 @@ describe('GET /api/boss/inbox', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal')"
     ).bind('msg-from-sub-1', subAgentId, 'Hello boss').run();
 
-    const res = await SELF.fetch('http://localhost/api/boss/inbox', { headers: bossHeaders() });
-    expect(res.status).toBe(200);
-    const data = await res.json() as { messages: unknown[]; total: number };
+    const data = await testJson(200, SELF.fetch('http://localhost/api/boss/inbox', { headers: bossHeaders() })
+    ) as { messages: unknown[]; total: number };
     expect(data.total).toBeGreaterThanOrEqual(1);
     const msg = data.messages.find((m: any) => m.id === 'msg-from-sub-1') as any;
     expect(msg).toBeDefined();
@@ -79,9 +78,8 @@ describe('GET /api/boss/inbox', () => {
 
 describe('GET /api/boss/inbox/:id', () => {
   it('returns message with replies', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/inbox/msg-from-sub-1', { headers: bossHeaders() });
-    expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await testJson(200,
+      SELF.fetch('http://localhost/api/boss/inbox/msg-from-sub-1', { headers: bossHeaders() })) as any;
     expect(data.id).toBe('msg-from-sub-1');
     expect(data.replies).toBeDefined();
   });
@@ -92,10 +90,9 @@ describe('GET /api/boss/inbox/:id', () => {
 
 describe('POST /api/boss/inbox/:id/reply', () => {
   it('boss-agent replies to sub-agent message', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/boss/inbox/msg-from-sub-1/reply',
-      bossHeaders(), { body: 'Good work, proceed.' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await testJson(201,
+      testRequest('POST', 'http://localhost/api/boss/inbox/msg-from-sub-1/reply',
+        bossHeaders(), { body: 'Good work, proceed.' })) as any;
     expect(data.direction).toBe('boss_to_agent');
     expect(data.body).toBe('Good work, proceed.');
     expect(data.reply_to).toBe('msg-from-sub-1');
@@ -111,10 +108,9 @@ describe('POST /api/boss/inbox/:id/reply', () => {
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'api', 'Need approval', 'sent', 'normal', ?)",
     ).bind(parentId, subAgentId, sessionId).run();
-    const res = await testRequest('POST', `http://localhost/api/boss/inbox/${parentId}/reply`, bossHeaders(),
-      { body: 'Approved' });
-    expect(res.status).toBe(201);
-    const reply = await res.json() as { id: string };
+    const reply = await testJson(201,
+      testRequest('POST', `http://localhost/api/boss/inbox/${parentId}/reply`, bossHeaders(),
+        { body: 'Approved' })) as { id: string };
     const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?')
       .bind(reply.id).first<{ session_id: string; message_id: string }>();
     expect(event).toEqual({ session_id: sessionId, message_id: reply.id });
@@ -143,10 +139,9 @@ describe('PATCH /api/boss/inbox/:id', () => {
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal')"
     ).bind('msg-from-sub-3', subAgentId, 'Status update').run();
 
-    const res = await testRequest('PATCH', 'http://localhost/api/boss/inbox/msg-from-sub-3', bossHeaders(),
-      { status: 'read' });
-    expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await testJson(200,
+      testRequest('PATCH', 'http://localhost/api/boss/inbox/msg-from-sub-3', bossHeaders(),
+        { status: 'read' })) as any;
     expect(data.status).toBe('read');
   });
 

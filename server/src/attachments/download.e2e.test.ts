@@ -2,7 +2,7 @@
 // Covers playback probes, seeking, validators, HEAD, and invalid ranges against R2.
 // Dependencies: cloudflare:test SELF, Vitest, and isolated test authentication.
 
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, seedDatabase } from '../test-helpers';
@@ -12,13 +12,11 @@ let mediaUrl: string;
 
 beforeAll(async () => {
   await seedDatabase();
-  const response = await SELF.fetch('https://test.local/api/attachments/upload', {
+  const uploaded = await testJson(201, SELF.fetch('https://test.local/api/attachments/upload', {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': 'video/mp4', 'X-Filename': 'clip.mp4' },
     body: CONTENT,
-  });
-  expect(response.status).toBe(201);
-  const uploaded = await response.json() as { url: string };
+  })) as { url: string };
   mediaUrl = uploaded.url;
 });
 

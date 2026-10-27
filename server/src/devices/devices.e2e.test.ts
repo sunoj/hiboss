@@ -5,6 +5,7 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
 import { joinRequestPayload } from './notify-push';
+import { testJson } from '../test-request';
 
 const BASE = 'https://test.local';
 const ADMIN = 'devices-admin-token';
@@ -35,9 +36,8 @@ async function poll(token: string): Promise<Json> {
 
 async function enrol(label: string, names: Record<string, string>, headers: Record<string, string> = {}): Promise<{ device_id: string; profiles: Delivered[] }> {
   const invite = headers['X-Device-Proof'] ? {} : { invite: await mintTestInvite() };
-  const created = await join({ ...request(label, names), ...invite }, headers);
-  expect(created.status).toBe(201);
-  const { request_id, poll_token } = await created.json() as { request_id: string; poll_token: string };
+  const { request_id, poll_token } = await testJson(201,
+    join({ ...request(label, names), ...invite }, headers)) as { request_id: string; poll_token: string };
   expect((await approve(request_id)).status).toBe(200);
   return poll(poll_token) as unknown as Promise<{ device_id: string; profiles: Delivered[] }>;
 }
@@ -140,9 +140,7 @@ describe('first-boss bootstrap and pairing roles', () => {
       expect((await bootstrap('anything')).status).toBe(403);
       env.BOOTSTRAP_SECRET = 'devices-bootstrap-secret';
       expect((await bootstrap('wrong')).status).toBe(401);
-      const created = await bootstrap('devices-bootstrap-secret');
-      expect(created.status).toBe(201);
-      const body = await created.json() as { boss: Json; code: string };
+      const body = await testJson(201, bootstrap('devices-bootstrap-secret')) as { boss: Json; code: string };
       expect(body.boss).toMatchObject({ role: 'admin', name: 'First Boss' });
       expect(body.code).toMatch(/^hb_pair_[0-9a-f]{64}$/);
       expect(JSON.stringify(body)).not.toContain('hb_boss_');

@@ -1,5 +1,5 @@
 // Sends integration-test requests through the real Worker service binding.
-// Exports testRequest and returnsStatus, preserving explicit requests and per-case assertions.
+// Exports request, JSON and status helpers, preserving explicit requests and per-case assertions.
 // Dependencies: cloudflare:test SELF and Vitest; no default authorization or content type.
 
 import { SELF } from 'cloudflare:test';
@@ -22,4 +22,18 @@ export function returnsStatus(
     const response = await request();
     expect(response.status).toBe(status);
   };
+}
+
+type JsonResponse = {
+  status: number;
+  json(): Promise<unknown>;
+};
+
+export async function testJson(
+  status: number,
+  result: JsonResponse | Promise<JsonResponse>,
+): Promise<unknown> {
+  const response = await result;
+  expect(response.status).toBe(status);
+  return response.json();
 }

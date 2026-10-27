@@ -6,6 +6,7 @@ import { expireMessageOptions, withdrawResolvedOptions } from './message-options
 import { storeMessageReaction } from './message-reactions';
 import type { MessageRow } from '../types';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
+import { testJson } from '../test-request';
 
 const token = 'linked-thread-boss-token';
 const boss = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -36,9 +37,7 @@ it('links follow-ups to questions and boss replies without deciding the question
     .bind('thread-session', getTestAgentId()).run();
   await env.DB.prepare('UPDATE messages SET session_id = ? WHERE id = ?')
     .bind('thread-session', 'thread-root').run();
-  const follow = await post('/api/messages/thread-root/reply', { body: 'More context' });
-  expect(follow.status).toBe(201);
-  const first = await follow.json() as Row;
+  const first = await testJson(201, post('/api/messages/thread-root/reply', { body: 'More context' })) as Row;
   expect(first.reply_to).toBe('thread-root');
   const root = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
     .bind('thread-root').first<{ status: string }>();
@@ -46,12 +45,9 @@ it('links follow-ups to questions and boss replies without deciding the question
   const polling = await post('/api/messages/thread-root/poll?timeout=1', {});
   expect(polling.status).toBe(200);
   expect((await polling.json() as { replies: Row[] }).replies).toEqual([]);
-  const answer = await post('/api/boss/messages/thread-root/reply', { body: 'Proceed' }, boss);
-  expect(answer.status).toBe(201);
-  const reply = await answer.json() as Row;
-  const ack = await post(`/api/messages/${reply.id}/reply`, { body: 'Working on it' });
-  expect(ack.status).toBe(201);
-  const last = await ack.json() as Row;
+  const reply = await testJson(201,
+    post('/api/boss/messages/thread-root/reply', { body: 'Proceed' }, boss)) as Row;
+  const last = await testJson(201, post(`/api/messages/${reply.id}/reply`, { body: 'Working on it' })) as Row;
   expect(last.reply_to).toBe(reply.id);
   expect(first.session_id).toBe('thread-session');
   expect(last.session_id).toBe('thread-session');

@@ -1,7 +1,7 @@
 // Tests for /api/bosses CRUD, access management, preferences, and token generation.
 // Covers create, get, update, delete, grant/revoke access, token issuance.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, seedBossToken } from '../test-helpers';
@@ -34,10 +34,8 @@ describe('POST /api/bosses', () => {
       { name: 'Agent Rejected' })));
 
   it('creates a boss with defaults', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
-      { name: 'Test Boss' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await testJson(201, testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
+      { name: 'Test Boss' })) as any;
     expect(data.id).toBeTruthy();
     expect(data.name).toBe('Test Boss');
     expect(data.role).toBe('admin');
@@ -45,10 +43,8 @@ describe('POST /api/bosses', () => {
   });
 
   it('creates a boss with explicit role and telegram ID', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
-      { name: 'Viewer Boss', role: 'viewer', telegram_user_id: '12345' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await testJson(201, testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
+      { name: 'Viewer Boss', role: 'viewer', telegram_user_id: '12345' })) as any;
     expect(data.role).toBe('viewer');
     expect(data.telegram_user_id).toBe('12345');
   });
@@ -61,19 +57,16 @@ describe('POST /api/bosses', () => {
       { name: 'Forbidden Boss' })));
 
   it('defaults invalid role to admin', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
-      { name: 'Invalid Role', role: 'superadmin' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await testJson(201, testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
+      { name: 'Invalid Role', role: 'superadmin' })) as any;
     expect(data.role).toBe('admin');
   });
 });
 
 describe('GET /api/bosses', () => {
   it('lists all bosses for authenticated bosses', async () => {
-    const res = await SELF.fetch('http://localhost/api/bosses', { headers: viewerHeaders() });
-    expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await testJson(200,
+      SELF.fetch('http://localhost/api/bosses', { headers: viewerHeaders() })) as any;
     expect(data.bosses).toBeInstanceOf(Array);
     expect(data.bosses.length).toBeGreaterThanOrEqual(2);
   });
@@ -81,18 +74,16 @@ describe('GET /api/bosses', () => {
 
 describe('GET /api/bosses/:id', () => {
   it('returns boss by full ID', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, { headers: viewerHeaders() });
-    expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await testJson(200,
+      SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, { headers: viewerHeaders() })) as any;
     expect(data.id).toBe(createdBossId);
     expect(data.agents).toBeInstanceOf(Array);
   });
 
   it('supports short ID prefix', async () => {
     const prefix = createdBossId.slice(0, 8);
-    const res = await SELF.fetch(`http://localhost/api/bosses/${prefix}`, { headers: viewerHeaders() });
-    expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await testJson(200,
+      SELF.fetch(`http://localhost/api/bosses/${prefix}`, { headers: viewerHeaders() })) as any;
     expect(data.id).toBe(createdBossId);
   });
 
@@ -102,18 +93,16 @@ describe('GET /api/bosses/:id', () => {
 
 describe('PATCH /api/bosses/:id', () => {
   it('updates boss name', async () => {
-    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
-      { name: 'Updated Boss' });
-    expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await testJson(200,
+      testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+        { name: 'Updated Boss' })) as any;
     expect(data.name).toBe('Updated Boss');
   });
 
   it('updates role', async () => {
-    const res = await testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
-      { role: 'manager' });
-    expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await testJson(200,
+      testRequest('PATCH', `http://localhost/api/bosses/${createdBossId}`, adminHeaders(),
+        { role: 'manager' })) as any;
     expect(data.role).toBe('manager');
   });
 
@@ -156,20 +145,16 @@ describe('Boss access management', () => {
 
 describe('POST /api/bosses/:id/token', () => {
   it('generates a boss auth token', async () => {
-    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/token`,
-      adminHeaders());
-    expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await testJson(200, testRequest('POST', `http://localhost/api/bosses/${createdBossId}/token`,
+      adminHeaders())) as any;
     expect(data.token).toMatch(/^hb_boss_/);
     expect(data.id).toBe(createdBossId);
     generatedToken = data.token;
   });
 
   it('revokes the prior target token when rotating', async () => {
-    const res = await testRequest('POST', `http://localhost/api/bosses/${createdBossId}/token`,
-      adminHeaders());
-    expect(res.status).toBe(200);
-    const data = await res.json() as { token: string };
+    const data = await testJson(200, testRequest('POST', `http://localhost/api/bosses/${createdBossId}/token`,
+      adminHeaders())) as { token: string };
     expect((await testRequest('GET', 'http://localhost/api/boss/me',
       { Authorization: `Bearer ${generatedToken}` })).status).toBe(401);
     expect((await testRequest('GET', 'http://localhost/api/boss/me',

@@ -2,7 +2,7 @@
 // Verifies bearer authentication outcomes and hash consistency.
 // Depends on cloudflare:test, test-helpers, and the middleware hash utility.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, authHeaders } from '../test-helpers';
@@ -27,9 +27,8 @@ describe('auth middleware integration', () => {
       })));
 
   it('succeeds with valid bearer token', async () => {
-    const res = await testRequest('GET', 'https://test.local/api/messages', authHeaders());
-    expect(res.status).toBe(200);
-    const data = await res.json() as { messages: unknown[]; total: number };
+    const data = await testJson(200, testRequest('GET', 'https://test.local/api/messages', authHeaders())
+    ) as { messages: unknown[]; total: number };
     expect(data.messages).toBeInstanceOf(Array);
   });
 

@@ -2,7 +2,7 @@
 // Covers boss auth flow, message listing with search, and reply.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import type { MessageRow } from '../types';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -58,9 +58,8 @@ describe('Boss auth', () => {
 
 describe('GET /api/boss/me', () => {
   it('returns boss profile', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders() });
-    expect(res.status).toBe(200);
-    const data = await res.json() as { id: string; name: string; role: string; agent_ids: string[] };
+    const data = await testJson(200, SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders() })
+    ) as { id: string; name: string; role: string; agent_ids: string[] };
     expect(data.id).toBe(bossId);
     expect(data.name).toBe('API Boss');
     expect(data.role).toBe('admin');
@@ -78,10 +77,9 @@ describe('Boss preferences', () => {
 
   it('PUT /api/boss/me/preferences sets and merges', async () => {
     // Set initial
-    const res1 = await testRequest('PUT', 'http://localhost/api/boss/me/preferences', bossHeaders(),
-      { timezone: 'UTC' });
-    expect(res1.status).toBe(200);
-    const data1 = await res1.json() as { timezone: string };
+    const data1 = await testJson(200,
+      testRequest('PUT', 'http://localhost/api/boss/me/preferences', bossHeaders(),
+        { timezone: 'UTC' })) as { timezone: string };
     expect(data1.timezone).toBe('UTC');
     // Merge more
     const res2 = await testRequest('PUT', 'http://localhost/api/boss/me/preferences', bossHeaders(),

@@ -1,6 +1,6 @@
 // End-to-end admin visibility and explicit viewer grants through panel HTTP/relay.
 // Exercises definition, lifecycle state, and subscriber tickets using real D1/DOs.
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -33,9 +33,7 @@ async function ticket(panelId: string, bearer: string): Promise<Response> {
 }
 
 it('publishes to an ungranted admin and lets admins list, read, and subscribe to all panels', async () => {
-  const response = await publish();
-  expect(response.status).toBe(201);
-  const { panelId } = await response.json() as { panelId: string };
+  const { panelId } = await testJson(201, publish()) as { panelId: string };
   for (const bearer of [ADMIN, OTHER_ADMIN]) {
     const list = await (await SELF.fetch(url, { headers: headers(bearer) })).json() as { panels: { panelId: string }[] };
     expect(list.panels.some(panel => panel.panelId === panelId)).toBe(true);
@@ -60,9 +58,7 @@ it('publishes to an ungranted admin and lets admins list, read, and subscribe to
 it('requires explicit viewer grants for publication and removes reads and relay access after grant removal', async () => {
   expect((await publish(VIEWER)).status).toBe(404);
   await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(VIEWER, getTestAgentId()).run();
-  const response = await publish(VIEWER);
-  expect(response.status).toBe(201);
-  const { panelId } = await response.json() as { panelId: string };
+  const { panelId } = await testJson(201, publish(VIEWER)) as { panelId: string };
   expect((await SELF.fetch(`${url}/${panelId}`, { headers: headers(VIEWER) })).status).toBe(200);
   expect((await SELF.fetch(`${url}/${panelId}/state`, { headers: headers(VIEWER) })).status).toBe(200);
   expect((await ticket(panelId, VIEWER)).status).toBe(201);

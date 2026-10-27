@@ -5,6 +5,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getTestAgentId, seedDatabase } from '../test-helpers';
+import { testJson } from '../test-request';
 
 const BASE_URL = 'https://test.local/api/webhooks/discord-interactions';
 const CHANNEL_ID = 'test-discord-ch';
@@ -54,9 +55,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
       },
     };
 
-    const res = await signedFetch(payload);
-    expect(res.status).toBe(200);
-    const responseBody = await res.json() as InteractionResponse;
+    const responseBody = await testJson(200, signedFetch(payload)) as InteractionResponse;
     expect(responseBody.data?.content).toBe('Message sent to agent.');
 
     const stored = await env.DB
@@ -120,9 +119,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
       message: { content: 'Pick one:' },
     };
 
-    const res = await signedFetch(payload);
-    expect(res.status).toBe(200);
-    const data = await res.json() as InteractionResponse;
+    const data = await testJson(200, signedFetch(payload)) as InteractionResponse;
     expect(data.type).toBe(7);
     expect(data.data?.content).toContain('Pick one:');
     expect(data.data?.content).toContain('✅ Selected: optionA');
@@ -228,9 +225,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
       channel_id: 'missing-channel',
       data: { name: 'msg', options: [{ name: 'message', value: 'hello' }] },
     };
-    const res = await signedFetch(payload);
-    expect(res.status).toBe(200);
-    const data = await res.json() as InteractionResponse;
+    const data = await testJson(200, signedFetch(payload)) as InteractionResponse;
     expect(data.type).toBe(4);
     expect(data.data?.content).toBe('No agent configured for this channel.');
     expect(data.data?.flags).toBe(64);

@@ -2,7 +2,7 @@
 // Covers pending-input listing, Telegram auto-link targets, and reply session events.
 // Depends on SELF, seeded D1 fixtures, a mocked Telegram fetch and the forward helpers.
 
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent-keys';
@@ -85,10 +85,9 @@ describe('SP2 an agent-to-agent reply belongs to the replier\'s session', () => 
       (id, agent_id, direction, mode, channel, body, status, session_id, target_agent_id, target_session_id)
       VALUES (?, ?, 'agent_to_agent', 'async', 'api', 'ping', 'sent', ?, ?, ?)`)
       .bind(parent, asker.id, askerSession, peer.id, peerSession).run();
-    const response = await testRequest('POST', `${api}/messages/${parent}/reply`, headers(peer.key),
-      { body: 'pong' });
-    expect(response.status).toBe(201);
-    const reply = await response.json() as MessageRow;
+    const reply = await testJson(201,
+      testRequest('POST', `${api}/messages/${parent}/reply`, headers(peer.key),
+        { body: 'pong' })) as MessageRow;
     // CONTROL: the reply is addressed back to the asker.
     expect({ agent: reply.agent_id, target: reply.target_agent_id }).toEqual({ agent: peer.id, target: asker.id });
     expect({ session: reply.session_id, targetSession: reply.target_session_id, events: await eventSessions(reply.id) })
@@ -104,10 +103,9 @@ describe('SP2 an agent-to-agent reply belongs to the replier\'s session', () => 
       (id, agent_id, direction, mode, channel, body, status, session_id, target_agent_id)
       VALUES (?, ?, 'agent_to_agent', 'async', 'api', 'ping', 'sent', ?, ?)`)
       .bind(parent, asker.id, askerSession, peer.id).run();
-    const response = await testRequest('POST', `${api}/messages/${parent}/reply`, headers(peer.key),
-      { body: 'pong' });
-    expect(response.status).toBe(201);
-    const reply = await response.json() as MessageRow;
+    const reply = await testJson(201,
+      testRequest('POST', `${api}/messages/${parent}/reply`, headers(peer.key),
+        { body: 'pong' })) as MessageRow;
     expect({ session: reply.session_id, targetSession: reply.target_session_id, events: await eventSessions(reply.id) })
       .toEqual({ session: null, targetSession: askerSession, events: [] });
   });

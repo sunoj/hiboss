@@ -1,6 +1,6 @@
 // Boss reply, forwarding, and session-command HTTP regression tests.
 // Uses the authenticated Worker API, seeded D1 messages, and mocked provider fetch.
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase, getTestAgentId, authHeaders, seedBossToken } from '../test-helpers';
@@ -20,10 +20,9 @@ function bossHeaders(): Record<string, string> {
 
 describe('POST /api/boss/messages/:id/reply', () => {
   it('boss replies to agent message', async () => {
-    const res = await testRequest('POST', 'http://localhost/api/boss/messages/boss-api-msg-1/reply',
-      bossHeaders(), { body: 'Good work!' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { direction: string; reply_to: string; body: string };
+    const data = await testJson(201,
+      testRequest('POST', 'http://localhost/api/boss/messages/boss-api-msg-1/reply',
+        bossHeaders(), { body: 'Good work!' })) as { direction: string; reply_to: string; body: string };
     expect(data.direction).toBe('boss_to_agent');
     expect(data.reply_to).toBe('boss-api-msg-1');
     expect(data.body).toBe('Good work!');

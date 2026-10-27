@@ -7,6 +7,7 @@ import {
 } from './box-test-helpers';
 import { getTestAgentId } from './test-helpers';
 import { hashApiKey } from './middleware/auth';
+import { testJson } from './test-request';
 
 const PEER = 'synthetic-box-peer-key';
 const PEER_ID = 'box-peer-agent';
@@ -27,9 +28,7 @@ it('adds agent text, links and private files to the sole resolved boss without a
     const item = await create(body, 'agent');
     expect(item).toMatchObject({ boss_id: OWNER, added_by: AUTHOR, source: 'cli' });
   }
-  const response = await upload('application/pdf', 4, { source: 'cli' }, 'agent');
-  expect(response.status).toBe(201);
-  const item = await response.json() as Item;
+  const item = await testJson(201, upload('application/pdf', 4, { source: 'cli' }, 'agent')) as Item;
   expect(item).toMatchObject({ kind: 'file', media_bytes: 4, added_by: AUTHOR });
   expect(await env.ATTACHMENTS.head(`box/${OWNER}/${item.id}`)).not.toBeNull();
   expect((await request(`/${item.id}/media`, 'GET', undefined, 'agent')).status).toBe(200);
@@ -57,9 +56,7 @@ it.each([OWNER, 'Box Owner', ADMIN, 'Box Admin'].flatMap(boss =>
 
 it.each([OWNER, 'Box Owner', ADMIN, 'Box Admin'])('selects the peer multipart target from meta: %s',
   async boss => {
-    const response = await upload('image/png', 4, { boss }, PEER);
-    expect(response.status).toBe(201);
-    const item = await response.json() as Item;
+    const item = await testJson(201, upload('image/png', 4, { boss }, PEER)) as Item;
     expect(item).toMatchObject({ boss_id: boss === OWNER || boss === 'Box Owner' ? OWNER : ADMIN,
       added_by: { kind: 'agent', id: PEER_ID, name: 'Box Peer' } });
     expect((await request(`/${item.id}/media`, 'GET', undefined, PEER)).status).toBe(200);
@@ -89,9 +86,7 @@ it('includes boss or agent provenance in create, replay, show, latest, list, sea
     expect(boss.added_by).toEqual({ kind: 'boss' });
     const body = { text: 'provenanceneedle', project: 'provenance', boss: OWNER };
     const headers = { 'Idempotency-Key': 'provenance-key' };
-    const created = await request('', 'POST', body, 'agent', headers);
-    expect(created.status).toBe(201);
-    const agent = await created.json() as Item;
+    const agent = await testJson(201, request('', 'POST', body, 'agent', headers)) as Item;
     expect(agent.added_by).toEqual(AUTHOR);
     expect(agent).not.toHaveProperty('agent_id');
     expect(agent).not.toHaveProperty('agent_name');

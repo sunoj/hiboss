@@ -2,7 +2,7 @@
 // Exports channel configuration checks and API key endpoints used by the admin router.
 // Depends on the cloudflare:test runtime and shared test helpers for auth and seeding.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env } from 'cloudflare:test';
 import { describe, expect, it, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -24,10 +24,8 @@ describe('GET /api/channels', () => {
   it('returns an empty channel list when nothing is configured', async () => {
     await clearChannelConfigs();
 
-    const res = await testRequest('GET', `${API_BASE}/channels`, authHeaders());
-
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { channels: Array<unknown> };
+    const data = (await testJson(200,
+      testRequest('GET', `${API_BASE}/channels`, authHeaders()))) as { channels: Array<unknown> };
 
     expect(Array.isArray(data.channels)).toBe(true);
     expect(data.channels).toEqual([]);
@@ -54,10 +52,8 @@ describe('PUT /api/channels/:channel', () => {
     await clearChannelConfigs();
     const payload = { bot_token: 'token-tele', chat_id: '123456' };
 
-    const res = await testRequest('PUT', `${API_BASE}/channels/telegram`, authHeaders(), payload);
-
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as {
+    const data = (await testJson(200,
+      testRequest('PUT', `${API_BASE}/channels/telegram`, authHeaders(), payload))) as {
       id: string;
       channel: string;
       config: Record<string, unknown>;
@@ -85,10 +81,8 @@ describe('PUT /api/channels/:channel', () => {
     await clearChannelConfigs();
     const payload = { webhook_url: 'https://example.com/webhook' };
 
-    const res = await testRequest('PUT', `${API_BASE}/channels/discord`, authHeaders(), payload);
-
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as {
+    const data = (await testJson(200,
+      testRequest('PUT', `${API_BASE}/channels/discord`, authHeaders(), payload))) as {
       id: string;
       channel: string;
       config: Record<string, unknown>;
@@ -130,10 +124,8 @@ describe('POST /api/keys', () => {
   it('creates a new API key when provided a valid name', async () => {
     const payload = { name: 'new-agent' };
 
-    const res = await testRequest('POST', `${API_BASE}/keys`, authHeaders(), payload);
-
-    expect(res.status).toBe(201);
-    const data = (await res.json()) as { id: string; name: string; key: string };
+    const data = (await testJson(201, testRequest('POST', `${API_BASE}/keys`, authHeaders(), payload)
+    )) as { id: string; name: string; key: string };
 
     expect(typeof data.id).toBe('string');
     expect(data.name).toBe(payload.name);
@@ -146,10 +138,7 @@ describe('POST /api/keys', () => {
 
 describe('GET /api/keys', () => {
   it('lists API keys including the test agent key', async () => {
-    const res = await testRequest('GET', `${API_BASE}/keys`, authHeaders());
-
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as {
+    const data = (await testJson(200, testRequest('GET', `${API_BASE}/keys`, authHeaders()))) as {
       keys: Array<{ id: string; name: string; created_at: string; last_used_at: string | null }>;
     };
 

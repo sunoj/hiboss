@@ -1,6 +1,6 @@
 // Exercises first-install authorization through real Worker HTTP requests.
 // Covers stored bootstrap grants, boss administration, and last-admin survival.
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, beforeEach, expect, it } from 'vitest';
 import { getTestAgentId, mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
@@ -50,11 +50,9 @@ it('rule 3 grants every bootstrap profile admin only after approval', async () =
 });
 
 it('rule 3 keeps invited profiles ordinary even with a forged bootstrap admin field', async () => {
-  const response = await testRequest('POST', 'https://test.local/api/join',
+  const pending = await testJson(201, testRequest('POST', 'https://test.local/api/join',
     { 'Content-Type': 'application/json' }, { device: { label: 'invited' }, invite: await mintTestInvite(),
-      profiles: [{ profile: 'aid', name: 'invited-aid' }], bootstrap_admin: 1 });
-  expect(response.status).toBe(201);
-  const pending = await response.json() as { request_id: string };
+      profiles: [{ profile: 'aid', name: 'invited-aid' }], bootstrap_admin: 1 })) as { request_id: string };
   expect((await write(`boss/join-requests/${pending.request_id}/approve`, {}, 'POST')).status).toBe(200);
   expect(await env.DB.prepare("SELECT is_admin FROM api_keys WHERE name = 'invited-aid'")
     .first('is_admin')).toBe(0);

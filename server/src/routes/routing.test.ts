@@ -2,7 +2,7 @@
 // Covers CRUD operations and regex validation.
 // Depends on cloudflare:test env and shared test helpers.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 
@@ -12,23 +12,21 @@ beforeAll(async () => {
 
 describe('GET /api/routing-rules', () => {
   it('returns empty list initially', async () => {
-    const res = await testRequest('GET', 'https://test.local/api/routing-rules', authHeaders());
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { rules: unknown[] };
+    const data = (await testJson(200,
+      testRequest('GET', 'https://test.local/api/routing-rules', authHeaders()))) as { rules: unknown[] };
     expect(data.rules).toBeInstanceOf(Array);
   });
 });
 
 describe('POST /api/routing-rules', () => {
   it('creates a routing rule', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/routing-rules', authHeaders(), {
-        channel: 'telegram',
-        pattern: 'deploy.*prod',
-        target_agent_id: getTestAgentId(),
-        priority: 10,
-      });
-    expect(res.status).toBe(201);
-    const data = (await res.json()) as { id: string; channel: string; pattern: string; priority: number };
+    const data = (await testJson(201,
+      testRequest('POST', 'https://test.local/api/routing-rules', authHeaders(), {
+          channel: 'telegram',
+          pattern: 'deploy.*prod',
+          target_agent_id: getTestAgentId(),
+          priority: 10,
+        }))) as { id: string; channel: string; pattern: string; priority: number };
     expect(data.channel).toBe('telegram');
     expect(data.pattern).toBe('deploy.*prod');
     expect(data.priority).toBe(10);

@@ -1,6 +1,6 @@
 // Worker API tests for --to nickname scoping, precedence, and resolved target receipts.
 // Depends on real D1 sessions, the message endpoint, and seeded agent authentication.
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, seedDatabase } from '../test-helpers';
@@ -32,9 +32,7 @@ it('resolves an exact nickname in the sender project before label and agent id p
   await session('nick-target-sender', 'palm');
   await session('nick-target-peer', 'nick');
   await session('nick-target-prefix', 'gull', 'nick-target-project', 'nick/main');
-  const response = await send('nick', 'nick-target-sender');
-  expect(response.status).toBe(201);
-  const data = await response.json() as {
+  const data = await testJson(201, send('nick', 'nick-target-sender')) as {
     id: string; target: { id: string; nickname: string; label: string };
   };
   expect(data.target).toEqual({
@@ -49,9 +47,7 @@ it('lets an agent name win over an exact label and a nickname from another agent
   await session('nick-name-sender', 'tide');
   await session('nick-name-label', 'reef', 'nick-target-project', 'coral');
   await session('nick-name-nickname', 'coral');
-  const response = await send('coral', 'nick-name-sender');
-  expect(response.status).toBe(201);
-  const data = await response.json() as { id: string };
+  const data = await testJson(201, send('coral', 'nick-name-sender')) as { id: string };
   const stored = await env.DB.prepare('SELECT target_agent_id, target_session_id FROM messages WHERE id = ?')
     .bind(data.id).first();
   expect(stored).toEqual({ target_agent_id: 'nick-target-agent', target_session_id: null });
@@ -61,9 +57,8 @@ it('lets an exact label win over a nickname', async () => {
   await session('nick-label-sender', 'brine');
   await session('nick-label-peer', 'kelp', 'nick-target-project', 'lantern');
   await session('nick-label-nickname', 'lantern');
-  const response = await send('lantern', 'nick-label-sender');
-  expect(response.status).toBe(201);
-  const data = await response.json() as { target: { id: string; nickname: string } };
+  const data = await testJson(201,
+    send('lantern', 'nick-label-sender')) as { target: { id: string; nickname: string } };
   expect(data.target).toMatchObject({ id: 'nick-label-peer', nickname: 'kelp' });
 });
 
@@ -72,9 +67,8 @@ it('resolves suffixes across agents and keeps idle peers deliverable with a warn
   await session('nick-suffix-peer', 'otter-2');
   await env.DB.prepare(`UPDATE sessions SET agent_id = 'nick-target-agent',
     last_seen_at = datetime('now', '-2 hours') WHERE id = 'nick-suffix-peer'`).run();
-  const response = await send('otter-2', 'nick-suffix-sender');
-  expect(response.status).toBe(201);
-  const data = await response.json() as { target: { id: string; nickname: string }; warning: string };
+  const data = await testJson(201,
+    send('otter-2', 'nick-suffix-sender')) as { target: { id: string; nickname: string }; warning: string };
   expect(data.target).toMatchObject({ id: 'nick-suffix-peer', nickname: 'otter-2' });
   expect(data.warning).toContain('last seen');
 });

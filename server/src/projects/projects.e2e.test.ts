@@ -1,6 +1,6 @@
 // Exercises project identity through the deployed Worker API surface.
 // Covers aliases, legacy clients, profiles, and session ownership using D1.
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, seedDatabase, getTestAgentId } from '../test-helpers';
@@ -118,8 +118,7 @@ it('uses project FKs for Home even when stored labels and post text differ', asy
 
 it('prefers an exact agent name over an ID prefix', async () => {
   await env.DB.prepare("INSERT INTO api_keys (id, name, key_hash) VALUES ('named-recipient', 'ambiguous-agent', 'named-hash'), ('ambiguous-agent-id', 'prefix-agent', 'prefix-hash')").run();
-  const response = await post('messages', { body: 'named delivery', to: 'ambiguous-agent' });
-  expect(response.status).toBe(201);
-  const body = await response.json() as { id: string };
+  const body = await testJson(201,
+    post('messages', { body: 'named delivery', to: 'ambiguous-agent' })) as { id: string };
   expect(await env.DB.prepare('SELECT target_agent_id FROM messages WHERE id = ?').bind(body.id).first('target_agent_id')).toBe('named-recipient');
 });

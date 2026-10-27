@@ -2,7 +2,7 @@
 // Covers /api/agents/me profile, listing, and callback endpoints.
 // Depends on cloudflare:test infrastructure and shared test helpers.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, expect, it, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -13,10 +13,8 @@ beforeAll(async () => {
 
 describe('GET /api/agents/me', () => {
   it('returns the test agent profile', async () => {
-    const res = await testRequest('GET', 'https://test.local/api/agents/me', authHeaders());
-
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as {
+    const data = (await testJson(200,
+      testRequest('GET', 'https://test.local/api/agents/me', authHeaders()))) as {
       id: string;
       name: string;
       callback_url: string | null;
@@ -88,10 +86,8 @@ describe('GET /api/agents', () => {
       .bind(timestamp, agentId)
       .run();
 
-    const res = await testRequest('GET', 'https://test.local/api/agents', authHeaders());
-
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as {
+    const data = (await testJson(200,
+      testRequest('GET', 'https://test.local/api/agents', authHeaders()))) as {
       agents: Array<{ id: string; status: 'online' | 'idle' | 'offline' } & Record<string, unknown>>;
     };
 
@@ -105,11 +101,9 @@ describe('GET /api/agents', () => {
 describe('PUT /api/agents/me/callback', () => {
   it('sets the callback URL and returns it', async () => {
     const callbackUrl = 'https://example.com/agent-callback';
-    const res = await testRequest('PUT', 'https://test.local/api/agents/me/callback', authHeaders(),
-      { url: callbackUrl });
-
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { callback_url: string };
+    const data = (await testJson(200,
+      testRequest('PUT', 'https://test.local/api/agents/me/callback', authHeaders(),
+        { url: callbackUrl }))) as { callback_url: string };
     expect(data.callback_url).toBe(callbackUrl);
 
     const profile = await testRequest('GET', 'https://test.local/api/agents/me', authHeaders());
@@ -138,26 +132,23 @@ describe('DELETE /api/agents/me/callback', () => {
 
 describe('PUT /api/agents/me/config', () => {
   it('updates default_priority', async () => {
-    const res = await testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
-      { default_priority: 'high' });
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { default_priority: string };
+    const data = (await testJson(200,
+      testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
+        { default_priority: 'high' }))) as { default_priority: string };
     expect(data.default_priority).toBe('high');
   });
 
   it('updates rate_limit', async () => {
-    const res = await testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
-      { rate_limit: 5 });
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { rate_limit: number };
+    const data = (await testJson(200,
+      testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
+        { rate_limit: 5 }))) as { rate_limit: number };
     expect(data.rate_limit).toBe(5);
   });
 
   it('sets rate_limit to null to disable', async () => {
-    const res = await testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
-      { rate_limit: null });
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { rate_limit: number | null };
+    const data = (await testJson(200,
+      testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
+        { rate_limit: null }))) as { rate_limit: number | null };
     expect(data.rate_limit).toBeNull();
   });
 
@@ -173,10 +164,9 @@ describe('PUT /api/agents/me/config', () => {
     testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(), {})));
 
   it('updates both fields at once', async () => {
-    const res = await testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
-      { default_priority: 'low', rate_limit: 10 });
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { default_priority: string; rate_limit: number };
+    const data = (await testJson(200,
+      testRequest('PUT', 'https://test.local/api/agents/me/config', authHeaders(),
+        { default_priority: 'low', rate_limit: 10 }))) as { default_priority: string; rate_limit: number };
     expect(data.default_priority).toBe('low');
     expect(data.rate_limit).toBe(10);
   });

@@ -1,7 +1,7 @@
 // Round-two lifecycle regressions for session reuse and merged destination delivery.
 // Covers stale replies, boss cascade deletion, and deletion during an active send.
 // Depends on the Worker API, seeded D1, and the destination drain.
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent-keys';
@@ -92,9 +92,7 @@ it('R2 deleted session reply stores its message but cannot seed events for a new
 
   const deleted = await SELF.fetch(`${api}/sessions/${session}`, { method: 'DELETE', headers: headers(previous.key) });
   expect(deleted.status).toBe(200);
-  const stale = await reply(manager.token, staleParent);
-  expect(stale.status).toBe(201);
-  const staleMessage = await stale.json() as { id: string };
+  const staleMessage = await testJson(201, reply(manager.token, staleParent)) as { id: string };
   expect(await env.DB.prepare('SELECT id FROM messages WHERE id = ?').bind(staleMessage.id).first()).toEqual({ id: staleMessage.id });
   expect(await env.DB.prepare('SELECT id FROM session_events WHERE message_id = ?').bind(staleMessage.id).first()).toBeNull();
   const registered = await testRequest('POST', `${api}/sessions`, headers(next.key),

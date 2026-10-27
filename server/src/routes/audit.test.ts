@@ -2,7 +2,7 @@
 // Verifies that logAudit writes entries and GET /api/audit queries them.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -47,9 +47,8 @@ describe('GET /api/audit', () => {
   });
 
   it('returns audit entries', async () => {
-    const res = await testRequest('GET', 'https://test.local/api/audit', authHeaders());
-    expect(res.status).toBe(200);
-    const data = await res.json() as { entries: unknown[]; total: number };
+    const data = await testJson(200, testRequest('GET', 'https://test.local/api/audit', authHeaders())
+    ) as { entries: unknown[]; total: number };
     expect(data.entries.length).toBeGreaterThan(0);
     expect(data.total).toBeGreaterThan(0);
   });

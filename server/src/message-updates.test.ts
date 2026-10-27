@@ -1,6 +1,6 @@
 // Worker integration tests for migration 0054's automatic message timestamps.
 // Exercises reactions, option expiry, and scheduled delivery with D1.
-import { testRequest } from './test-request';
+import { testRequest, testJson } from './test-request';
 import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { persistDiscordReaction } from './discord-gateway-reactions';
@@ -56,12 +56,11 @@ async function expectMoved(id: string): Promise<void> {
 
 async function expectSendExpiryUpdate(): Promise<void> {
   for (const options of [undefined, ['Approve', 'Reject']]) {
-    const response = await testRequest('POST', 'https://test.local/api/messages', authHeaders(), {
-        body: `updates-expiry-${options ? 'options' : 'control'}`,
-        to: 'test-agent', channel: 'api', options,
-      });
-    expect(response.status).toBe(201);
-    const message = await response.json() as { id: string };
+    const message = await testJson(201,
+      testRequest('POST', 'https://test.local/api/messages', authHeaders(), {
+          body: `updates-expiry-${options ? 'options' : 'control'}`,
+          to: 'test-agent', channel: 'api', options,
+        })) as { id: string };
     if (options) {
       await expectMoved(message.id);
       const row = await env.DB.prepare('SELECT expires_at FROM messages WHERE id = ?')

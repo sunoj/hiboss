@@ -2,7 +2,7 @@
 // Covers send, list, get, reply, patch, and poll flows.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { createAgentAuth } from './messages-tests/support';
 import './messages-tests/queries';
 import './messages-tests/mutations';
@@ -56,10 +56,8 @@ async function setupQuietHoursAgent(agentId: string, apiKey: string): Promise<Re
 
 describe('POST /api/messages', () => {
   it('creates a message with defaults', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
-      { body: 'Hello boss' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { id: string; status: string; created_at: string };
+    const data = await testJson(201, testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+      { body: 'Hello boss' })) as { id: string; status: string; created_at: string };
     expect(data.id).toBeTruthy();
     expect(data.status).toBe('sent');
     expect(data.created_at).toBeTruthy();
@@ -81,10 +79,9 @@ describe('POST /api/messages', () => {
       "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, last_seen_at) VALUES (?, ?, ?, 'working', datetime('now'))"
     ).bind('address-peer-main', 'address-peer', 'address-project/main').run();
 
-    const res = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
-      { body: 'Prefix target', to: 'address-project' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { status: string; target: { label: string; id: string } };
+    const data = await testJson(201, testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+      { body: 'Prefix target', to: 'address-project' })
+    ) as { status: string; target: { label: string; id: string } };
     expect(data.status).toBe('sent');
     expect(data.target).toEqual({ label: 'address-project/main', id: 'address-peer-main', nickname: null });
   });
@@ -129,10 +126,8 @@ describe('POST /api/messages', () => {
       "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, last_seen_at) VALUES (?, ?, ?, 'working', datetime('now'))"
     ).bind('stale-target-live', 'stale-peer-target', 'stale-target/main').run();
 
-    const res = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
-      { body: 'Active target', to: 'stale-target' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { target: { label: string; id: string } };
+    const data = await testJson(201, testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+      { body: 'Active target', to: 'stale-target' })) as { target: { label: string; id: string } };
     expect(data.target).toEqual({ label: 'stale-target/main', id: 'stale-target-live', nickname: null });
   });
 
@@ -142,10 +137,9 @@ describe('POST /api/messages', () => {
       "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, last_seen_at) VALUES (?, ?, ?, 'working', datetime('now', '-1 hour'))"
     ).bind('idle-target-session', 'idle-peer-target', 'idle-target/main').run();
 
-    const res = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
-      { body: 'Stale target', to: 'idle-target' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { target: { label: string; id: string }; warning: string };
+    const data = await testJson(201, testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+      { body: 'Stale target', to: 'idle-target' })
+    ) as { target: { label: string; id: string }; warning: string };
     expect(data.target).toEqual({ label: 'idle-target/main', id: 'idle-target-session', nickname: null });
     expect(data.warning).toContain("target session 'idle-target' last seen");
   });
@@ -158,10 +152,9 @@ describe('POST /api/messages', () => {
       ).bind(`capped-target-${index}`, 'capped-peer-target', `capped-target/session-${index}`).run();
     }
 
-    const res = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
-      { body: 'Capped target', to: 'capped-target' });
-    expect(res.status).toBe(409);
-    const data = await res.json() as { candidates: { label: string; id: string }[]; remaining: number };
+    const data = await testJson(409, testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+      { body: 'Capped target', to: 'capped-target' })
+    ) as { candidates: { label: string; id: string }[]; remaining: number };
     expect(data.candidates).toHaveLength(10);
     expect(data.remaining).toBe(2);
   });
@@ -171,10 +164,8 @@ describe('POST /api/messages', () => {
       "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, last_seen_at) VALUES (?, ?, ?, 'working', datetime('now'))"
     ).bind('suggest-peer-id', 'address-peer', 'suggest-project/main').run();
 
-    const res = await testRequest('POST', 'https://test.local/api/messages', authHeaders(),
-      { body: 'Missing target', to: 'not-a-target' });
-    expect(res.status).toBe(404);
-    const data = await res.json() as {
+    const data = await testJson(404, testRequest('POST', 'https://test.local/api/messages', authHeaders(),
+      { body: 'Missing target', to: 'not-a-target' })) as {
       error: string;
       target: string;
       candidates: { label: string; id: string }[];
@@ -192,10 +183,8 @@ describe('POST /api/messages', () => {
   it('queues normal-priority delivery when a boss is in quiet hours', async () => {
     const quietHeaders = await setupQuietHoursAgent('quiet-agent-normal', 'hb_test_key_quiet_normal_000000');
 
-    const res = await testRequest('POST', 'https://test.local/api/messages', quietHeaders,
-      { body: 'Queue this for later' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { id: string };
+    const data = await testJson(201, testRequest('POST', 'https://test.local/api/messages', quietHeaders,
+      { body: 'Queue this for later' })) as { id: string };
 
     const queueRow = await env.DB
       .prepare('SELECT channel, status, scheduled_at FROM delivery_queue WHERE message_id = ?')
@@ -215,10 +204,8 @@ describe('POST /api/messages', () => {
   it('delivers high-priority messages immediately even during quiet hours', async () => {
     const quietHeaders = await setupQuietHoursAgent('quiet-agent-high', 'hb_test_key_quiet_high_000000');
 
-    const res = await testRequest('POST', 'https://test.local/api/messages', quietHeaders,
-      { body: 'Deliver now', priority: 'high' });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { id: string };
+    const data = await testJson(201, testRequest('POST', 'https://test.local/api/messages', quietHeaders,
+      { body: 'Deliver now', priority: 'high' })) as { id: string };
 
     const queueCount = await env.DB
       .prepare('SELECT COUNT(*) AS total FROM delivery_queue WHERE message_id = ?')

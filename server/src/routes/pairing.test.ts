@@ -2,7 +2,7 @@
 // Covers issuance, redemption, expiry, single-use concurrency, and revocation.
 // Depends on cloudflare:test, shared seed helpers, and the worker app.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -86,10 +86,9 @@ describe('POST /api/boss/pairing', () => {
 describe('POST /api/pairing/redeem', () => {
   it('returns a new labeled token while the existing token remains valid', async () => {
     const { code } = await issueCode();
-    const response = await testRequest('POST', 'http://localhost/api/pairing/redeem',
-      { 'Content-Type': 'application/json' }, { code, device_label: 'Alice iPhone' });
-    expect(response.status).toBe(200);
-    const data = await response.json() as { token: string; boss: { id: string; name: string; role: string } };
+    const data = await testJson(200, testRequest('POST', 'http://localhost/api/pairing/redeem',
+      { 'Content-Type': 'application/json' }, { code, device_label: 'Alice iPhone' })
+    ) as { token: string; boss: { id: string; name: string; role: string } };
     expect(data.token).toMatch(/^hb_boss_[0-9a-f]{64}$/);
     expect(data.boss).toEqual({ id: bossId, name: 'Pairing Boss', role: 'admin' });
     const newMe = await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(data.token) });
@@ -196,10 +195,9 @@ describe('boss token management', () => {
 
 describe('boss token rotation', () => {
   it('revokes every token on self-rotation and returns the only live token', async () => {
-    const response = await testRequest('POST', `http://localhost/api/bosses/${selfRotateBossId}/token`,
-      bossHeaders(SELF_ROTATE_TOKEN));
-    expect(response.status).toBe(200);
-    const data = await response.json() as { token: string };
+    const data = await testJson(200,
+      testRequest('POST', `http://localhost/api/bosses/${selfRotateBossId}/token`,
+        bossHeaders(SELF_ROTATE_TOKEN))) as { token: string };
     const live = await env.DB.prepare('SELECT token_hash FROM boss_tokens WHERE boss_id = ? AND revoked_at IS NULL')
       .bind(selfRotateBossId).all<{ token_hash: string }>();
     expect(live.results).toHaveLength(1);

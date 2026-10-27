@@ -2,7 +2,7 @@
 // Covers posting, validation, cursors, projects, deletion, and dual-auth scope.
 // Depends on cloudflare:test, the progress router, and shared database seeding.
 
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -162,9 +162,8 @@ describe('progress visibility and lifecycle', () => {
     for (;;) {
       const url = new URL('https://test.local/api/progress?limit=2');
       if (cursor) url.searchParams.set('before', JSON.stringify(cursor));
-      const response = await SELF.fetch(url, { headers: authHeaders() });
-      expect(response.status).toBe(200);
-      const page = await response.json() as { posts: { id: string }[]; next_cursor: { created_at: string; id: string } | null };
+      const page = await testJson(200, SELF.fetch(url, { headers: authHeaders() })
+      ) as { posts: { id: string }[]; next_cursor: { created_at: string; id: string } | null };
       seen.push(...page.posts.map((post) => post.id));
       cursor = page.next_cursor;
       if (!cursor) break;

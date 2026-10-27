@@ -7,6 +7,7 @@ import {
 } from './box-test-helpers';
 import { getTestAgentId } from './test-helpers';
 import type { BoxRow } from './box/types';
+import { testJson } from './test-request';
 
 beforeAll(seedBox);
 beforeEach(() => resetBox());
@@ -23,9 +24,7 @@ it('creates JSON link and text items with owner identity and supplied metadata',
 });
 
 it('creates private multipart media and serves correctly ranged bytes', async () => {
-  const response = await upload('image/png', 10, { width: 2, height: 5, note: 'caption' });
-  expect(response.status).toBe(201);
-  const item = await response.json() as Item;
+  const item = await testJson(201, upload('image/png', 10, { width: 2, height: 5, note: 'caption' })) as Item;
   expect(item).toMatchObject({ kind: 'image', media_bytes: 10, media_type: 'image/png',
     width: 2, height: 5, boss_id: OWNER, boss_name: 'Box Owner', has_media: true });
   expect(item).not.toHaveProperty('media_key');

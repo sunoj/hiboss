@@ -1,6 +1,6 @@
 // Worker API tests for nickname allocation and additive session inventory fields.
 // Exercises real D1 through registration, heartbeat, and both session lists.
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, seedBossToken, seedDatabase } from '../test-helpers';
@@ -113,9 +113,8 @@ describe('session inventory fields', () => {
       ['/api/sessions', authHeaders()],
       ['/api/boss/sessions', { Authorization: `Bearer ${BOSS_TOKEN}` }],
     ] as const) {
-      const response = await SELF.fetch(`http://localhost${path}`, { headers });
-      expect(response.status).toBe(200);
-      const { sessions } = await response.json() as { sessions: Session[] };
+      const { sessions } = await testJson(200,
+        SELF.fetch(`http://localhost${path}`, { headers })) as { sessions: Session[] };
       expect(sessions.find(row => row.id === named.id)).toMatchObject({
         nickname: 'lagoon', label: 'nick-inventory/main',
         project_ref: { ...named.project_ref, avatar_url: avatar },

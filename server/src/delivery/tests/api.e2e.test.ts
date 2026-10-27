@@ -4,6 +4,7 @@ import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:
 import { beforeAll, expect, it } from 'vitest';
 import app from '../../index';
 import { seedDatabase, seedBossToken } from '../../test-helpers';
+import { testJson } from '../../test-request';
 
 beforeAll(async () => {
   await seedDatabase();
@@ -31,11 +32,9 @@ it('admin creates a provider without ever echoing credentials', async () => {
 });
 it('manager owns mutations; admin cannot modify another boss destination', async () => {
   await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES ('api-provider', 'telegram', 'Bot', '{}')").run();
-  const response = await request('manager', 'destinations', 'POST', {
+  const { destination } = await testJson(201, request('manager', 'destinations', 'POST', {
     kind: 'telegram_chat', provider_id: 'api-provider', target: { chat_id: '-123' }, label: 'Team',
-  });
-  expect(response.status).toBe(201);
-  const { destination } = await response.json() as { destination: { id: string } };
+  })) as { destination: { id: string } };
   const path = `destinations/${destination.id}`;
   expect((await request('admin', path, 'PATCH', { enabled: false })).status).toBe(404);
   expect((await request('admin', path, 'DELETE')).status).toBe(404);

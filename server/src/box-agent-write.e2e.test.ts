@@ -3,6 +3,7 @@
 import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
 import { ADMIN, OWNER, create, request, resetBox, seedBox, upload, type Item } from './box-test-helpers';
+import { testJson } from './test-request';
 
 beforeAll(seedBox);
 beforeEach(() => resetBox());
@@ -11,9 +12,7 @@ afterEach(() => resetBox());
 it.each(['ios-share', 'mac-share', 'mac-drop', 'cli'])(
   'stores cli for agent JSON and multipart writes requesting %s', async source => {
     const json = await create({ text: 'agent source', boss: OWNER, source }, 'agent');
-    const response = await upload('image/png', 4, { boss: OWNER, source }, 'agent');
-    expect(response.status).toBe(201);
-    const multipart = await response.json() as Item;
+    const multipart = await testJson(201, upload('image/png', 4, { boss: OWNER, source }, 'agent')) as Item;
     for (const item of [json, multipart]) {
       expect(item.source).toBe('cli');
       const stored = await env.DB.prepare('SELECT source FROM box_items WHERE id = ?')

@@ -2,7 +2,7 @@
 // Covers invalid credentials, accessible agents, empty scope, and invalid cursors.
 // Depends on the real Worker router, D1, and shared synthetic test identities.
 
-import { returnsStatus } from '../test-request';
+import { returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -35,9 +35,7 @@ it('requires boss authentication for pending discovery and its stream', async ()
 });
 
 it('returns required inputs only from agents in the existing boss scope', async () => {
-  const response = await SELF.fetch(endpoint, { headers });
-  expect(response.status).toBe(200);
-  const page = await response.json() as RequiredInputPage;
+  const page = await testJson(200, SELF.fetch(endpoint, { headers })) as RequiredInputPage;
   expect(page.messages.map(message => message.id)).toEqual(['visible-ask']);
   expect(page.next_cursor).toBeNull();
 });

@@ -2,7 +2,7 @@
 // Covers single-use/expiry, role permissions, tenant separation, and header transport.
 // Dependencies: cloudflare:test, Hono worker, D1 seed helpers, and PanelRoom.
 
-import { testRequest, returnsStatus } from '../../test-request';
+import { testRequest, returnsStatus, testJson } from '../../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../../middleware/auth';
@@ -80,9 +80,7 @@ beforeAll(async () => {
 
 describe('panel connection authorization', () => {
   it('issues a ticket that upgrades once and refuses its second use', async () => {
-    const response = await requestTicket(OWNER_KEY, PANEL_A, 'producer');
-    expect(response.status).toBe(201);
-    const ticket = await response.json() as TicketResponse;
+    const ticket = await testJson(201, requestTicket(OWNER_KEY, PANEL_A, 'producer')) as TicketResponse;
     expect(ticket.roomId).toBe(BOSS_ID);
     expect(ticket.role).toBe('producer');
     expect(ticket.operations).toEqual(['subscribe', 'lease.claim', 'lease.release', 'state.update']);

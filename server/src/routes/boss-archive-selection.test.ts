@@ -12,6 +12,7 @@ import { resolveBossForChannel } from './webhook-helpers';
 import { ensureThreadForSession } from './message-option-threads';
 import { getAgentQuietHoursEnd } from './quiet-hours';
 import type { MessageRow } from '../types';
+import { testJson } from '../test-request';
 
 let manager: string;
 let admin: string;
@@ -44,18 +45,14 @@ it('excludes a granted archived manager from agent discovery, access, and defaul
   const bosses = await SELF.fetch('https://test.local/api/agents/me/bosses', { headers: authHeaders() });
   expect(await bosses.json()).toEqual({ bosses: [{ id: admin, name: 'Admin A', role: 'admin' }], defaultBossId: admin });
   expect(await bossCanAccessAgent(env.DB, manager, 'test-agent-id')).toBe(false);
-  const published = await publish('archive-default');
-  expect(published.status).toBe(201);
-  const receipt = await published.json() as { panelId: string };
+  const receipt = await testJson(201, publish('archive-default')) as { panelId: string };
   const panel = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: authHeaders() });
   expect(await panel.json()).toMatchObject({ targetBossId: admin });
   expect((await publish('archive-explicit', manager)).status).toBe(404);
 });
 
 it('retains panels and messages while removing their archived target from mutation access', async () => {
-  const published = await publish('archive-history', manager);
-  expect(published.status).toBe(201);
-  const { panelId } = await published.json() as { panelId: string };
+  const { panelId } = await testJson(201, publish('archive-history', manager)) as { panelId: string };
   await archive();
   const detail = await SELF.fetch(`https://test.local/api/panels/${panelId}`, { headers: authHeaders() });
   expect(detail.status).toBe(200);

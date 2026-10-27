@@ -2,7 +2,7 @@
 // Covers older CLI payloads, poll windows, later boss replies, and default provenance.
 // Dependencies: messagesRouter, Cloudflare test contexts, and seeded D1 fixtures.
 
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -34,11 +34,9 @@ async function request(path: string, payload?: Record<string, unknown>): Promise
 }
 
 async function send(payload: Record<string, unknown> = {}): Promise<MessageRow> {
-  const response = await request('/', {
+  const { id } = await testJson(201, request('/', {
     body: 'Choose a path', mode: 'blocking', options: ['A', 'B'], ...payload,
-  });
-  expect(response.status).toBe(201);
-  const { id } = await response.json() as { id: string };
+  })) as { id: string };
   const row = await env.DB.prepare('SELECT * FROM messages WHERE id = ?').bind(id).first<MessageRow>();
   if (!row) throw new Error('sent ask missing');
   return row;

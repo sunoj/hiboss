@@ -2,7 +2,7 @@
 // Covers pairing key binding, downgrade rejection, tampering, and replay idempotency.
 // Depends on the worker API, D1 test fixtures, and Web Crypto P-256 support.
 
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env } from 'cloudflare:test';
 import type { AnsweredBy } from '../answered-by';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -57,10 +57,9 @@ describe('paired-device message signing', () => {
 
   it('delivers a signed reply with independently verifiable provenance', async () => {
     const signedMessage = await signReply('Approve', crypto.randomUUID());
-    const response = await reply({ body: 'Approve', source: 'discord', signed_message: signedMessage,
-      answered_by: { client_id: 'fake', kind: 'ios', label: 'Fake Phone' } });
-    expect(response.status).toBe(201);
-    const message = await response.json() as SignedReplyResponse;
+    const message = await testJson(201,
+      reply({ body: 'Approve', source: 'discord', signed_message: signedMessage,
+        answered_by: { client_id: 'fake', kind: 'ios', label: 'Fake Phone' } })) as SignedReplyResponse;
     expect(message.body).toBe('Approve');
     const device = await env.DB.prepare(`SELECT c.id AS client_id, c.kind, c.label FROM boss_clients c
       JOIN boss_signing_keys k ON k.client_id = c.id WHERE k.id = ?`)
@@ -95,9 +94,8 @@ describe('paired-device message signing', () => {
 
   it('returns the original reply when the signed message is replayed', async () => {
     const signedMessage = await signReply('Idempotent approval', crypto.randomUUID());
-    const first = await reply({ body: 'Idempotent approval', signed_message: signedMessage });
-    expect(first.status).toBe(201);
-    const firstMessage = await first.json() as { id: string };
+    const firstMessage = await testJson(201,
+      reply({ body: 'Idempotent approval', signed_message: signedMessage })) as { id: string };
     const replay = await reply({ body: 'Idempotent approval', signed_message: signedMessage });
     expect(replay.status).toBe(200);
     expect((await replay.json() as { id: string }).id).toBe(firstMessage.id);
@@ -111,9 +109,7 @@ describe('paired-device message signing', () => {
     ).bind(parentId, getTestAgentId()).run();
     const signedMessage = await signReply('Yes', crypto.randomUUID(), parentId);
     const payload = { body: 'Yes', signed_message: signedMessage };
-    const first = await reply(payload, parentId);
-    expect(first.status).toBe(201);
-    const accepted = await first.json() as { id: string; body: string };
+    const accepted = await testJson(201, reply(payload, parentId)) as { id: string; body: string };
     await env.DB.prepare("UPDATE messages SET expires_at = '2020-01-01T00:00:00Z', metadata = ? WHERE id = ?")
       .bind(JSON.stringify({ options_expired: true }), parentId).run();
 
@@ -146,14 +142,12 @@ async function pairSigningClient(): Promise<{
     keys.privateKey,
     pairingProof(code, 'ios', publicKey).buffer as ArrayBuffer,
   )));
-  const response = await testRequest('POST', 'http://localhost/api/pairing/redeem',
+  const grant = await testJson(200, testRequest('POST', 'http://localhost/api/pairing/redeem',
     { 'Content-Type': 'application/json' }, {
       code,
       device_label: 'Signed iPhone',
       signing: { algorithm: 'ES256', client_kind: 'ios', public_key: publicKey, proof },
-    });
-  expect(response.status).toBe(200);
-  const grant = await response.json() as { token: string; signing_key_id: string };
+    })) as { token: string; signing_key_id: string };
   return { token: grant.token, signingKeyId: grant.signing_key_id, privateKey: keys.privateKey };
 }
 

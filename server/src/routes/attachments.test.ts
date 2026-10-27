@@ -2,7 +2,7 @@
 // Covers upload (multipart + raw) and download flows.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { returnsStatus } from '../test-request';
+import { returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -14,7 +14,7 @@ beforeAll(async () => {
 describe('POST /api/attachments/upload', () => {
   it('uploads a file via raw binary', async () => {
     const data = new TextEncoder().encode('hello world');
-    const res = await SELF.fetch('https://test.local/api/attachments/upload', {
+    const json = (await testJson(201, SELF.fetch('https://test.local/api/attachments/upload', {
       method: 'POST',
       headers: {
         Authorization: authHeaders().Authorization,
@@ -22,9 +22,7 @@ describe('POST /api/attachments/upload', () => {
         'X-Filename': 'test.txt',
       },
       body: data,
-    });
-    expect(res.status).toBe(201);
-    const json = (await res.json()) as { key: string; url: string; filename: string; content_type: string; size: number };
+    }))) as { key: string; url: string; filename: string; content_type: string; size: number };
     expect(json.key).toBeTruthy();
     expect(json.key).toMatch(/\.png$/);
     expect(json.url).toContain('/api/attachments/');
@@ -34,7 +32,7 @@ describe('POST /api/attachments/upload', () => {
   });
 
   it('accepts raw video/mp4 uploads', async () => {
-    const res = await SELF.fetch('https://test.local/api/attachments/upload', {
+    const json = (await testJson(201, SELF.fetch('https://test.local/api/attachments/upload', {
       method: 'POST',
       headers: {
         Authorization: authHeaders().Authorization,
@@ -42,9 +40,7 @@ describe('POST /api/attachments/upload', () => {
         'X-Filename': 'clip.mp4',
       },
       body: new Uint8Array([0, 1, 2]),
-    });
-    expect(res.status).toBe(201);
-    const json = (await res.json()) as { key: string; content_type: string; size: number };
+    }))) as { key: string; content_type: string; size: number };
     expect(json.key).toMatch(/\.mp4$/);
     expect(json.content_type).toBe('video/mp4');
     expect(json.size).toBe(3);

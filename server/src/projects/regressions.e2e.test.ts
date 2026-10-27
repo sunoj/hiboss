@@ -1,6 +1,6 @@
 // Reproduces phase 3a wire, historical merge, targeting and validation failures.
 // Exercises Worker endpoints and verifies durable D1 relationships and audit rows.
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
@@ -77,9 +77,7 @@ it('targets both the displayed canonical label and the stored label exactly or b
   const sessions = await listed.json() as { sessions: { id: string; label: string }[] };
   expect(sessions.sessions.find(row => row.id === 'visible-target')?.label).toBe('hiboss/main');
   for (const to of ['hiboss/main', 'hiboss', 'HiBoss/main', 'HiBoss']) {
-    const response = await post('messages', { body: 'label delivery', to });
-    expect(response.status).toBe(201);
-    const message = await response.json() as { id: string };
+    const message = await testJson(201, post('messages', { body: 'label delivery', to })) as { id: string };
     expect(await env.DB.prepare('SELECT target_session_id FROM messages WHERE id = ?').bind(message.id).first('target_session_id')).toBe('visible-target');
   }
 });

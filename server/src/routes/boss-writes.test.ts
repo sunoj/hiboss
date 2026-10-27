@@ -2,7 +2,7 @@
 // Covers groups, routing rules, agent config, channel projection, and system doctor.
 // Depends on cloudflare:test env, shared test helpers, and boss token auth.
 
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
@@ -38,13 +38,12 @@ function bossHeaders(token = ADMIN_TOKEN): Record<string, string> {
 
 describe('boss write contract', () => {
   it('creates a group for an accessible owner', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/boss/groups', bossHeaders(), {
-        name: `boss-writes-group-${Date.now()}`,
-        description: 'created by boss write tests',
-        owner_agent_id: getTestAgentId(),
-      });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { id: string; owner_id: string };
+    const data = await testJson(201,
+      testRequest('POST', 'https://test.local/api/boss/groups', bossHeaders(), {
+          name: `boss-writes-group-${Date.now()}`,
+          description: 'created by boss write tests',
+          owner_agent_id: getTestAgentId(),
+        })) as { id: string; owner_id: string };
     expect(data.owner_id).toBe(getTestAgentId());
     groupId = data.id;
   });
@@ -63,15 +62,14 @@ describe('boss write contract', () => {
   });
 
   it('creates a routing rule for accessible owner and target agents', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/boss/routing-rules', bossHeaders(), {
-        owner_agent_id: getTestAgentId(),
-        channel: 'telegram',
-        pattern: 'boss-write.*',
-        target_agent_id: getTestAgentId(),
-        priority: 7,
-      });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { id: string; owner_id: string; priority: number };
+    const data = await testJson(201,
+      testRequest('POST', 'https://test.local/api/boss/routing-rules', bossHeaders(), {
+          owner_agent_id: getTestAgentId(),
+          channel: 'telegram',
+          pattern: 'boss-write.*',
+          target_agent_id: getTestAgentId(),
+          priority: 7,
+        })) as { id: string; owner_id: string; priority: number };
     expect(data.owner_id).toBe(getTestAgentId());
     expect(data.priority).toBe(7);
     ruleId = data.id;

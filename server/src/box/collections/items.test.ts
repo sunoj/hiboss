@@ -4,6 +4,7 @@ import { env } from 'cloudflare:test';
 import { beforeAll, beforeEach, expect, it } from 'vitest';
 import { OTHER, create, page, request, resetBox, seedBox, upload, type Item } from '../../box-test-helpers';
 import { collectionList, collections, membership, newCollection } from './test-helpers';
+import { testJson } from '../../test-request';
 
 beforeAll(seedBox);
 beforeEach(() => resetBox());
@@ -11,9 +12,7 @@ beforeEach(() => resetBox());
 it('likes and unlikes idempotently while preserving the original like timestamp', async () => {
   const item = await create({ text: 'like me' });
   expect(item).toMatchObject({ liked: false, liked_at: null, collection_ids: [] });
-  const first = await request(`/${item.id}/like`, 'PUT');
-  expect(first.status).toBe(200);
-  const liked = await first.json() as Item;
+  const liked = await testJson(200, request(`/${item.id}/like`, 'PUT')) as Item;
   expect(liked.liked).toBe(true);
   expect(Number.isFinite(Date.parse(liked.liked_at!))).toBe(true);
   await env.DB.prepare('UPDATE box_items SET liked_at = ? WHERE id = ?')
@@ -45,10 +44,8 @@ it('hides like writes from agents, other bosses, missing IDs and soft-deleted it
 });
 
 it('returns likes and memberships in show, latest, list, search, patch and create replay', async () => {
-  const response = await request('', 'POST', { text: 'metadataneedle' }, undefined,
-    { 'Idempotency-Key': 'collection-response' });
-  expect(response.status).toBe(201);
-  const item = await response.json() as Item;
+  const item = await testJson(201, request('', 'POST', { text: 'metadataneedle' }, undefined,
+    { 'Idempotency-Key': 'collection-response' })) as Item;
   const collection = await newCollection('Metadata');
   await request(`/${item.id}/like`, 'PUT');
   const expected = await membership(collection.id, item.id);

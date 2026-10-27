@@ -5,6 +5,7 @@ import { beforeAll, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 import type { AgentKey } from './types';
+import { testJson } from '../test-request';
 
 beforeAll(seedDatabase);
 const base = 'https://test.local/api';
@@ -50,9 +51,8 @@ it('mints once, lists metadata only, guards the last current key, and audits cha
   const a = await agent('self-keys');
   const path = '/agents/me/keys';
   expect((await request(`${path}/${a.keyId}`, a.token, 'DELETE')).status).toBe(409);
-  const minted = await request(path, a.token, 'POST', { label: 'Mac' });
-  expect(minted.status).toBe(201);
-  const key = await minted.json() as AgentKey & { key: string };
+  const key = await testJson(201,
+    request(path, a.token, 'POST', { label: 'Mac' })) as AgentKey & { key: string };
   expect(await (await request('/agents/me', key.key)).json()).toMatchObject({ id: a.id, agent_key_id: key.id });
   const listed = await (await request(path, a.token)).json() as { keys: AgentKey[]; current_key_id: string };
   expect(listed.current_key_id).toBe(a.keyId);
@@ -99,9 +99,8 @@ it('allows accessible managers and all-agent admins, blocks viewers and ungrante
   }
   for (const token of ['manager-keys', 'admin-keys']) {
     expect((await request(path, token)).status).toBe(200);
-    const response = await request(path, token, 'POST', { label: 'Linux' });
-    expect(response.status).toBe(201);
-    const key = await response.json() as AgentKey & { key: string };
+    const key = await testJson(201,
+      request(path, token, 'POST', { label: 'Linux' })) as AgentKey & { key: string };
     expect((await request(`${path}/${key.id}`, token, 'DELETE')).status).toBe(200);
     expect((await request('/agents/me', key.key)).status).toBe(401);
   }

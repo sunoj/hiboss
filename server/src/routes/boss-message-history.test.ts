@@ -1,6 +1,6 @@
 // Worker integration coverage for incremental and legacy boss message history.
 // Exercises timestamp validation, filtering, paging, and access with real D1.
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
@@ -169,10 +169,8 @@ describe('boss message delta', () => {
   });
 
   it('includes updated_at in message details and every reply', async () => {
-    const response = await testRequest('GET', 'https://test.local/api/boss/messages/delta-old',
-      { Authorization: `Bearer ${TOKEN}` });
-    expect(response.status).toBe(200);
-    const message = await response.json() as MessageResponse;
+    const message = await testJson(200, testRequest('GET', 'https://test.local/api/boss/messages/delta-old',
+      { Authorization: `Bearer ${TOKEN}` })) as MessageResponse;
     expect(message.updated_at).toBe('2026-01-02 03:04:04');
     expect(message.replies?.map(reply => reply.updated_at)).toEqual([CURSOR]);
   });

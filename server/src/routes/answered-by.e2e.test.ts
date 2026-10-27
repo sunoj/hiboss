@@ -2,7 +2,7 @@
 // Exercises option/message replies, history JSON, and resolved stream replay.
 // Depends on seeded D1, bearer boss auth, and the Worker API.
 
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -30,9 +30,7 @@ beforeAll(async () => {
 describe('answering device attribution', () => {
   it.each([false, true])('replaces supplied attribution on a reply (options=%s)', async (options) => {
     const id = await parent(options);
-    const response = await reply(id, TOKEN);
-    expect(response.status).toBe(201);
-    const stored = await response.json() as MessageResponse;
+    const stored = await testJson(201, reply(id, TOKEN)) as MessageResponse;
     expect(stored.metadata?.['answered_by']).toEqual(DEVICE);
     expect(stored.answered_by).toEqual(DEVICE);
     expect(stored.metadata?.['source']).toBe('api');
@@ -69,9 +67,7 @@ describe('answering device attribution', () => {
   });
 
   it('strips supplied attribution when the token has no client', async () => {
-    const response = await reply(await parent(false), LEGACY_TOKEN);
-    expect(response.status).toBe(201);
-    const stored = await response.json() as MessageResponse;
+    const stored = await testJson(201, reply(await parent(false), LEGACY_TOKEN)) as MessageResponse;
     expect(stored.metadata?.['answered_by']).toBeUndefined();
     expect(stored.answered_by).toBeUndefined();
     expect(stored.metadata?.['source']).toBe('api');

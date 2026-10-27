@@ -2,7 +2,7 @@
 // Covers group CRUD, membership, and broadcast.
 // Depends on cloudflare:test env, auth hashing, and shared test helpers.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
@@ -25,9 +25,8 @@ async function createAgentAuth(agentId: string, apiKey: string): Promise<Record<
 
 describe('GET /api/groups', () => {
   it('returns empty list initially', async () => {
-    const res = await testRequest('GET', 'https://test.local/api/groups', authHeaders());
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { groups: unknown[] };
+    const data = (await testJson(200,
+      testRequest('GET', 'https://test.local/api/groups', authHeaders()))) as { groups: unknown[] };
     expect(data.groups).toBeInstanceOf(Array);
   });
 
@@ -41,9 +40,8 @@ describe('GET /api/groups', () => {
     expect(ownCreate.status).toBe(201);
     expect(otherCreate.status).toBe(201);
 
-    const ownList = await testRequest('GET', 'https://test.local/api/groups', authHeaders());
-    expect(ownList.status).toBe(200);
-    const ownData = await ownList.json() as { groups: { name: string }[] };
+    const ownData = await testJson(200,
+      testRequest('GET', 'https://test.local/api/groups', authHeaders())) as { groups: { name: string }[] };
     expect(ownData.groups.some((group) => group.name === 'owner-scope-a')).toBe(true);
     expect(ownData.groups.some((group) => group.name === 'owner-scope-b')).toBe(false);
 
@@ -55,10 +53,9 @@ describe('GET /api/groups', () => {
 
 describe('POST /api/groups', () => {
   it('creates a group', async () => {
-    const res = await testRequest('POST', 'https://test.local/api/groups', authHeaders(),
-      { name: 'test-group', description: 'A test group' });
-    expect(res.status).toBe(201);
-    const data = (await res.json()) as { id: string; name: string; description: string };
+    const data = (await testJson(201, testRequest('POST', 'https://test.local/api/groups', authHeaders(),
+      { name: 'test-group', description: 'A test group' })
+    )) as { id: string; name: string; description: string };
     expect(data.name).toBe('test-group');
     expect(data.description).toBe('A test group');
   });

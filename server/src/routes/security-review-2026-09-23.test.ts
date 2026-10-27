@@ -1,5 +1,5 @@
 // Security regressions for foreign-session streams, active attachments, and bootstrap.
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { approveAndCollect, authHeaders, mintTestInvite, seedDatabase } from '../test-helpers';
@@ -56,9 +56,8 @@ describe('Security review 2026-09-23 regressions', () => {
     delete headers['Content-Type'];
     const body = new FormData();
     body.set('file', new File([payload], filename, { type: mime }));
-    const upload = await SELF.fetch(`${base}/api/attachments/upload`, { method: 'POST', headers, body });
-    expect(upload.status).toBe(201);
-    const { url } = await upload.json() as { url: string };
+    const { url } = await testJson(201,
+      SELF.fetch(`${base}/api/attachments/upload`, { method: 'POST', headers, body })) as { url: string };
     expect(new URL(url).origin).toBe(base);
     for (const init of [{}, { method: 'HEAD' }, { headers: { Range: 'bytes=0-9' } }]) {
       const download = await SELF.fetch(url, init);

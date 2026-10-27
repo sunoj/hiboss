@@ -7,6 +7,7 @@ import { OWNER, OTHER, create, request, resetBox, seedBox, upload } from '../../
 import { authHeaders } from '../../test-helpers';
 import { hashApiKey } from '../../middleware/auth';
 import { tokenHash } from './routes';
+import { testJson } from '../../test-request';
 
 const PEER = 'hb_test_share_peer';
 const FOREIGN = 'hb_test_share_foreign';
@@ -221,11 +222,9 @@ it.each(['', '?purge=1'])('hides lists, pages and files after deletion %s', asyn
 
 it.each([undefined, ''])('defaults TTL for absent or empty request body %j', async body => {
   const item = await create({ text: 'default ttl' });
-  const response = await SELF.fetch(`https://test.local/api/box/items/${item.id}/shares`, {
+  const result = await testJson(201, SELF.fetch(`https://test.local/api/box/items/${item.id}/shares`, {
     method: 'POST', headers: { Authorization: `Bearer ${OWNER}` }, body,
-  });
-  expect(response.status).toBe(201);
-  const result = await response.json() as Share;
+  })) as Share;
   expect(Date.parse(result.expiresAt) - Date.parse(result.createdAt)).toBe(604800000);
 });
 

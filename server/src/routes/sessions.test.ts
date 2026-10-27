@@ -2,7 +2,7 @@
 // Covers session CRUD and status management.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { testRequest, returnsStatus } from '../test-request';
+import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId, seedBossToken } from '../test-helpers';
@@ -136,10 +136,8 @@ describe('GET /api/sessions boss access', () => {
       .bind(bossId, getTestAgentId()).run();
     await env.DB.prepare("INSERT INTO sessions (id, agent_id, last_seen_at) VALUES (?, ?, datetime('now', '-16 minutes'))")
       .bind(`stale-viewer-${query}`, getTestAgentId()).run();
-    const res = await testRequest('GET', `http://localhost/api/sessions${query}`,
-      { Authorization: `Bearer ${token}` });
-    expect(res.status).toBe(200);
-    const data = await res.json() as { sessions: { id: string; agent_id: string }[] };
+    const data = await testJson(200, testRequest('GET', `http://localhost/api/sessions${query}`,
+      { Authorization: `Bearer ${token}` })) as { sessions: { id: string; agent_id: string }[] };
     expect(data.sessions.length).toBeGreaterThan(0);
     expect(data.sessions.every((session) => session.agent_id === getTestAgentId())).toBe(true);
     expect(data.sessions.some((session) => session.id.startsWith('stale-viewer-'))).toBe(false);

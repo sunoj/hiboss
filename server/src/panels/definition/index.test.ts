@@ -6,6 +6,7 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../../middleware/auth';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../../test-helpers';
+import { testJson } from '../../test-request';
 
 const BOSS_TOKEN = 'hb_panels_boss_token_0000000000000001';
 const BOSS_ID = 'panels-test-boss';
@@ -74,9 +75,8 @@ describe('panel publication and reads', () => {
     [{ mode: 'run', ttlSeconds: 120 }, 120, 120_000],
     [{ mode: 'run', ttlSeconds: 604800 }, 604800, 604_800_000],
   ])('persists lifecycle expiry %j with TTL %s', async (lifecycle, ttl, milliseconds) => {
-    const published = await publish('panel-expiry', panelBody({ lifecycle }));
-    expect(published.status).toBe(201);
-    const { panelId } = await published.json() as { panelId: string };
+    const { panelId } = await testJson(201,
+      publish('panel-expiry', panelBody({ lifecycle }))) as { panelId: string };
     const read = await SELF.fetch(`https://test.local/api/panels/${panelId}`, { headers: authHeaders() });
     expect(read.status).toBe(200);
     const panel = await read.json() as { createdAt: string; lifecycle: { ttlSeconds: number; expiresAt: string } };
@@ -108,9 +108,7 @@ describe('panel publication and reads', () => {
 
   it('resolves an omitted target for an agent with one boss', async () => {
     const body = panelBody({ targetBossId: undefined, taskKey: 'panel-resolved-defaults' });
-    const published = await publish('panel-resolved-defaults', body);
-    expect(published.status).toBe(201);
-    const receipt = await published.json() as { panelId: string };
+    const receipt = await testJson(201, publish('panel-resolved-defaults', body)) as { panelId: string };
     const read = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: authHeaders() });
     expect(await read.json()).toMatchObject({ targetBossId: BOSS_ID, sessionId: 'panels-test-session' });
   });
@@ -126,9 +124,8 @@ describe('panel publication and reads', () => {
       const { panelId } = await response.json() as { panelId: string };
       const read = await SELF.fetch(`https://test.local/api/panels/${panelId}`, { headers: authHeaders() });
       expect(await read.json()).toMatchObject({ targetBossId: BOSS_ID });
-      const override = await publish('panel-explicit-manager', panelBody({ targetBossId: secondBoss }));
-      expect(override.status).toBe(201);
-      const explicit = await override.json() as { panelId: string };
+      const explicit = await testJson(201,
+        publish('panel-explicit-manager', panelBody({ targetBossId: secondBoss }))) as { panelId: string };
       const explicitRead = await SELF.fetch(`https://test.local/api/panels/${explicit.panelId}`, { headers: authHeaders() });
       expect(await explicitRead.json()).toMatchObject({ targetBossId: secondBoss });
     } finally {
@@ -211,9 +208,8 @@ describe('panel publication and reads', () => {
     const theirs = await publish('panel-list-scope-theirs', panelBody({ taskKey: 'theirs', sessionId: 'panels-other-session' }), OTHER_AGENT_KEY);
     expect(theirs.status).toBe(201);
 
-    const listed = await SELF.fetch('https://test.local/api/panels', { headers: authHeaders() });
-    expect(listed.status).toBe(200);
-    const body = await listed.json() as { panels: { panelId: string; agentId?: string }[] };
+    const body = await testJson(200, SELF.fetch('https://test.local/api/panels', { headers: authHeaders() })
+    ) as { panels: { panelId: string; agentId?: string }[] };
     expect(body.panels.map((panel) => panel.panelId)).toEqual([minePanelId]);
   });
 

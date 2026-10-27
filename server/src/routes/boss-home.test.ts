@@ -6,6 +6,7 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
+import { testJson } from '../test-request';
 
 const BOSS_TOKEN = 'hb_boss_home_00112233445566778899aabb';
 const EMPTY_TOKEN = 'hb_boss_home_empty_11223344556677889900';
@@ -63,9 +64,8 @@ function headers(token: string): Record<string, string> {
 
 describe('GET /api/boss/home', () => {
   it('returns empty shape when boss has no accessible agents', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/home', { headers: headers(EMPTY_TOKEN) });
-    expect(res.status).toBe(200);
-    const body = await res.json() as {
+    const body = await testJson(200,
+      SELF.fetch('http://localhost/api/boss/home', { headers: headers(EMPTY_TOKEN) })) as {
       boss: { name: string };
       kpis: Record<string, number>;
       activity: { days: unknown[]; delta: Record<string, number | null> };
@@ -83,9 +83,8 @@ describe('GET /api/boss/home', () => {
   });
 
   it('derives projects from session and progress project FKs', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/home', { headers: headers(BOSS_TOKEN) });
-    expect(res.status).toBe(200);
-    const body = await res.json() as {
+    const body = await testJson(200,
+      SELF.fetch('http://localhost/api/boss/home', { headers: headers(BOSS_TOKEN) })) as {
       projects: { name: string; sessions: Record<string, number>; postCount7d: number; pendingDecisions: number }[];
     };
     const names = body.projects.map((p) => p.name).sort();

@@ -2,7 +2,7 @@
 // Exercises blocking and option asks, ordinary replies, and agent delivery side effects.
 // Depends on the Worker API, seeded D1 sessions, boss auth, and mocked callbacks.
 
-import { testRequest } from '../test-request';
+import { testRequest, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
@@ -36,9 +36,7 @@ describe('boss decision reply closure', () => {
     vi.stubGlobal('fetch', callback);
     await env.DB.prepare('UPDATE api_keys SET callback_url = ? WHERE id = ?')
       .bind('https://agent.test/decision-callback', getTestAgentId()).run();
-    const first = await reply(id, 'First answer');
-    expect(first.status).toBe(201);
-    const accepted = await first.json() as { id: string };
+    const accepted = await testJson(201, reply(id, 'First answer')) as { id: string };
     await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(1));
     expect(await parentStatus(id)).toBe('replied');
 
