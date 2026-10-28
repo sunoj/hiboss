@@ -76,6 +76,31 @@ final class SessionDirectoryTests: XCTestCase {
         XCTAssertEqual(session?.statusText, "Body new")
     }
 
+    func testMixedTimestampFormatsAndRequiredOverridesPreserveSessionProvenance() {
+        let history = [
+            TodayTestSupport.message("invalid", createdAt: "invalid", label: "Invalid"),
+            TodayTestSupport.message("tie-b", createdAt: "1970-01-12T13:45:00Z", label: "Second"),
+            TodayTestSupport.message("tie-a", createdAt: "1970-01-12 13:45:00", label: "First"),
+            TodayTestSupport.message("newest", createdAt: "1970-01-12T13:46:20.000Z",
+                sessionStatus: nil, label: nil, branch: nil, agent: nil),
+        ]
+        let before = TodayTestSupport.snapshot(history).working.first
+        XCTAssertEqual(before?.projectLabel, "First")
+        XCTAssertEqual(before?.statusText, "Body newest")
+        XCTAssertEqual(before?.lastActivityDate, now.addingTimeInterval(-20))
+        let replacement = TodayTestSupport.message("tie-b", createdAt: "1970-01-12 13:46:30",
+            label: "Required", branch: nil, agent: nil)
+        let snapshot = TodayTestSupport.snapshot(history, requiredInputs: [replacement])
+        let session = snapshot.working.first
+        XCTAssertEqual(session?.projectLabel, "Required")
+        XCTAssertEqual(session?.statusText, "Body tie-b")
+        XCTAssertEqual(session?.branch, "main")
+        XCTAssertEqual(session?.agentName, "Agent")
+        XCTAssertEqual(session?.lastActivityDate, now.addingTimeInterval(-10))
+        XCTAssertEqual(snapshot.sessionDirectory, SessionDirectory(
+            history: Array(history.reversed()), requiredInputs: [replacement], now: now))
+    }
+
     func testNeedsYouTakesDirectoryPrecedenceWhileTodayWorkingKeepsNeedsYouFlag() {
         let history = [
             TodayTestSupport.message(

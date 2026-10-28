@@ -34,7 +34,7 @@ public struct TodaySnapshot: Equatable, Sendable {
         let messages = TodayMessageRules.merge(history: history, requiredInputs: requiredInputs)
         let visible = messages.filter { !withdrawn.contains($0.id) }
         let decisions = TodayMessageRules.openDecisions(requiredInputs, withdrawn: withdrawn, now: now)
-        let sessions = TodaySession.summaries(messages: messages, decisions: decisions, lastSeen: lastSeen)
+        let sessions = TodaySession.summaries(newestFirst: messages, decisions: decisions, lastSeen: lastSeen)
         self.decisions = decisions
         working = sessions.filter { $0.hasLiveWork(now: now) }
         delivered = Self.results(from: visible, decisions: decisions, now: now)

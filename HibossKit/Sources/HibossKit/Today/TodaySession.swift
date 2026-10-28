@@ -34,7 +34,8 @@ public struct TodaySession: Identifiable, Equatable, Sendable {
         return TodayMessageRules.isRecent(lastActivityDate, window: Self.staleStatusWindow, now: now)
     }
 
-    static func summaries(messages: [HistoryMessage], decisions: [AttentionItem],
+    /// The merge order is newest first, with stable message-ID ties, and survives grouping.
+    static func summaries(newestFirst messages: [HistoryMessage], decisions: [AttentionItem],
                           lastSeen: [String: Date] = [:]) -> [TodaySession] {
         let needsYou = Set(decisions.map { SessionGrouping.sessionKey(for: $0.message) })
         let buckets = Dictionary(grouping: messages, by: SessionGrouping.sessionKey(for:))
@@ -49,8 +50,7 @@ public struct TodaySession: Identifiable, Equatable, Sendable {
         }
     }
 
-    private static func make(id: String, messages: [HistoryMessage], needsYou: Bool) -> TodaySession {
-        let newest = messages.sorted(by: TodayMessageRules.newestFirst)
+    private static func make(id: String, messages newest: [HistoryMessage], needsYou: Bool) -> TodaySession {
         let branch = newest.lazy.compactMap { TodayMessageRules.nonEmpty($0.sessionBranch) }.first
         let label = newest.lazy.compactMap { TodayMessageRules.nonEmpty($0.sessionLabel) }.first
         return TodaySession(
@@ -60,7 +60,7 @@ public struct TodaySession: Identifiable, Equatable, Sendable {
             agentName: newest.lazy.compactMap { TodayMessageRules.nonEmpty($0.agentName) }.first,
             status: newest.lazy.compactMap { TodayMessageRules.nonEmpty($0.sessionStatus) }.first,
             statusText: newest.first?.body ?? "",
-            lastActivityDate: newest.compactMap(TodayMessageRules.createdDate).max(),
+            lastActivityDate: newest.lazy.compactMap(TodayMessageRules.createdDate).first,
             needsYou: needsYou
         )
     }

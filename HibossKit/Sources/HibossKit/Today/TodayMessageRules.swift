@@ -28,10 +28,14 @@ enum TodayMessageRules {
     /// Required inputs override history by ID; the last duplicate in each source wins.
     static func merge(history: [HistoryMessage], requiredInputs: [HistoryMessage]) -> [HistoryMessage] {
         var byID: [MessageID: HistoryMessage] = [:]
-        for message in history + requiredInputs {
-            byID[message.id] = message
-        }
-        return byID.values.sorted(by: newestFirst)
+        byID.reserveCapacity(history.count + requiredInputs.count)
+        for message in history { byID[message.id] = message }
+        for message in requiredInputs { byID[message.id] = message }
+        // Read the cached dates once per message, rather than once per comparison.
+        let dated = byID.values.map { (message: $0, date: createdDate($0) ?? .distantPast) }
+        return dated.sorted {
+            $0.date == $1.date ? $0.message.id.rawValue < $1.message.id.rawValue : $0.date > $1.date
+        }.map(\.message)
     }
 
     /// Ranked decisions from the server's open list only; the last duplicate wins.
@@ -40,12 +44,6 @@ enum TodayMessageRules {
     ) -> [AttentionItem] {
         let unique = merge(history: [], requiredInputs: requiredInputs)
         return AttentionModel.items(from: unique.filter { !withdrawn.contains($0.id) }, now: now)
-    }
-
-    static func newestFirst(_ lhs: HistoryMessage, _ rhs: HistoryMessage) -> Bool {
-        let left = createdDate(lhs) ?? .distantPast
-        let right = createdDate(rhs) ?? .distantPast
-        return left == right ? lhs.id.rawValue < rhs.id.rawValue : left > right
     }
 
     static func isRecent(_ date: Date?, window: TimeInterval, now: Date) -> Bool {
