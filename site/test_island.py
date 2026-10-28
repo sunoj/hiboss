@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import threading
 
+from test_island_dock import DOCK, COMPLETION
+
 ROOT = Path(__file__).resolve().parent
 CLI = ['npx', '--yes', '--package', '@playwright/cli', 'playwright-cli', '--session', 'hiboss-island']
 SCENARIO = r'''async (page) => {
@@ -78,6 +80,7 @@ def check_variants(base: str, output: Path) -> int:
     count = 0
     for language in ['en', 'zh']:
         url = base + ('/zh/' if language == 'zh' else '/')
+        count += check_docking(url, language, output)
         for width in [1440, 375]:
             for theme in ['light', 'dark']:
                 code = SCENARIO.replace('LANG', language).replace('WIDTH', str(width))
@@ -91,6 +94,19 @@ def check_variants(base: str, output: Path) -> int:
         check_without_javascript(url)
         count += 2
     return count
+
+
+
+def check_docking(url: str, language: str, output: Path) -> int:
+    for width, height in [(320, 568), (375, 500), (768, 700), (1440, 500)]:
+        code = DOCK.replace('WIDTH', str(width)).replace('HEIGHT', str(height))
+        code = code.replace('LANG', language).replace('URL', json.dumps(url))
+        run_code(code.replace('OUTPUT', json.dumps(str(output))))
+        print(f'PASS dock {language} {width}x{height}', flush=True)
+    code = COMPLETION.replace('LANG', language).replace('URL', json.dumps(url))
+    run_code(code.replace('OUTPUT', json.dumps(str(output))))
+    print(f'PASS one-second completion {language}', flush=True)
+    return 5
 
 
 def check_reduced_motion(url: str) -> None:
