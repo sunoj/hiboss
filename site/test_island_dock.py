@@ -17,6 +17,8 @@ DOCK = r'''async (page) => {
   if (Math.abs(after.y) > 1) throw Error('Dock moves with document scrolling');
   if (await page.evaluate(() => scrollY) === before) throw Error('Page scrolling is locked');
   await page.locator('.island-reply input').scrollIntoViewIfNeeded();
+  const font = await page.locator('.island-reply input').evaluate(el => getComputedStyle(el).fontSize);
+  if (parseFloat(font) < 16) throw Error('Input text is too small');
   const input = await page.locator('.island-reply input').boundingBox();
   if (input.y < 0 || input.y + input.height > HEIGHT) throw Error('Reply field cannot be reached');
   const close = await page.locator('.island-close').boundingBox();

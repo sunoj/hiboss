@@ -9,9 +9,9 @@ Expanded by render.py; interactions are provided by island-demo.js.
               width="840" height="592" loading="lazy"
               alt="Mac 刘海决策区：两个选项各有描述，并标出默认项。">
           </picture>
-          <div class="island-demo" data-island-demo hidden data-state="waiting"
-            data-reply-prefix="演示回复：" data-closed-message="卡片已关闭，可以重新体验。">
-            <div class="island-card" role="group" aria-labelledby="island-question">
+          <div class="island-demo" data-island-demo hidden data-state="waiting" id="island-demo"
+            data-reply-prefix="已选择：">
+            <div class="island-card" role="group" aria-labelledby="island-question" tabindex="-1">
               <div class="island-card-head">
                 <div><strong><span class="island-dot" aria-hidden="true"></span>mac-client</strong>
                   <p>默认选择侧栏</p></div>
@@ -34,10 +34,12 @@ Expanded by render.py; interactions are provided by island-demo.js.
                   placeholder="用自己的话回复…" aria-label="用自己的话回复…">
                 <button type="submit" aria-label="发送演示回复">↑</button>
               </form>
+              <p class="island-feedback" role="status" aria-live="polite"></p>
             </div>
-            <p class="island-feedback" role="status" aria-live="polite"></p>
-            <button class="island-replay" type="button" hidden>再体验一次</button>
           </div>
+          <button class="island-replay" type="button" hidden
+            aria-controls="island-demo" data-replay-label="再体验一次">打开刘海卡片</button>
           <figcaption><span class="island-fallback">HiBoss Mac 版 · 选项描述与默认标记。</span>
-            <span class="island-interactive-caption">交互演示 · 点选一个选项，或输入自己的回复。演示只在此页面内展示。</span></figcaption>
+            <span class="island-interactive-caption">交互演示 · 卡片从浏览器顶部弹出。
+              选中结果显示 1 秒后收起；回复仅在本页演示。</span></figcaption>
         </figure>

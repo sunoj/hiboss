@@ -26,10 +26,8 @@ SCENARIO = r'''async (page) => {
   await page.locator('.island-card').evaluate(async el => {
     await Promise.all(el.getAnimations().map(animation => animation.finished));
   });
-  const font = await page.locator('.island-reply input').evaluate(el => getComputedStyle(el).fontSize);
-  if (parseFloat(font) < 16) throw Error('Input text is too small');
   const frame = await page.locator('.island-card').boundingBox();
-  if (Math.abs(frame.x + frame.width / 2 - WIDTH / 2) > 2) throw Error('Card is not centered');
+  if (Math.abs(frame.y) > 1) throw Error('Card is not at the viewport top');
   if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw Error('Overflow');
   await page.screenshot({path: OUTPUT + '/LANG-WIDTH-THEME.png'});
   const choices = page.locator('[data-choice]');
@@ -40,15 +38,18 @@ SCENARIO = r'''async (page) => {
   if (!(await page.locator('.island-feedback').innerText()).endsWith(second)) throw Error('Wrong reply');
   if (await choices.nth(1).getAttribute('aria-pressed') !== 'true') throw Error('Missing selection');
   if (!(await choices.nth(0).isDisabled())) throw Error('Duplicate replies remain enabled');
+  await page.waitForFunction(() => document.querySelector('[data-state=closed]'));
   await page.locator('.island-replay').click();
   await page.locator('.island-reply input').focus();
   await page.keyboard.press('Enter');
   if (!(await page.locator('.island-feedback').innerText()).endsWith(first)) throw Error('Wrong default');
+  await page.waitForFunction(() => document.querySelector('[data-state=closed]'));
   await page.locator('.island-replay').click();
   await page.locator('.island-reply input').fill('<img src=x onerror=alert(1)>');
   await page.keyboard.press('Enter');
   if (!(await page.locator('.island-feedback').innerText()).includes('<img')) throw Error('Reply lost');
   if (await page.locator('.island-feedback img').count()) throw Error('Reply interpreted as HTML');
+  await page.waitForFunction(() => document.querySelector('[data-state=closed]'));
   await page.locator('.island-replay').click();
   await page.keyboard.press('Escape');
   if (await demo.getAttribute('data-state') !== 'closed') throw Error('Escape did not close');

@@ -17,10 +17,11 @@ resources. It is separate from the authenticated admin console in `web/`.
   `IslandAppearanceSnapshotTests/testReferenceDecisionInBothAppearances` with
   `HIBOSS_V4_SNAPSHOTS` set to the capture directory. The Island stays dark in both appearances.
   Keep every image under 400 KB.
-- The home pages progressively enhance the native Island screenshot with a local interactive demo.
+- The home pages progressively enhance the native Island screenshot with a local interactive demo docked to the viewport top.
   `island-demo.js` reveals it on scroll and handles choices, typed replies, closing and replay.
-  Replies stay in page memory; the demo makes no network requests or automatic decisions.
-  `island-demo.css` centers the card and respects reduced-motion preferences.
+  Replies stay in page memory; the selected result is shown for one second before the card hides.
+  A new preview cancels the old dismissal timer. No reply reaches an agent.
+  `island-demo.css` pins the card to the browser content edge and respects reduced-motion preferences.
 - A new file must also be added to the list in `build.sh`.
 - `404.html` at the root is what Cloudflare Pages serves, with status 404, for an unknown path.
 - `updates/macos/appcast.xml` is the Mac app's Sparkle feed; `macos/scripts/release.sh` rewrites it for each release (`macos/RELEASE.md`).
