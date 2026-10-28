@@ -6,6 +6,7 @@ use crate::client::HiBossClient;
 use crate::config::Config;
 use clap::{Args, Subcommand};
 use colored::Colorize;
+use serde_json::Value;
 use std::error::Error;
 
 #[derive(Debug, Subcommand)]
@@ -58,162 +59,149 @@ pub async fn run(
             eprintln!("Agent created: {}", resp.name);
             println!("{}", resp.key);
         }
-        AgentCommand::Config(args) => {
-            if args.default_priority.is_none()
-                && args.rate_limit.is_none()
-                && args.channel_routing.is_none()
-                && args.avatar.is_none()
-                && args.role.is_none()
-                && args.session_info.is_none()
-            {
-                let info = client.get_agent_config().await?;
-                println!(
-                    "default_priority: {}",
-                    info["default_priority"].as_str().unwrap_or("normal")
-                );
-                let rl = match &info["rate_limit"] {
-                    serde_json::Value::Number(n) => n.to_string(),
-                    _ => "unlimited".to_string(),
-                };
-                println!("rate_limit: {} msg/min", rl);
-                print_channel_routing(&info["channel_routing"]);
-                println!("avatar: {}", info["avatar_url"].as_str().unwrap_or("none"));
-                println!("role: {}", info["role"].as_str().unwrap_or("none"));
-                if let Some(si) = info.get("session_info") {
-                    if !si.is_null() {
-                        println!("session_info: {}", si);
-                    }
-                }
-            } else {
-                let mut updates = serde_json::Map::new();
-                if let Some(dp) = &args.default_priority {
-                    updates.insert(
-                        "default_priority".into(),
-                        serde_json::Value::String(dp.clone()),
-                    );
-                }
-                if let Some(rl) = args.rate_limit {
-                    if rl == 0 {
-                        updates.insert("rate_limit".into(), serde_json::Value::Null);
-                    } else {
-                        updates.insert("rate_limit".into(), serde_json::json!(rl));
-                    }
-                }
-                if let Some(cr) = &args.channel_routing {
-                    if cr == "none" || cr.is_empty() {
-                        updates.insert("channel_routing".into(), serde_json::Value::Null);
-                    } else {
-                        let routing: serde_json::Map<String, serde_json::Value> = cr
-                            .split(',')
-                            .filter_map(|pair| {
-                                let mut parts = pair.splitn(2, '=');
-                                let key = parts.next()?.trim().to_string();
-                                let val = parts.next()?.trim().to_string();
-                                Some((key, serde_json::Value::String(val)))
-                            })
-                            .collect();
-                        updates
-                            .insert("channel_routing".into(), serde_json::Value::Object(routing));
-                    }
-                }
-                if let Some(role) = &args.role {
-                    if role == "none" || role.is_empty() {
-                        updates.insert("role".into(), serde_json::Value::Null);
-                    } else {
-                        updates.insert("role".into(), serde_json::Value::String(role.clone()));
-                    }
-                }
-                if let Some(si) = &args.session_info {
-                    if si == "none" || si.is_empty() {
-                        updates.insert("session_info".into(), serde_json::Value::Null);
-                    } else if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(si) {
-                        updates.insert("session_info".into(), parsed);
-                    } else {
-                        eprintln!("Warning: session_info must be valid JSON, skipping");
-                    }
-                }
-                if let Some(avatar) = &args.avatar {
-                    if avatar == "none" || avatar.is_empty() {
-                        updates.insert("avatar_url".into(), serde_json::Value::Null);
-                    } else if avatar.starts_with("http://") || avatar.starts_with("https://") {
-                        updates.insert(
-                            "avatar_url".into(),
-                            serde_json::Value::String(avatar.clone()),
-                        );
-                    } else {
-                        // Local file: upload to R2 first
-                        let upload = client.upload_file(avatar).await?;
-                        eprintln!("Uploaded avatar: {}", upload.url);
-                        updates.insert("avatar_url".into(), serde_json::Value::String(upload.url));
-                    }
-                }
-                let result = client
-                    .update_agent_config(&serde_json::Value::Object(updates))
-                    .await?;
-                eprintln!("Config updated");
-                println!(
-                    "default_priority: {}",
-                    result["default_priority"].as_str().unwrap_or("normal")
-                );
-                let rl = match &result["rate_limit"] {
-                    serde_json::Value::Number(n) => n.to_string(),
-                    _ => "unlimited".to_string(),
-                };
-                println!("rate_limit: {} msg/min", rl);
-                print_channel_routing(&result["channel_routing"]);
-                println!(
-                    "avatar: {}",
-                    result["avatar_url"].as_str().unwrap_or("none")
-                );
-                println!("role: {}", result["role"].as_str().unwrap_or("none"));
-                if let Some(si) = result.get("session_info") {
-                    if !si.is_null() {
-                        println!("session_info: {}", si);
-                    }
-                }
-            }
-        }
-        AgentCommand::List => {
-            let resp = client.list_agents().await?;
-            println!(
-                "{:<10} {:<20} {:<14} {:<10} {:<16} {}",
-                "ID", "Name", "Role", "Status", "Branch", "Last Seen"
-            );
-            for agent in resp.agents {
-                let id: String = agent.id.chars().take(8).collect();
-                let last = agent.last_used_at.as_deref().unwrap_or("-");
-                let role = agent.role.as_deref().unwrap_or("-");
-                let status_str = agent.status.as_deref().unwrap_or("offline");
-                let branch = agent
-                    .session_info
-                    .as_ref()
-                    .and_then(|si| si.get("branch"))
-                    .and_then(|b| b.as_str())
-                    .unwrap_or("-");
-                let colored_status = match status_str {
-                    "online" => status_str.green().bold(),
-                    "idle" => status_str.yellow().normal(),
-                    _ => status_str.red().normal(),
-                };
-                let colored_role = match role {
-                    "orchestrator" => role.magenta().bold(),
-                    "worker" => role.cyan().normal(),
-                    "reviewer" => role.yellow().normal(),
-                    _ => role.dimmed(),
-                };
-                println!(
-                    "{:<10} {:<20} {:<14} {:<10} {:<16} {}",
-                    id,
-                    agent.name.green(),
-                    colored_role,
-                    colored_status,
-                    branch.blue(),
-                    last.dimmed()
-                );
-            }
-        }
+        AgentCommand::Config(args) => run_config(args, client).await?,
+        AgentCommand::List => print_agents(client.list_agents().await?),
     }
     Ok(())
+}
+
+async fn run_config(args: &AgentConfigArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    let info = if args.default_priority.is_none()
+        && args.rate_limit.is_none()
+        && args.channel_routing.is_none()
+        && args.avatar.is_none()
+        && args.role.is_none()
+        && args.session_info.is_none()
+    {
+        client.get_agent_config().await?
+    } else {
+        let mut updates = config_fields(args);
+        if let Some(avatar) = &args.avatar {
+            let value = if avatar == "none" || avatar.is_empty() {
+                Value::Null
+            } else if avatar.starts_with("http://") || avatar.starts_with("https://") {
+                Value::String(avatar.clone())
+            } else {
+                // Local file: upload to R2 first
+                let upload = client.upload_file(avatar).await?;
+                eprintln!("Uploaded avatar: {}", upload.url);
+                Value::String(upload.url)
+            };
+            updates.insert("avatar_url".into(), value);
+        }
+        let info = client.update_agent_config(&Value::Object(updates)).await?;
+        eprintln!("Config updated");
+        info
+    };
+    print_config(&info);
+    Ok(())
+}
+
+fn config_fields(args: &AgentConfigArgs) -> serde_json::Map<String, Value> {
+    let mut updates = serde_json::Map::new();
+    if let Some(priority) = &args.default_priority {
+        updates.insert("default_priority".into(), Value::String(priority.clone()));
+    }
+    if let Some(rate) = args.rate_limit {
+        updates.insert(
+            "rate_limit".into(),
+            if rate == 0 { Value::Null } else { rate.into() },
+        );
+    }
+    for (key, raw) in [
+        ("channel_routing", &args.channel_routing),
+        ("role", &args.role),
+        ("session_info", &args.session_info),
+    ] {
+        if let Some(value) = raw.as_deref().and_then(|raw| config_setting(key, raw)) {
+            updates.insert(key.into(), value);
+        }
+    }
+    updates
+}
+
+fn config_setting(key: &str, value: &str) -> Option<Value> {
+    if value == "none" || value.is_empty() {
+        return Some(Value::Null);
+    }
+    Some(match key {
+        "channel_routing" => Value::Object(
+            value
+                .split(',')
+                .filter_map(|pair| {
+                    let (key, value) = pair.split_once('=')?;
+                    Some((key.trim().into(), value.trim().into()))
+                })
+                .collect(),
+        ),
+        "session_info" => match serde_json::from_str(value) {
+            Ok(parsed) => parsed,
+            Err(_) => {
+                eprintln!("Warning: session_info must be valid JSON, skipping");
+                return None;
+            }
+        },
+        _ => Value::String(value.into()),
+    })
+}
+
+fn print_config(info: &Value) {
+    println!(
+        "default_priority: {}",
+        info["default_priority"].as_str().unwrap_or("normal")
+    );
+    let rl = match &info["rate_limit"] {
+        Value::Number(n) => n.to_string(),
+        _ => "unlimited".to_string(),
+    };
+    println!("rate_limit: {} msg/min", rl);
+    print_channel_routing(&info["channel_routing"]);
+    println!("avatar: {}", info["avatar_url"].as_str().unwrap_or("none"));
+    println!("role: {}", info["role"].as_str().unwrap_or("none"));
+    if let Some(si) = info.get("session_info") {
+        if !si.is_null() {
+            println!("session_info: {}", si);
+        }
+    }
+}
+
+fn print_agents(resp: crate::types::AgentsResponse) {
+    println!(
+        "{:<10} {:<20} {:<14} {:<10} {:<16} {}",
+        "ID", "Name", "Role", "Status", "Branch", "Last Seen"
+    );
+    for agent in resp.agents {
+        let id: String = agent.id.chars().take(8).collect();
+        let last = agent.last_used_at.as_deref().unwrap_or("-");
+        let role = agent.role.as_deref().unwrap_or("-");
+        let status_str = agent.status.as_deref().unwrap_or("offline");
+        let branch = agent
+            .session_info
+            .as_ref()
+            .and_then(|si| si.get("branch"))
+            .and_then(|b| b.as_str())
+            .unwrap_or("-");
+        let colored_status = match status_str {
+            "online" => status_str.green().bold(),
+            "idle" => status_str.yellow().normal(),
+            _ => status_str.red().normal(),
+        };
+        let colored_role = match role {
+            "orchestrator" => role.magenta().bold(),
+            "worker" => role.cyan().normal(),
+            "reviewer" => role.yellow().normal(),
+            _ => role.dimmed(),
+        };
+        println!(
+            "{:<10} {:<20} {:<14} {:<10} {:<16} {}",
+            id,
+            agent.name.green(),
+            colored_role,
+            colored_status,
+            branch.blue(),
+            last.dimmed()
+        );
+    }
 }
 
 fn print_channel_routing(value: &serde_json::Value) {
