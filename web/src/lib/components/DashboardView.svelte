@@ -134,29 +134,12 @@
 <style>
 	@import '../design/page-header.css';
 	@import '../design/panel.css';
-	.grid {
-		display: grid;
-		gap: 0.75rem;
-		margin-bottom: 0.75rem;
-	}
+	@import '../design/shared/summary.css';
 	.kpis {
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 	.mid {
 		grid-template-columns: 1.2fr 1fr 1fr;
-	}
-	h2 {
-		margin: 0;
-		font-size: 12px;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--hb-text-muted);
-	}
-	.hint {
-		margin: 0.15rem 0 0.7rem;
-		color: var(--hb-text-dim);
-		font-size: 11px;
 	}
 	.stream {
 		padding: 0;

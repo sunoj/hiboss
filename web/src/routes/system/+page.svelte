@@ -159,31 +159,13 @@
 <style>
 	@import '../../lib/design/page-header.css';
 	@import '../../lib/design/panel.css';
-
-	.grid {
-		display: grid;
-		gap: 0.75rem;
-		margin-bottom: 0.75rem;
-	}
+	@import '../../lib/design/shared/summary.css';
 	.hero {
 		grid-template-columns: 1.1fr 1.4fr;
 		align-items: stretch;
 	}
 	.kpis {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-	}
-	h2 {
-		margin: 0;
-		font-size: 12px;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--hb-text-muted);
-	}
-	.hint {
-		margin: 0.15rem 0 0.7rem;
-		color: var(--hb-text-dim);
-		font-size: 11px;
 	}
 	.empty {
 		margin: 0;

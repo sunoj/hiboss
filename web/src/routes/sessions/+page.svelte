@@ -134,13 +134,7 @@
 
 <style>
 	@import '../../lib/design/page-header.css';
-
-	.layout {
-		display: flex;
-		gap: 0;
-		align-items: stretch;
-		min-height: calc(100vh - 8rem);
-	}
+	@import '../../lib/design/shared/split-view.css';
 	.board {
 		display: grid;
 		grid-template-columns: repeat(5, minmax(160px, 1fr));

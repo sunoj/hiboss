@@ -101,13 +101,7 @@
 <style>
 	@import '../../lib/design/page-header.css';
 	@import '../../lib/design/panel.css';
-
-	.layout {
-		display: flex;
-		gap: 0;
-		align-items: stretch;
-		min-height: calc(100vh - 8rem);
-	}
+	@import '../../lib/design/shared/split-view.css';
 	.table-panel {
 		flex: 1;
 		min-width: 0;

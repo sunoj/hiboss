@@ -113,16 +113,5 @@
 <style>
 	@import '../../lib/design/page-header.css';
 	@import '../../lib/design/panel.css';
-	.stream {
-		padding: 0;
-		overflow: hidden;
-	}
-	.stream-head {
-		padding: 0.65rem 1rem;
-		border-bottom: 1px solid var(--hb-border-subtle);
-	}
-	.hint {
-		color: var(--hb-text-dim);
-		font-size: 11px;
-	}
+	@import '../../lib/design/shared/stream-panel.css'
 </style>
