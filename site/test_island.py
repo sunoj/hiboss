@@ -24,6 +24,8 @@ SCENARIO = r'''async (page) => {
   await page.locator('.island-card').evaluate(async el => {
     await Promise.all(el.getAnimations().map(animation => animation.finished));
   });
+  const font = await page.locator('.island-reply input').evaluate(el => getComputedStyle(el).fontSize);
+  if (parseFloat(font) < 16) throw Error('Input text is too small');
   const frame = await page.locator('.island-card').boundingBox();
   if (Math.abs(frame.x + frame.width / 2 - WIDTH / 2) > 2) throw Error('Card is not centered');
   if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw Error('Overflow');
