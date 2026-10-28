@@ -17,7 +17,8 @@ resources. It is separate from the authenticated admin console in `web/`.
   `IslandAppearanceSnapshotTests/testReferenceDecisionInBothAppearances` with
   `HIBOSS_V4_SNAPSHOTS` set to the capture directory. The Island stays dark in both appearances.
   Keep every image under 400 KB.
-- The home pages progressively enhance the native Island screenshot with a local interactive demo docked to the viewport top.
+- The home pages progressively enhance the native Island screenshot with a local interactive demo
+  docked to the viewport top.
   `island-demo.js` reveals it on scroll and handles choices, typed replies, closing and replay.
   Replies stay in page memory; the selected result is shown for one second before the card hides.
   A new preview cancels the old dismissal timer. No reply reaches an agent.
