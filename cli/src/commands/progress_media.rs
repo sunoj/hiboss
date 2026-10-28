@@ -31,20 +31,27 @@ pub(super) fn probe_image_dims(path: &str) -> Option<(u32, u32)> {
 }
 
 fn probe_dims_ffprobe(path: &str) -> Option<(u32, u32)> {
-    let out = run_media_command(
-        Command::new("ffprobe")
-            .args(["-v", "quiet", "-print_format", "json", "-show_streams", path]),
-        "ffprobe",
-        MEDIA_COMMAND_TIMEOUT,
-    )?;
+    probe_dimensions(&probe_json(path, false)?)
+}
+
+fn probe_json(path: &str, include_format: bool) -> Option<serde_json::Value> {
+    let mut command = Command::new("ffprobe");
+    command.args(["-v", "quiet", "-print_format", "json", "-show_streams"]);
+    if include_format {
+        command.arg("-show_format");
+    }
+    let out = run_media_command(command.arg(path), "ffprobe", MEDIA_COMMAND_TIMEOUT)?;
     if !out.status.success() {
         return None;
     }
-    let json: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
-    json["streams"].as_array()?.iter().find_map(|s| {
-        let w = s["width"].as_u64()? as u32;
-        let h = s["height"].as_u64()? as u32;
-        (w > 0 && h > 0).then_some((w, h))
+    serde_json::from_slice(&out.stdout).ok()
+}
+
+fn probe_dimensions(json: &serde_json::Value) -> Option<(u32, u32)> {
+    json["streams"].as_array()?.iter().find_map(|stream| {
+        let width = stream["width"].as_u64()? as u32;
+        let height = stream["height"].as_u64()? as u32;
+        (width > 0 && height > 0).then_some((width, height))
     })
 }
 
@@ -74,33 +81,14 @@ fn probe_dims_sips(path: &str) -> Option<(u32, u32)> {
 /// Probe video dimensions and duration_ms using ffprobe.
 /// Returns (dims, duration_ms); either may be None when ffprobe is unavailable.
 pub(super) fn probe_video_meta(path: &str) -> (Option<(u32, u32)>, Option<u64>) {
-    let out = match run_media_command(
-        Command::new("ffprobe").args([
-            "-v", "quiet", "-print_format", "json",
-            "-show_streams", "-show_format", path,
-        ]),
-        "ffprobe",
-        MEDIA_COMMAND_TIMEOUT,
-    ) {
-        Some(o) if o.status.success() => o,
-        _ => return (None, None),
+    let Some(json) = probe_json(path, true) else {
+        return (None, None);
     };
-    let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
-        Ok(v) => v,
-        Err(_) => return (None, None),
-    };
-    let dims = json["streams"].as_array().and_then(|streams| {
-        streams.iter().find_map(|s| {
-            let w = s["width"].as_u64()? as u32;
-            let h = s["height"].as_u64()? as u32;
-            (w > 0 && h > 0).then_some((w, h))
-        })
-    });
     let duration_ms = json["format"]["duration"]
         .as_str()
         .and_then(|s| s.parse::<f64>().ok())
         .map(|secs| (secs * 1000.0) as u64);
-    (dims, duration_ms)
+    (probe_dimensions(&json), duration_ms)
 }
 
 /// Convert a GIF to a muted looping MP4 using ffmpeg (yuv420p, +faststart).
@@ -118,12 +106,7 @@ pub(super) fn convert_gif_to_mp4(path: &str) -> Option<TempFile> {
         "ffmpeg GIF conversion",
         MEDIA_COMMAND_TIMEOUT,
     );
-    if result.is_some_and(|output| output.status.success()) {
-        Some(TempFile(out))
-    } else {
-        let _ = std::fs::remove_file(&out);
-        None
-    }
+    finish_media_file(result, out)
 }
 
 /// Extract the first video frame as JPEG using ffmpeg.
@@ -135,6 +118,10 @@ pub(super) fn extract_video_poster(path: &str) -> Option<TempFile> {
         "ffmpeg poster extraction",
         MEDIA_COMMAND_TIMEOUT,
     );
+    finish_media_file(result, out)
+}
+
+fn finish_media_file(result: Option<CommandOutput>, out: PathBuf) -> Option<TempFile> {
     if result.is_some_and(|output| output.status.success()) {
         Some(TempFile(out))
     } else {
