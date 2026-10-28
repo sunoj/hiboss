@@ -24,6 +24,7 @@
   <link rel="icon" href="/assets/icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/island-demo.css">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -158,17 +159,7 @@
           <p class="muted">Choose an option or reply in your own words. Your answer stays in sync with your
             iPhone.</p>
         </div>
-        <figure>
-          <picture>
-            <source srcset="/assets/shots/mac-island-dark.jpg" media="(prefers-color-scheme: dark)">
-            <img class="island-shot" src="/assets/shots/mac-island-light.jpg"
-              width="840" height="592" loading="lazy"
-              alt="The Mac Island shows Sidebar and Tabs with descriptions, a default badge on Sidebar and a
-                reply field.">
-          </picture>
-          <figcaption>HiBoss for Mac · Descriptions, default choice and a custom reply, right at the
-            notch.</figcaption>
-        </figure>
+  <!-- include island -->
       </div>
     </section>
 
@@ -263,5 +254,6 @@ hiboss ask --option "Ship" --option "Wait" --default "Wait" \
   </main>
 
   <!-- include footer -->
+  <script type="module" src="/assets/island-demo.js"></script>
 </body>
 </html>

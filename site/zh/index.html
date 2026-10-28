@@ -25,6 +25,7 @@
   <link rel="icon" href="/assets/icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/island-demo.css">
 </head>
 <body>
   <a class="skip-link" href="#main">跳到正文</a>
@@ -156,15 +157,7 @@
           <p class="lead">下一件需要你决定的事，出现在屏幕顶部。看清每个选项的描述和默认项，直接回复，无需打开主窗口。</p>
           <p class="muted">可以点选，也可以用自己的话回复。答案与 iPhone 同步。</p>
         </div>
-        <figure>
-          <picture>
-            <source srcset="/assets/shots/mac-island-dark.jpg" media="(prefers-color-scheme: dark)">
-            <img class="island-shot" src="/assets/shots/mac-island-light.jpg"
-              width="840" height="592" loading="lazy"
-              alt="Mac 刘海上的 HiBoss 决策区：Sidebar 和 Tabs 各有描述，Sidebar 标记为默认项，下方可输入自定义回复。">
-          </picture>
-          <figcaption>HiBoss Mac 版 · 选项描述、默认标记和自定义回复，都在刘海下方。</figcaption>
-        </figure>
+  <!-- include island -->
       </div>
     </section>
 
@@ -258,5 +251,6 @@ hiboss ask --option "上线" --option "等等" --default "等等" \
   </main>
 
   <!-- include footer -->
+  <script type="module" src="/assets/island-demo.js"></script>
 </body>
 </html>

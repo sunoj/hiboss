@@ -17,7 +17,8 @@ files=(
   docs/self-host/index.html docs/agents/index.html
   zh/index.html zh/download/index.html zh/docs/self-host/index.html
   updates/macos/appcast.xml
-  assets/site.css assets/icon.png assets/apple-touch-icon.png assets/og.jpg
+  assets/site.css assets/island-demo.css assets/island-demo.js
+  assets/icon.png assets/apple-touch-icon.png assets/og.jpg
 )
 for screen in home session panels progress box mac-island; do
   files+=("assets/shots/$screen-light.jpg" "assets/shots/$screen-dark.jpg")

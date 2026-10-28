@@ -29,7 +29,9 @@ def render_page(relative: str) -> str:
         raise ValueError('expected a relative HTML page path')
     source = (SOURCE / path).read_text(encoding='utf-8')
     url = '/' + str(path).removesuffix('index.html')
-    for kind in ['header', 'footer']:
+    for kind in ['header', 'footer', 'island']:
+        if kind == 'island' and url not in ('/', '/zh/'):
+            continue
         marker = f'  <!-- include {kind} -->'
         if source.count(marker) != 1:
             raise ValueError(f'expected one {kind} include in {relative}')

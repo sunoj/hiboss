@@ -46,7 +46,8 @@ class SiteBuildTests(unittest.TestCase):
 
     def test_build_contains_exactly_the_public_pages_and_assets(self) -> None:
         assets = {'install.sh', 'robots.txt', 'sitemap.xml', 'updates/macos/appcast.xml',
-                  'assets/site.css', 'assets/icon.png', 'assets/apple-touch-icon.png', 'assets/og.jpg'}
+                  'assets/site.css', 'assets/island-demo.css', 'assets/island-demo.js',
+                  'assets/icon.png', 'assets/apple-touch-icon.png', 'assets/og.jpg'}
         assets.update(f'assets/shots/{screen}-{theme}.jpg'
                       for screen in ['home', 'session', 'panels', 'progress', 'box', 'mac-island']
                       for theme in ['light', 'dark'])
@@ -99,6 +100,20 @@ class SiteBuildTests(unittest.TestCase):
                 self.assertTrue(images[0].get('alt'))
                 self.assertTrue(any(attrs.get('srcset') == '/assets/shots/mac-island-dark.jpg'
                                     for attrs in parser.links))
+
+    def test_home_pages_include_local_interactive_demo_with_screenshot_fallback(self) -> None:
+        for page in ['index.html', 'zh/index.html']:
+            with self.subTest(page=page):
+                parser = References()
+                parser.feed((self.output / page).read_text(encoding='utf-8'))
+                scripts = [a for a in parser.links if a.get('src') == '/assets/island-demo.js']
+                self.assertEqual(len(scripts), 1)
+                self.assertEqual(scripts[0].get('type'), 'module')
+                choices = [a for a in parser.links if 'data-choice' in a]
+                self.assertEqual(len(choices), 2)
+                self.assertEqual(sum('data-default' in a for a in choices), 1)
+                self.assertTrue(any(a.get('role') == 'status' for a in parser.links))
+                self.assertTrue(any(a.get('class') == 'island-fallback' for a in parser.links))
 
     def test_build_rejects_missing_relative_and_existing_outputs(self) -> None:
         before = sorted(path.relative_to(self.output) for path in self.output.rglob('*'))

@@ -1,6 +1,9 @@
 # HiBoss public site
 
-This static site serves `hiboss.org`: the home page, download page, self-host and agent guides, changelog, privacy policy and support page, with Chinese versions of home, download and the self-host guide under `/zh/`. It is plain HTML and one stylesheet, with no scripts, cookies or external resources. It is separate from the authenticated admin console in `web/`.
+This static site serves `hiboss.org`: the home page, download page, self-host and agent guides, changelog,
+privacy policy and support page, with Chinese versions of home, download and the self-host guide under `/zh/`.
+It uses plain HTML, local stylesheets and a small interactive Island demo, with no cookies or external
+resources. It is separate from the authenticated admin console in `web/`.
 
 ## Editing
 
@@ -14,6 +17,10 @@ This static site serves `hiboss.org`: the home page, download page, self-host an
   `IslandAppearanceSnapshotTests/testReferenceDecisionInBothAppearances` with
   `HIBOSS_V4_SNAPSHOTS` set to the capture directory. The Island stays dark in both appearances.
   Keep every image under 400 KB.
+- The home pages progressively enhance the native Island screenshot with a local interactive demo.
+  `island-demo.js` reveals it on scroll and handles choices, typed replies, closing and replay.
+  Replies stay in page memory; the demo makes no network requests or automatic decisions.
+  `island-demo.css` centers the card and respects reduced-motion preferences.
 - A new file must also be added to the list in `build.sh`.
 - `404.html` at the root is what Cloudflare Pages serves, with status 404, for an unknown path.
 - `updates/macos/appcast.xml` is the Mac app's Sparkle feed; `macos/scripts/release.sh` rewrites it for each release (`macos/RELEASE.md`).

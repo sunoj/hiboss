@@ -1,0 +1,43 @@
+<!--
+Localized zh interactive Island demo and its native screenshot fallback.
+Expanded by render.py; interactions are provided by island-demo.js.
+-->
+        <figure class="island-stage" data-island-stage>
+          <picture class="island-fallback">
+            <source srcset="/assets/shots/mac-island-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img class="island-shot" src="/assets/shots/mac-island-light.jpg"
+              width="840" height="592" loading="lazy"
+              alt="Mac 刘海决策区：两个选项各有描述，并标出默认项。">
+          </picture>
+          <div class="island-demo" data-island-demo hidden data-state="waiting"
+            data-reply-prefix="演示回复：" data-closed-message="卡片已关闭，可以重新体验。">
+            <div class="island-card" role="group" aria-labelledby="island-question">
+              <div class="island-card-head">
+                <div><strong><span class="island-dot" aria-hidden="true"></span>mac-client</strong>
+                  <p>默认选择侧栏</p></div>
+                <button class="island-close" type="button" aria-label="关闭演示卡片">×</button>
+              </div>
+              <h3 id="island-question">我们应该采用哪种导航？</h3>
+              <div class="island-choices">
+                <button type="button" data-choice="侧栏" data-default aria-pressed="false">
+                  <span class="island-choice-title"><kbd aria-hidden="true">↵</kbd>侧栏
+                    <span class="island-default">默认</span></span>
+                  <span class="island-choice-description">随时访问项目和会话。</span>
+                </button>
+                <button type="button" data-choice="标签页" aria-pressed="false">
+                  <span class="island-choice-title">标签页</span>
+                  <span class="island-choice-description">给当前工作区留出更多空间。</span>
+                </button>
+              </div>
+              <form class="island-reply">
+                <input type="text" maxlength="280" autocomplete="off"
+                  placeholder="用自己的话回复…" aria-label="用自己的话回复…">
+                <button type="submit" aria-label="发送演示回复">↑</button>
+              </form>
+            </div>
+            <p class="island-feedback" role="status" aria-live="polite"></p>
+            <button class="island-replay" type="button" hidden>再体验一次</button>
+          </div>
+          <figcaption><span class="island-fallback">HiBoss Mac 版 · 选项描述与默认标记。</span>
+            <span class="island-interactive-caption">交互演示 · 点选一个选项，或输入自己的回复。演示只在此页面内展示。</span></figcaption>
+        </figure>

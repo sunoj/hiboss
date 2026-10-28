@@ -1,4 +1,4 @@
-/* hiboss.org — one stylesheet for every page, light and dark via prefers-color-scheme.
+/* hiboss.org — shared page styles, light and dark via prefers-color-scheme.
    System fonts only; no external resources. Layout is mobile-first from 320px. */
 
 :root {
