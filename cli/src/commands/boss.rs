@@ -132,21 +132,14 @@ async fn run_preferences(
     let mut prefs = Map::new();
     if args.quiet_start.is_some() || args.quiet_end.is_some() {
         let mut qh = Map::new();
-        if let Some(ref s) = args.quiet_start {
-            qh.insert("start".into(), Value::String(s.clone()));
-        }
-        if let Some(ref e) = args.quiet_end {
-            qh.insert("end".into(), Value::String(e.clone()));
-        }
-        if let Some(ref tz) = args.timezone {
-            qh.insert("timezone".into(), Value::String(tz.clone()));
-        }
+        insert_optional(&mut qh, "start", &args.quiet_start);
+        insert_optional(&mut qh, "end", &args.quiet_end);
+        insert_optional(&mut qh, "timezone", &args.timezone);
         prefs.insert("quiet_hours".into(), Value::Object(qh));
     }
-    let mut payload = Map::new();
-    payload.insert("preferences".into(), Value::Object(prefs));
+    let payload = serde_json::json!({ "preferences": prefs });
     let boss = client
-        .update_boss(&args.id, &Value::Object(payload))
+        .update_boss(&args.id, &payload)
         .await?;
     eprintln!(
         "Preferences updated for {}",
