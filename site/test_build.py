@@ -48,7 +48,7 @@ class SiteBuildTests(unittest.TestCase):
         assets = {'install.sh', 'robots.txt', 'sitemap.xml', 'updates/macos/appcast.xml',
                   'assets/site.css', 'assets/icon.png', 'assets/apple-touch-icon.png', 'assets/og.jpg'}
         assets.update(f'assets/shots/{screen}-{theme}.jpg'
-                      for screen in ['home', 'session', 'panels', 'progress', 'box']
+                      for screen in ['home', 'session', 'panels', 'progress', 'box', 'mac-island']
                       for theme in ['light', 'dark'])
         actual = {str(path.relative_to(self.output)) for path in self.output.rglob('*') if path.is_file()}
         self.assertEqual(actual, set(PAGES) | assets)
@@ -79,6 +79,26 @@ class SiteBuildTests(unittest.TestCase):
                         target = self.output / (
                             path + 'index.html' if path.endswith('/') or not path else path)
                         self.assertTrue(target.is_file(), f'{page}: missing {reference}')
+
+    def test_public_pages_use_product_identity(self) -> None:
+        for page in PAGES:
+            with self.subTest(page=page):
+                text = (self.output / page).read_text(encoding='utf-8')
+                self.assertIn('© 2026 HiBoss', text)
+        privacy = (self.output / 'privacy/index.html').read_text(encoding='utf-8')
+        self.assertNotIn('Published by', privacy)
+
+    def test_home_pages_show_mac_decisions_in_both_appearances(self) -> None:
+        for page in ['index.html', 'zh/index.html']:
+            with self.subTest(page=page):
+                parser = References()
+                parser.feed((self.output / page).read_text(encoding='utf-8'))
+                images = [attrs for attrs in parser.links if attrs.get('class') == 'island-shot']
+                self.assertEqual(len(images), 1)
+                self.assertEqual(images[0].get('src'), '/assets/shots/mac-island-light.jpg')
+                self.assertTrue(images[0].get('alt'))
+                self.assertTrue(any(attrs.get('srcset') == '/assets/shots/mac-island-dark.jpg'
+                                    for attrs in parser.links))
 
     def test_build_rejects_missing_relative_and_existing_outputs(self) -> None:
         before = sorted(path.relative_to(self.output) for path in self.output.rglob('*'))

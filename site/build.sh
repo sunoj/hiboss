@@ -19,7 +19,7 @@ files=(
   updates/macos/appcast.xml
   assets/site.css assets/icon.png assets/apple-touch-icon.png assets/og.jpg
 )
-for screen in home session panels progress box; do
+for screen in home session panels progress box mac-island; do
   files+=("assets/shots/$screen-light.jpg" "assets/shots/$screen-dark.jpg")
 done
 

@@ -117,6 +117,17 @@ pre .c { color: #8b949e; }
   .feature:nth-child(even) .feature-media { order: -1; }
 }
 
+/* Native Mac Island showcase */
+.mac-showcase { display: grid; gap: 40px; align-items: center; }
+.mac-showcase figure { margin: 0; min-width: 0; }
+.island-shot { width: 100%; max-width: 560px; margin: 0 auto; box-shadow: var(--shadow);
+  border-radius: 0 0 28px 28px; }
+.mac-showcase figcaption { margin-top: 18px; color: var(--muted); font-size: 0.9rem;
+  text-align: center; }
+@media (min-width: 860px) {
+  .mac-showcase { grid-template-columns: 0.9fr 1.1fr; gap: 64px; }
+}
+
 /* Flow diagram */
 .flow { display: grid; gap: 16px; list-style: none; padding: 0; margin: 0 0 32px; counter-reset: step; }
 .flow li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);

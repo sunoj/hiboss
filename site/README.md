@@ -7,7 +7,13 @@ This static site serves `hiboss.org`: the home page, download page, self-host an
 - Pages include the shared header and footer in `partials/`, with separate English and Chinese
   fragments. `render.py` sets each page's current navigation link and language counterpart at build time.
 - The App Store link is a single marked line in `download/index.html` and `zh/download/index.html` (`APP STORE SWITCH`).
-- Screenshots in `assets/shots/` come from the iOS app's demo mode on an iPhone simulator, at 600 px wide, in light and dark variants. Keep every image under 400 KB.
+- iPhone screenshots in `assets/shots/` come from the iOS app's demo mode, at 600 px wide,
+  in light and dark variants. Decision captures enable `HIBOSS_DEMO_OPTION_MEDIA=1` so image
+  previews, option descriptions and the default choice are visible together.
+- `mac-island-*.jpg` captures the native Mac Island using
+  `IslandAppearanceSnapshotTests/testReferenceDecisionInBothAppearances` with
+  `HIBOSS_V4_SNAPSHOTS` set to the capture directory. The Island stays dark in both appearances.
+  Keep every image under 400 KB.
 - A new file must also be added to the list in `build.sh`.
 - `404.html` at the root is what Cloudflare Pages serves, with status 404, for an unknown path.
 - `updates/macos/appcast.xml` is the Mac app's Sparkle feed; `macos/scripts/release.sh` rewrites it for each release (`macos/RELEASE.md`).
