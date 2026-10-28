@@ -35,3 +35,20 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, serve
 - `web/` — web console for bosses (SvelteKit static build); see `web/README.md`
 - `panel-runtime/` — shared live-panel definition schema, validation and fixtures (npm workspace)
 - `site/` — static public website
+
+## Shared implementations
+
+- `cli/src/client/mod.rs` defines the private `client_endpoints!` declarations for standard JSON
+  requests and empty-response deletes. Signing, long polling, uploads and encoded URL segments keep
+  their endpoint-specific implementations. `cli/src/commands/message_text.rs` shares optional message
+  metadata construction.
+- `web/src/lib/stores/load-state.svelte.ts` owns the loading and error state for standard authenticated
+  page loads. Pages retain their request bodies, data updates and operation-specific guards.
+  `web/src/lib/api/types.ts` supplies the common API error text. Shared scoped CSS lives in
+  `web/src/lib/design/`.
+- `HibossKit/Sources/HibossKit/BoxMedia/` shares native Box thumbnail caches, backfill sessions and
+  concurrency limits. Platform-specific cache paths and file-protection options remain explicit.
+- `server/migrations/` defines the SQLite schema. `server/schema.template.sql` groups documented
+  objects, and `server/scripts/check-schema.sh` renders their complete definitions from the migrations.
+- `site/partials/` contains the English and Chinese navigation fragments. `site/render.py` expands
+  them into standalone public HTML; templates and build scripts are excluded from the output.

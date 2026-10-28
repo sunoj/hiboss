@@ -21,6 +21,20 @@ follow the README Quick Start from step 2 with `--server http://localhost:8787` 
 secret from `.dev.vars`. Add other variables from `wrangler.toml.example` to
 `.dev.vars` (secrets) or `wrangler.toml` (plain values) as needed.
 
+## Schema reference
+
+The numbered SQL files in `server/migrations/` are authoritative. The documentation template
+`server/schema.template.sql` groups object names without duplicating their SQL definitions.
+When adding an object, add its documentation placeholder to the template as well.
+
+```sh
+sh server/scripts/check-schema.sh                    # compare rendered and migrated schemas
+sh server/scripts/check-schema.sh --emit > server/schema.sql
+```
+
+`server/schema.sql` is optional generated output and is gitignored. Database initialization and
+upgrades continue to use the migrations.
+
 ## Tests
 
 Run the checks for the components you changed:

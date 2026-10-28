@@ -16,6 +16,14 @@ npm run dev          # http://localhost:5173
 A server with `CONSOLE_ORIGIN` unset accepts requests from localhost origins, so a local
 console can use a deployed or a local (`npm run dev` in `server/`) server.
 
+## Data loading
+
+Each standard authenticated page load uses its own `LoadState` instance from
+`src/lib/stores/load-state.svelte.ts`. Pages supply their requests and data updates;
+`LoadState.run` handles connection checks, loading state and API error text.
+Pagination, drawer requests and save guards retain their component-specific behavior.
+`apiErrorMessage` in `src/lib/api/types.ts` formats HTTP status/body errors and other thrown values.
+
 ## Test
 
 ```sh

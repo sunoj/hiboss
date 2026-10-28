@@ -11,6 +11,8 @@ and Mac apps, the web console and the Claude Code MCP server.
 ### Server and setup
 
 - One Cloudflare Worker with D1, R2 and Durable Objects; migrations apply on deploy.
+- The authenticated browser console is built separately from `web/`. The former embedded
+  `/dashboard`, `/manifest.json`, `/icon.svg` and `/sw.js` endpoints return 404.
 - First install on an empty server: `hiboss setup --bootstrap-secret … --boss-name …`
   creates the admin boss, prints a pairing link and QR code, and enrols the machine
   after approval in the app. The first machine's profiles can manage channels.
