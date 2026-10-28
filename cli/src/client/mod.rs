@@ -9,6 +9,25 @@ use reqwest::{Client, Method};
 use serde_json::Value;
 use std::error::Error;
 use std::time::Duration;
+// Declare only standard JSON and empty-delete endpoints; specialized transports stay explicit.
+macro_rules! client_endpoints {
+    ($($(#[$meta:meta])* $name:ident($($arg:ident: $ty:ty),* $(,)?) -> $response:ty =
+        $method:ident $path:expr $(, $body:expr)?;)*) => {
+        $(
+            $(#[$meta])*
+            pub async fn $name(&self $(, $arg: $ty)*) -> Result<$response, Box<dyn std::error::Error>> {
+                client_endpoints!(@request self, $method, $path $(, $body)?)
+            }
+        )*
+    };
+    (@request $client:ident, DELETE_EMPTY, $path:expr, $prefix:expr) => {
+        $client.delete($path, $prefix).await
+    };
+    (@request $client:ident, $method:ident, $path:expr $(, $body:expr)?) => {
+        Self::send_json($client.request(reqwest::Method::$method, $path)$(.json($body))?).await
+    };
+}
+
 mod discord_registration;
 pub(crate) fn mime_from_ext(filename: &str) -> String {
     let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
@@ -70,6 +89,15 @@ pub struct HiBossClient {
     poll_http: Client,
 }
 impl HiBossClient {
+    client_endpoints! {
+        list_agents() -> AgentsResponse = GET "/api/agents";
+        set_channel(channel: &str, config: &Value) -> Value =
+            PUT &format!("/api/channels/{}", channel), config;
+        list_channels() -> ChannelsResponse = GET "/api/channels";
+        get_agent_config() -> Value = GET "/api/agents/me";
+        update_agent_config(config: &Value) -> Value = PUT "/api/agents/me/config", config;
+        get_reactions(id: &str) -> ReactionsResponse = GET &format!("/api/messages/{}/reactions", id);
+    }
     pub fn new(server: &str, key: &str) -> Self {
         let trimmed = server.trim_end_matches('/');
         Self {
@@ -98,22 +126,6 @@ impl HiBossClient {
                 .json(&serde_json::json!({ "name": name }))
         ).await
     }
-    pub async fn list_agents(&self) -> Result<AgentsResponse, Box<dyn Error>> {
-        Self::send_json(self.request(Method::GET, "/api/agents")).await
-    }
-    pub async fn set_channel(
-        &self,
-        channel: &str,
-        config: &Value,
-    ) -> Result<Value, Box<dyn Error>> {
-        Self::send_json(
-            self.request(Method::PUT, &format!("/api/channels/{}", channel))
-                .json(config)
-        ).await
-    }
-    pub async fn list_channels(&self) -> Result<ChannelsResponse, Box<dyn Error>> {
-        Self::send_json(self.request(Method::GET, "/api/channels")).await
-    }
     pub async fn list_channel_stats(
         &self,
         verbose: bool,
@@ -123,15 +135,6 @@ impl HiBossClient {
             req = req.query(&[("verbose", "1")]);
         }
         Self::send_json(req).await
-    }
-    pub async fn get_agent_config(&self) -> Result<Value, Box<dyn Error>> {
-        Self::send_json(self.request(Method::GET, "/api/agents/me")).await
-    }
-    pub async fn update_agent_config(&self, config: &Value) -> Result<Value, Box<dyn Error>> {
-        Self::send_json(
-            self.request(Method::PUT, "/api/agents/me/config")
-                .json(config)
-        ).await
     }
     pub async fn inbox_count(
         &self,
@@ -173,9 +176,6 @@ impl HiBossClient {
             .await?;
         Self::checked_response(resp, "react failed").await?;
         Ok(())
-    }
-    pub async fn get_reactions(&self, id: &str) -> Result<ReactionsResponse, Box<dyn Error>> {
-        Self::send_json(self.request(Method::GET, &format!("/api/messages/{}/reactions", id))).await
     }
     pub async fn upload_file(&self, path: &str) -> Result<UploadResponse, Box<dyn Error>> {
         let file_path = std::path::Path::new(path);

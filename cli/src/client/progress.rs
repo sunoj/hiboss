@@ -9,15 +9,11 @@ use crate::types::{ProgressCursor, ProgressFeedResponse, ProgressPost, ProgressP
 use std::error::Error;
 
 impl HiBossClient {
-    /// POST /api/progress — create a new progress post.
-    pub async fn post_progress(
-        &self,
-        req: &ProgressPostRequest,
-    ) -> Result<ProgressPost, Box<dyn Error>> {
-        Self::send_json(
-            self.request(Method::POST, "/api/progress")
-                .json(req)
-        ).await
+    client_endpoints! {
+        /// POST /api/progress — create a new progress post.
+        post_progress(req: &ProgressPostRequest) -> ProgressPost = POST "/api/progress", req;
+        /// GET /api/progress/teams — list teams within the caller's visibility scope.
+        list_progress_teams() -> ProgressTeamsResponse = GET "/api/progress/teams";
     }
 
     /// GET /api/progress — list progress posts with optional filters.
@@ -61,10 +57,6 @@ impl HiBossClient {
         Self::send_json(self.http.put(url).bearer_auth(&self.api_key).json(req)).await
     }
 
-    /// GET /api/progress/teams — list teams within the caller's visibility scope.
-    pub async fn list_progress_teams(&self) -> Result<ProgressTeamsResponse, Box<dyn Error>> {
-        Self::send_json(self.request(Method::GET, "/api/progress/teams")).await
-    }
 
     /// POST /api/attachments/upload — raw binary upload for videos and converted GIFs.
     /// Sets `Content-Type` from the filename extension and `x-filename` header.

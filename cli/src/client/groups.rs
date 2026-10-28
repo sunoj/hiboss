@@ -6,8 +6,17 @@ use reqwest::Method;
 use serde_json::Value;
 use std::error::Error;
 impl HiBossClient {
-    pub async fn list_groups(&self) -> Result<Value, Box<dyn Error>> {
-        Self::send_json(self.request(Method::GET, "/api/groups")).await
+    client_endpoints! {
+        list_groups() -> Value = GET "/api/groups";
+        get_group(id: &str) -> Value = GET &format!("/api/groups/{}", id);
+        delete_group(id: &str) -> () = DELETE_EMPTY &format!("/api/groups/{}", id), "delete failed";
+        add_group_member(group_id: &str, agent_id: &str) -> Value =
+            POST &format!("/api/groups/{}/members", group_id), &serde_json::json!({ "agent_id": agent_id });
+        remove_group_member(group_id: &str, agent_id: &str) -> () =
+            DELETE_EMPTY &format!("/api/groups/{}/members/{}", group_id, agent_id), "remove member failed";
+        broadcast_to_group(group_id: &str, body: &str, priority: &str) -> Value =
+            POST &format!("/api/groups/{}/broadcast", group_id),
+            &serde_json::json!({ "body": body, "priority": priority });
     }
     pub async fn create_group(
         &self,
@@ -21,40 +30,6 @@ impl HiBossClient {
         Self::send_json(
             self.request(Method::POST, "/api/groups")
                 .json(&payload)
-        ).await
-    }
-    pub async fn get_group(&self, id: &str) -> Result<Value, Box<dyn Error>> {
-        Self::send_json(self.request(Method::GET, &format!("/api/groups/{}", id))).await
-    }
-    pub async fn delete_group(&self, id: &str) -> Result<(), Box<dyn Error>> {
-        self.delete(&format!("/api/groups/{}", id), "delete failed").await
-    }
-    pub async fn add_group_member(
-        &self,
-        group_id: &str,
-        agent_id: &str,
-    ) -> Result<Value, Box<dyn Error>> {
-        Self::send_json(
-            self.request(Method::POST, &format!("/api/groups/{}/members", group_id))
-                .json(&serde_json::json!({ "agent_id": agent_id }))
-        ).await
-    }
-    pub async fn remove_group_member(&self, group_id: &str, agent_id: &str) -> Result<(), Box<dyn Error>> {
-        self.delete(
-            &format!("/api/groups/{}/members/{}", group_id, agent_id),
-            "remove member failed",
-        )
-        .await
-    }
-    pub async fn broadcast_to_group(
-        &self,
-        group_id: &str,
-        body: &str,
-        priority: &str,
-    ) -> Result<Value, Box<dyn Error>> {
-        Self::send_json(
-            self.request(Method::POST, &format!("/api/groups/{}/broadcast", group_id))
-                .json(&serde_json::json!({ "body": body, "priority": priority }))
         ).await
     }
 }
