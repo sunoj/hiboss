@@ -10,7 +10,7 @@
 .island-enhanced .island-interactive-caption { display: inline; }
 /* All modes reset opposite edges so no responsive rule stretches the dock. */
 .island-demo { position: fixed; top: 0; bottom: auto; left: 50%; right: auto; z-index: 100;
-  width: min(560px, calc(100% - 24px)); max-height: 100dvh; overflow-y: auto;
+  width: min(560px, calc(100% - 24px)); max-height: 100dvh; overflow-x: hidden; overflow-y: auto;
   overscroll-behavior: contain; scrollbar-width: thin; transform: translateX(-50%);
   text-align: left; visibility: hidden; pointer-events: none; }
 .island-demo.is-visible { visibility: visible; }

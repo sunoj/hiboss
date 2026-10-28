@@ -23,6 +23,8 @@ resources. It is separate from the authenticated admin console in `web/`.
   Replies stay in page memory; the selected result is shown for one second before the card hides.
   A new preview cancels the old dismissal timer. No reply reaches an agent.
   `island-demo.css` pins the card to the browser content edge and respects reduced-motion preferences.
+- The renderer fingerprints demo asset URLs from their file bytes so updated motion and behavior
+  reach browsers that cached an earlier version.
 - A new file must also be added to the list in `build.sh`.
 - `404.html` at the root is what Cloudflare Pages serves, with status 404, for an unknown path.
 - `updates/macos/appcast.xml` is the Mac app's Sparkle feed; `macos/scripts/release.sh` rewrites it for each release (`macos/RELEASE.md`).

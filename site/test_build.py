@@ -1,5 +1,6 @@
 # Exercise the static build's public file set, navigation and local resource references.
 # Uses only unittest, a temporary output directory and the repository's actual build command.
+import hashlib
 from html.parser import HTMLParser
 from pathlib import Path
 import subprocess
@@ -106,9 +107,14 @@ class SiteBuildTests(unittest.TestCase):
             with self.subTest(page=page):
                 parser = References()
                 parser.feed((self.output / page).read_text(encoding='utf-8'))
-                scripts = [a for a in parser.links if a.get('src') == '/assets/island-demo.js']
+                scripts = [a for a in parser.links
+                           if urlsplit(a.get('src') or '').path == '/assets/island-demo.js']
                 self.assertEqual(len(scripts), 1)
                 self.assertEqual(scripts[0].get('type'), 'module')
+                for name in ['island-demo.js', 'island-demo.css']:
+                    digest = hashlib.sha256((self.output / 'assets' / name).read_bytes()).hexdigest()[:12]
+                    text = (self.output / page).read_text(encoding='utf-8')
+                    self.assertIn(f'/assets/{name}?v={digest}', text)
                 choices = [a for a in parser.links if 'data-choice' in a]
                 self.assertEqual(len(choices), 2)
                 self.assertEqual(sum('data-default' in a for a in choices), 1)
