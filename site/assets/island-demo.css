@@ -15,6 +15,7 @@
   transform-origin: 50% 30%; opacity: 0; transform: translateY(-24px) scale(0.72);
   clip-path: inset(0 27% 84% round 28px); }
 .is-visible .island-card { opacity: 1; transform: none; clip-path: inset(0 round 24px); }
+.island-demo:not(.is-visible) .island-card { pointer-events: none; }
 .island-card-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .island-card-head strong { display: flex; align-items: center; gap: 10px; font-size: 1.12rem; }
 .island-dot { width: 8px; height: 8px; border-radius: 50%; background: #32d158; }

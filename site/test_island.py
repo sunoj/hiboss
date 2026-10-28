@@ -17,6 +17,8 @@ SCENARIO = r'''async (page) => {
   const demo = page.locator('[data-island-demo]');
   await page.waitForFunction(() => document.querySelector('.island-enhanced'));
   if (await demo.evaluate(el => el.classList.contains('is-visible'))) throw Error('Premature reveal');
+  const pointer = await page.locator('.island-card').evaluate(el => getComputedStyle(el).pointerEvents);
+  if (pointer !== 'none') throw Error('Hidden card accepts pointer input');
   await page.locator('.island-stage').scrollIntoViewIfNeeded();
   await page.waitForFunction(() => document.querySelector('.island-demo.is-visible'));
   await page.locator('.island-card').evaluate(async el => {
@@ -58,9 +60,9 @@ SCENARIO = r'''async (page) => {
 
 
 def cli(*args: str) -> str:
-    result = subprocess.run([*CLI, *args], capture_output=True, text=True, check=True)
-    if '### Error' in result.stdout:
-        raise RuntimeError(result.stdout)
+    result = subprocess.run([*CLI, *args], capture_output=True, text=True)
+    if result.returncode or '### Error' in result.stdout:
+        raise RuntimeError(result.stdout + result.stderr)
     return result.stdout
 
 

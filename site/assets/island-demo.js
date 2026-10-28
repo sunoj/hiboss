@@ -65,14 +65,12 @@ function restart(ui) {
     if (control instanceof HTMLButtonElement || control instanceof HTMLInputElement) control.disabled = false;
     if (control.hasAttribute('aria-pressed')) control.setAttribute('aria-pressed', 'false');
   }
-  reveal(ui, false);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    if (ui.root.dataset.state !== 'open') return;
-    reveal(ui, true);
-    if (document.activeElement === ui.replay || document.activeElement === document.body) {
-      ui.choices[0]?.focus({ preventScroll: true });
-    }
-  }));
+  reveal(ui, true);
+  for (const animation of ui.card.getAnimations()) {
+    animation.currentTime = 0;
+    animation.play();
+  }
+  ui.choices[0]?.focus({ preventScroll: true });
 }
 
 /** @param {IslandControls} ui */
