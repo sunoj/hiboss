@@ -1,8 +1,9 @@
 // Validates short message titles and loads complete Markdown details without truncation.
-// Exports title and content helpers for send, ask, and edit commands.
-// Dependencies: filesystem UTF-8 reads and existing body escape handling.
+// Exports title, content, and metadata_fields helpers for send, ask, and edit commands.
+// Dependencies: filesystem UTF-8 reads, body escape handling, and serde_json values.
 
-use std::{error::Error, path::Path};
+use serde_json::Value;
+use std::{collections::HashMap, error::Error, path::Path};
 
 pub(super) fn title(value: &str, is_peer: bool) -> Result<String, Box<dyn Error>> {
     let text = crate::helpers::unescape_body(value).trim().to_owned();
@@ -25,6 +26,13 @@ pub(super) fn content(
         (Some(text), None) => Ok(Some(crate::helpers::unescape_body(text))),
         (None, None) => Ok(None),
     }
+}
+
+pub(super) fn metadata_fields<const N: usize>(fields: [(&str, Option<Value>); N]) -> HashMap<String, Value> {
+    fields
+        .into_iter()
+        .filter_map(|(key, value)| Some((key.to_owned(), value?)))
+        .collect()
 }
 
 #[cfg(test)]

@@ -61,31 +61,19 @@ pub(crate) fn action_metadata(
     option_media: Option<Vec<Value>>,
     option_descriptions: Option<Vec<Value>>,
 ) -> Result<Option<HashMap<String, Value>>, serde_json::Error> {
-    let mut metadata: HashMap<String, Value> = HashMap::new();
-    if !actions.is_empty() {
-        metadata.insert("actions".to_owned(), serde_json::to_value(actions)?);
-    }
-    if let Some(media) = option_media {
-        metadata.insert("option_media".to_owned(), Value::Array(media));
-    }
-    if let Some(descriptions) = option_descriptions {
-        metadata.insert("option_descriptions".to_owned(), Value::Array(descriptions));
-    }
-    if let Some(label) = default_option {
-        metadata.insert("default_option".to_owned(), Value::String(label.to_owned()));
-    }
-    if let Some(s) = summary {
-        metadata.insert("summary".to_owned(), Value::String(s.to_owned()));
-    }
-    if let Some(s) = content {
-        if !s.is_empty() {
-            metadata.insert("content".to_owned(), Value::String(s.to_owned()));
-        }
-    }
-    if metadata.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(metadata))
+    let actions = (!actions.is_empty())
+        .then(|| serde_json::to_value(actions))
+        .transpose()?;
+    let content = content.filter(|s| !s.is_empty());
+    let metadata = super::message_text::metadata_fields([
+        ("actions", actions),
+        ("option_media", option_media.map(Value::Array)),
+        ("option_descriptions", option_descriptions.map(Value::Array)),
+        ("default_option", default_option.map(Value::from)),
+        ("summary", summary.map(Value::from)),
+        ("content", content.map(Value::from)),
+    ]);
+    Ok((!metadata.is_empty()).then_some(metadata))
 }
 
 /// Check for unread boss messages before sending. Warns via stdout so the AI sees it.
