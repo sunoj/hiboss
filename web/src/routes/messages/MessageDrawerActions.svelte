@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ApiError, type MessageResponse, type OptionMedia } from '$lib/api/types';
+	import { apiErrorMessage, type MessageResponse, type OptionMedia } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { t } from '$lib/i18n';
@@ -30,7 +30,7 @@
 		try {
 			await action();
 		} catch (e) {
-			const msg = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
+			const msg = apiErrorMessage(e);
 			toasts.push(msg, 'error');
 		} finally {
 			busy = false;

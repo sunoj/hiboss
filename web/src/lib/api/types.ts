@@ -1,5 +1,5 @@
 // Boss API contracts for messages, agents and configuration.
-// Exports wire types and errors; depends on shared semantics and project session types.
+// Exports wire types, errors and error text; depends on shared semantics and project session types.
 
 import type { Direction, MessageStatus, Priority } from '$lib/design/semantics';
 
@@ -292,4 +292,8 @@ export class ApiError extends Error {
 		this.status = status;
 		this.body = body;
 	}
+}
+
+export function apiErrorMessage(e: unknown): string {
+	return e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
 }

@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { LoadState } from '$lib/stores/load-state.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import type { AuditEntry } from '$lib/api/types';
-	import { ApiError } from '$lib/api/types';
-	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 	import AuditFilters from './AuditFilters.svelte';
 	import AuditPager from './AuditPager.svelte';
@@ -20,30 +19,17 @@
 	let filters = $state<AuditFilterState>({ ...DEFAULT_FILTERS });
 	let entries = $state<AuditEntry[]>([]);
 	let total = $state(0);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+	const loadState = new LoadState();
 
 	const visible = $derived(applyLocalSearch(entries, filters.search));
 
 	async function load(nextFilters: AuditFilterState = filters) {
-		const client = auth.client;
-		if (!client) {
-			error = t('top.offline');
-			loading = false;
-			return;
-		}
-		loading = true;
-		error = null;
-		try {
+		await loadState.run(async (client) => {
 			const res = await client.audit(buildAuditQuery(nextFilters));
 			entries = res.entries ?? [];
 			total = res.total ?? 0;
 			filters = nextFilters;
-		} catch (e) {
-			error = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-		} finally {
-			loading = false;
-		}
+		});
 	}
 
 	function onFiltersChange(next: AuditFilterState) {
@@ -69,16 +55,16 @@
 			<h1>{t('page.audit')}</h1>
 			<p class="sub">{t('page.auditSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading}>
 			{t('common.refresh')}
 		</button>
 	</header>
 
 	<AuditFilters {filters} onChange={onFiltersChange} onSubmit={onApply} />
 
-	{#if error}
-		<ErrorState message={error} onRetry={() => load()} />
-	{:else if loading && entries.length === 0}
+	{#if loadState.error}
+		<ErrorState message={loadState.error} onRetry={() => load()} />
+	{:else if loadState.loading && entries.length === 0}
 		<div class="panel"><Skeleton rows={8} /></div>
 	{:else if entries.length === 0}
 		<EmptyState
@@ -103,7 +89,7 @@
 				limit={filters.limit}
 				{total}
 				visibleCount={entries.length}
-				disabled={loading}
+				disabled={loadState.loading}
 				{onPage}
 			/>
 		</div>

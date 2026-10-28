@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { LoadState } from '$lib/stores/load-state.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
@@ -8,7 +9,7 @@
 		CreateRoutingRuleRequest,
 		RoutingRuleResponse
 	} from '$lib/api/types';
-	import { ApiError } from '$lib/api/types';
+	import { apiErrorMessage } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 	import { toasts } from '$lib/stores/toast.svelte';
@@ -24,8 +25,7 @@
 
 	let rules = $state<RoutingRuleResponse[]>([]);
 	let agents = $state<AgentResponse[]>([]);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+	const loadState = new LoadState();
 	let creating = $state(false);
 	let deletingId = $state<string | null>(null);
 
@@ -35,31 +35,15 @@
 	const agentNames = $derived(buildAgentNameMap(agents));
 	const sorted = $derived(sortRules(rules, sortKey, sortDir, agentNames));
 
-	function errMsg(e: unknown): string {
-		return e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-	}
-
 	async function load() {
-		const client = auth.client;
-		if (!client) {
-			error = t('top.offline');
-			loading = false;
-			return;
-		}
-		loading = true;
-		error = null;
-		try {
+		await loadState.run(async (client) => {
 			const [rulesRes, agentsRes] = await Promise.all([
 				client.routingRules(),
 				client.agents()
 			]);
 			rules = rulesRes.rules ?? [];
 			agents = agentsRes.agents ?? [];
-		} catch (e) {
-			error = errMsg(e);
-		} finally {
-			loading = false;
-		}
+		});
 	}
 
 	function onSort(key: RuleSortKey) {
@@ -80,7 +64,7 @@
 			toasts.push(t('form.routingCreated'), 'success');
 			await load();
 		} catch (e) {
-			toasts.push(errMsg(e), 'error');
+			toasts.push(apiErrorMessage(e), 'error');
 		} finally {
 			creating = false;
 		}
@@ -99,7 +83,7 @@
 			toasts.push(t('form.routingDeleted'), 'success');
 			await load();
 		} catch (e) {
-			toasts.push(errMsg(e), 'error');
+			toasts.push(apiErrorMessage(e), 'error');
 		} finally {
 			deletingId = null;
 		}
@@ -116,14 +100,14 @@
 			<h1>{t('page.routing')}</h1>
 			<p class="sub">{t('page.routingSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading}>
 			{t('common.refresh')}
 		</button>
 	</header>
 
-	{#if error}
-		<ErrorState message={error} onRetry={load} />
-	{:else if loading && rules.length === 0}
+	{#if loadState.error}
+		<ErrorState message={loadState.error} onRetry={load} />
+	{:else if loadState.loading && rules.length === 0}
 		<div class="panel"><Skeleton rows={6} height="1.35rem" /></div>
 	{:else}
 		<AddRuleForm {agents} busy={creating} {onCreate} />

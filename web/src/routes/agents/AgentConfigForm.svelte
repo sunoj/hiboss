@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { AgentConfigResponse } from '$lib/api/types';
-	import { ApiError } from '$lib/api/types';
+	import { apiErrorMessage } from '$lib/api/types';
 	import { PRIORITIES, type Priority } from '$lib/design/semantics';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
@@ -57,10 +57,6 @@
 		routing = routing.map((row, i) => (i === index ? { ...row, channel: value } : row));
 	}
 
-	function errMsg(e: unknown): string {
-		return e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-	}
-
 	async function save() {
 		const client = auth.client;
 		if (!client) {
@@ -84,7 +80,7 @@
 			onSaved?.(updated);
 			toasts.push(t('form.agentConfigSaved'), 'success');
 		} catch (e) {
-			toasts.push(errMsg(e), 'error');
+			toasts.push(apiErrorMessage(e), 'error');
 		} finally {
 			saving = false;
 		}

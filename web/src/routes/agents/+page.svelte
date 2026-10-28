@@ -1,19 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { LoadState } from '$lib/stores/load-state.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import type { AgentConfigResponse, AgentResponse } from '$lib/api/types';
-	import { ApiError } from '$lib/api/types';
-	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 	import { sortAgentsByLastUsed } from './agent-helpers';
 	import AgentDrawer from './AgentDrawer.svelte';
 	import AgentTable from './AgentTable.svelte';
 
 	let agents = $state<AgentResponse[]>([]);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+	const loadState = new LoadState();
 	let selected = $state<AgentResponse | null>(null);
 	let configById = $state<Record<string, AgentConfigResponse>>({});
 
@@ -24,25 +22,13 @@
 	}
 
 	async function load() {
-		const client = auth.client;
-		if (!client) {
-			error = t('top.offline');
-			loading = false;
-			return;
-		}
-		loading = true;
-		error = null;
-		try {
+		await loadState.run(async (client) => {
 			const res = await client.agents();
 			agents = res.agents ?? [];
 			if (selected) {
 				selected = agents.find((a) => a.id === selected?.id) ?? null;
 			}
-		} catch (e) {
-			error = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-		} finally {
-			loading = false;
-		}
+		});
 	}
 
 	function selectAgent(agent: AgentResponse) {
@@ -60,14 +46,14 @@
 			<h1>{t('page.agents')}</h1>
 			<p class="sub">{t('page.agentsSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading}>
 			{t('common.refresh')}
 		</button>
 	</header>
 
-	{#if error}
-		<ErrorState message={error} onRetry={load} />
-	{:else if loading && agents.length === 0}
+	{#if loadState.error}
+		<ErrorState message={loadState.error} onRetry={load} />
+	{:else if loadState.loading && agents.length === 0}
 		<div class="panel"><Skeleton rows={8} height="1.4rem" /></div>
 	{:else if agents.length === 0}
 		<EmptyState

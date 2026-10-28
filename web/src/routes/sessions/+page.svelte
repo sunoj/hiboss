@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { LoadState } from '$lib/stores/load-state.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import type { MessageResponse, SessionResponse } from '$lib/api/types';
-	import { ApiError } from '$lib/api/types';
+	import { apiErrorMessage } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 	import { groupSessionsByStatus } from './groupSessions';
@@ -12,8 +13,7 @@
 	import SessionDrawer from './SessionDrawer.svelte';
 
 	let sessions = $state<SessionResponse[]>([]);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+	const loadState = new LoadState();
 
 	let selected = $state<SessionResponse | null>(null);
 	let messages = $state<MessageResponse[]>([]);
@@ -23,22 +23,10 @@
 	const columns = $derived(groupSessionsByStatus(sessions));
 
 	async function load() {
-		const client = auth.client;
-		if (!client) {
-			error = t('top.offline');
-			loading = false;
-			return;
-		}
-		loading = true;
-		error = null;
-		try {
+		await loadState.run(async (client) => {
 			const res = await client.sessions();
 			sessions = res.sessions ?? [];
-		} catch (e) {
-			error = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-		} finally {
-			loading = false;
-		}
+		});
 	}
 
 	async function loadMessages(sessionId: string) {
@@ -54,7 +42,7 @@
 			const res = await client.messages({ session: sessionId, limit: 20 });
 			messages = res.messages ?? [];
 		} catch (e) {
-			msgError = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
+			msgError = apiErrorMessage(e);
 			messages = [];
 		} finally {
 			msgLoading = false;
@@ -88,14 +76,14 @@
 			<h1>{t('page.sessions')}</h1>
 			<p class="sub">{t('page.sessionsSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading}>
 			{t('common.refresh')}
 		</button>
 	</header>
 
-	{#if error}
-		<ErrorState message={error} onRetry={load} />
-	{:else if loading && sessions.length === 0}
+	{#if loadState.error}
+		<ErrorState message={loadState.error} onRetry={load} />
+	{:else if loadState.loading && sessions.length === 0}
 		<div class="board skeleton-board">
 			{#each Array(5) as _, i (i)}
 				<div class="skel-col"><Skeleton rows={5} height="1.4rem" /></div>

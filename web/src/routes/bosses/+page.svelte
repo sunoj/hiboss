@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { LoadState } from '$lib/stores/load-state.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
@@ -9,7 +10,7 @@
 		BossRecord,
 		BossTokenResponse
 	} from '$lib/api/types';
-	import { ApiError } from '$lib/api/types';
+	import { apiErrorMessage } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 	import { toasts } from '$lib/stores/toast.svelte';
@@ -20,34 +21,17 @@
 
 	let bosses = $state<BossRecord[]>([]);
 	let agents = $state<AgentResponse[]>([]);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+	const loadState = new LoadState();
 	let busyKey = $state<string | null>(null);
 	let creating = $state(false);
 	let revealed = $state<BossTokenResponse | null>(null);
 
-	function errMsg(e: unknown): string {
-		return e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-	}
-
 	async function load() {
-		const client = auth.client;
-		if (!client) {
-			error = t('top.offline');
-			loading = false;
-			return;
-		}
-		loading = true;
-		error = null;
-		try {
+		await loadState.run(async (client) => {
 			const [bossRes, agentRes] = await Promise.all([client.bosses(), client.agents()]);
 			bosses = bossRes.bosses ?? [];
 			agents = agentRes.agents ?? [];
-		} catch (e) {
-			error = errMsg(e);
-		} finally {
-			loading = false;
-		}
+		});
 	}
 
 	async function onToggle(bossId: string, agentId: string, next: boolean) {
@@ -67,7 +51,7 @@
 			toasts.push(next ? t('form.accessGranted') : t('form.accessRevoked'), 'success');
 		} catch (e) {
 			bosses = prev;
-			toasts.push(errMsg(e), 'error');
+			toasts.push(apiErrorMessage(e), 'error');
 		} finally {
 			busyKey = null;
 		}
@@ -88,7 +72,7 @@
 			revealed = res;
 			toasts.push(t('form.tokenRotated', { name: res.name }), 'success');
 		} catch (e) {
-			toasts.push(errMsg(e), 'error');
+			toasts.push(apiErrorMessage(e), 'error');
 		} finally {
 			busyKey = null;
 		}
@@ -106,7 +90,7 @@
 			bosses = [created, ...bosses];
 			toasts.push(t('form.createdBoss', { name: created.name }), 'success');
 		} catch (e) {
-			toasts.push(errMsg(e), 'error');
+			toasts.push(apiErrorMessage(e), 'error');
 		} finally {
 			creating = false;
 		}
@@ -123,7 +107,9 @@
 			<h1>{t('page.bosses')}</h1>
 			<p class="sub">{t('page.bossesSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>{t('common.refresh')}</button>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading}>
+			{t('common.refresh')}
+		</button>
 	</header>
 
 	{#if revealed}
@@ -134,9 +120,9 @@
 		/>
 	{/if}
 
-	{#if error}
-		<ErrorState message={error} onRetry={load} />
-	{:else if loading && bosses.length === 0}
+	{#if loadState.error}
+		<ErrorState message={loadState.error} onRetry={load} />
+	{:else if loadState.loading && bosses.length === 0}
 		<div class="panel"><Skeleton rows={6} /></div>
 	{:else}
 		<CreateBossForm busy={creating} {onCreate} />

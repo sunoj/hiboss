@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { LoadState } from '$lib/stores/load-state.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import MessageRow from '$lib/components/MessageRow.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import type { MessageResponse } from '$lib/api/types';
-	import { ApiError } from '$lib/api/types';
+	import { apiErrorMessage } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 	import MessageDrawer from './MessageDrawer.svelte';
@@ -26,9 +27,8 @@
 	let viewMode = $state<ViewMode>('flat');
 	let messages = $state<MessageResponse[]>([]);
 	let total = $state(0);
-	let loading = $state(true);
+	const loadState = new LoadState();
 	let loadingMore = $state(false);
-	let error = $state<string | null>(null);
 	let selected = $state<MessageResponse | null>(null);
 
 	const visible = $derived(applyLocalFilters(messages, filters));
@@ -36,31 +36,19 @@
 	const canLoadMore = $derived(hasMorePages(messages.length, total));
 
 	async function load() {
-		const client = auth.client;
-		if (!client) {
-			error = t('top.offline');
-			loading = false;
-			return;
-		}
-		loading = true;
-		error = null;
-		try {
+		await loadState.run(async (client) => {
 			const query = buildMessagesQuery(filters, { limit: PAGE_SIZE, offset: 0 });
 			const msg = await client.messages(query);
 			messages = msg.messages;
 			total = msg.total;
-		} catch (e) {
-			error = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-		} finally {
-			loading = false;
-		}
+		});
 	}
 
 	async function loadMore() {
 		const client = auth.client;
 		if (!client || loadingMore || !canLoadMore) return;
 		loadingMore = true;
-		error = null;
+		loadState.error = null;
 		try {
 			const query = buildMessagesQuery(filters, {
 				limit: PAGE_SIZE,
@@ -71,7 +59,7 @@
 			messages = [...messages, ...msg.messages.filter((m) => !seen.has(m.id))];
 			total = msg.total;
 		} catch (e) {
-			error = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
+			loadState.error = apiErrorMessage(e);
 		} finally {
 			loadingMore = false;
 		}
@@ -105,7 +93,9 @@
 			<h1>{t('page.messages')}</h1>
 			<p class="sub">{t('page.messagesSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>{t('common.refresh')}</button>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading}>
+			{t('common.refresh')}
+		</button>
 	</header>
 
 	<MessageFilters
@@ -116,9 +106,9 @@
 		onSubmit={load}
 	/>
 
-	{#if error}
-		<ErrorState message={error} onRetry={load} />
-	{:else if loading && messages.length === 0}
+	{#if loadState.error}
+		<ErrorState message={loadState.error} onRetry={load} />
+	{:else if loadState.loading && messages.length === 0}
 		<div class="panel"><Skeleton rows={8} /></div>
 	{:else if visible.length === 0}
 		<EmptyState

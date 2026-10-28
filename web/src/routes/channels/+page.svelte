@@ -2,6 +2,7 @@
      Depends on boss API, auth, i18n, and grouped channel components. -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { LoadState } from '$lib/stores/load-state.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
@@ -13,8 +14,7 @@
 	import { CLI_NOTE, groupChannelsByAgent } from './groupChannels';
 
 	let channels = $state<BossChannelConfig[]>([]);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+	const loadState = new LoadState();
 	let pending = $state<Record<string, boolean>>({});
 	let errors = $state<Record<string, string>>({});
 	let warnings = $state<Record<string, boolean>>({});
@@ -24,7 +24,7 @@
 	const readOnly = $derived(auth.connection?.boss?.role === 'viewer');
 
 	async function toggle(channel: BossChannelConfig): Promise<void> {
-		if (loading || readOnly || pending[channel.agent_id]) return;
+		if (loadState.loading || readOnly || pending[channel.agent_id]) return;
 		const client = auth.client;
 		if (!client) { errors[channel.id] = t('top.offline'); return; }
 		pending[channel.agent_id] = true;
@@ -46,23 +46,11 @@
 
 	async function load() {
 		if (saving) return;
-		const client = auth.client;
-		if (!client) {
-			error = t('top.offline');
-			loading = false;
-			return;
-		}
-		loading = true;
-		error = null;
-		try {
+		await loadState.run(async (client) => {
 			channels = await client.channels();
 			errors = {};
 			warnings = {};
-		} catch (e) {
-			error = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-		} finally {
-			loading = false;
-		}
+		});
 	}
 
 	onMount(() => {
@@ -76,16 +64,16 @@
 			<h1>{t('page.channels')}</h1>
 			<p class="sub">{t('page.channelsSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading || saving}>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading || saving}>
 			{t('common.refresh')}
 		</button>
 	</header>
 
 	<p class="cli-note" role="note">{CLI_NOTE}</p>
 
-	{#if error}
-		<ErrorState message={error} onRetry={load} />
-	{:else if loading && channels.length === 0}
+	{#if loadState.error}
+		<ErrorState message={loadState.error} onRetry={load} />
+	{:else if loadState.loading && channels.length === 0}
 		<div class="board">
 			{#each Array(3) as _, i (i)}
 				<div class="skel"><Skeleton rows={4} height="1.2rem" /></div>
@@ -100,7 +88,11 @@
 		<div class="board" role="list">
 			{#each groups as group (group.agent_id)}
 				<div role="listitem">
-					<AgentChannelGroup {group} {errors} {warnings} disabled={loading || readOnly || pending[group.agent_id]} onToggle={toggle} />
+					<AgentChannelGroup
+						{group} {errors} {warnings}
+						disabled={loadState.loading || readOnly || pending[group.agent_id]}
+						onToggle={toggle}
+					/>
 				</div>
 			{/each}
 		</div>

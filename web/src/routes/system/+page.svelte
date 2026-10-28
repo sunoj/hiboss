@@ -5,7 +5,7 @@
 	import KpiCard from '$lib/components/KpiCard.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import type { BossSystemResponse } from '$lib/api/types';
-	import { ApiError } from '$lib/api/types';
+	import { apiErrorMessage } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 	import { toasts } from '$lib/stores/toast.svelte';
@@ -23,10 +23,6 @@
 	let connectivity = $state<ConnectivityResult>(emptyConnectivity());
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-
-	function errMsg(e: unknown): string {
-		return e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-	}
 
 	async function probeMe(
 		client: NonNullable<typeof auth.client>
@@ -47,7 +43,7 @@
 				latencyMs: Math.round(performance.now() - started),
 				bossName: null,
 				bossRole: null,
-				error: errMsg(e)
+				error: apiErrorMessage(e)
 			};
 		}
 	}
@@ -75,7 +71,7 @@
 				);
 			}
 		} catch (e) {
-			error = errMsg(e);
+			error = apiErrorMessage(e);
 			connectivity = emptyConnectivity();
 			if (notify) toasts.push(error, 'error');
 		} finally {

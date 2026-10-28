@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { LoadState } from '$lib/stores/load-state.svelte';
 	import ChannelLights from '$lib/components/ChannelLights.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
@@ -9,36 +10,21 @@
 	import SessionStatusList from '$lib/components/SessionStatusList.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import type { BossOverview, MessageResponse } from '$lib/api/types';
-	import { ApiError } from '$lib/api/types';
-	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 
 	let overview = $state<BossOverview | null>(null);
 	let messages = $state<MessageResponse[]>([]);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+	const loadState = new LoadState();
 
 	async function load() {
-		const client = auth.client;
-		if (!client) {
-			error = 'Not connected';
-			loading = false;
-			return;
-		}
-		loading = true;
-		error = null;
-		try {
+		await loadState.run(async (client) => {
 			const [ov, msg] = await Promise.all([
 				client.overview(),
 				client.messages({ direction: 'all', limit: 10 })
 			]);
 			overview = ov;
 			messages = msg.messages;
-		} catch (e) {
-			error = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
-		} finally {
-			loading = false;
-		}
+		}, 'Not connected');
 	}
 
 	onMount(() => {
@@ -52,12 +38,14 @@
 			<h1>{t('page.dashboard')}</h1>
 			<p class="sub">{t('page.dashboardSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>{t('common.refresh')}</button>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading}>
+			{t('common.refresh')}
+		</button>
 	</header>
 
-	{#if error}
-		<ErrorState message={error} onRetry={load} />
-	{:else if loading && !overview}
+	{#if loadState.error}
+		<ErrorState message={loadState.error} onRetry={load} />
+	{:else if loadState.loading && !overview}
 		<div class="grid kpis">
 			{#each Array(4) as _, i (i)}
 				<div class="panel"><Skeleton rows={2} height="1.6rem" /></div>
