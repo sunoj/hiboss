@@ -29,8 +29,10 @@ struct SettingsScene: View {
         updater: UpdaterState = UpdaterState(),
         launchAtLogin: LaunchAtLoginController = LaunchAtLoginController(),
         pairingLinks: PairingLinkRouter = PairingLinkRouter(),
-        soundPlayer: any SoundPlaying = SystemSoundPlayer()
+        soundPlayer: any SoundPlaying = SystemSoundPlayer(),
+        initialPane: SettingsPane = .connection
     ) {
+        _selection = State(initialValue: initialPane)
         self.requiredInputs = requiredInputs
         self.settings = settings
         self.flow = flow
