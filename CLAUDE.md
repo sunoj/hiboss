@@ -258,14 +258,20 @@ Pick the tier from the changed paths:
 
 Run limits, so the desktop is not taken over:
 
-- A task runs window classes at most three times: the focused test once before the fix, once
-  after it, and the tier's classes once on the final commit. Save output with `| tee <log>`, and
-  read the log instead of rerunning for counts.
+- Every window-test run goes through `macos/scripts/window-run.sh swift test --filter <Classes>`
+  (`verify-tier.sh` prints it; run it from `macos/`). It holds the one machine-wide lock under
+  `caffeinate -d -i -u` (`-u` alone holds for five seconds, and a sleeping display fails Island,
+  panel-sizing and capture tests). It reuses a passing run of identical sources instead of
+  running again, refuses to rerun identical sources that already failed, and caps the whole Mac
+  at 6 window runs per 4 hours across every agent and worktree. Exit 75 means it refused; read
+  the logs it names. `HIBOSS_WINDOW_RERUN=<reason>` allows one rerun of a known flaky test;
+  `HIBOSS_WINDOW_OVER_BUDGET=<reason>` is for a human-approved exception. Both are recorded.
+- The budget belongs to the batch, not the task. A dispatcher running tasks in parallel splits it
+  and states each task's share in the brief. A probe, an A/B check, a performance survey and a
+  screenshot capture are window runs too. A baseline already measured on the same commit is
+  reused, never measured again. Logic-only classes run without the lock.
+- Save output with `| tee <log>` and read the log instead of rerunning for counts.
 - The snapshot harness (`scripts/capture-v4-snapshots.sh`) runs once per task, at the end.
-- One window-test run at a time per Mac. Wrap every run as
-  `lockf -k /private/tmp/hiboss-macos-window-tests.lock caffeinate -d -i -u swift test --filter <Classes>`;
-  `caffeinate -u` alone holds for only five seconds, and a sleeping display fails Island,
-  panel-sizing and capture tests.
 - A known flaky window test is rerun once, on its own; the suite is not repeated for it.
 - A reviewer checks the implementer's log and screenshots (with the commit hash) and reruns only
   when that evidence is missing, does not match the commit, or a merge changed code.

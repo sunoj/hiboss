@@ -64,11 +64,12 @@ class_list() {
     if [ -s "$1" ]; then paste -s -d ',' "$1" | sed 's/,/, /g'; else printf 'none\n'; fi
 }
 
+# test_command <dir> <class file> <test target> [runner prefix]
 test_command() {
     local classes
     [ -s "$2" ] || return 0
     classes=$(paste -s -d '|' "$2")
-    commands+=("cd $1 && $window_lock swift test --filter '^$3\.($classes)/'")
+    commands+=("cd $1 && ${4:+$4 }swift test --filter '^$3\.($classes)/'")
 }
 
 choose_tier() {
@@ -91,7 +92,8 @@ choose_tier() {
 }
 
 plan_commands() {
-    window_lock='lockf -k /private/tmp/hiboss-macos-window-tests.lock caffeinate -d -i -u'
+    # Window runs share one machine-wide lock, reuse ledger and budget; logic runs need none.
+    window_run='scripts/window-run.sh'
     if [ "$tier" = M0 ]; then
         commands+=('python3 macos/scripts/i18n-audit.py')
         return
@@ -99,10 +101,12 @@ plan_commands() {
     if [ "$tier" != M1 ]; then commands+=('cd macos && swift build'); fi
     if [ "$kit_changed" = true ]; then test_command HibossKit "$temp/kit" HibossKitTests; fi
     if [ "$tier" = M5 ]; then
-        commands+=("cd macos && $window_lock swift test --filter '^HibossIslandTests\.'")
+        commands+=("cd macos && $window_run swift test --filter '^HibossIslandTests\.'")
     else
         test_command macos "$temp/logic" HibossIslandTests
-        if [ "$tier" != M1 ]; then test_command macos "$temp/windows" HibossIslandTests; fi
+        if [ "$tier" != M1 ]; then
+            test_command macos "$temp/windows" HibossIslandTests "$window_run"
+        fi
     fi
 }
 
