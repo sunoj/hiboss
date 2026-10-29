@@ -26,6 +26,22 @@ enum BoxDateSection: Int, CaseIterable, Identifiable {
         if calendar.dateInterval(of: .weekOfYear, for: now)?.contains(date) == true { return .thisWeek }
         return .earlier
     }
+
+    static func grouped(
+        _ items: [BoxItem], now: Date, calendar: Calendar = .current
+    ) -> [Self: [BoxItem]] {
+        let today = calendar.startOfDay(for: now)
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+        let week = calendar.dateInterval(of: .weekOfYear, for: now)
+        return Dictionary(grouping: items) { item in
+            guard let date = ISODate.parse(item.createdAt) else { return .earlier }
+            if date >= today, date < tomorrow { return .today }
+            if date >= yesterday, date < today { return .yesterday }
+            if week?.contains(date) == true { return .thisWeek }
+            return .earlier
+        }
+    }
 }
 
 enum BoxTime {
