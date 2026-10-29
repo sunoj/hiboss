@@ -12,9 +12,9 @@ struct TodayActivity: View {
     let onSession: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        LazyVStack(alignment: .leading, spacing: 24) {
             if !snapshot.working.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: 12) {
                     Text(L("Working now")).font(.headline)
                     ForEach(snapshot.working) { session in
                         Button { onSession(session.id) } label: { sessionRow(session) }
@@ -24,7 +24,7 @@ struct TodayActivity: View {
                 }
             }
             if !snapshot.delivered.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: 12) {
                     Text(L("Delivered")).font(.headline)
                     ForEach(snapshot.delivered) { message in
                         VStack(alignment: .leading, spacing: 8) {

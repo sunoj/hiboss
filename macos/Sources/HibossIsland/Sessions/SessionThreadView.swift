@@ -14,22 +14,16 @@ struct SessionThreadView: View {
     @State private var expandedMessages: Set<MessageID> = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var threads: [MessageThread] {
-        HistoryMessageLogic.scopedThreads(snapshot: context.snapshot, scope: .session(context.id))
-    }
-
-    private var presentation: SessionThreadLogic {
-        SessionThreadLogic(threads: threads, answerability: context.snapshot.answerability,
-            now: context.snapshot.now)
-    }
-
     var body: some View {
+        let threads = HistoryMessageLogic.scopedThreads(snapshot: context.snapshot, scope: .session(context.id))
+        let presentation = SessionThreadLogic(threads: threads,
+            answerability: context.snapshot.answerability, now: context.snapshot.now)
         ScrollViewReader { reader in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     SessionHeader(context: context, connection: connection)
                     Divider()
-                    rows(reader: reader)
+                    rows(threads: threads, presentation: presentation, reader: reader)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -39,7 +33,8 @@ struct SessionThreadView: View {
     }
 
     @ViewBuilder
-    private func rows(reader: ScrollViewProxy) -> some View {
+    private func rows(threads: [MessageThread], presentation: SessionThreadLogic,
+                      reader: ScrollViewProxy) -> some View {
         if threads.isEmpty, flow.historyState == .loading, flow.historyLoadedAt == nil {
             ProgressView(L("Loading messages…")).padding(24).frame(maxWidth: .infinity)
         } else if threads.isEmpty {
@@ -56,7 +51,7 @@ struct SessionThreadView: View {
                     }
                 }
                 Text(L("Conversation")).font(.headline).padding(.vertical, 20)
-                conversation(reader: reader)
+                conversation(presentation: presentation, reader: reader)
             }
             .frame(maxWidth: 900, alignment: .leading)
             .padding(.horizontal, 24).padding(.bottom, 24)
@@ -65,7 +60,7 @@ struct SessionThreadView: View {
     }
 
     @ViewBuilder
-    private func conversation(reader: ScrollViewProxy) -> some View {
+    private func conversation(presentation: SessionThreadLogic, reader: ScrollViewProxy) -> some View {
         ForEach(presentation.days()) { day in
             Text(SessionThreadLogic.dayTitle(day.id, now: context.snapshot.now))
                 .font(.subheadline).foregroundStyle(.secondary).padding(.top, 12)

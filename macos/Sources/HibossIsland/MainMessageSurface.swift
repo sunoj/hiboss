@@ -25,9 +25,7 @@ struct MainMessageSurface: View {
             }
         } else if case let .category(category) = destination, category.isAttention {
             AttentionView(flow: flow, reply: reply, category: category,
-                items: snapshot.attention.filter { item in
-                    snapshot.messages(for: destination).contains { $0.id == item.id }
-                },
+                items: snapshot.attention(for: category),
                 now: snapshot.now, answerability: snapshot.answerability, onChoose: onChoose)
         } else {
             HistoryView(flow: flow, snapshot: snapshot, scope: destination, onChoose: onChoose, reply: reply)

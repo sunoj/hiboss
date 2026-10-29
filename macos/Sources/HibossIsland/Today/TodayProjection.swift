@@ -12,10 +12,17 @@ enum TodayProjection {
         if let live, !messages.contains(where: { $0.id == live.id }) {
             messages.append(historyMessage(from: live))
         }
+        guard !requiredInputs.isEmpty else { return messages }
+        var indices: [MessageID: Int] = [:]
+        indices.reserveCapacity(messages.count + requiredInputs.count)
+        for (index, message) in messages.enumerated() where indices[message.id] == nil {
+            indices[message.id] = index
+        }
         for message in requiredInputs {
-            if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            if let index = indices[message.id] {
                 messages[index] = message
             } else {
+                indices[message.id] = messages.count
                 messages.append(message)
             }
         }

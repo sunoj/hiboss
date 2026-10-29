@@ -9,6 +9,16 @@ struct SessionContext {
     let id: String
     let snapshot: OverviewSnapshot
     let inventory: [ProjectSession]
+    let decisions: [AttentionItem]
+
+    init(id: String, snapshot: OverviewSnapshot, inventory: [ProjectSession]) {
+        self.id = id
+        self.snapshot = snapshot
+        self.inventory = inventory
+        self.decisions = snapshot.today.decisions.filter {
+            SessionGrouping.sessionKey(for: $0.message) == id
+        }
+    }
 
     var facts: ProjectSession? { inventory.first { $0.id == id } }
     var summary: TodaySession? {
@@ -21,9 +31,6 @@ struct SessionContext {
         facts?.avatarProject ?? ProjectIdentity(id: id, slug: title, displayName: title)
     }
     var branch: String? { facts?.branch ?? summary?.branch }
-    var decisions: [AttentionItem] {
-        snapshot.today.decisions.filter { SessionGrouping.sessionKey(for: $0.message) == id }
-    }
     var newestAgentMessage: HistoryMessage? {
         replyTargets.max {
             (HistoryTimestamp.date(from: $0.createdAt) ?? .distantPast)
