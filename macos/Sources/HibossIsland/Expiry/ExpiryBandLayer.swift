@@ -101,7 +101,8 @@ final class ExpiryBandView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         stroke.removeAllAnimations()
-        stroke.strokeEnd = 0
+        // The model holds the current value so captures and a lapsed animation show it too.
+        stroke.strokeEnd = max(0, progress.fraction(at: now))
         stroke.strokeColor = color
         stroke.shadowColor = color
         if remaining > 0 {

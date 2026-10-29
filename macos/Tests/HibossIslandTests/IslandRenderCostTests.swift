@@ -1,4 +1,4 @@
-// Guards the live question surface against timer-driven layout churn.
+// Guards the live question surface against per-frame redraw cost.
 // Exports: IslandRenderCostTests.
 // Dependencies: AppKit, SwiftUI, XCTest, and the production Island stores.
 
@@ -25,15 +25,20 @@ final class IslandRenderCostTests: XCTestCase {
         defer { flow.disconnect(); controller.panel.close(); controller.optionWindow.close() }
         flow.connect(api: ScriptedBossAPI(messages: [message]))
         try await waitForCondition { flow.activeMessage?.id == message.id }
-        let host = LayoutCountingHost(rootView: IslandView(flow: flow, reply: controller.reply,
-            overview: overview))
-        host.sizingOptions = []
-        controller.panel.contentView = host
         try await Task.sleep(for: .seconds(1))
-        host.layoutCount = 0
-        try await Task.sleep(for: .seconds(2))
-        XCTAssertLessThanOrEqual(host.layoutCount, 6, "Expiry animation must not lay out the surface")
+        let start = processCPUSeconds()
+        try await Task.sleep(for: .seconds(3))
+        // A per-frame surface update measured ~97% of a core; a static band measures under 1%.
+        XCTAssertLessThan((processCPUSeconds() - start) / 3, 0.25,
+            "The expiry band must not drive per-frame SwiftUI updates")
         try await captureBandStates(controller.panel)
+    }
+
+    private func processCPUSeconds() -> Double {
+        var usage = rusage()
+        getrusage(RUSAGE_SELF, &usage)
+        let time = [usage.ru_utime, usage.ru_stime]
+        return time.reduce(0) { $0 + Double($1.tv_sec) + Double($1.tv_usec) / 1_000_000 }
     }
 
     private func captureBandStates(_ panel: NSWindow) async throws {
@@ -58,16 +63,5 @@ final class IslandRenderCostTests: XCTestCase {
     private func findBand(in view: NSView) -> ExpiryBandView? {
         if let band = view as? ExpiryBandView { return band }
         return view.subviews.lazy.compactMap { self.findBand(in: $0) }.first
-    }
-
-}
-
-@MainActor
-private final class LayoutCountingHost: NSHostingView<IslandView> {
-    var layoutCount = 0
-
-    override func layout() {
-        layoutCount += 1
-        super.layout()
     }
 }
