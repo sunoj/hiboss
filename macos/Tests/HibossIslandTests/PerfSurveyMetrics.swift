@@ -49,7 +49,9 @@ enum PerfSurveyMetrics {
     static func measure(_ name: String, size: String, window: NSWindow,
                         update: () async throws -> Void,
                         interact: (() async throws -> Void)? = nil) async throws {
-        try await Task.sleep(for: .seconds(1))
+        let settling = max(1, Double(ProcessInfo.processInfo.environment[
+            "HIBOSS_PERF_SETTLE_SECONDS"] ?? "1") ?? 1)
+        try await Task.sleep(for: .seconds(settling))
         let start = processCPU()
         let wall = ProcessInfo.processInfo.systemUptime
         try await Task.sleep(for: .seconds(3))
@@ -62,7 +64,8 @@ enum PerfSurveyMetrics {
         let config = ProcessInfo.processInfo.environment["HIBOSS_PERF_CONFIG"] ?? "unspecified"
         let commit = ProcessInfo.processInfo.environment["HIBOSS_PERF_COMMIT"] ?? "unspecified"
         let frame = window.contentView?.bounds.size ?? .zero
-        print("PERF | \(name) | \(size) | \(Int(frame.width))×\(Int(frame.height)) | "
+        let data = size + (settling > 1 ? "; settle \(number(settling))s" : "")
+        print("PERF | \(name) | \(data) | \(Int(frame.width))×\(Int(frame.height)) | "
             + "\(number(idle)) | \(number(updateMS)) | \(number(interaction)) | \(number(scroll)) | "
             + "\(config) | \(commit) |")
     }

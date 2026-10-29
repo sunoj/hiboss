@@ -43,7 +43,8 @@ private final class PerfSurveyHistoryModel: ObservableObject {
     init(question: HistoryMessage, count: Int) {
         self.question = question
         replies = (0..<count).map { index in
-            HistoryMessage(id: MessageID(rawValue: "reply-\(index)"), body: "Validation step \(index) passed.",
+            HistoryMessage(id: MessageID(rawValue: "reply-\(index)"),
+                body: "Validation step \(index) passed.",
                 agentName: "Build Agent", direction: "boss_to_agent", status: "sent", priority: "normal",
                 replyTo: question.id.rawValue, createdAt: AttentionTestSupport.iso(.now),
                 targetSessionId: question.sessionId)
