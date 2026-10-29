@@ -1,7 +1,7 @@
 #!/bin/bash
-# Runs opt-in real-window CPU measurements under the shared desktop lock.
+# Runs opt-in real-window CPU measurements through the shared window-run budget.
 # Exports: Markdown table on stdout and a retained complete Swift test log.
-# Dependencies: Swift, lockf, caffeinate; release enables @testable imports explicitly.
+# Dependencies: Swift and window-run.sh; release enables @testable imports explicitly.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -21,7 +21,7 @@ printf 'Configuration: %s; commit: %s; log: %s\n' "$configuration" "$HIBOSS_PERF
 cd "$root/macos"
 classes='MacosPerfSurveyTests|PerfSurveyIslandTests'
 classes+='|PerfSurveySettingsTests|PerfSurveyHistoryTests'
-lockf -k /private/tmp/hiboss-macos-window-tests.lock caffeinate -d -i -u \
+scripts/window-run.sh \
     swift test -c "$configuration" -Xswiftc -enable-testing \
     --filter "HibossIslandTests\.($classes)/" \
     2>&1 | tee "$output/run.log"
