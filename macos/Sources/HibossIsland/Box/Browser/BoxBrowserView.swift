@@ -153,74 +153,12 @@ struct BoxBrowserView: View {
     }
 
     private var list: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { tick in
-            List(selection: $store.selection) {
-                if store.visibleItems.isEmpty {
-                    Text(L("No Matching Items")).foregroundStyle(.secondary)
-                }
-                ForEach(BoxDateSection.allCases) { section in
-                    let items = store.visibleItems.filter {
-                        BoxDateSection.section(for: $0.createdAt, now: tick.date) == section
-                    }
-                    if !items.isEmpty {
-                        Section(section.title) {
-                            ForEach(items) { item in
-                                row(item)
-                            }
-                        }
-                    }
-                }
-                if store.isPaging { ProgressView(L("Loading more Box items…")) }
-                else if let error = store.pageError { errorNotice(error) }
-                else if store.nextCursor != nil {
-                    Button(L("Load more")) { Task { await store.loadMore() } }
-                        .accessibilityIdentifier("box.load-more")
-                }
-            }
-            .accessibilityIdentifier("box.list")
-            .layoutProbe("box.list")
-            .onKeyPress(.space) {
-                guard let item = store.selectedItem else { return .ignored }
-                perform(.quickLook, item: item)
-                return .handled
-            }
-            .onKeyPress(keys: ["l"]) { press in
-                guard press.modifiers == .command, let item = store.selectedItem else { return .ignored }
-                Task { await store.toggleLike(item) }
-                return .handled
-            }
-            .onKeyPress(.upArrow) { store.moveSelection(by: -1); return .handled }
-            .onKeyPress(.downArrow) { store.moveSelection(by: 1); return .handled }
-            .onDeleteCommand {
-                if let item = store.selectedItem { store.requestDelete(item) }
-            }
-        }
-    }
-
-    private func row(_ item: BoxItem) -> some View {
-        BoxBrowserRow(item: item, media: media) {
-            store.selection = item.id
-            previewImage = item
-        }
-            .tag(item.id)
-            .contentShape(Rectangle())
-            .draggable(item.id)
-            .contextMenu {
-                BoxCollectionActions(store: store, item: item)
-                BoxPaneActions(item: item,
-                    busy: opening.contains(item.id) || store.deleting.contains(item.id)) {
-                        perform($0, item: item)
-                    }
-            }
-    }
-
-    private func errorNotice(_ error: String) -> some View {
-        HStack {
-            Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.secondary)
-            Button(L("Retry")) {
-                Task { await store.loadMore() }
-            }
-        }.padding(8)
+        BoxBrowserList(store: store, media: media, busy: opening.union(store.deleting),
+            onOpenImage: { item in
+                store.selection = item.id
+                previewImage = item
+            }, onPerform: { perform($0, item: $1) })
+            .equatable()
     }
 }
 
