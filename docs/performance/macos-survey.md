@@ -208,10 +208,10 @@ macos/scripts/perf-survey.sh release
 HIBOSS_PERF_FILTER='Today typical,Island short' macos/scripts/perf-survey.sh debug
 ```
 
-The script expands to `lockf -k /private/tmp/hiboss-macos-window-tests.lock caffeinate -d -i -u
-swift test -c <configuration> -Xswiftc -enable-testing --filter
+The script runs `scripts/window-run.sh swift test -c <configuration> -Xswiftc -enable-testing --filter
 'HibossIslandTests\.(MacosPerfSurveyTests|PerfSurveyIslandTests|PerfSurveySettingsTests|
-PerfSurveyHistoryTests)/'` (without the line break), pipes
+PerfSurveyHistoryTests)/'` (without the line break), so a survey counts against the shared
+window-run budget and an identical survey is replayed rather than rerun. It pipes
 the complete log through `tee`, and prints a Markdown table. `HIBOSS_PERF_OUTPUT` chooses the
 retained artifact directory. `HIBOSS_PERF_FILTER` is a comma-separated substring filter.
 `HIBOSS_PERF_SAMPLE` selects surfaces for separate three-second idle and repeated-update `sample`
