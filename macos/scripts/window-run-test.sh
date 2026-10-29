@@ -37,4 +37,10 @@ HIBOSS_WINDOW_OVER_BUDGET='human approved' expect 0 4 'override runs' -- sh -c '
 grep -q 'over-budget: human approved' "$temp/state/ledger.tsv" || { echo 'FAIL override not recorded'; exit 1; }
 checks=$((checks + 1))
 HIBOSS_WINDOW_BUDGET=1 expect 0 4 'reuse costs no budget' -- true
+HIBOSS_PERF_FILTER=a HIBOSS_WINDOW_BUDGET=9 expect 0 5 'a different test switch runs' -- true
+HIBOSS_PERF_FILTER=a HIBOSS_PERF_OUTPUT=/x HIBOSS_WINDOW_BUDGET=9 expect 0 5 'output path is ignored' -- true
+HIBOSS_WINDOW_BUDGET=9 expect 0 6 'replayed run prints its log' -- echo replay-marker
+HIBOSS_WINDOW_BUDGET=9 expect 0 6 'second call replays' -- echo replay-marker
+grep -q replay-marker "$temp/out" || { echo 'FAIL reuse did not replay the log'; exit 1; }
+checks=$((checks + 1))
 echo "window-run self-test: $checks checks passed"
