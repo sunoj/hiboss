@@ -169,7 +169,7 @@ final class BoxMainWindowLayoutTests: XCTestCase {
         let menus: [(String, [String])] = [
             ("box.filters", [L("All")] + BoxItem.Kind.allCases.map(\.filterTitle)),
             ("box.source", BoxAuthorFilter.allCases.map { L("Source:") + " " + $0.title }),
-            ("box.more", [BoxPaneAction.open, .quickLook, .share, .editNote, .delete].map(\.title))
+            ("box.more", [BoxPaneAction.open, .saveTo, .quickLook, .share, .editNote, .delete].map(\.title))
         ]
         for (id, titles) in menus {
             try await BoxWindowCaptureSupport.captureMenu(XCTUnwrap(probe.anchors[id]), window: window,

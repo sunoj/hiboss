@@ -40,6 +40,7 @@ extension BoxBrowserView {
             do {
                 switch action {
                 case .quickLook: quickLookURL = try await BoxBrowserActions.previewURL(item, media: media)
+                case .saveTo: try await BoxBrowserActions.save(item, media: media)
                 case .copy:
                     try await BoxBrowserActions.copy(item, media: media)
                     copied = item.id

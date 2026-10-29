@@ -1,17 +1,19 @@
-// Native opening and copying for Box content, with injectable system actions for tests.
-// Exports: BoxBrowserActions; only authenticated local media files reach the opener.
+// Native opening, saving and copying for Box content, with injectable system actions for tests.
+// Exports: BoxBrowserActions; authenticated local media feeds native file actions.
 // Dependencies: AppKit, HibossKit and BoxBrowserMedia.
 
 import AppKit
 import HibossKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum BoxPaneAction: CaseIterable {
-    case quickLook, open, copy, share, editNote, delete
+    case quickLook, open, saveTo, copy, share, editNote, delete
     var title: String {
         switch self {
         case .quickLook: L("Quick Look")
         case .open: L("Open")
+        case .saveTo: L("Save to…")
         case .copy: L("Copy")
         case .share: L("Share…")
         case .editNote: L("Edit note…")
@@ -19,7 +21,10 @@ enum BoxPaneAction: CaseIterable {
         }
     }
     static func available(for item: BoxItem) -> [Self] {
-        allCases.filter { $0 != .open || item.kind == .link || item.hasMedia }
+        allCases.filter {
+            if $0 == .saveTo { return item.hasMedia }
+            return $0 != .open || item.kind == .link || item.hasMedia
+        }
     }
 }
 
@@ -40,6 +45,51 @@ struct BoxPaneActions: View {
 
 @MainActor
 enum BoxBrowserActions {
+    static func save(
+        _ item: BoxItem, media: BoxBrowserMedia,
+        panel: (String) async -> URL? = { await saveDestination(named: $0) },
+        fileManager: FileManager = .default
+    ) async throws {
+        let source = try await previewURL(item, media: media)
+        guard let destination = await panel(saveFilename(item, source: source)) else { return }
+        if source.standardizedFileURL == destination.standardizedFileURL { return }
+        let staging = destination.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
+        defer { try? fileManager.removeItem(at: staging) }
+        try fileManager.copyItem(at: source, to: staging)
+        if fileManager.fileExists(atPath: destination.path) {
+            _ = try fileManager.replaceItemAt(destination, withItemAt: staging)
+        } else {
+            try fileManager.moveItem(at: staging, to: destination)
+        }
+    }
+
+    static func saveFilename(_ item: BoxItem, source: URL) -> String {
+        var name = ((item.text ?? "") as NSString).lastPathComponent
+        if name.isEmpty || name == "." || name == ".." || name == item.kind.rawValue {
+            name = item.displayTitle.replacingOccurrences(of: "/", with: "-")
+        }
+        if (name as NSString).pathExtension.isEmpty {
+            let ext = item.mediaType.flatMap { UTType(mimeType: $0)?.preferredFilenameExtension }
+                ?? (source.pathExtension.isEmpty ? "bin" : source.pathExtension)
+            name += ".\(ext)"
+        }
+        return name
+    }
+
+    private static func saveDestination(named name: String) async -> URL? {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        panel.canCreateDirectories = true
+        if let window = NSApp.keyWindow {
+            return await withCheckedContinuation { continuation in
+                panel.beginSheetModal(for: window) { response in
+                    continuation.resume(returning: response == .OK ? panel.url : nil)
+                }
+            }
+        }
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+
     static func open(
         _ item: BoxItem, media: BoxBrowserMedia,
         opener: (URL) -> Bool = { NSWorkspace.shared.open($0) }

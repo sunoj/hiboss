@@ -103,7 +103,7 @@ final class BoxImagePreviewTests: XCTestCase {
         let anchor = try XCTUnwrap(probe.anchors["box.more"])
         let menu = try await BoxWindowCaptureSupport.captureMenu(anchor, window: window,
             directory: nil, name: "image-actions",
-            expectedTitles: [BoxPaneAction.open, .quickLook, .share, .editNote, .delete].map(\.title))
+            expectedTitles: [BoxPaneAction.open, .saveTo, .quickLook, .share, .editNote, .delete].map(\.title))
         let index = menu.indexOfItem(withTitle: L("Open"))
         XCTAssertGreaterThanOrEqual(index, 0)
         guard index >= 0 else { return }

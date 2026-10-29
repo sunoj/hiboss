@@ -56,7 +56,7 @@ struct BoxBrowserDetail: View {
             BoxPaneActions(item: item, busy: busy, perform: perform, actions: [.copy])
             Menu(L("More")) {
                 BoxPaneActions(item: item, busy: busy, perform: perform,
-                    actions: [.open, .quickLook, .share, .editNote])
+                    actions: [.open, .saveTo, .quickLook, .share, .editNote])
                 Divider()
                 BoxPaneActions(item: item, busy: busy, perform: perform, actions: [.delete])
             }.fixedSize().layoutProbe("box.more")
