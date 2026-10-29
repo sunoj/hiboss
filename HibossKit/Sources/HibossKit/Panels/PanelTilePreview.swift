@@ -70,8 +70,13 @@ private struct PanelTileContent: View {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(verbatim: headline.displayValue(in: state))
                             .font(.system(.largeTitle, design: .rounded, weight: .semibold))
-                            .monospacedDigit().contentTransition(.numericText())
-                            .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: headline.displayValue(in: state))
+                            .monospacedDigit()
+                            // macOS animation frames repeatedly lay out the entire hosting window.
+#if !os(macOS)
+                            .contentTransition(.numericText())
+                            .animation(reduceMotion ? nil : .easeOut(duration: 0.25),
+                                       value: headline.displayValue(in: state))
+#endif
                         if let unit = headline.unit { Text(verbatim: unit).font(.headline) }
                     }
                     .foregroundStyle(accent).lineLimit(1).minimumScaleFactor(0.7)
