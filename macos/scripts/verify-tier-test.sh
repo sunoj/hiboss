@@ -65,8 +65,9 @@ check_focused_classes() {
     contains 'tier: M2'
     contains 'window classes: BoxPolishLayoutTests'
     contains 'cd macos && swift build'
-    contains "--filter '^HibossIslandTests\.(BoxPolishLayoutTests)/'"
-    contains 'lockf -k /private/tmp/hiboss-macos-window-tests.lock caffeinate -d -i -u'
+    contains "cd macos && scripts/window-run.sh swift test --filter '^HibossIslandTests\.(BoxPolishLayoutTests)/'"
+    excludes "window-run.sh swift test --filter '^HibossIslandTests\.(SharedFormattingTests"
+    excludes 'lockf'
     plan macos/Tests/HibossIslandTests/IslandDropRevealTests.swift
     contains 'IslandDropRevealIntegrationTests, IslandDropRevealPolicyTests'
     contains '(IslandDropRevealIntegrationTests|IslandDropRevealPolicyTests)/'
@@ -102,8 +103,7 @@ check_missing_and_release() {
     output=$("$script" --files docs/macos-design-v2.md --release)
     cases=$((cases + 1))
     contains 'tier: M5'
-    contains "swift test --filter '^HibossIslandTests\.'"
-    contains 'lockf -k /private/tmp/hiboss-macos-window-tests.lock caffeinate -d -i -u'
+    contains "cd macos && scripts/window-run.sh swift test --filter '^HibossIslandTests\.'"
     assert_rejected --run --files README.md
     assert_rejected --base
     assert_rejected --files
