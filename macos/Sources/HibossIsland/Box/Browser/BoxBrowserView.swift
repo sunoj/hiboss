@@ -154,19 +154,19 @@ struct BoxBrowserView: View {
 
     private var list: some View {
         TimelineView(.periodic(from: .now, by: 30)) { tick in
+            let visible = store.visibleItems
+            let groups = Dictionary(grouping: visible) {
+                BoxDateSection.section(for: $0.createdAt, now: tick.date)
+            }
+            let sections = BoxDateSection.allCases.filter { groups[$0] != nil }
             List(selection: $store.selection) {
-                if store.visibleItems.isEmpty {
+                if visible.isEmpty {
                     Text(L("No Matching Items")).foregroundStyle(.secondary)
                 }
-                ForEach(BoxDateSection.allCases) { section in
-                    let items = store.visibleItems.filter {
-                        BoxDateSection.section(for: $0.createdAt, now: tick.date) == section
-                    }
-                    if !items.isEmpty {
-                        Section(section.title) {
-                            ForEach(items) { item in
-                                row(item)
-                            }
+                ForEach(sections) { section in
+                    Section(section.title) {
+                        ForEach(groups[section] ?? []) { item in
+                            row(item)
                         }
                     }
                 }

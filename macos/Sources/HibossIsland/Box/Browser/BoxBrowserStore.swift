@@ -18,7 +18,7 @@ extension HibossAPI: BoxBrowsing {}
 @MainActor
 final class BoxBrowserStore: ObservableObject {
     typealias Provider = @MainActor () -> (any BoxBrowsing)?
-    @Published var items: [BoxItem] = []
+    @Published var items: [BoxItem] = [] { didSet { visibleCache = nil } }
     @Published private(set) var didLoad = false
     @Published private(set) var hasResult = false
     @Published private(set) var isLoading = false
@@ -29,26 +29,45 @@ final class BoxBrowserStore: ObservableObject {
     @Published private(set) var deleting: Set<String> = []
     @Published var mutating: Set<String> = []
     @Published var collections: [BoxCollection] = []
-    @Published var scope: BoxBrowserScope = .all { didSet { if scope != oldValue { invalidateRead() } } }
+    @Published var scope: BoxBrowserScope = .all {
+        didSet {
+            visibleCache = nil
+            if scope != oldValue { invalidateRead() }
+        }
+    }
     @Published var creatingCollection = false
     @Published var newCollectionItem: BoxItem?
     @Published var actionError: String?
     @Published var selection: String?
     @Published var pendingDelete: BoxItem?
-    @Published var author: BoxAuthorFilter = .all { didSet { reconcileSelection() } }
+    @Published var author: BoxAuthorFilter = .all {
+        didSet {
+            visibleCache = nil
+            reconcileSelection()
+        }
+    }
     @Published var project: String? { didSet { if project != oldValue { invalidateRead() } } }
     var visibleItems: [BoxItem] {
-        items.filter { author.includes($0) && (kind == nil || $0.kind == kind)
+        if let visibleCache { return visibleCache }
+        let visible = items.filter { author.includes($0) && (kind == nil || $0.kind == kind)
             && (scope != .liked || $0.liked) }
+        visibleCache = visible
+        return visible
     }
     var selectedItem: BoxItem? { visibleItems.first { $0.id == selection } }
-    @Published var kind: BoxItem.Kind? { didSet { if kind != oldValue { invalidateRead() } } }
+    @Published var kind: BoxItem.Kind? {
+        didSet {
+            visibleCache = nil
+            if kind != oldValue { invalidateRead() }
+        }
+    }
     @Published var query = "" { didSet { if query != oldValue { invalidateRead() } } }
     let apiProvider: Provider
     private var generation = 0
     var connectionGeneration = 0
     private var deleted: Set<String> = []
     private var loadedPages = 0
+    private var visibleCache: [BoxItem]?
 
     private var authorizationObservation: AnyCancellable?
 

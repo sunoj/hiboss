@@ -78,14 +78,14 @@ enum PerfSurveyMetrics {
         view.subviews.flatMap { [$0] + descendants($0) }
     }
 
-    private static func scrollStep(_ window: NSWindow) async throws -> Double? {
+    private static func scrollStep(_ window: NSWindow, delta: CGFloat = 300) async throws -> Double? {
         guard let root = window.contentView,
               let scroll = descendants(root).compactMap({ $0 as? NSScrollView }).last(where: {
                   ($0.documentView?.bounds.height ?? 0) > $0.contentView.bounds.height + 300
               }) else { return nil }
         let before = scroll.contentView.bounds.origin
         let value = try await action(window) {
-            scroll.contentView.scroll(to: NSPoint(x: before.x, y: before.y + 300))
+            scroll.contentView.scroll(to: NSPoint(x: before.x, y: before.y + delta))
             scroll.reflectScrolledClipView(scroll.contentView)
         }
         guard scroll.contentView.bounds.origin != before else { return nil }
@@ -106,6 +106,15 @@ enum PerfSurveyMetrics {
             let end = ProcessInfo.processInfo.systemUptime + 3
             while ProcessInfo.processInfo.systemUptime < end {
                 _ = try await action(window, perform: update)
+            }
+        }
+        if name.hasPrefix("Box browser") {
+            try await sample(name + ".scroll", directory: directory) {
+                let end = ProcessInfo.processInfo.systemUptime + 3
+                while ProcessInfo.processInfo.systemUptime < end {
+                    _ = try await scrollStep(window)
+                    _ = try await scrollStep(window, delta: -300)
+                }
             }
         }
     }

@@ -115,8 +115,10 @@ extension BoxItem {
         return "\(width)×\(height)"
     }
     func metadata(now: Date) -> String {
-        [kindTitle, sizeTitle, BoxTime.relative(createdAt, now: now), authorTitle, project]
-            .compactMap { $0 }.joined(separator: " · ")
+        BoxMetadataCache.value(for: self, now: now) {
+            [kindTitle, sizeTitle, BoxTime.relative(createdAt, now: now), authorTitle, project]
+                .compactMap { $0 }.joined(separator: " · ")
+        }
     }
     var deleteTitle: String { L("Delete “\(displayTitle)”?") }
 }
