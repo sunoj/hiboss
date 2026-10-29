@@ -84,7 +84,7 @@ struct HistoryThreadRow: View {
                 if SessionThreadLogic.hasDetails(message) { metadata }
                 SessionThreadEntries(thread: thread, merged: mergedMessages)
             } else {
-                if !visibleReplies.isEmpty { HistoryReplies(replies: visibleReplies) }
+                if !visibleReplies.isEmpty { HistoryReplies(replies: visibleReplies).equatable() }
                 metadata
             }
         }

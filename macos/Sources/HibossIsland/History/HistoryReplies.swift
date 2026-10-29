@@ -5,11 +5,11 @@
 import HibossKit
 import SwiftUI
 
-struct HistoryReplies: View {
+struct HistoryReplies: View, Equatable {
     let replies: [HistoryMessage]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        LazyVStack(alignment: .leading, spacing: 10) {
             ForEach(replies) { reply in
                 HStack(alignment: .top, spacing: 12) {
                     Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 1)
