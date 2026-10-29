@@ -167,9 +167,9 @@ final class MacosPerfSurveyTests: XCTestCase {
                 demoMode: false, autoload: false)
             await panels.load()
             XCTAssertEqual(panels.tiles.count, count)
-            let reduced = ProcessInfo.processInfo.environment["HIBOSS_PERF_REDUCE_MOTION"] == "1"
+            let disabled = ProcessInfo.processInfo.environment["HIBOSS_PERF_DISABLE_ANIMATIONS"] == "1"
             let window = try PerfSurveyFixtures.window(PerfSurveyPanelSurface(model: panels)
-                .environment(\.accessibilityReduceMotion, reduced))
+                .transaction { if disabled { $0.disablesAnimations = true } })
             defer { PerfSurveyFixtures.close(window) }
             var revision = 3.0
             try await PerfSurveyMetrics.measure(label, size: "\(panels.tiles.count) live tiles",
