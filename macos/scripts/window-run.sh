@@ -15,7 +15,7 @@ who=${AID_TASK_ID:-human/${USER:-unknown}}
 mkdir -p "$state"
 touch "$ledger"
 
-# Same sources + same directory + same command = same result; untracked inputs count too.
+# Same sources, directory, command and test switches = same result; untracked inputs count.
 source_key() {
     local root
     root=$(git rev-parse --show-toplevel)
@@ -25,6 +25,8 @@ source_key() {
         (cd "$root" && git ls-files -o --exclude-standard -z -- macos HibossKit \
             | xargs -0 shasum 2>/dev/null) || true
         printf '%s\n' "${PWD#"$root"}" "$*"
+        # Test switches change what runs; per-run output paths and these runner knobs do not.
+        env | grep '^HIBOSS_' | grep -v -E '^HIBOSS_(WINDOW_|PERF_OUTPUT=|PERF_COMMIT=)' | sort || true
     } | shasum -a 256 | cut -c1-16
 }
 
@@ -43,8 +45,10 @@ passed=$(last_result "$key" '$3 == 0')
 failed=$(last_result "$key" '$3 != 0')
 if [ -z "${HIBOSS_WINDOW_RERUN:-}" ]; then
     if [ -n "$passed" ]; then
-        printf 'window-run: reusing a passing run of these exact sources (log %s)\n' \
-            "$(cut -f5 <<<"$passed")"
+        # Replay the log so callers that parse output see the same result.
+        cat "$(cut -f5 <<<"$passed")" 2>/dev/null || true
+        printf 'window-run: reused a passing run of these exact sources (log %s)\n' \
+            "$(cut -f5 <<<"$passed")" >&2
         exit 0
     fi
     [ -z "$failed" ] || refuse "these exact sources already failed; read $(cut -f5 <<<"$failed").
