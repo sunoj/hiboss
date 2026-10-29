@@ -1,0 +1,149 @@
+# macOS survey stack excerpts; source: /usr/bin/sample, 3 seconds, 1 ms interval.
+# Counts are inclusive stack observations, not calls, milliseconds, or additive totals.
+# Signatures are abbreviated. Raw samples remain in the directories listed in macos-survey.md.
+
+23ba31c7 / Box browser large.idle.sample.txt
+  Main-thread observations: 2627
+     3 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+     3 -[NSView layoutSubtreeIfNeeded]
+  No selected production symbol observed; see raw sample for system frames.
+
+23ba31c7 / Box browser large.updates.sample.txt
+  Main-thread observations: 2454
+    73 BoxBrowserView.list(...) BoxBrowserView.swift:162
+    54 BoxBrowserRow.body(...) BoxBrowserRow.swift:20
+    49 BoxItem.metadata(...) BoxPresentation.swift:118
+    16 BoxBrowserStore.visibleItems(...) BoxBrowserStore.swift:41
+    33 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+    33 -[NSView layoutSubtreeIfNeeded]
+
+23ba31c7 / Island short.idle.sample.txt
+  Main-thread observations: 2619
+     1 ExpiryBandView.resynchronize(...) ExpiryBandLayer.swift:100
+     3 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+     3 -[NSView layoutSubtreeIfNeeded]
+
+23ba31c7 / Island short.updates.sample.txt
+  Main-thread observations: 2604
+     1 ExpiryBandView.resynchronize(...) ExpiryBandLayer.swift:115
+     4 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+     4 -[NSView layoutSubtreeIfNeeded]
+
+23ba31c7 / Panels 50.idle.sample.txt
+  Main-thread observations: 2628
+     2 PanelsModel.startClock(...)
+    11 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+    11 -[NSView layoutSubtreeIfNeeded]
+
+23ba31c7 / Panels 50.updates.sample.txt
+     1 PanelWall.body(...) PanelsView.swift:59
+     1 PanelsModel.startClock(...)
+   353 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+   353 -[NSView layoutSubtreeIfNeeded]
+
+23ba31c7 / Session long thread.idle.sample.txt
+  Main-thread observations: 2635
+     1 DecisionDeadline.body(...) TodayDecisionCard.swift:65
+    10 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+    10 -[NSView layoutSubtreeIfNeeded]
+
+23ba31c7 / Session long thread.updates.sample.txt
+  Main-thread observations: 2315
+   202 SessionThreadView.body(...) SessionThreadView.swift:28
+   181 SessionThreadView.rows(...) SessionThreadView.swift:50
+   157 OverviewStore.update(...) OverviewStore.swift:178
+   126 OverviewSnapshot.init(...) OverviewSnapshot.swift:75
+    63 TodaySnapshot.init(...) TodaySnapshot.swift:36
+     6 OverviewSnapshot.messages(...) OverviewSnapshot.swift:97
+    82 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+    82 -[NSView layoutSubtreeIfNeeded]
+
+23ba31c7 / Today large.idle.sample.txt
+  Main-thread observations: 2407
+    13 DecisionDefaultLine.body(...) TodayStyle.swift:48
+     4 DecisionDeadline.body(...) TodayDecisionCard.swift:65
+     3 TodayActivity.sessionRow(...) TodayActivity.swift:69
+   331 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+   331 -[NSView layoutSubtreeIfNeeded]
+
+23ba31c7 / Today large.updates.sample.txt
+  Main-thread observations: 2159
+   106 OverviewStore.update(...) OverviewStore.swift:178
+    89 OverviewSnapshot.init(...) OverviewSnapshot.swift:75
+    55 TodaySnapshot.init(...) TodaySnapshot.swift:36
+    23 TodayDecisionCard.body(...) TodayDecisionCard.swift:19
+    17 DecisionDefaultLine.body(...) TodayStyle.swift:48
+     6 DecisionDeadline.body(...) TodayDecisionCard.swift:65
+   463 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+   463 -[NSView layoutSubtreeIfNeeded]
+
+11794718 / Attention list+detail large.idle.sample.txt
+  Main-thread observations: 2610
+    26 MainMessageSurface.body(...) MainMessageSurface.swift:28
+    22 OverviewStore.scheduleExpiration(...)
+    16 OverviewSnapshot.init(...) OverviewSnapshot.swift:75
+     9 TodaySnapshot.init(...) TodaySnapshot.swift:36
+     8 OverviewSnapshot.messages(...)
+     1 PanelsModel.startClock(...)
+    14 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+    14 -[NSView layoutSubtreeIfNeeded]
+
+11794718 / Attention list+detail large.updates.sample.txt
+  Main-thread observations: 2453
+   247 MainMessageSurface.body(...) MainMessageSurface.swift:28
+   168 OverviewStore.update(...) OverviewStore.swift:178
+   136 OverviewSnapshot.init(...) OverviewSnapshot.swift:75
+    70 OverviewSnapshot.messages(...)
+    70 TodaySnapshot.init(...) TodaySnapshot.swift:36
+     1 OverviewStore.scheduleExpiration(...) OverviewStore.swift:186
+    39 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+    39 -[NSView layoutSubtreeIfNeeded]
+
+11794718 / History expanded 2000.idle.sample.txt
+  Main-thread observations: 2572
+   137 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+   137 -[NSView layoutSubtreeIfNeeded]
+  No selected production symbol observed; see raw sample for system frames.
+
+11794718 / History expanded 2000.updates.sample.txt
+  Main-thread observations: 2244
+    14 HistoryReplies.body(...) HistoryReplies.swift:14
+   439 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+   439 -[NSView layoutSubtreeIfNeeded]
+
+11794718 / History list+inline threads large.idle.sample.txt
+  Main-thread observations: 2509
+    20 OverviewStore.scheduleExpiration(...)
+    16 OverviewSnapshot.init(...) OverviewSnapshot.swift:75
+     9 TodaySnapshot.init(...) TodaySnapshot.swift:36
+   175 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+   175 -[NSView layoutSubtreeIfNeeded]
+
+11794718 / History list+inline threads large.updates.sample.txt
+  Main-thread observations: 2361
+   170 OverviewStore.update(...) OverviewStore.swift:178
+   135 OverviewSnapshot.init(...) OverviewSnapshot.swift:75
+    75 TodaySnapshot.init(...) TodaySnapshot.swift:36
+     2 OverviewSnapshot.messages(...) OverviewSnapshot.swift:107
+     1 OverviewStore.scheduleExpiration(...) OverviewStore.swift:186
+   181 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+   181 -[NSView layoutSubtreeIfNeeded]
+
+11794718 / Today large.idle.sample.txt
+  Main-thread observations: 2511
+     4 DecisionDefaultLine.body(...) TodayStyle.swift:48
+     3 TodayActivity.sessionRow(...) TodayActivity.swift:69
+     1 TodaySummary.body(...) TodaySummary.swift:32
+   159 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+   159 -[NSView layoutSubtreeIfNeeded]
+
+11794718 / Today large.updates.sample.txt
+  Main-thread observations: 2044
+   160 OverviewStore.update(...) OverviewStore.swift:178
+   127 OverviewSnapshot.init(...) OverviewSnapshot.swift:75
+    66 TodaySnapshot.init(...) TodaySnapshot.swift:36
+    37 TodayDecisionCard.body(...) TodayDecisionCard.swift:19
+    18 DecisionDefaultLine.body(...) TodayStyle.swift:48
+     7 DecisionDeadline.body(...) TodayDecisionCard.swift:65
+   477 -[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]
+   477 -[NSView layoutSubtreeIfNeeded]
