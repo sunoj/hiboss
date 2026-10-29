@@ -48,15 +48,12 @@ final class MacosPerfSurveyTests: XCTestCase {
         let overview = OverviewStore()
         let flow = OptionFlowStore()
         let panels = try await PerfSurveyFixtures.panels()
-        let probe = LayoutProbe()
         let window = try PerfSurveyFixtures.window(MainView(settings: PerfSurveyFixtures.settings(),
             flow: flow,
             overviewStore: overview, initialDestination: destination, previewHistory: history,
-            previewSessions: PerfSurveyFixtures.inventory(count: sessions), panelsModel: panels)
-            .environment(\.layoutProbe, probe))
+            previewSessions: PerfSurveyFixtures.inventory(count: sessions), panelsModel: panels))
         defer {
             PerfSurveyFixtures.close(window)
-            probe.anchors.removeAll()
             flow.disconnect()
         }
         var revision = 0
@@ -70,19 +67,16 @@ final class MacosPerfSurveyTests: XCTestCase {
                 overview.update(history: history + [message], live: nil, health: .live(checkedAt: .now),
                     coverageComplete: true, requiredInputs: history, requiredInputLoaded: true)
             }, interact: {
-                try self.selectSession(destination == .session("hiboss") ? "session-1" : "hiboss",
-                    probe: probe, window: window)
+                try self.selectSession(window: window)
             })
     }
 
-    private func selectSession(_ id: String, probe: LayoutProbe, window: NSWindow) throws {
-        let anchor = try XCTUnwrap(probe.anchors["sidebar.session.\(id)"])
+    private func selectSession(window: NSWindow) throws {
         let root = try XCTUnwrap(window.contentView)
-        let table = try XCTUnwrap(PerfSurveyMetrics.descendants(root).compactMap { $0 as? NSTableView }
-            .first { anchor.isDescendant(of: $0) })
-        let point = anchor.convert(NSPoint(x: anchor.bounds.midX, y: anchor.bounds.midY), to: table)
-        let row = table.row(at: point)
-        XCTAssertGreaterThanOrEqual(row, 0)
+        let table = try XCTUnwrap(PerfSurveyMetrics.descendants(root).compactMap { $0 as? NSTableView }.first)
+        // Workspace rows 0–3 and the Sessions header/search precede the first two sessions.
+        let row = table.selectedRow == 6 ? 7 : 6
+        XCTAssertGreaterThan(table.numberOfRows, row)
         table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         XCTAssertEqual(table.selectedRow, row)
     }
@@ -173,7 +167,9 @@ final class MacosPerfSurveyTests: XCTestCase {
                 demoMode: false, autoload: false)
             await panels.load()
             XCTAssertEqual(panels.tiles.count, count)
-            let window = try PerfSurveyFixtures.window(PerfSurveyPanelSurface(model: panels))
+            let reduced = ProcessInfo.processInfo.environment["HIBOSS_PERF_REDUCE_MOTION"] == "1"
+            let window = try PerfSurveyFixtures.window(PerfSurveyPanelSurface(model: panels)
+                .environment(\.accessibilityReduceMotion, reduced))
             defer { PerfSurveyFixtures.close(window) }
             var revision = 3.0
             try await PerfSurveyMetrics.measure(label, size: "\(panels.tiles.count) live tiles",

@@ -19,9 +19,11 @@ if [ -n "$(git -C "$root" status --porcelain)" ]; then
 fi
 printf 'Configuration: %s; commit: %s; log: %s\n' "$configuration" "$HIBOSS_PERF_COMMIT" "$output/run.log"
 cd "$root/macos"
+classes='MacosPerfSurveyTests|PerfSurveyIslandTests'
+classes+='|PerfSurveySettingsTests|PerfSurveyHistoryTests'
 lockf -k /private/tmp/hiboss-macos-window-tests.lock caffeinate -d -i -u \
     swift test -c "$configuration" -Xswiftc -enable-testing \
-    --filter 'HibossIslandTests\.(MacosPerfSurveyTests|PerfSurveyIslandTests|PerfSurveySettingsTests)/' \
+    --filter "HibossIslandTests\.($classes)/" \
     2>&1 | tee "$output/run.log"
 if ! grep -q '^PERF ' "$output/run.log"; then
     echo 'No measurement rows were produced.' >&2
