@@ -1,6 +1,6 @@
 // Bounds metric-update CPU in the production Panels wall with real AppKit windows.
 // Exports: PanelMetricPerformanceTests; optional PNG evidence via HIBOSS_PANEL_SNAPSHOTS.
-// Dependencies: PerfSurvey fixtures and CPU clocks, AppKit, SwiftUI, and HibossKit.
+// Dependencies: PerfSurvey fixtures and CPU clocks, AppKit, screencapture, and HibossKit.
 
 import AppKit
 import HibossKit
@@ -39,11 +39,13 @@ final class PanelMetricPerformanceTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(300))
             root.layoutSubtreeIfNeeded()
             window.displayIfNeeded()
-            let bitmap = try XCTUnwrap(root.bitmapImageRepForCachingDisplay(in: root.bounds))
-            root.cacheDisplay(in: root.bounds, to: bitmap)
-            let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
-            try png.write(to: URL(fileURLWithPath: directory)
-                .appendingPathComponent("panels-\(count)-\(name).png"))
+            let capture = Process()
+            capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+            capture.arguments = ["-x", "-o", "-l", String(window.windowNumber),
+                URL(fileURLWithPath: directory).appendingPathComponent("panels-\(count)-\(name).png").path]
+            try capture.run()
+            try await waitForCondition { !capture.isRunning }
+            XCTAssertEqual(capture.terminationStatus, 0)
         }
     }
 }
