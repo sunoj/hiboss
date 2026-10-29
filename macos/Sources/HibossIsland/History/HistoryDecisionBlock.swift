@@ -46,13 +46,7 @@ struct HistoryDecisionBlock: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             if isOpen {
-                if let option = message.defaultOption {
-                    DecisionDefaultLine(option: option, expiresAt: message.expirationDate, now: .now)
-                }
-                if let deadline = message.expirationDate {
-                    Text(timerInterval: Date.now...max(Date.now, deadline), countsDown: true)
-                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                }
+                HistoryDecisionTiming(option: message.defaultOption, deadline: message.expirationDate)
                 HistoryReplyActions(message: message, reply: reply,
                     answerability: answerability, onChoose: onChoose)
             }
@@ -111,6 +105,24 @@ struct HistoryDecisionBlock: View {
         Task {
             await reply.send(option, for: message.id) { text, _ in await onChoose(text) }
             sendingOption = nil
+        }
+    }
+}
+
+// Keep live-text ranges stable when the composer publishes a draft or submission update.
+// The countdown still advances natively; draft changes must not restart its animation.
+private struct HistoryDecisionTiming: View {
+    let option: String?
+    let deadline: Date?
+    @State private var startedAt = Date()
+
+    var body: some View {
+        if let option {
+            DecisionDefaultLine(option: option, expiresAt: deadline, now: startedAt)
+        }
+        if let deadline {
+            Text(timerInterval: startedAt...max(startedAt, deadline), countsDown: true)
+                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
         }
     }
 }
