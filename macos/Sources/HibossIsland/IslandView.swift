@@ -38,17 +38,6 @@ struct IslandView: View {
     }
 
     var body: some View {
-        if overview.snapshot.today.decisions.isEmpty {
-            islandContent(now: .now)
-        } else {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                islandContent(now: context.date)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func islandContent(now: Date) -> some View {
         let presentation = attention.filteredPresentation(snapshot: overview.snapshot.today,
             active: flow.activeMessage, state: flow.presentationState)
         if case let .resolved(answer, source) = flow.presentationState,
@@ -58,7 +47,7 @@ struct IslandView: View {
         } else if let presentation {
             let message = presentation.message
             VStack(alignment: .leading, spacing: 0) {
-                agentHeader(message, item: presentation.item, now: now)
+                agentHeader(message, item: presentation.item)
                     .padding(.bottom, 12)
                     .reportNaturalHeight(.header)
                 OptionMessageBody(text: message.body, attachment: message.metadata?.attachment)
@@ -139,7 +128,7 @@ struct IslandView: View {
         .background(surfaceShape)
     }
 
-    private func agentHeader(_ message: OptionMessage, item: AttentionItem?, now: Date) -> some View {
+    private func agentHeader(_ message: OptionMessage, item: AttentionItem?) -> some View {
         HStack(spacing: 7) {
             Circle()
                 .fill(Color.green)
@@ -149,11 +138,17 @@ struct IslandView: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                if let item, let caption = IslandAttention.autoDecisionCaption(for: item, now: now) {
-                    Text(caption)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .lineLimit(1)
+                if let item, IslandAttention.autoDecisionCaption(for: item, now: .now) != nil {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        if let caption = IslandAttention.autoDecisionCaption(for: item, now: context.date) {
+                            Text(caption)
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.7))
+                                .lineLimit(1)
+                        } else {
+                            messageContext(message)
+                        }
+                    }
                 } else {
                     messageContext(message)
                 }

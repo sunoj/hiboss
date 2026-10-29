@@ -93,8 +93,8 @@ struct ExpiryProgress: Equatable {
         case urgent
     }
 
-    private static let urgentFraction = 0.15
-    private static let cautionFraction = 0.4
+    static let urgentFraction = 0.15
+    static let cautionFraction = 0.4
 
     /// 1 when the question is fresh, 0 once it has expired.
     func fraction(at now: Date) -> Double {
@@ -117,42 +117,18 @@ struct ExpiryBand: View {
     let surfaceStyle: OptionSurfaceStyle
     @State private var startedAt = Date()
 
-    private static let lineWidth: CGFloat = 1
-
     var body: some View {
         if let expiresAt {
-            let progress = ExpiryProgress(startedAt: startedAt, expiresAt: expiresAt)
-            TimelineView(.animation(minimumInterval: 0.05)) { context in
-                let fraction = progress.fraction(at: context.date)
-                let color = color(for: progress.urgency(at: context.date))
-                band.trim(from: 0, to: fraction)
-                    .stroke(color, style: StrokeStyle(lineWidth: Self.lineWidth, lineCap: .round))
-                    .shadow(color: color.opacity(0.7), radius: 2.5)
-                    .padding(Self.lineWidth / 2)
-                    .allowsHitTesting(false)
-            }
-            .onChange(of: expiresAt) { startedAt = Date() }
-        }
-    }
-
-    private func color(for urgency: ExpiryProgress.Urgency) -> Color {
-        switch urgency {
-        case .urgent: .red
-        case .caution: .orange
-        case .calm: .green
-        }
-    }
-
-    private var band: AnyShape {
-        switch surfaceStyle {
-        case .island: AnyShape(IslandBandPath(bottomRadius: 24))
-        case .window: AnyShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            ExpiryBandLayer(progress: ExpiryProgress(startedAt: startedAt, expiresAt: expiresAt),
+                surfaceStyle: surfaceStyle)
+                .allowsHitTesting(false)
+                .onChange(of: expiresAt) { startedAt = Date() }
         }
     }
 }
 
 /// The island's outline minus its top edge, which sits flush against the menu bar.
-private struct IslandBandPath: Shape {
+struct IslandBandPath: Shape {
     let bottomRadius: CGFloat
 
     func path(in rect: CGRect) -> Path {
