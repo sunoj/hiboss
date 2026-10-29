@@ -45,6 +45,7 @@ struct TodayDecisionCard: View {
         .overlay(RoundedRectangle(cornerRadius: 8)
             .stroke(isSelected ? TodayStyle.signal : TodayStyle.hairline, lineWidth: 1))
         .accessibilityIdentifier("today.decision.\(item.id.rawValue)")
+        .layoutProbe("today.decision.\(item.id.rawValue)")
     }
     private var avatarProject: ProjectIdentity {
         let id = SessionGrouping.sessionKey(for: item.message)

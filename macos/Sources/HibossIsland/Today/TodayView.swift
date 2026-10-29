@@ -57,7 +57,7 @@ struct TodayView: View {
 
     private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            LazyVStack(alignment: .leading, spacing: 24) {
                 TodaySummary(snapshot: snapshot.today, now: snapshot.now, isRefreshing: isRefreshing)
                 if snapshot.today.isAllClear { TodayScene() }
                 if !snapshot.today.decisions.isEmpty { decisions }
@@ -79,7 +79,7 @@ struct TodayView: View {
     }
 
     private var decisions: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        LazyVStack(alignment: .leading, spacing: 12) {
             Text(L("Your call")).font(.headline)
             ForEach(snapshot.today.decisions) { item in
                 TodayDecisionCard(item: item, now: snapshot.now, isSelected: selection == item.id,

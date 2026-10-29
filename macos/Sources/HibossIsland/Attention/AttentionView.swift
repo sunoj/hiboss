@@ -66,7 +66,10 @@ struct AttentionWorkspace: View {
     private static let splitMinimumWidth: CGFloat = 720
 
     private var sections: [AttentionGroupItems] {
-        AttentionModel.grouped(from: items.map(\.message), now: now)
+        AttentionGroup.allCases.compactMap { group in
+            let members = items.filter { $0.group == group }
+            return members.isEmpty ? nil : AttentionGroupItems(group: group, items: members)
+        }
     }
 
     private var selectedItem: AttentionItem? {

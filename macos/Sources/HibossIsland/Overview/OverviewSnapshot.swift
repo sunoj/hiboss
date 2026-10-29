@@ -59,6 +59,9 @@ struct OverviewSnapshot {
     let now: Date
     let today: TodaySnapshot
     let answerability: AnswerableDecisions
+    private let sessionMessages: [String: [HistoryMessage]]
+    private let categoryMessages: [OverviewCategory: [HistoryMessage]]
+    private let categoryAttention: [OverviewCategory: [AttentionItem]]
 
     init(history: [HistoryMessage], live: OptionMessage?, now: Date,
          health: TodayHealth = .loading, coverageComplete: Bool = false,
@@ -80,11 +83,25 @@ struct OverviewSnapshot {
         self.answerability = AnswerableDecisions(isLoaded: requiredInputLoaded,
             openIDs: Set(today.decisions.map(\.id)), closedIDs: closedDecisionIDs)
         self.sessions = SessionGrouping.groupBySession(self.history)
+        self.sessionMessages = Dictionary(grouping: self.history, by: SessionGrouping.sessionKey(for:))
+        let decisions = self.today.decisions
+        let attentionByCategory = Dictionary(uniqueKeysWithValues: OverviewCategory.allCases.map { category in
+            (category, decisions.filter { Self.includes($0, in: category) })
+        })
+        self.categoryAttention = attentionByCategory
+        var categories = attentionByCategory.mapValues { $0.map(\.message) }
+        categories[.all] = self.history
+        categories[.completed] = self.history.filter { Self.isCompleted($0, at: now) }
+        self.categoryMessages = categories
         self.now = now
     }
 
     func count(_ category: OverviewCategory) -> Int {
-        messages(for: .category(category)).count
+        categoryMessages[category]?.count ?? 0
+    }
+
+    func attention(for category: OverviewCategory) -> [AttentionItem] {
+        categoryAttention[category] ?? []
     }
 
     func messages(for destination: OverviewDestination) -> [HistoryMessage] {
@@ -94,20 +111,19 @@ struct OverviewSnapshot {
         case .deviceRequests, .box, .progress:
             return []
         case let .session(id):
-            return history.filter { SessionGrouping.sessionKey(for: $0) == id }
-        case let .category(category) where category.isAttention:
-            return attention.filter {
-                if category == .urgent { return $0.priorityRank < 2 }
-                if category == .waiting {
-                    return $0.group == .waitingOnYou || ($0.group == .priority && $0.priorityRank == 2)
-                }
-                return category.group == nil || $0.group == category.group
-            }.map(\.message)
-        case .category(.completed):
-            return history.filter { Self.isCompleted($0, at: now) }
-        default:
-            return history
+            return sessionMessages[id] ?? []
+        case let .category(category):
+            return categoryMessages[category] ?? []
         }
+    }
+
+    private static func includes(_ item: AttentionItem, in category: OverviewCategory) -> Bool {
+        guard category.isAttention else { return false }
+        if category == .urgent { return item.priorityRank < 2 }
+        if category == .waiting {
+            return item.group == .waitingOnYou || (item.group == .priority && item.priorityRank == 2)
+        }
+        return category.group == nil || item.group == category.group
     }
 
     func title(for destination: OverviewDestination) -> String {
