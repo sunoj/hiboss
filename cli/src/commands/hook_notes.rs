@@ -2,6 +2,7 @@
 // Exports refresh, announce, due and claim using private per-session state files.
 use crate::{client::HiBossClient, session};
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 
 const CHECK: &str = "note-check";
 const PENDING: &str = "note-pending";
@@ -45,19 +46,23 @@ fn should_announce(pending: &Pending, previous: &Announcement, now: u64) -> bool
 }
 
 pub(super) fn announce(now: u64) {
+    let _ = announce_to(now, &mut std::io::stdout());
+}
+
+pub(super) fn announce_to(now: u64, output: &mut impl Write) -> std::io::Result<()> {
     let Some(pending) =
         session::read_state(PENDING).and_then(|text| serde_json::from_str::<Pending>(&text).ok())
     else {
-        return;
+        return Ok(());
     };
     if session::read_session_id().as_deref() != Some(pending.session.as_str()) {
-        return;
+        return Ok(());
     }
     let previous = session::read_state(ANNOUNCED)
         .and_then(|text| serde_json::from_str::<Announcement>(&text).ok())
         .unwrap_or_default();
     if !should_announce(&pending, &previous, now) {
-        return;
+        return Ok(());
     }
     let notice = Announcement {
         session: pending.session,
@@ -65,14 +70,16 @@ pub(super) fn announce(now: u64) {
         at: now,
     };
     let Ok(content) = serde_json::to_string(&notice) else {
-        return;
+        return Ok(());
     };
     if session::write_state(ANNOUNCED, &content).is_ok() {
-        println!(
+        writeln!(
+            output,
             "BOSS NOTE (留言): the boss left {} note(s) for this session. Read them now: hiboss note read",
             notice.ids.len()
-        );
+        )?;
     }
+    Ok(())
 }
 
 #[cfg(test)]

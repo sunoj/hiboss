@@ -22,7 +22,10 @@ Messages reach the agent through four layers:
 
 - MCP `notifications/message` is filtered by Claude Code — displayed in terminal for human but NOT injected into agent context. Server→client push via MCP is not viable for agent notification.
 - All boss→agent notification must go through hooks (stdout injection as `<system-reminder>`) or tool call responses.
-- Hook stdout output enters agent context; MCP notifications do not.
+- SessionStart plain stdout enters agent context. PostToolUse plain stdout only enters the
+  transcript; model-visible text must be JSON in `hookSpecificOutput.additionalContext` with
+  `hookSpecificOutput.hookEventName` set to `PostToolUse`. An idle PostToolUse emits nothing.
+  The Codex adapter passes PostToolUse JSON through unchanged; MCP notifications do not enter context.
 - hiboss core users are Claude Code main agents orchestrating via aid CLI.
 - Sub-agents (codex, gemini, etc.) report to main agent via aid, not hiboss.
 

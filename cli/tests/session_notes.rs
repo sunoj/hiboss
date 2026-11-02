@@ -129,20 +129,21 @@ fn bg_check_writes_private_ids_and_post_tool_use_announces_without_http() {
     assert_eq!(requests.iter().filter(|r| r.path.contains("/notes?")).count(), 1);
     prime_ttls(&dir);
     let first = fixture.run(&fixture.repo, &["hook", "post-tool-use"], ENV);
-    assert!(first.stdout.contains("BOSS NOTE (留言): the boss left 1 note(s)"));
+    assert_eq!(first.code, 0, "{}", first.stderr);
+    assert!(hook_context(&first.stdout).contains("BOSS NOTE (留言): the boss left 1 note(s)"));
     let second = fixture.run(&fixture.repo, &["hook", "post-tool-use"], ENV);
-    assert!(!second.stdout.contains("BOSS NOTE"));
+    assert_eq!(second.stdout, "");
     let mut announced: Value = serde_json::from_str(&read(&dir.join("note-announced"))).expect("notice");
     announced["at"] = json!(0);
     write_private(&dir.join("note-announced"), &announced.to_string());
     let repeat = fixture.run(&fixture.repo, &["hook", "post-tool-use"], ENV);
-    assert!(repeat.stdout.contains("BOSS NOTE"));
+    assert!(hook_context(&repeat.stdout).contains("BOSS NOTE"));
     write_private(
         &pending,
         &json!({"session": "foreign", "ids": ["new"]}).to_string(),
     );
     let stale = fixture.run(&fixture.repo, &["hook", "post-tool-use"], ENV);
-    assert!(!stale.stdout.contains("BOSS NOTE"));
+    assert_eq!(stale.stdout, "");
 }
 
 #[test]
@@ -181,4 +182,59 @@ fn session_start_also_announces_pending_notes() {
     let result = fixture.run(&fixture.repo, &["hook", "session-start"], ENV);
     assert_eq!(result.code, 0, "{}", result.stderr);
     assert!(result.stdout.contains("BOSS NOTE (留言)"));
+}
+
+fn hook_context(stdout: &str) -> String {
+    let output: Value = serde_json::from_str(stdout)
+        .unwrap_or_else(|error| panic!("invalid hook JSON: {error}; stdout: {stdout:?}"));
+    assert_eq!(output["hookSpecificOutput"]["hookEventName"], "PostToolUse");
+    output["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("context text")
+        .to_owned()
+}
+
+#[test]
+fn post_tool_use_emits_one_context_for_all_local_notices_then_stays_silent() {
+    let fixture = Fixture::new("repo", "http://127.0.0.1:1");
+    let dir = prepare(&fixture);
+    prime_ttls(&dir);
+    write_private(
+        &dir.join("daemon.pending"),
+        &format!(
+            "{}\n",
+            json!({
+                "id": "message-1", "body": "quote \" and newline\nmessage", "agent_name": "Boss"
+            })
+        ),
+    );
+    write_private(&dir.join("urgent"), "URGENT: boss\nPEER MESSAGE: peer\n");
+    write_private(&dir.join("peers-active"), "1");
+    let first = fixture.run(&fixture.repo, &["hook", "post-tool-use"], ENV);
+    assert_eq!(first.code, 0, "{}", first.stderr);
+    let context = hook_context(&first.stdout);
+    for expected in [
+        "REAL-TIME:",
+        "quote \" and newline\nmessage",
+        "URGENT:",
+        "PEER MESSAGE:",
+        "BROADCAST REMINDER:",
+    ] {
+        assert!(context.contains(expected), "{context:?}");
+    }
+    // Each notice starts on its own line; trimmed urgent text must not glue to the next.
+    assert!(context.contains("PEER MESSAGE: peer\nBROADCAST REMINDER:"), "{context:?}");
+    let second = fixture.run(&fixture.repo, &["hook", "post-tool-use"], ENV);
+    assert_eq!(second.code, 0, "{}", second.stderr);
+    assert_eq!(second.stdout, "");
+}
+
+#[test]
+fn post_tool_use_with_nothing_pending_has_empty_stdout() {
+    let fixture = Fixture::new("repo", "http://127.0.0.1:1");
+    let dir = prepare(&fixture);
+    prime_ttls(&dir);
+    let result = fixture.run(&fixture.repo, &["hook", "post-tool-use"], ENV);
+    assert_eq!(result.code, 0, "{}", result.stderr);
+    assert_eq!(result.stdout, "");
 }

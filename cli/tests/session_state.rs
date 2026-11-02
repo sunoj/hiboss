@@ -166,7 +166,10 @@ fn post_tool_use_drains_only_its_own_profiles_spool() {
     assert!(!other.stdout.contains("ship it"), "{}", other.stdout);
     let own = claude(&fixture, &["hook", "post-tool-use"], "claude");
     assert_eq!(own.code, 0, "{}", own.stderr);
-    assert!(own.stdout.contains("[boss] boss (msg-boss): ship it"), "{}", own.stdout);
+    let output: serde_json::Value = serde_json::from_str(&own.stdout).expect("hook JSON");
+    assert_eq!(output["hookSpecificOutput"]["hookEventName"], "PostToolUse");
+    assert!(output["hookSpecificOutput"]["additionalContext"].as_str()
+        .is_some_and(|text| text.contains("[boss] boss (msg-boss): ship it")));
     assert!(!spool.exists(), "the spool was drained");
     let marked = |paths: Vec<String>| paths.iter().any(|path| path.contains("msg-boss-0001"));
     assert!(wait_until(|| marked(http.paths())), "bg-check marks the shown message read");
