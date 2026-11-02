@@ -10,6 +10,10 @@ extension XCUIApplication {
     /// into every later process — including XCTest — and would push the session
     /// transcript over Inbox / Resolved / Progress unless we blank the unused keys.
     private static let demoRouteKeys = [
+        "HIBOSS_DEMO_NOTE_VIEWER",
+        "HIBOSS_DEMO_NOTE_FAILS",
+        "HIBOSS_DEMO_NOTE_DELAY_MS",
+        "HIBOSS_DEMO_NOTES_NO_MESSAGES",
         "HIBOSS_DEMO_OPEN",
         "HIBOSS_DEMO_RETIRED_ID",
         "HIBOSS_DEMO_NOTIFICATION_OPEN",

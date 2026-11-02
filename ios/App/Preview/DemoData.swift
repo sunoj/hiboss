@@ -20,6 +20,7 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
     @unchecked Sendable {
     var messages: [HistoryMessage]
     var sessionFetchCount = 0
+    var sessionNotes: [String: [SessionNote]] = [:]
 
     init() {
         messages = ProcessInfo.processInfo.environment["HIBOSS_DEMO_TEXT_ASK"] == "1"
