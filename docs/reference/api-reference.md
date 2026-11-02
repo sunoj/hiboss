@@ -39,7 +39,8 @@ including viewers; `GET /api/sessions/:id/notes/:noteId/images/:index` allows on
 the owning agent. Both return image bytes with their type and
 `Cache-Control: private, max-age=3600`; inaccessible sessions, wrong note/session
 pairs and absent indices return 404. `/api/attachments/notes/*` GET/HEAD returns 404. Notes move only
-from pending to read and never trigger message delivery, notifications or inbox entries.
+from pending to read. Creating a note never triggers message delivery, notifications or
+inbox entries; agent replies use ordinary message delivery.
 
 ## Message Endpoints
 

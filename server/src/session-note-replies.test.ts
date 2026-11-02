@@ -70,7 +70,7 @@ it('rejects peer targets, asks, missing sessions and non-text replies before ins
     .bind(created.id).first()).toEqual({ status: 'pending', read_at: null });
 });
 
-it('retries one ordinary message and link, marks read once, and returns ordered displayable replies', async () => {
+it('retries one message and link, marks read once, and returns ordered displayable replies', async () => {
   const created = await note();
   const first = await send(created.id, { idempotency_key: 'note-reply-retry' });
   expect(first.status).toBe(201);
@@ -86,7 +86,9 @@ it('retries one ordinary message and link, marks read once, and returns ordered 
   expect(state?.read_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   await env.DB.prepare("UPDATE session_notes SET read_at = '2000-01-01 00:00:00' WHERE id = ?")
     .bind(created.id).run();
-  const second = await send(created.id, { metadata: { note_id: created.id, content: 'Full\nMarkdown text' } });
+  const second = await send(created.id, {
+    metadata: { note_id: created.id, content: 'Full\nMarkdown text' },
+  });
   expect(second.status).toBe(201);
   const secondId = (await second.json<{ id: string }>()).id;
   for (const [path, token] of [
@@ -96,8 +98,10 @@ it('retries one ordinary message and link, marks read once, and returns ordered 
     const returned = listing.notes.find(n => n.id === created.id);
     expect(returned?.read_at).toBe('2000-01-01 00:00:00');
     expect(returned?.replies).toEqual([
-      { message_id: receipt.id, body: 'Reply title', agent_name: 'note-replier', created_at: expect.any(String) },
-      { message_id: secondId, body: 'Full\nMarkdown text', agent_name: 'note-replier', created_at: expect.any(String) },
+      { message_id: receipt.id, body: 'Reply title', agent_name: 'note-replier',
+        created_at: expect.any(String) },
+      { message_id: secondId, body: 'Full\nMarkdown text', agent_name: 'note-replier',
+        created_at: expect.any(String) },
     ]);
   }
   const pending = await (await request(`/sessions/${session}/notes`, agent.token)).json<{ notes: Note[] }>();
