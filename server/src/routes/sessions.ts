@@ -229,7 +229,8 @@ routes.delete('/:id', async (c) => {
       WHERE parent_session_id IN (${ownedSession})`).bind(sessionId, agentId),
     db.prepare(`DELETE FROM sessions WHERE id = ? AND agent_id = ?
       AND NOT EXISTS (SELECT 1 FROM panels WHERE panels.session_id = sessions.id)
-      AND NOT EXISTS (SELECT 1 FROM session_notes WHERE session_notes.session_id = sessions.id)`).bind(sessionId, agentId),
+      AND NOT EXISTS (SELECT 1 FROM session_notes WHERE session_notes.session_id = sessions.id)`)
+      .bind(sessionId, agentId),
   ]);
   await announceSessionAsks(c.env, (expired.results ?? []) as MessageRow[]);
   return c.json({ ok: true });
