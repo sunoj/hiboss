@@ -89,9 +89,11 @@ private struct SessionNoteComposer: View {
                     .lineLimit(6...12).textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("session-note-body").disabled(sending)
                     .onChange(of: bodyText) { _, value in
-                        if value.count > 4000 { bodyText = String(value.prefix(4000)) }
+                        if value.unicodeScalars.count > 4000 {
+                            bodyText = String(String.UnicodeScalarView(value.unicodeScalars.prefix(4000)))
+                        }
                     }
-                Text(verbatim: "\(bodyText.count) / 4000").font(.caption).foregroundStyle(Theme.ink2)
+                Text(verbatim: "\(bodyText.unicodeScalars.count) / 4000").font(.caption).foregroundStyle(Theme.ink2)
                 if let error { Text(verbatim: error).foregroundStyle(Theme.ink2) }
                 Spacer()
                 Button(action: send) {
@@ -110,7 +112,7 @@ private struct SessionNoteComposer: View {
     }
 
     private func send() {
-        guard !sending, !trimmed.isEmpty, trimmed.count <= 4000 else { return }
+        guard !sending, !trimmed.isEmpty, trimmed.unicodeScalars.count <= 4000 else { return }
         if attempt?.body != trimmed { attempt = (trimmed, UUID().uuidString) }
         guard let attempt else { return }
         sending = true
