@@ -104,6 +104,11 @@ final class SessionBubblesUITests: XCTestCase {
         app.terminate()
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_EMPTY": "1"])
         app.launchConfiguredDemo()
+        let mode = app.buttons["session-composer-mode"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textFields["session-note-body"].exists)
+        mode.tap()
+        app.buttons["Replying to: Deployment to staging complete. All 214 tests green."].tap()
         XCTAssertTrue(label.waitForExistence(timeout: 10))
         XCTAssertEqual(label.label, "Replying to: Deployment to staging complete. All 214 tests green.")
         keepReplyScreenshot("en-\(appearance.lowercased())-ordinary-reply")

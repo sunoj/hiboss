@@ -209,10 +209,10 @@ final class SessionsV4UITests: XCTestCase {
 
     func testReplyWithoutAnAgentMessageIsDisabledWithAnExplanation() {
         let app = launch(extra: ["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_TEXT_ASK": "1"])
-        XCTAssertTrue(app.staticTexts["No eligible agent message. Resolved decisions cannot receive replies."]
-            .waitForExistence(timeout: 10))
-        XCTAssertFalse(app.buttons["Send reply"].isEnabled)
-        XCTAssertFalse(app.buttons["Attach from Box"].isEnabled)
+        XCTAssertTrue(app.textFields["session-note-body"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["session-composer-mode"].label.contains("Leave a note for session"))
+        XCTAssertFalse(app.buttons["send-session-note"].isEnabled)
+        XCTAssertTrue(app.buttons["Add images"].isEnabled)
     }
 
     func testBoxFiltersAndSearchIncludeOlderPages() {

@@ -23,9 +23,8 @@ extension DemoBossAPI: SessionNotesServing {
                         createdAt: "2026-11-02 09:00:00", readAt: "2026-11-02 09:05:00",
                         replies: [
                             SessionNoteReply(messageID: "reply-1", body: "The small rollout is underway.",
-                                             agentName: "worker-deploy", createdAt: "2026-11-02 09:06:00"),
-                            SessionNoteReply(messageID: "reply-2", body: "All health checks are passing.",
-                                             agentName: "worker-deploy", createdAt: "2026-11-02 09:07:00")
+                                             agentName: "worker-deploy", createdAt: "2026-11-02 09:06:00")
+
                         ])
         ]
         sessionNotes[sessionID] = notes

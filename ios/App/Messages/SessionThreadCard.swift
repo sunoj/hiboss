@@ -9,6 +9,8 @@ struct SessionConversation: View {
     @ObservedObject var store: InboxStore
     let sessionAgent: String?
     let onChoose: (String, MessageID) -> Void
+    var notes: [SessionNote] = []
+    var notesAPI: (any SessionNotesServing)?
 
     private var layout: SessionThreads {
         SessionThreads(messages: messages, isOpen: { store.answerability(for: $0) == .open })
@@ -30,10 +32,28 @@ struct SessionConversation: View {
                         inSameDayAs: presentation.conversation[index - 1].lastActivity) {
                         dayLabel(card.lastActivity)
                     }
-                    SessionThreadCard(card: card, store: store)
+                    noteRows(before: card.lastActivity,
+                             after: index == 0 ? .distantFuture
+                                : presentation.conversation[index - 1].lastActivity)
+                    SessionThreadCard(card: card, store: store, notes: notes)
                 }
             }
+            noteRows(before: .distantPast,
+                     after: presentation.conversation.last?.lastActivity ?? .distantFuture)
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private func noteRows(before: Date, after: Date) -> some View {
+        if let notesAPI {
+            ForEach(notes.filter {
+                let date = ISODate.parse($0.createdAt) ?? .distantPast
+                return date >= before && date < after
+            }.sorted {
+                (ISODate.parse($0.createdAt) ?? .distantPast) > (ISODate.parse($1.createdAt) ?? .distantPast)
+            }) { note in
+                SessionNoteBubble(note: note, api: notesAPI)
+            }
+        }
     }
 
     @ViewBuilder private func pendingThread(_ thread: MessageThread) -> some View {
@@ -84,6 +104,7 @@ struct SessionConversation: View {
 struct SessionThreadCard: View {
     let card: SessionThreads.Card
     @ObservedObject var store: InboxStore
+    var notes: [SessionNote] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -149,6 +170,10 @@ struct SessionThreadCard: View {
 
     private func messageRow(_ message: HistoryMessage) -> some View {
         VStack(alignment: .leading, spacing: 6) {
+            if let quote = SessionNoteQuote.text(for: message.id.rawValue, notes: notes) {
+                Text("Reply to note: \(quote)").font(.caption).foregroundStyle(Theme.ink2)
+                    .lineLimit(1).accessibilityIdentifier("session-note-quote")
+            }
             Text(verbatim: message.body).font(.subheadline).textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
             if let attachment = message.metadata?.attachment {

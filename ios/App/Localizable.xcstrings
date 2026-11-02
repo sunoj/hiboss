@@ -1,12 +1,54 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "New note replies": {
-      "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "New note replies" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "有新的留言回复" } }
+    "Reply to note: %@": {
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Reply to note: %@"
       }
     },
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "回复留言：%@"
+      }
+    }
+  }
+},
+    "Reply: %@": {
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Reply: %@"
+      }
+    },
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "回复：%@"
+      }
+    }
+  }
+},
+    "Leave a note for session": {
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Leave a note for session"
+      }
+    },
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "留言给会话"
+      }
+    }
+  }
+},
     "Add images": {
       "localizations": {
         "en": {
@@ -117,57 +159,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "写下留言…"
-          }
-        }
-      }
-    },
-    "No notes yet": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No notes yet"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "暂无留言"
-          }
-        }
-      }
-    },
-    "Leave a note": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leave a note"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "留言"
-          }
-        }
-      }
-    },
-    "Session notes": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Session notes"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "会话留言"
           }
         }
       }

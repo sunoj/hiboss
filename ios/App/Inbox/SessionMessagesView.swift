@@ -18,8 +18,9 @@ struct SessionMessagesView: View {
     private var hasLoaded: Bool { stream.didLoad || stream.usesHistory }
     @State private var actionNote: String?
     @State private var showsHistory = false
-    @State private var showsNotes = false
-    @State private var hasNoteReplies = false
+    @State private var notes: [SessionNote] = []
+    @State private var canCreateNotes = false
+    @State private var notesError: String?
     @State private var jumpToLatestRequest = 0
 
     init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore,
@@ -41,17 +42,13 @@ struct SessionMessagesView: View {
         .background(Theme.paper)
         .safeAreaInset(edge: .bottom) {
             SessionReplyComposer(targets: SessionReplyTarget.eligible(events: transcriptEvents, store: store),
-                                 store: store)
+                                 store: store, sessionID: route.id, canCreateNotes: canCreateNotes,
+                                 onNoteSent: { _ in Task { await refreshNotes() } })
         }
         .navigationTitle(Text(verbatim: facts.session?.namedLabel ?? route.label))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(showsHistory ? .visible : .hidden, for: .tabBar)
         .toolbar { historyToolbar }
-        .navigationDestination(isPresented: $showsNotes) {
-            if let notesAPI = store.api as? any SessionNotesServing {
-                SessionNotesView(sessionID: route.id, api: notesAPI)
-            }
-        }
         .navigationDestination(isPresented: $showsHistory) {
             MessagesView(store: store, sessionID: route.id).navigationTitle("Messages")
                 .toolbar(.visible, for: .tabBar)
@@ -61,28 +58,31 @@ struct SessionMessagesView: View {
     private var observedTranscript: some View {
         connectedTranscript
         .task(id: route.id) {
-            await refreshNoteReplies()
+            await refreshNotes()
             if let api { stream.start(api: api) }
             if route.id != SessionGrouping.directSessionID {
                 await facts.load(id: route.id, api: store.api as? any SessionsServing)
             }
         }
-        .onDisappear { stream.stop() }
-        .onChange(of: showsNotes) { _, showing in
-            if showing { hasNoteReplies = false }
-            else { Task { await refreshNoteReplies() } }
+        .task(id: route.id) {
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(15)) } catch { return }
+                await refreshNotes()
+            }
         }
+        .onDisappear { stream.stop() }
         .onChange(of: store.replyConfirmation) { _, confirmation in
             if confirmation != nil { Task { await stream.refresh() } }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 stream.resumeFromForeground()
-                Task { await refreshNoteReplies() }
+                Task { await refreshNotes() }
             }
         }
         .refreshable {
             await stream.refresh()
+            await refreshNotes()
             if route.id != SessionGrouping.directSessionID {
                 await facts.load(id: route.id, api: store.api as? any SessionsServing)
             }
@@ -93,18 +93,6 @@ struct SessionMessagesView: View {
     private var historyToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             HStack {
-                if route.id != SessionGrouping.directSessionID, store.api is any SessionNotesServing {
-                    Button("Leave a note", systemImage: "note.text") { showsNotes = true }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .overlay(alignment: .topTrailing) {
-                            if hasNoteReplies {
-                                Circle().fill(Theme.ink).frame(width: 6, height: 6)
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                        .accessibilityValue(hasNoteReplies ? Text("New note replies") : Text(""))
-                        .accessibilityIdentifier("session-notes")
-                }
                 Button {
                     showsHistory = true
                 } label: {
@@ -115,13 +103,14 @@ struct SessionMessagesView: View {
         }
     }
 
-    private func refreshNoteReplies() async {
-        guard route.id != SessionGrouping.directSessionID,
-              let api = store.api as? any SessionNotesServing else { return }
+    private func refreshNotes() async {
+        guard let api = store.api as? any SessionNotesServing else { return }
         do {
-            let notes = try await api.listSessionNotes(sessionID: route.id)
-            hasNoteReplies = !showsNotes && SessionNoteReadState.hasNewReplies(notes, sessionID: route.id)
-        } catch { }
+            canCreateNotes = try await api.canCreateSessionNotes()
+            guard route.id != SessionGrouping.directSessionID else { return }
+            notes = try await api.listSessionNotes(sessionID: route.id)
+            notesError = nil
+        } catch { notesError = error.localizedDescription }
     }
 
     var body: some View {
@@ -153,7 +142,7 @@ struct SessionMessagesView: View {
         ListStateView(
             isLoading: !stream.usesHistory && (!hasLoaded || stream.isLoading),
             error: stream.loadError ?? (stream.usesHistory ? nil : stream.connectionState.detail),
-            isEmpty: transcriptEvents.isEmpty && !stream.usesHistory,
+            isEmpty: transcriptEvents.isEmpty && notes.isEmpty && !stream.usesHistory,
             emptyIcon: "text.alignleft", emptyTitle: String(localized: "No events yet"),
             emptyDetail: String(localized: "This session has no transcript events yet."),
             loadingTitle: String(localized: "Loading transcript…"),
@@ -168,12 +157,17 @@ struct SessionMessagesView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     transcriptContext
+                    if let notesError {
+                        Text(verbatim: notesError).font(.footnote).foregroundStyle(Theme.ink2)
+                        RetryButton { await refreshNotes() }
+                    }
                     if stream.hasEarlier {
                         earlierEvents
                     }
                     SessionConversation(messages: SessionThreadMessages.messages(
                         sessionID: route.id, history: store.history, events: transcriptEvents),
-                        store: store, sessionAgent: sessionAgent, onChoose: handleReply)
+                        store: store, sessionAgent: sessionAgent, onChoose: handleReply,
+                        notes: notes, notesAPI: store.api as? any SessionNotesServing)
                         .id("conversation-start")
                     ForEach(SessionTranscriptLayout.items(from: transcriptEvents.filter {
                         $0.kind != "message"
