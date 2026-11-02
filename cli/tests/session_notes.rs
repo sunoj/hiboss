@@ -241,5 +241,5 @@ fn post_tool_use_with_nothing_pending_has_empty_stdout() {
 
 #[path = "session_notes_images/mod.rs"]
 mod images;
-#[path = "session_notes_replies.rs"]
+#[path = "session_notes_replies/mod.rs"]
 mod replies;
