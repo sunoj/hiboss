@@ -53,7 +53,7 @@ final class SessionsV4UITests: XCTestCase {
         let enabled = NSPredicate(format: "isEnabled == true")
         XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: enabled,
             evaluatedWith: app.textFields["session-reply-draft"])], timeout: 25), .completed)
-        XCTAssertTrue(target.label.hasPrefix("Custom answer to:"))
+        XCTAssertTrue(target.label.hasPrefix("Reply:"))
     }
 
     func testTodayShowsLoadingBeforeRequiredInputsLoad() {

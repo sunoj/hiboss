@@ -46,8 +46,8 @@ struct SessionReplyComposer: View {
     var body: some View {
         if canCreateNotes {
             VStack(alignment: .leading, spacing: 4) {
-                modePicker
                 if noteMode, let api = store.api as? any SessionNotesServing {
+                    modePicker
                     SessionNoteComposer(sessionID: sessionID, api: api, onSent: onNoteSent)
                 } else {
                     replyControls
@@ -84,6 +84,7 @@ struct SessionReplyComposer: View {
             }
             if let note { Text(verbatim: note).font(.footnote).foregroundStyle(Theme.ink2) }
             HStack(alignment: .bottom, spacing: 8) {
+                modePicker
                 Button { picking = true } label: {
                     Image(systemName: "plus").frame(minWidth: 44, minHeight: 44)
                 }.accessibilityLabel("Attach from Box")
@@ -121,10 +122,12 @@ struct SessionReplyComposer: View {
         } label: {
             HStack {
                 if noteMode { Text("Leave a note for session") }
-                else { Text("Reply: \(target?.text ?? "")") }
                 Image(systemName: "chevron.up.chevron.down")
-            }.font(.footnote).lineLimit(1).frame(minHeight: 44)
-        }.accessibilityIdentifier("session-composer-mode")
+            }.font(.footnote).lineLimit(1).frame(minWidth: 44, minHeight: 44)
+        }
+        .accessibilityLabel(noteMode ? String(localized: "Leave a note for session")
+                            : String(localized: "Choose reply target"))
+        .accessibilityIdentifier("session-composer-mode")
     }
 
     private var targetLabel: some View {
@@ -134,7 +137,7 @@ struct SessionReplyComposer: View {
             } else if !store.requiredInputLoaded {
                 Text("Checking…")
             } else if let target {
-                Text(verbatim: target.label)
+                Text("Reply: \(target.text)")
             } else if replyDraft.pinned != nil {
                 Text("This draft's target is unavailable. Discard it or choose a newer message.")
             } else {

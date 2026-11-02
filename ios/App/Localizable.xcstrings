@@ -1,6 +1,12 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Choose reply target": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Choose reply target" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择回复对象" } }
+      }
+    },
     "Reply to note: %@": {
   "localizations": {
     "en": {

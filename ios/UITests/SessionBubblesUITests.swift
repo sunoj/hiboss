@@ -98,7 +98,7 @@ final class SessionBubblesUITests: XCTestCase {
         app.launchConfiguredDemo()
         let label = app.staticTexts["session-reply-target"]
         XCTAssertTrue(label.waitForExistence(timeout: 10))
-        XCTAssertEqual(label.label, "Custom answer to: Production deploy will DROP 3 history tables "
+        XCTAssertEqual(label.label, "Reply: Production deploy will DROP 3 history tables "
                        + "(orders_2023 +2), irreversible. Run migration?")
         keepReplyScreenshot("en-\(appearance.lowercased())-custom-answer")
         app.terminate()
@@ -110,7 +110,7 @@ final class SessionBubblesUITests: XCTestCase {
         mode.tap()
         app.buttons["Replying to: Deployment to staging complete. All 214 tests green."].tap()
         XCTAssertTrue(label.waitForExistence(timeout: 10))
-        XCTAssertEqual(label.label, "Replying to: Deployment to staging complete. All 214 tests green.")
+        XCTAssertEqual(label.label, "Reply: Deployment to staging complete. All 214 tests green.")
         keepReplyScreenshot("en-\(appearance.lowercased())-ordinary-reply")
     }
 
@@ -160,7 +160,7 @@ final class SessionBubblesUITests: XCTestCase {
         let label = app.staticTexts["session-reply-target"]
         XCTAssertTrue(label.waitForExistence(timeout: 10))
         let original = label.label
-        XCTAssertTrue(original.hasPrefix("Custom answer to:"))
+        XCTAssertTrue(original.hasPrefix("Reply:"))
         let field = app.textFields["session-reply-draft"]
         field.tap()
         field.typeText("Keep this draft")
@@ -169,7 +169,7 @@ final class SessionBubblesUITests: XCTestCase {
         XCTAssertEqual(label.label, original)
         XCTAssertEqual(field.value as? String, "Keep this draft")
         switchTarget.tap()
-        XCTAssertEqual(label.label, "Replying to: A newer release update.")
+        XCTAssertEqual(label.label, "Reply: A newer release update.")
         XCTAssertEqual(field.value as? String, "Keep this draft")
         app.buttons["Send reply"].tap()
         XCTAssertTrue(app.staticTexts["reply-confirmation"].waitForExistence(timeout: 10))
@@ -187,7 +187,7 @@ final class SessionBubblesUITests: XCTestCase {
         app.launchConfiguredDemo()
         let label = app.staticTexts["session-reply-target"]
         XCTAssertTrue(label.waitForExistence(timeout: 10))
-        XCTAssertTrue(label.label.hasPrefix("自定义回答："))
+        XCTAssertTrue(label.label.hasPrefix("回复："))
         app.terminate()
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_EMPTY": "1"])
         app.launchConfiguredDemo()
@@ -197,7 +197,7 @@ final class SessionBubblesUITests: XCTestCase {
         mode.tap()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "回复对象：")).firstMatch.tap()
         XCTAssertTrue(label.waitForExistence(timeout: 10))
-        XCTAssertTrue(label.label.hasPrefix("回复对象："))
+        XCTAssertTrue(label.label.hasPrefix("回复："))
     }
 
     private func keepReplyScreenshot(_ name: String) {
