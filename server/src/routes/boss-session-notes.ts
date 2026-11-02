@@ -1,6 +1,7 @@
 // Boss note creation and history with exact session authorization.
 // Exports bossNotesRouter; depends on shared boss access and note storage.
 import { Hono, type Context } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { getAccessibleAgentIds } from './boss-api-access';
@@ -9,6 +10,10 @@ import { noteImage, withImages } from './note-images';
 import { createNote } from './note-create';
 
 const routes = new Hono<{ Bindings: Env }>();
+routes.onError((error) => {
+  if (error instanceof HTTPException) return error.getResponse();
+  throw error;
+});
 routes.use('/sessions/:id/notes', bossAuth);
 routes.use('/sessions/:id/notes/*', bossAuth);
 async function sessionAgent(c: Context<{ Bindings: Env }>): Promise<string | null> {

@@ -73,7 +73,7 @@ it('rejects bosses without access, wrong note/session pairing, foreign agents an
 });
 
 it('rejects spoofed types, unsupported images, excessive size/count and empty notes', async () => {
-  const file = (bytes: Uint8Array, type: string) => new File([bytes], 'image', { type });
+  const file = (bytes: Uint8Array<ArrayBuffer>, type: string) => new File([bytes], 'image', { type });
   expect((await upload([file(new Uint8Array([1, 2, 3]), 'image/png')])).status).toBe(400);
   expect((await upload([file(png, 'image/jpeg')])).status).toBe(400);
   expect((await upload([file(png, 'image/svg+xml')])).status).toBe(400);
@@ -85,7 +85,7 @@ it('rejects spoofed types, unsupported images, excessive size/count and empty no
 });
 
 it('accepts all five declared signatures and preserves image order', async () => {
-  const signatures: [string, Uint8Array][] = [
+  const signatures: [string, Uint8Array<ArrayBuffer>][] = [
     ['image/jpeg', new Uint8Array([255, 216, 255])],
     ['image/gif', new TextEncoder().encode('GIF89a')],
     ['image/webp', new TextEncoder().encode('RIFF0000WEBP')],

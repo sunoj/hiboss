@@ -77,7 +77,7 @@ export async function noteImage(c: Context<{ Bindings: Env }>): Promise<Response
   if (!image) return c.text('not found', 404);
   const object = await c.env.ATTACHMENTS.get(image.r2_key);
   if (!object) return c.text('not found', 404);
-  return new Response(object.body, { headers: {
+  return new Response(object.body as ReadableStream, { headers: {
     'Content-Type': image.content_type, 'Cache-Control': 'private, max-age=3600',
   } });
 }
