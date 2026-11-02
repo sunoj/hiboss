@@ -28,13 +28,13 @@ struct SessionConversation: View {
             if !presentation.conversation.isEmpty {
                 Text("Conversation").font(.headline).accessibilityAddTraits(.isHeader)
                 ForEach(Array(presentation.conversation.enumerated()), id: \.element.id) { index, card in
+                    noteRows(before: card.lastActivity,
+                             after: index == 0 ? .distantFuture
+                                : presentation.conversation[index - 1].lastActivity)
                     if index == 0 || !Calendar.current.isDate(card.lastActivity,
                         inSameDayAs: presentation.conversation[index - 1].lastActivity) {
                         dayLabel(card.lastActivity)
                     }
-                    noteRows(before: card.lastActivity,
-                             after: index == 0 ? .distantFuture
-                                : presentation.conversation[index - 1].lastActivity)
                     SessionThreadCard(card: card, store: store, notes: notes)
                 }
             }
