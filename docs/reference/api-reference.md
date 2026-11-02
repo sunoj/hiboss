@@ -17,7 +17,18 @@ authorization rules and hook behavior. IDs match exact sessions, never prefixes.
 
 Bosses require access to the session's agent (404 otherwise); agents require session
 ownership (404 otherwise). Invalid bodies, ID arrays or status filters return 400;
-viewer writes return 403. Trimmed bodies contain 1..4000 characters. Notes move only
+viewer writes return 403. Trimmed bodies contain at most 4000 characters; a body
+or at least one image is required. POST also accepts multipart field `body` and
+0..4 file parts named `image`. Images are at most 10 MB each (413 if exceeded),
+with declared JPEG, PNG, HEIC, WebP or GIF type matching leading bytes (400 otherwise).
+Notes always include ordered `images: [{ index, content_type, bytes }]`, or `[]`.
+Image retries return the original note without storing another image set.
+
+`GET /api/boss/sessions/:id/notes/:noteId/images/:index` allows accessible bosses,
+including viewers; `GET /api/sessions/:id/notes/:noteId/images/:index` allows only
+the owning agent. Both return image bytes with their type and
+`Cache-Control: private, max-age=3600`; inaccessible sessions, wrong note/session
+pairs and absent indices return 404. `/api/attachments/notes/*` GET/HEAD returns 404. Notes move only
 from pending to read and never trigger message delivery, notifications or inbox entries.
 
 ## Message Endpoints

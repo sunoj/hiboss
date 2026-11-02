@@ -16,7 +16,7 @@ routes.on(['GET', 'HEAD'], '*', async (c, next) => {
   let key: string;
   try { key = decodeURIComponent(c.req.path.slice('/api/attachments/'.length)); }
   catch { return c.text('not found', 404); }
-  if (key.startsWith('box/')) return c.text('not found', 404);
+  if (key.startsWith('box/') || key.startsWith('notes/')) return c.text('not found', 404);
   return next();
 });
 

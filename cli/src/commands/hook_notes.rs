@@ -17,6 +17,8 @@ struct Announcement {
 struct Pending {
     session: String,
     ids: Vec<String>,
+    #[serde(default)]
+    images: usize,
 }
 
 pub(super) fn due(now: u64) -> bool {
@@ -29,6 +31,7 @@ pub(super) async fn refresh(client: &HiBossClient, sid: &str) {
     if let Ok(response) = client.session_notes(sid, false).await {
         let pending = Pending {
             session: sid.to_owned(),
+            images: response.notes.iter().map(|note| note.images.len()).sum(),
             ids: response.notes.into_iter().map(|note| note.id).collect(),
         };
         if let Ok(content) = serde_json::to_string(&pending) {
@@ -69,8 +72,9 @@ pub(super) fn announce(now: u64) {
     };
     if session::write_state(ANNOUNCED, &content).is_ok() {
         println!(
-            "BOSS NOTE (留言): the boss left {} note(s) for this session. Read them now: hiboss note read",
-            notice.ids.len()
+            "BOSS NOTE (留言): the boss left {} note(s) with {} image(s) for this session. Read them now: hiboss note read",
+            notice.ids.len(),
+            pending.images
         );
     }
 }
@@ -84,6 +88,7 @@ mod tests {
         let mut pending = Pending {
             session: "s".into(),
             ids: vec!["a".into()],
+            images: 0,
         };
         let previous = Announcement {
             session: "s".into(),
@@ -103,6 +108,7 @@ mod tests {
         let pending = Pending {
             session: "new".into(),
             ids: vec!["a".into()],
+            images: 0,
         };
         let previous = Announcement {
             session: "old".into(),

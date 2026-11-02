@@ -12,6 +12,16 @@ beforeAll(async () => {
 });
 
 describe('POST /api/attachments/upload', () => {
+  it('refuses note objects on public GET and HEAD even when they exist', async () => {
+    await env.ATTACHMENTS.put('notes/private/0', 'private image');
+    for (const method of ['GET', 'HEAD']) {
+      for (const key of ['notes/private/0', 'notes%2Fprivate%2F0']) {
+        const response = await SELF.fetch(`https://test.local/api/attachments/${key}`, { method });
+        expect(response.status).toBe(404);
+      }
+    }
+  });
+
   it('uploads a file via raw binary', async () => {
     const data = new TextEncoder().encode('hello world');
     const json = (await testJson(201, SELF.fetch('https://test.local/api/attachments/upload', {
