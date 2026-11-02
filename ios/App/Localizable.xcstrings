@@ -1,6 +1,86 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Add images": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add images"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加图片"
+          }
+        }
+      }
+    },
+    "Remove image": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove image"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除图片"
+          }
+        }
+      }
+    },
+    "Unable to prepare image": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to prepare image"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法处理图片"
+          }
+        }
+      }
+    },
+    "Image exceeds 10 MB": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image exceeds 10 MB"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片超过 10 MB"
+          }
+        }
+      }
+    },
+    "Open image": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open image"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开图片"
+          }
+        }
+      }
+    },
     "Send note": {
       "extractionState": "manual",
       "localizations": {

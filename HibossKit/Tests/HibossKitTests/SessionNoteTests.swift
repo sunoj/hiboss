@@ -21,6 +21,10 @@ final class SessionNoteTests: XCTestCase {
         let pending = try JSONDecoder().decode(SessionNote.self, from: Data(Self.json.utf8))
         XCTAssertEqual(pending.status, .pending)
         XCTAssertNil(pending.readAt)
+        XCTAssertEqual(pending.images, [])
+        let emptyJSON = Self.json.replacingOccurrences(
+            of: "\"read_at\":null", with: "\"images\":[],\"read_at\":null")
+        XCTAssertEqual(try JSONDecoder().decode(SessionNote.self, from: Data(emptyJSON.utf8)).images, [])
         XCTAssertEqual(pending.sessionID, "sess-exact")
         XCTAssertEqual(pending.agentID, "a1")
         XCTAssertEqual(pending.bossName, "Alex")
@@ -49,18 +53,55 @@ final class SessionNoteTests: XCTestCase {
             XCTAssertEqual(request.httpMethod, "POST")
             XCTAssertEqual(request.url?.path, "/api/boss/sessions/sess-exact/notes")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Idempotency-Key"), "retry-key")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+            let type = try XCTUnwrap(request.value(forHTTPHeaderField: "Content-Type"))
+            XCTAssertTrue(type.hasPrefix("multipart/form-data; boundary="))
+            let boundary = String(type.dropFirst("multipart/form-data; boundary=".count))
             let data = try HTTPTestSupport.bodyData(from: request)
-            XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: data),
-                           ["body": "Check the release"])
+            XCTAssertEqual(String(decoding: data, as: UTF8.self),
+                "--\(boundary)\r\nContent-Disposition: form-data; name=\"body\"\r\n\r\n"
+                + "Check the release\r\n--\(boundary)--\r\n")
             return try Self.response(request, json: Self.json, status: 201)
         }
         let client = try api()
         for _ in 0..<2 {
             let note = try await client.createSessionNote(
-                sessionID: "sess-exact", body: "Check the release", idempotencyKey: "retry-key")
+                sessionID: "sess-exact", body: "Check the release", images: [], idempotencyKey: "retry-key")
             XCTAssertEqual(note.id, "n1")
         }
+    }
+
+    func testImageMetadataAndMultipartFiles() async throws {
+        let json = Self.json.trimmingCharacters(in: .whitespacesAndNewlines).dropLast()
+            + " ,\"images\":[{\"index\":0,"
+            + "\"content_type\":\"image/jpeg\",\"bytes\":3}]}"
+        let decoded = try JSONDecoder().decode(SessionNote.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.images, [SessionNoteImage(index: 0, contentType: "image/jpeg", bytes: 3)])
+        NoteURLProtocol.handler = { request in
+            let data = try HTTPTestSupport.bodyData(from: request)
+            let text = String(decoding: data, as: UTF8.self)
+            XCTAssertTrue(text.contains("name=\"body\"\r\n\r\n\r\n--"))
+            XCTAssertTrue(text.contains("name=\"image\"; filename=\"0.jpg\"\r\nContent-Type: image/jpeg"))
+            XCTAssertTrue(text.contains("\r\n\r\nabc\r\n--"))
+            XCTAssertTrue(text.contains("name=\"image\"; filename=\"1.gif\"\r\nContent-Type: image/gif"))
+            XCTAssertTrue(text.contains("\r\n\r\nGIF89a\r\n--"))
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Idempotency-Key"), "image-retry")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+            return try Self.response(request, json: Self.json)
+        }
+        _ = try await api().createSessionNote(sessionID: "sess-exact", body: "",
+            images: [SessionNoteUpload(data: Data("abc".utf8), contentType: "image/jpeg"),
+                     SessionNoteUpload(data: Data("GIF89a".utf8), contentType: "image/gif")],
+            idempotencyKey: "image-retry")
+    }
+
+    func testImageFetchUsesAuthenticatedNoteRoute() async throws {
+        NoteURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.path, "/api/boss/sessions/sess-exact/notes/n1/images/0")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+            return try Self.response(request, json: "image bytes")
+        }
+        let bytes = try await api().sessionNoteImage(sessionID: "sess-exact", noteID: "n1", index: 0)
+        XCTAssertEqual(bytes, Data("image bytes".utf8))
     }
 
     func testViewerCannotCompose() async throws {
