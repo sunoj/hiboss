@@ -124,8 +124,8 @@ it('concurrent retries retain one image set', async () => {
 });
 
 it('rolls back D1 rows and removes uploads when the metadata insertion fails', async () => {
-  await env.DB.exec(`CREATE TRIGGER reject_note_image BEFORE INSERT ON session_note_images
-    BEGIN SELECT RAISE(ABORT, 'image insert rejected'); END`);
+  await env.DB.prepare(`CREATE TRIGGER reject_note_image BEFORE INSERT ON session_note_images
+    BEGIN SELECT RAISE(ABORT, 'image insert rejected'); END`).run();
   const before = await env.DB.prepare('SELECT COUNT(*) AS n FROM session_notes').first();
   const objects = await env.ATTACHMENTS.list({ prefix: 'notes/' });
   try {
