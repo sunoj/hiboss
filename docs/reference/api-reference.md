@@ -3,6 +3,23 @@
 Base URL: configured via `hiboss config set server <url>`
 Auth: `Authorization: Bearer <api-key>` header on all requests.
 
+## Session notes (留言)
+
+The [session notes contract](../session-notes.md) owns the full note JSON shape,
+authorization rules and hook behavior. IDs match exact sessions, never prefixes.
+
+| Method | Path | Authentication | Result |
+| --- | --- | --- | --- |
+| POST | `/api/boss/sessions/:id/notes` | Boss, excluding viewer | `{ "body": "text" }` → Note (201); same boss/session `Idempotency-Key` retry → original Note (200) |
+| GET | `/api/boss/sessions/:id/notes` | Boss, including viewer | `{ "notes": [Note] }`, newest first, max 50 |
+| GET | `/api/sessions/:id/notes?status=pending\|all` | Owning agent | `{ "notes": [Note] }`, oldest first; default pending |
+| POST | `/api/sessions/:id/notes/read` | Owning agent | `{ "ids": ["id"] }` (1..50 strings) → `{ "read": n }` |
+
+Bosses require access to the session's agent (404 otherwise); agents require session
+ownership (404 otherwise). Invalid bodies, ID arrays or status filters return 400;
+viewer writes return 403. Trimmed bodies contain 1..4000 characters. Notes move only
+from pending to read and never trigger message delivery, notifications or inbox entries.
+
 ## Message Endpoints
 
 ### POST /api/messages

@@ -236,6 +236,7 @@ impl HiBossClient {
 #[path = "tests.rs"]
 mod tests;
 mod sessions;
+pub mod notes;
 mod bosses;
 mod groups;
 mod messages;

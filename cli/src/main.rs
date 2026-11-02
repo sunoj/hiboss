@@ -84,6 +84,8 @@ enum Commands {
     Panel(SubcommandArgs<panel::PanelCommand>),
     #[command(about = "Publish and receive durable structured questionnaire answers")]
     Request(SubcommandArgs<request::RequestCommand>),
+    #[command(about = "Read boss notes for this session")]
+    Note(SubcommandArgs<hiboss::commands::note::NoteCommand>),
 }
 
 #[tokio::main]
@@ -167,6 +169,7 @@ async fn run_remote(
         Commands::Project(args) => progress::progress_team::run(args, &config, &client).await?,
         Commands::Panel(args) => panel::run(args, &client).await?,
         Commands::Request(args) => request::run(args, &client).await?,
+        Commands::Note(args) => hiboss::commands::note::run(&args.command, client).await?,
         Commands::Hook(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),
         Commands::Doctor(_) => unreachable!(),

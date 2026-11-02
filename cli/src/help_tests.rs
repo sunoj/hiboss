@@ -99,3 +99,13 @@ fn grouped_command_parses_box_reference_reads() {
             if matches!(&latest.filters.kind, Some(hiboss::box_types::BoxKind::Image)) && latest.output.json)
     ));
 }
+
+#[test]
+fn note_commands_accept_read_and_list_options() {
+    for arguments in [vec!["hiboss", "note", "read", "--json"],
+        vec!["hiboss", "note", "list", "--all", "--json"]] {
+        let cli = Cli::try_parse_from(arguments).expect("note command");
+        assert!(matches!(cli.command, Commands::Note(_)));
+    }
+    assert!(Cli::try_parse_from(["hiboss", "note", "read", "--all"]).is_err());
+}

@@ -27,6 +27,22 @@ Inside Claude Code, `send`, `ask`, and `progress post` warn once per process whe
 session is registered, then continue sending. The warning names the profile and its
 repair command because messages will appear as direct messages.
 
+## Session notes (留言)
+
+```bash
+hiboss note read          # print pending notes for the current session, then mark read
+hiboss note read --json   # same acknowledgement, JSON { "notes": [...] }
+hiboss note list          # pending notes, no acknowledgement
+hiboss note list --all    # include read notes
+hiboss note list --json   # JSON output without acknowledgement
+```
+
+Notes show boss name, time and full body. Empty text output says no pending notes;
+JSON returns an empty array. When the hook prints `BOSS NOTE (留言)`, run
+`hiboss note read`. PostToolUse reads private local state only; the detached
+background check polls at a 15-second TTL. Unread notes repeat at most every five
+minutes, while new IDs may announce sooner. See [session notes](../session-notes.md).
+
 ## Send (async)
 ```bash
 hiboss send "Deployment complete."

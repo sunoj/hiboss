@@ -29,6 +29,10 @@ pub(super) async fn run() -> Result<(), Box<dyn Error>> {
     show_peer_sessions(&session_id).await;
     show_inbox();
     if let Ok(client) = build_client() {
+        super::hook_notes::refresh(&client, &session_id).await;
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default().as_secs();
+        super::hook_notes::announce(now);
         if let Some(warning) = unacknowledged_outbound_warning(&client, &session_id).await {
             println!("{warning}");
         }

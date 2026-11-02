@@ -259,3 +259,8 @@ CREATE INDEX idx_box_collection_items_item;
 -- Physical item deletion removes its shares.
 CREATE TABLE box_shares;
 CREATE INDEX idx_box_shares_item;
+
+-- Boss notes belong to exact sessions and carry an explicit read acknowledgement.
+CREATE TABLE session_notes;
+CREATE INDEX idx_session_notes_status;
+CREATE TABLE session_note_keys;

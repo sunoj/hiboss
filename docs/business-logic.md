@@ -34,6 +34,16 @@ messages ──< message_deliveries ──> boss_destinations
 panels ──> sessions, target boss ;  box_items ──> boss
 ```
 
+## Session notes (留言)
+
+Owner doc: [session notes](session-notes.md). A note belongs to one exact session,
+agent and boss, with `pending` → `read` state and a read timestamp. Accessible
+bosses may create notes for inactive or completed sessions; viewers may only read.
+Only the owning agent may list or acknowledge session notes. Notes create no
+messages, pushes, inbox entries or channel deliveries. The detached CLI hook polls
+pending IDs; local PostToolUse announces them and `hiboss note read` prints and
+acknowledges them. Boss history shows the latest 50 notes and read status.
+
 ## First install and enrolment
 
 Owner docs: [multi-profile onboarding](multi-profile-onboarding.md),
