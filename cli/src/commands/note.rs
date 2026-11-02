@@ -41,12 +41,13 @@ pub async fn run(command: &NoteCommand, client: &HiBossClient) -> Result<(), Box
             }
         }
         if success {
-            complete.push(note.id.as_str());
+            complete.push(note.id.clone());
         }
     }
     print_notes(&response, all, json)?;
     if mark {
-        for chunk in complete.chunks(50) {
+        let ids: Vec<&str> = complete.iter().map(String::as_str).collect();
+        for chunk in ids.chunks(50) {
             client.read_notes(&session, chunk).await?;
         }
         super::hook_notes::refresh(client, &session).await;
