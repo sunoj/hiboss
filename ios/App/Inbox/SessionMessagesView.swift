@@ -18,6 +18,7 @@ struct SessionMessagesView: View {
     private var hasLoaded: Bool { stream.didLoad || stream.usesHistory }
     @State private var actionNote: String?
     @State private var showsHistory = false
+    @State private var showsNotes = false
     @State private var jumpToLatestRequest = 0
 
     init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore,
@@ -45,6 +46,11 @@ struct SessionMessagesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(showsHistory ? .visible : .hidden, for: .tabBar)
         .toolbar { historyToolbar }
+        .navigationDestination(isPresented: $showsNotes) {
+            if let notesAPI = store.api as? any SessionNotesServing {
+                SessionNotesView(sessionID: route.id, api: notesAPI)
+            }
+        }
         .navigationDestination(isPresented: $showsHistory) {
             MessagesView(store: store, sessionID: route.id).navigationTitle("Messages")
                 .toolbar(.visible, for: .tabBar)
@@ -78,6 +84,11 @@ struct SessionMessagesView: View {
     private var historyToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             HStack {
+                if route.id != SessionGrouping.directSessionID, store.api is any SessionNotesServing {
+                    Button("Leave a note", systemImage: "note.text") { showsNotes = true }
+                        .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityIdentifier("session-notes")
+                }
                 Button {
                     showsHistory = true
                 } label: {

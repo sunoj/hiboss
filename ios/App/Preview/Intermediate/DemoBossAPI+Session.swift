@@ -14,6 +14,9 @@ extension DemoBossAPI {
         try await DemoDelay.wait("TRANSCRIPT")
         if sessionFetchCount > 0 { try await DemoDelay.wait("TRANSCRIPT_REFRESH") }
         sessionFetchCount += 1
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_NOTES_NO_MESSAGES"] == "1" {
+            return SessionEventsPage(events: [])
+        }
         if sessionFetchCount == 1,
            ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_EMPTY_FAILURE"] == "1" {
             return SessionEventsPage(events: [])
