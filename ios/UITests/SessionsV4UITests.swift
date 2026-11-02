@@ -82,6 +82,7 @@ final class SessionsV4UITests: XCTestCase {
         for _ in 0..<8 where !open.buttons["Approve"].isHittable { app.swipeUp() }
         XCTAssertTrue(open.buttons["Approve"].isHittable)
         shot(app, "\(appearance)-thread-open")
+        app.revealSessionControl(open.buttons["Approve"])
         open.buttons["Approve"].tap()
         let resolved = app.descendants(matching: .any)["transcript-answer-c1"]
         for _ in 0..<4 where !resolved.isHittable { app.swipeUp() }

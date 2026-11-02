@@ -132,7 +132,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         XCTAssertFalse(card.staticTexts["orchestrator-01"].exists)
         XCTAssertFalse(card.staticTexts.matching(NSPredicate(format: "label CONTAINS 'prod-release'"))
             .firstMatch.exists)
-        for _ in 0..<4 where !card.buttons["Approve"].isHittable { app.swipeUp() }
+        app.revealSessionControl(card.buttons["Approve"])
         card.buttons["Approve"].tap()
         let answer = app.descendants(matching: .any)["transcript-answer-c1"]
         for _ in 0..<4 where !answer.isHittable { app.swipeUp() }

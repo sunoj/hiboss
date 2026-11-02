@@ -11,6 +11,7 @@ extension DemoBossAPI: SessionNotesServing {
     }
 
     func listSessionNotes(sessionID: String) async throws -> [SessionNote] {
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_EMPTY_FAILURE"] == "1" { return [] }
         if let notes = sessionNotes[sessionID] { return notes }
         let notes = [
             SessionNote(id: "note-pending", sessionID: sessionID, agentID: "worker-deploy",

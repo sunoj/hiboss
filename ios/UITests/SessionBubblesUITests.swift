@@ -52,7 +52,7 @@ final class SessionBubblesUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["decision-timing-c1"].exists, "same timing line as Home")
         let approve = card.buttons["Approve"]
         XCTAssertTrue(approve.waitForExistence(timeout: 5), "options are answerable from the transcript")
-        for _ in 0..<4 where !approve.isHittable { app.swipeUp() }
+        app.revealSessionControl(approve)
         approve.tap()
         let answer = app.descendants(matching: .any)["transcript-answer-c1"]
         for _ in 0..<4 where !answer.isHittable { app.swipeUp() }
@@ -118,7 +118,7 @@ final class SessionBubblesUITests: XCTestCase {
         let card = app.descendants(matching: .any)["transcript-decision-c1"]
         for _ in 0..<4 where !card.exists { app.swipeUp() }
         XCTAssertTrue(card.waitForExistence(timeout: 10))
-        for _ in 0..<4 where !card.buttons["Approve"].isHittable { app.swipeUp() }
+        app.revealSessionControl(card.buttons["Approve"])
         card.buttons["Approve"].tap()
         let answer = app.descendants(matching: .any)["transcript-answer-c1"]
         for _ in 0..<4 where !answer.isHittable { app.swipeUp() }
