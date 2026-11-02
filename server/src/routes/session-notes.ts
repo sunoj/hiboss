@@ -14,8 +14,8 @@ export interface Note {
   created_at: string;
   read_at: string | null;
 }
-export const NOTE_SELECT = `SELECT n.id, n.session_id, n.agent_id, b.name AS boss_name,
-  n.body, n.status, n.created_at, n.read_at FROM session_notes n JOIN bosses b ON b.id = n.boss_id`;
+export const NOTE_SELECT = `SELECT n.id, n.session_id, n.agent_id, COALESCE(b.name, 'Deleted boss') AS boss_name,
+  n.body, n.status, n.created_at, n.read_at FROM session_notes n LEFT JOIN bosses b ON b.id = n.boss_id`;
 
 const routes = new Hono<{ Bindings: Env }>();
 routes.use('/:id/notes', apiAuth);

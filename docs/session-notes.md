@@ -29,7 +29,8 @@ Every note returned by the API has exactly this shape:
 ```
 
 Timestamps use SQLite's UTC `YYYY-MM-DD HH:MM:SS` format. `boss_name` is the boss's
-current name. Bodies are trimmed and limited to 1..4000 Unicode characters.
+current name, or `Deleted boss` if its row was physically deleted. Bodies are trimmed
+and limited to 1..4000 Unicode characters.
 
 ## Boss API
 

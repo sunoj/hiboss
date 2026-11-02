@@ -130,6 +130,17 @@ describe('session note contract', () => {
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM messages').first()).toEqual(before);
   });
 
+  it('keeps notes readable after the author is physically deleted', async () => {
+    await seedBossToken('Survivor', 'admin', 'notes-survivor');
+    const boss = await seedBossToken('Temporary', 'admin', 'notes-temporary');
+    const note = await (await post(path(), { body: 'keep this note' },
+      bossHeaders('notes-temporary'))).json<Note>();
+    await env.DB.prepare('DELETE FROM bosses WHERE id = ?').bind(boss).run();
+    const response = await (await get(agentPath())).json<{ notes: Note[] }>();
+    expect(response.notes.find(n => n.id === note.id)?.boss_name).toBe('Deleted boss');
+    expect((await post(`${agentPath()}/read`, { ids: [note.id] }, authHeaders())).status).toBe(200);
+  });
+
   it('deregistering a note-bearing session retains its completed history', async () => {
     await post(path(), { body: 'retain' });
     const result = await SELF.fetch('https://test/api/sessions/note-session', {
