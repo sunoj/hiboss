@@ -124,3 +124,29 @@ async fn download(
     fs::rename(&partial.0, &path)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn notes_reject_unsafe_cache_ids_and_invalid_image_metadata() {
+        let mut image = NoteImage {
+            index: 0,
+            content_type: "image/png".into(),
+            bytes: 8,
+            path: None,
+        };
+        for note in ["../other", "/absolute", "a/b", "a\\b", ".", ""] {
+            assert!(cache_path(note, &image).is_err());
+        }
+        image.index = 4;
+        assert!(cache_path("safe", &image).is_err());
+        image.index = 0;
+        image.bytes = 10 * 1024 * 1024 + 1;
+        assert!(cache_path("safe", &image).is_err());
+        image.bytes = 8;
+        image.content_type = "image/svg+xml".into();
+        assert!(cache_path("safe", &image).is_err());
+    }
+}

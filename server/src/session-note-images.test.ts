@@ -60,7 +60,8 @@ it('creates image-only notes, returns ordered metadata and serves private bytes 
 it('rejects bosses without access, wrong note/session pairing, foreign agents and viewer writes', async () => {
   const note = await (await upload()).json<Note>();
   expect((await get(imagePath(note), 'images-denied')).status).toBe(404);
-  expect((await get(imagePath(note).replace('image-session', 'image-second-session'))).status).toBe(404);
+  const wrongSession = imagePath(note).replace('image-session', 'image-second-session');
+  expect((await get(wrongSession)).status).toBe(404);
   const path = `/api/sessions/image-session/notes/${note.id}/images/0`;
   expect((await get(path, 'image-other-key')).status).toBe(404);
   expect((await SELF.fetch(`https://test${path.replace('image-session', 'image-second-session')}`,
@@ -112,11 +113,13 @@ it('retries return original images without any additional objects or metadata', 
 });
 
 it('concurrent retries retain one image set', async () => {
+  const before = (await env.ATTACHMENTS.list({ prefix: 'notes/' })).objects.length;
   const responses = await Promise.all([upload(undefined, undefined, 'parallel-images'),
     upload(undefined, undefined, 'parallel-images')]);
   expect(responses.map(r => r.status).sort()).toEqual([200, 201]);
   const notes = await Promise.all(responses.map(r => r.json<Note>()));
   expect(notes[0]).toEqual(notes[1]);
+  expect((await env.ATTACHMENTS.list({ prefix: 'notes/' })).objects).toHaveLength(before + 1);
   expect((await env.ATTACHMENTS.list({ prefix: `notes/${notes[0].id}/` })).objects).toHaveLength(1);
 });
 

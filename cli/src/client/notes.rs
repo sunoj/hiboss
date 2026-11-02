@@ -9,7 +9,7 @@ pub struct NoteImage {
     pub index: u32,
     pub content_type: String,
     pub bytes: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_deserializing, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
 }
 #[derive(Debug, Deserialize, Serialize)]

@@ -18,13 +18,15 @@ fn image_server(fail: bool) -> Http {
         if r.path.ends_with("/images/1") {
             return Response::json(200, json!(if fail { "bad" } else { "abcd" }));
         }
-        Response::json(200, json!({"read": 1}))
+        Response::json(
+            200,
+            json!({"read": 1, "messages": [], "sessions": [], "total": 0}),
+        )
     })
 }
 
 #[test]
 fn images_download_privately_reuse_complete_files_and_print_json_paths() {
-    use std::os::unix::fs::PermissionsExt;
     let http = image_server(false);
     let fixture = Fixture::new("repo", &http.url);
     prepare(&fixture);
@@ -38,20 +40,7 @@ fn images_download_privately_reuse_complete_files_and_print_json_paths() {
     );
     assert!(path.ends_with("hiboss/notes/note-0/0.jpg"));
     assert_eq!(std::fs::read(path).expect("image"), b"abc");
-    assert_eq!(
-        std::fs::metadata(path).expect("file").permissions().mode() & 0o777,
-        0o600
-    );
-    for dir in path.ancestors().skip(1).take(3) {
-        assert_eq!(
-            std::fs::metadata(dir)
-                .expect("directory")
-                .permissions()
-                .mode()
-                & 0o777,
-            0o700
-        );
-    }
+    assert_private_cache(path);
     let result = fixture.run(&fixture.repo, &["note", "read"], ENV);
     assert_eq!(result.code, 0, "{}", result.stderr);
     assert!(result.stdout.contains("image 1/2:"));
@@ -60,6 +49,11 @@ fn images_download_privately_reuse_complete_files_and_print_json_paths() {
             .stdout
             .contains("(image/jpeg, 1 KB) — open it to view")
     );
+    let result = fixture.run(&fixture.repo, &["hook", "bg-check"], ENV);
+    assert_eq!(result.code, 0, "{}", result.stderr);
+    prime_ttls(&fixture.state_dir("claude", "notes"));
+    let result = fixture.run(&fixture.repo, &["hook", "post-tool-use"], ENV);
+    assert!(result.stdout.contains("left 2 note(s) with 2 image(s)"));
     let requests = http.requests();
     assert_eq!(
         requests
@@ -79,6 +73,24 @@ fn images_download_privately_reuse_complete_files_and_print_json_paths() {
             .iter()
             .any(|r| r.body["ids"] == json!(["note-0", "note-1"]))
     );
+}
+
+fn assert_private_cache(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(
+        std::fs::metadata(path).expect("file").permissions().mode() & 0o777,
+        0o600
+    );
+    for dir in path.ancestors().skip(1).take(3) {
+        assert_eq!(
+            std::fs::metadata(dir)
+                .expect("directory")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
+        );
+    }
 }
 
 #[test]

@@ -72,7 +72,10 @@ pub(super) fn announce(now: u64) {
     };
     if session::write_state(ANNOUNCED, &content).is_ok() {
         println!(
-            "BOSS NOTE (留言): the boss left {} note(s) with {} image(s) for this session. Read them now: hiboss note read",
+            concat!(
+                "BOSS NOTE (留言): the boss left {} note(s) with {} image(s) for this session. ",
+                "Read them now: hiboss note read"
+            ),
             notice.ids.len(),
             pending.images
         );

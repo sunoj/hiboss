@@ -40,6 +40,9 @@ Promise<{ body: string; images: UploadImage[] }> {
       body = (await c.req.json<{ body?: unknown }>())?.body;
     }
   } catch { throw new HTTPException(400, { message: 'invalid note payload' }); }
+  if (body != null && typeof body !== 'string') {
+    throw new HTTPException(400, { message: 'body must be text' });
+  }
   const text = typeof body === 'string' ? body.trim() : '';
   if (files.length > 4 || [...text].length > 4000 || (!text && !files.length)) {
     throw new HTTPException(400, { message: 'body or 1..4 images required; body max 4000 characters' });
@@ -65,7 +68,7 @@ Promise<T & { images: NoteImage[] }> {
 }
 
 export async function noteImage(c: Context<{ Bindings: Env }>): Promise<Response> {
-  const index = c.req.param('index');
+  const index = c.req.param('index') ?? '';
   if (!/^[0-3]$/.test(index)) return c.text('not found', 404);
   const image = await c.env.DB.prepare(`SELECT i.r2_key, i.content_type FROM session_note_images i
     JOIN session_notes n ON n.id = i.note_id WHERE n.session_id = ? AND n.id = ? AND i.idx = ?`)

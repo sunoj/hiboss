@@ -33,7 +33,7 @@ function statements(env: Env, id: string, session: string, agent: string, boss: 
 
 export async function createNote(c: Context<{ Bindings: Env }>, agent: string): Promise<Response> {
   const boss = getBossId(c);
-  const session = c.req.param('id');
+  const session = c.req.param('id') ?? '';
   const key = c.req.header('Idempotency-Key');
   if (key !== undefined) {
     const original = await retry(c.env, boss, session, key);
