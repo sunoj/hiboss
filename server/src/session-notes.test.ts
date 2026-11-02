@@ -11,7 +11,7 @@ const bossHeaders = (token: string) => ({
 const path = (session = 'note-session') => `/api/boss/sessions/${session}/notes`;
 const agentPath = (session = 'note-session') => `/api/sessions/${session}/notes`;
 const get = (url: string, headers = authHeaders()) => SELF.fetch(`https://test${url}`, { headers });
-const post = (url: string, body: unknown, headers = bossHeaders('notes-manager')) =>
+const post = (url: string, body: unknown, headers: Record<string, string> = bossHeaders('notes-manager')) =>
   SELF.fetch(`https://test${url}`, { method: 'POST', headers, body: JSON.stringify(body) });
 
 beforeAll(async () => {
