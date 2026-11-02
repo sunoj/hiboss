@@ -67,6 +67,7 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
+    super::hook_notes::announce(now);
     remind_broadcast(now);
     spawn_bg_check_if_due(now);
     Ok(())
@@ -120,8 +121,12 @@ fn remind_broadcast(now: u64) {
 fn spawn_bg_check_if_due(now: u64) {
     let a2a_expired = session::is_ttl_expired(session::A2A_CHECK, now, A2A_TTL_SECONDS);
     let boss_expired = session::is_ttl_expired(session::URGENT_CHECK, now, BOSS_TTL_SECONDS);
-    if !a2a_expired && !boss_expired {
+    let notes_expired = super::hook_notes::due(now);
+    if !a2a_expired && !boss_expired && !notes_expired {
         return;
+    }
+    if notes_expired {
+        super::hook_notes::claim(now);
     }
     if a2a_expired {
         session::stamp_ttl(session::A2A_CHECK, now);
@@ -153,6 +158,7 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
     // (bg-check only runs off PostToolUse activity), flip it back to "working". Otherwise
     // leave status untouched so a manually set status (e.g. blocked) is preserved.
     if let Some(sid) = &session_id {
+        super::hook_notes::refresh(&client, sid).await;
         let status = session::take_resume_pending().then_some("working");
         let _ = client.heartbeat_session(sid, status, None).await;
     }

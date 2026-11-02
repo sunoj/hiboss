@@ -29,6 +29,8 @@ pub mod edit;
 pub mod forward;
 pub mod group;
 pub mod hook;
+mod hook_notes;
+pub mod note;
 mod codex_hook;
 mod setup_hook_files;
 mod setup_hook_commands;
