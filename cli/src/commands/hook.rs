@@ -5,6 +5,7 @@
 use crate::session;
 use clap::{Args, Subcommand};
 use std::error::Error;
+use std::io::Write;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -58,31 +59,42 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
     if session::state_dir().is_none() {
         return Ok(());
     }
-    print_pending_messages();
+    let mut context = Vec::new();
+    print_pending_messages(&mut context)?;
     // Urgent notices enter the agent context, so they come only from the private state dir.
     if let Some(content) = session::take_urgent() {
-        print!("{}", content.trim());
+        write!(context, "{}", content.trim())?;
     }
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    super::hook_notes::announce(now);
-    remind_broadcast(now);
+    super::hook_notes::announce_to(now, &mut context)?;
+    remind_broadcast(now, &mut context)?;
     spawn_bg_check_if_due(now);
+    if !context.is_empty() {
+        let context = String::from_utf8(context)?;
+        println!(
+            "{}",
+            serde_json::json!({"hookSpecificOutput": {
+                "hookEventName": "PostToolUse", "additionalContext": context
+            }})
+        );
+    }
     Ok(())
 }
 
 /// Print messages the daemon spooled and queue them for read marking by bg-check.
-fn print_pending_messages() {
+fn print_pending_messages(context: &mut impl Write) -> std::io::Result<()> {
     let pending = session::drain_pending_messages();
     if pending.is_empty() {
-        return;
+        return Ok(());
     }
-    println!(
+    writeln!(
+        context,
         "REAL-TIME: {} new messages arrived via SSE daemon:",
         pending.len()
-    );
+    )?;
     let mut ids_to_mark: Vec<String> = Vec::new();
     for line in &pending {
         if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
@@ -94,7 +106,7 @@ fn print_pending_messages() {
                 Some("agent_to_agent") => "peer",
                 _ => "boss",
             };
-            println!("  [{from}] {agent} ({id_short}): {body}");
+            writeln!(context, "  [{from}] {agent} ({id_short}): {body}")?;
             if !id.is_empty() {
                 ids_to_mark.push(id.to_owned());
             }
@@ -102,19 +114,25 @@ fn print_pending_messages() {
     }
     let id_refs: Vec<&str> = ids_to_mark.iter().map(|s| s.as_str()).collect();
     session::queue_mark_read(&id_refs);
-    println!("Reply with: hiboss reply <id> \"response\"");
+    writeln!(context, "Reply with: hiboss reply <id> \"response\"")
 }
 
 /// Remind about broadcasting if peers are active and no recent reminder was shown.
-fn remind_broadcast(now: u64) {
+fn remind_broadcast(now: u64, context: &mut impl Write) -> std::io::Result<()> {
     if !session::had_peers_active()
         || !session::is_ttl_expired(session::BROADCAST_REMIND, now, BROADCAST_REMIND_TTL_SECONDS)
     {
-        return;
+        return Ok(());
     }
     session::stamp_ttl(session::BROADCAST_REMIND, now);
-    println!("BROADCAST REMINDER: You have active peer sessions. Share your progress:");
-    println!("  hiboss send --broadcast \"<what you're working on and current status>\"");
+    writeln!(
+        context,
+        "BROADCAST REMINDER: You have active peer sessions. Share your progress:"
+    )?;
+    writeln!(
+        context,
+        "  hiboss send --broadcast \"<what you're working on and current status>\""
+    )
 }
 
 /// Spawn a detached bg-check when either TTL expired, claiming the TTLs first.

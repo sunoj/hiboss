@@ -177,3 +177,52 @@ fn codex_hook_uses_the_json_project_and_emits_model_visible_context() {
     assert_eq!(registered.body["project"], "house");
     assert_eq!(registered.body["runtime"], "codex");
 }
+
+#[test]
+fn codex_post_tool_use_emits_exactly_one_context_object_and_no_empty_wrapper() {
+    let fixture = Fixture::new("house", "http://127.0.0.1:1");
+    let dir = fixture.prepare("codex", "codex-hook");
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_secs();
+    for name in ["a2a-check", "urgent-check", "note-check"] {
+        session_identity_support::write_private(&dir.join(name), &now.to_string());
+    }
+    session_identity_support::write_private(&dir.join("urgent"), "PEER MESSAGE: hello\n");
+    for expected in [Some("PEER MESSAGE: hello"), None] {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_hiboss"))
+            .args(["hook", "--codex-input", "post-tool-use"])
+            .env_clear()
+            .env("HOME", &fixture.root)
+            .env("PATH", "/usr/bin:/bin")
+            .env("HIBOSS_CONFIG", fixture.config())
+            .current_dir(&fixture.root)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("hook");
+        let input = json!({"session_id": "codex-hook", "cwd": fixture.repo});
+        child
+            .stdin
+            .take()
+            .expect("stdin")
+            .write_all(input.to_string().as_bytes())
+            .expect("input");
+        let output = child.wait_with_output().expect("result");
+        assert!(output.status.success(), "{:?}", output.stderr);
+        if let Some(expected) = expected {
+            let value: serde_json::Value =
+                serde_json::from_slice(&output.stdout).expect("one JSON object");
+            assert_eq!(
+                value,
+                json!({"hookSpecificOutput": {
+                    "hookEventName": "PostToolUse", "additionalContext": expected
+                }})
+            );
+        } else {
+            assert!(output.stdout.is_empty(), "{:?}", output.stdout);
+        }
+    }
+}

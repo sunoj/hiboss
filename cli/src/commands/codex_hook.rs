@@ -41,7 +41,9 @@ pub(super) fn run(event: &HookEvent) -> Result<(), Box<dyn Error>> {
         return Err("Codex lifecycle command failed".into());
     }
     let text = String::from_utf8_lossy(&output.stdout);
-    if name == "Stop" {
+    if event == "post-tool-use" {
+        print!("{text}");
+    } else if name == "Stop" {
         println!("{}", serde_json::json!({"systemMessage": text.trim()}));
     } else {
         println!(
