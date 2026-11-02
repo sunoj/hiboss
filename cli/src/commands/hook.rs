@@ -77,7 +77,7 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
         println!(
             "{}",
             serde_json::json!({"hookSpecificOutput": {
-                "hookEventName": "PostToolUse", "additionalContext": context
+                "hookEventName": "PostToolUse", "additionalContext": context.trim_end()
             }})
         );
     }
