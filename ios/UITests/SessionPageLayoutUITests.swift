@@ -70,6 +70,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Approve"].exists)
         revealHistoryNote(app)
         XCTAssertTrue(app.buttons["Retry"].exists)
+        app.revealSessionControl(app.buttons["Retry"])
         app.buttons["Retry"].tap()
         XCTAssertTrue(app.staticTexts["session-history-note"].exists)
         XCTAssertFalse(app.staticTexts["Can't reach the server"].exists)
@@ -86,6 +87,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Retry"].waitForExistence(timeout: 12))
         XCTAssertTrue(app.buttons["Retry"].isHittable)
         capture(app, "empty-stream-failed")
+        app.revealSessionControl(app.buttons["Retry"])
         app.buttons["Retry"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["session-bubble-incoming"]
             .waitForExistence(timeout: 10))
@@ -102,6 +104,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         let note = app.staticTexts["session-history-note"]
         revealHistoryNote(app)
         XCTAssertTrue(note.waitForExistence(timeout: 10))
+        app.revealSessionControl(app.buttons["Retry"])
         app.buttons["Retry"].tap()
         XCTAssertTrue(note.waitForNonExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["session-bubble-incoming"].exists)

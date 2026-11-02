@@ -15,7 +15,7 @@ struct SessionReplyComposer: View {
     @State private var choseNote = false
     private var noteMode: Bool {
         sessionID != SessionGrouping.directSessionID
-            && (choseNote || (selectedReply == nil && replyDraft.pinned == nil
+            && (choseNote || (store.requiredInputLoaded && selectedReply == nil && replyDraft.pinned == nil
                              && !targets.contains { $0.isDecision }))
     }
     private var replyDraft: SessionReplyDraft {
