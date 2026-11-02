@@ -19,6 +19,7 @@ struct SessionMessagesView: View {
     @State private var actionNote: String?
     @State private var showsHistory = false
     @State private var showsNotes = false
+    @State private var hasNoteReplies = false
     @State private var jumpToLatestRequest = 0
 
     init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore,
@@ -60,17 +61,25 @@ struct SessionMessagesView: View {
     private var observedTranscript: some View {
         connectedTranscript
         .task(id: route.id) {
+            await refreshNoteReplies()
             if let api { stream.start(api: api) }
             if route.id != SessionGrouping.directSessionID {
                 await facts.load(id: route.id, api: store.api as? any SessionsServing)
             }
         }
         .onDisappear { stream.stop() }
+        .onChange(of: showsNotes) { _, showing in
+            if showing { hasNoteReplies = false }
+            else { Task { await refreshNoteReplies() } }
+        }
         .onChange(of: store.replyConfirmation) { _, confirmation in
             if confirmation != nil { Task { await stream.refresh() } }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { stream.resumeFromForeground() }
+            if phase == .active {
+                stream.resumeFromForeground()
+                Task { await refreshNoteReplies() }
+            }
         }
         .refreshable {
             await stream.refresh()
@@ -87,6 +96,13 @@ struct SessionMessagesView: View {
                 if route.id != SessionGrouping.directSessionID, store.api is any SessionNotesServing {
                     Button("Leave a note", systemImage: "note.text") { showsNotes = true }
                         .frame(minWidth: 44, minHeight: 44)
+                        .overlay(alignment: .topTrailing) {
+                            if hasNoteReplies {
+                                Circle().fill(Theme.ink).frame(width: 6, height: 6)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .accessibilityValue(hasNoteReplies ? Text("New note replies") : Text(""))
                         .accessibilityIdentifier("session-notes")
                 }
                 Button {
@@ -97,6 +113,15 @@ struct SessionMessagesView: View {
                 if !stream.usesHistory { ConnectionDot(state: stream.connectionState) }
             }
         }
+    }
+
+    private func refreshNoteReplies() async {
+        guard route.id != SessionGrouping.directSessionID,
+              let api = store.api as? any SessionNotesServing else { return }
+        do {
+            let notes = try await api.listSessionNotes(sessionID: route.id)
+            hasNoteReplies = !showsNotes && SessionNoteReadState.hasNewReplies(notes, sessionID: route.id)
+        } catch { }
     }
 
     var body: some View {

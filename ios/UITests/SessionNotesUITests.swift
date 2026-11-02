@@ -37,6 +37,8 @@ final class SessionNotesUITests: XCTestCase {
             let add = app.buttons["Add"]
             if add.exists { add.tap() }
             XCTAssertTrue(app.buttons["Remove image"].firstMatch.waitForExistence(timeout: 10))
+            XCTAssertGreaterThanOrEqual(app.buttons["Remove image"].firstMatch.frame.width, 44)
+            XCTAssertGreaterThanOrEqual(app.buttons["Remove image"].firstMatch.frame.height, 44)
             captureDemoScreenshot(app, name: "notes-thumbnails-\(appearance)", test: self)
             XCTAssertTrue(app.buttons["send-session-note"].isEnabled)
             let before = app.buttons.matching(identifier: "session-note-image").count
@@ -46,6 +48,25 @@ final class SessionNotesUITests: XCTestCase {
             }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [sent], timeout: 10), .completed)
             XCTAssertFalse(app.buttons["Remove image"].exists)
+            app.terminate()
+        }
+    }
+
+    @MainActor
+    func testRepliesFollowTheirNoteInLightAndDark() {
+        for appearance in ["Light", "Dark"] {
+            let app = launch([:], appearance: appearance)
+            let note = app.staticTexts["Keep the rollout small for the first hour."]
+            let first = app.staticTexts["The small rollout is underway."]
+            let second = app.staticTexts["All health checks are passing."]
+            for _ in 0..<6 where !note.isHittable { app.swipeDown() }
+            XCTAssertTrue(note.isHittable)
+            XCTAssertTrue(first.isHittable)
+            XCTAssertTrue(second.isHittable)
+            XCTAssertGreaterThan(first.frame.minY, note.frame.maxY)
+            XCTAssertGreaterThan(second.frame.minY, first.frame.maxY)
+            XCTAssertLessThan(first.frame.minX, note.frame.minX)
+            captureDemoScreenshot(app, name: "notes-replies-\(appearance)", test: self)
             app.terminate()
         }
     }

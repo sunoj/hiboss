@@ -55,8 +55,10 @@ struct SessionNoteComposer: View {
                                 .clipped().overlay(alignment: .topTrailing) {
                                     Button { images.remove(at: index) } label: {
                                         Image(systemName: "xmark.circle.fill")
-                                            .frame(width: 44, height: 44)
-                                    }.accessibilityLabel("Remove image").disabled(sending || loading)
+                                            .frame(width: 44, height: 44, alignment: .topTrailing)
+                                            .contentShape(Rectangle())
+                                    }.buttonStyle(.plain).accessibilityLabel("Remove image")
+                                        .disabled(sending || loading)
                                 }
                         }
                     }

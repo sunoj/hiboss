@@ -6,6 +6,24 @@ import XCTest
 @testable import HiBoss
 
 final class SessionNoteImageTests: XCTestCase {
+    func testReplyIndicatorPersistsOpeningPerSession() throws {
+        let suite = "SessionNoteReadStateTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let date = try XCTUnwrap(ISODate.parse("2026-11-02 09:00:00"))
+        let reply = SessionNoteReply(messageID: "m1", body: "Ready", agentName: "worker",
+                                     createdAt: "2026-11-02 09:00:00")
+        let note = SessionNote(id: "n1", sessionID: "s1", agentID: "a1", bossName: "Alex",
+                               body: "Check", status: .read, createdAt: reply.createdAt, replies: [reply])
+        XCTAssertTrue(SessionNoteReadState.hasNewReplies([note], sessionID: "s1", defaults: defaults))
+        SessionNoteReadState.open("s1", defaults: defaults, now: date)
+        XCTAssertFalse(SessionNoteReadState.hasNewReplies([note], sessionID: "s1", defaults: defaults))
+        XCTAssertTrue(SessionNoteReadState.hasNewReplies([note], sessionID: "s2", defaults: defaults))
+        XCTAssertFalse(SessionNoteReadState.hasNewReplies([], sessionID: "s2", defaults: defaults))
+        SessionNoteReadState.open("s2", defaults: defaults, now: date.addingTimeInterval(-1))
+        XCTAssertTrue(SessionNoteReadState.hasNewReplies([note], sessionID: "s2", defaults: defaults))
+    }
+
     func testDownscalesAndEncodesJPEG() throws {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 3000, height: 1500))
         let original = renderer.image { context in
