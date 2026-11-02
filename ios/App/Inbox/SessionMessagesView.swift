@@ -78,7 +78,11 @@ struct SessionMessagesView: View {
         }
         .onDisappear { stream.stop() }
         .onChange(of: store.replyConfirmation) { _, confirmation in
-            if confirmation != nil { Task { await stream.refresh() } }
+            Task {
+                guard confirmation != nil else { return }
+                await stream.refresh()
+                await refreshNotes()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
