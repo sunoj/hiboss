@@ -5,6 +5,16 @@ Auth: `Authorization: Bearer <api-key>` header on all requests.
 
 ## Session notes (留言)
 
+Agent replies use `POST /api/messages` with `metadata.note_id` (non-empty string).
+They require an owned `session_id`, a note in that session belonging to the sender,
+and an async text message without peer `to`, options or attachments. Invalid sends,
+including foreign notes, return 400 without inserting anything. The existing signing,
+idempotency and delivery pipeline applies. Message, link and pending-to-read update
+are atomic; `read_at` changes only for pending notes. Retries create one link.
+Every note includes `replies: [{ message_id, body, agent_name, created_at }]`, always
+present, oldest first. `body` uses non-empty `metadata.content`, otherwise message
+`body`; names are current agent names. Replies for listed notes use one query.
+
 The [session notes contract](../session-notes.md) owns the full note JSON shape,
 authorization rules and hook behavior. IDs match exact sessions, never prefixes.
 
@@ -29,7 +39,8 @@ including viewers; `GET /api/sessions/:id/notes/:noteId/images/:index` allows on
 the owning agent. Both return image bytes with their type and
 `Cache-Control: private, max-age=3600`; inaccessible sessions, wrong note/session
 pairs and absent indices return 404. `/api/attachments/notes/*` GET/HEAD returns 404. Notes move only
-from pending to read and never trigger message delivery, notifications or inbox entries.
+from pending to read. Creating a note never triggers message delivery, notifications or
+inbox entries; agent replies use ordinary message delivery.
 
 ## Message Endpoints
 

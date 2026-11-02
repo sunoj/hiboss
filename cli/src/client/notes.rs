@@ -13,6 +13,13 @@ pub struct NoteImage {
     pub path: Option<String>,
 }
 #[derive(Debug, Deserialize, Serialize)]
+pub struct NoteReply {
+    pub message_id: String,
+    pub body: String,
+    pub agent_name: String,
+    pub created_at: String,
+}
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Note {
     pub id: String,
     pub session_id: String,
@@ -24,6 +31,8 @@ pub struct Note {
     pub read_at: Option<String>,
     #[serde(default)]
     pub images: Vec<NoteImage>,
+    #[serde(default)]
+    pub replies: Vec<NoteReply>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NotesResponse {
@@ -106,5 +115,10 @@ mod tests {
         .expect("contract response");
         assert_eq!(response.notes[0].body, "first\nsecond");
         assert!(response.notes[0].read_at.is_none());
+        assert!(response.notes[0].replies.is_empty());
+        assert_eq!(
+            serde_json::to_value(&response).expect("JSON")["notes"][0]["replies"],
+            serde_json::json!([])
+        );
     }
 }

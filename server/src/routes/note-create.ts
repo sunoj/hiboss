@@ -5,6 +5,7 @@ import type { Env } from '../types';
 import { getBossId } from '../middleware/auth';
 import { NOTE_SELECT, type Note } from './session-notes';
 import { notePayload, withImages, type UploadImage } from './note-images';
+import { withReplies } from './note-replies';
 
 async function retry(env: Env, boss: string, session: string, key: string): Promise<Note | null> {
   return env.DB.prepare(`${NOTE_SELECT} JOIN session_note_keys k ON k.note_id = n.id
@@ -37,7 +38,7 @@ export async function createNote(c: Context<{ Bindings: Env }>, agent: string): 
   const key = c.req.header('Idempotency-Key');
   if (key !== undefined) {
     const original = await retry(c.env, boss, session, key);
-    if (original) return c.json(await withImages(c.env, original), 200);
+    if (original) return c.json(await withImages(c.env, (await withReplies(c.env, [original]))[0]), 200);
   }
   const { body, images } = await notePayload(c);
   const id = crypto.randomUUID();
@@ -54,7 +55,7 @@ export async function createNote(c: Context<{ Bindings: Env }>, agent: string): 
       : await retry(c.env, boss, session, key);
     retained = note?.id === id;
     if (!note) throw new Error('created note not found');
-    return c.json(await withImages(c.env, note), retained ? 201 : 200);
+    return c.json(await withImages(c.env, (await withReplies(c.env, [note]))[0]), retained ? 201 : 200);
   } finally {
     if (!retained) await Promise.allSettled(keys.map(key => c.env.ATTACHMENTS.delete(key)));
   }

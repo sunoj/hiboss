@@ -64,11 +64,12 @@ export async function insertMessageWithEvent(
   insertSql: string,
   insertBinds: readonly unknown[],
   sessionId: string | null,
+  additionalStatements: D1PreparedStatement[] = [],
 ): Promise<MessageRow | null> {
   const messageStatement = env.DB.prepare(insertSql).bind(...insertBinds);
-  if (!sessionId) return await messageStatement.first<MessageRow>();
+  if (!sessionId && !additionalStatements.length) return await messageStatement.first<MessageRow>();
 
-  const eventStatement = messageEventStatement(env, sessionId, String(insertBinds[0]));
-  const results = await env.DB.batch([messageStatement, eventStatement]);
+  const events = sessionId ? [messageEventStatement(env, sessionId, String(insertBinds[0]))] : [];
+  const results = await env.DB.batch([messageStatement, ...events, ...additionalStatements]);
   return results[0]?.results[0] as MessageRow | undefined ?? null;
 }

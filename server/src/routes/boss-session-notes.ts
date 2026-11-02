@@ -8,6 +8,7 @@ import { getAccessibleAgentIds } from './boss-api-access';
 import { NOTE_SELECT, type Note } from './session-notes';
 import { noteImage, withImages } from './note-images';
 import { createNote } from './note-create';
+import { withReplies } from './note-replies';
 
 const routes = new Hono<{ Bindings: Env }>();
 routes.onError((error) => {
@@ -26,7 +27,8 @@ routes.get('/sessions/:id/notes', async (c) => {
   if (!await sessionAgent(c)) return c.text('not found', 404);
   const rows = await c.env.DB.prepare(`${NOTE_SELECT} WHERE n.session_id = ?
     ORDER BY n.created_at DESC, n.rowid DESC LIMIT 50`).bind(c.req.param('id')).all<Note>();
-  return c.json({ notes: await Promise.all(rows.results.map(note => withImages(c.env, note))) });
+  const notes = await withReplies(c.env, rows.results);
+  return c.json({ notes: await Promise.all(notes.map(note => withImages(c.env, note))) });
 });
 routes.post('/sessions/:id/notes', async (c) => {
   if (getBossRole(c) === 'viewer') return c.text('viewer cannot write notes', 403);
