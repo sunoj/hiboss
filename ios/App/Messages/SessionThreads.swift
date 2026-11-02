@@ -70,3 +70,31 @@ struct SessionThreads {
         return end.timeIntervalSince(start) <= 600
     }
 }
+
+extension SessionThreads {
+    enum Row: Identifiable {
+        case day(Date)
+        case card(Card)
+        case note(SessionNote)
+
+        var id: String {
+            switch self {
+            case let .day(date): return "day-\(date.timeIntervalSince1970)"
+            case let .card(card): return "card-\(card.id.rawValue)"
+            case let .note(note): return "note-\(note.id)"
+            }
+        }
+    }
+
+    func rows(notes: [SessionNote], calendar: Calendar = .current) -> [Row] {
+        let entries: [(date: Date, row: Row)] = conversation.map { ($0.lastActivity, .card($0)) }
+            + notes.map { (ISODate.parse($0.createdAt) ?? .distantPast, .note($0)) }
+        let days = Dictionary(grouping: entries) { calendar.startOfDay(for: $0.date) }
+        return days.keys.sorted(by: >).flatMap { day in
+            let ordered = (days[day] ?? []).sorted {
+                $0.date == $1.date ? $0.row.id < $1.row.id : $0.date > $1.date
+            }
+            return [Row.day(day)] + ordered.map(\.row)
+        }
+    }
+}

@@ -97,6 +97,48 @@ final class SessionThreadsTests: XCTestCase {
         XCTAssertTrue(SessionThreads(messages: [ask], isOpen: { _ in false }).needsYou.isEmpty)
     }
 
+    func testNotesShareLocalDayGroupsAndNewestFirstOrder() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 7 * 3600))
+        let now = try XCTUnwrap(ISODate.parse("2026-11-03T00:47:00+07:00"))
+        let reply = HistoryMessage(id: "reply", body: "Reply", direction: "agent_to_boss",
+                                   status: "delivered", priority: "normal",
+                                   createdAt: "2026-11-02T16:06:00+07:00")
+        let today = HistoryMessage(id: "today", body: "Today", direction: "agent_to_boss",
+                                   status: "delivered", priority: "normal",
+                                   createdAt: "2026-11-03T00:10:00+07:00")
+        let notes = [note("17", at: "2026-11-02T17:00:00+07:00"),
+                     note("16", at: "2026-11-02T16:00:00+07:00"),
+                     note("today", at: "2026-11-03T00:30:00+07:00"),
+                     note("old", at: "2026-11-01T23:00:00+07:00")]
+        let layout = SessionThreads(messages: [reply, today], isOpen: { _ in false })
+        let rows = layout.rows(notes: notes, calendar: calendar)
+        var groups: [[String]] = []
+        var days: [Date] = []
+        for row in rows {
+            switch row {
+            case let .day(date):
+                days.append(date)
+                groups.append([])
+            case let .note(note):
+                guard !groups.isEmpty else { return XCTFail("Note precedes its day heading") }
+                groups[groups.count - 1].append("note-" + note.id)
+            case let .card(card):
+                guard !groups.isEmpty else { return XCTFail("Card precedes its day heading") }
+                groups[groups.count - 1].append(card.id.rawValue)
+            }
+        }
+        XCTAssertEqual(days, [0, -1, -2].compactMap {
+            calendar.date(byAdding: .day, value: $0, to: calendar.startOfDay(for: now))
+        })
+        XCTAssertEqual(groups, [["note-today", "today"], ["note-17", "reply", "note-16"], ["note-old"]])
+    }
+
+    private func note(_ id: String, at date: String) -> SessionNote {
+        SessionNote(id: id, sessionID: "session", agentID: "agent", bossName: "Boss",
+                    body: id, status: .pending, createdAt: date)
+    }
+
     private let base = Date(timeIntervalSince1970: 2_000_000_000)
 
     private func message(_ id: String, at seconds: TimeInterval, parent: String? = nil,

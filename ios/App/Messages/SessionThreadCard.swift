@@ -25,35 +25,21 @@ struct SessionConversation: View {
                     pendingThread(thread)
                 }
             }
-            if !presentation.conversation.isEmpty {
+            let rows = presentation.rows(notes: notesAPI == nil ? [] : notes)
+            if !rows.isEmpty {
                 Text("Conversation").font(.headline).accessibilityAddTraits(.isHeader)
-                ForEach(Array(presentation.conversation.enumerated()), id: \.element.id) { index, card in
-                    noteRows(before: card.lastActivity,
-                             after: index == 0 ? .distantFuture
-                                : presentation.conversation[index - 1].lastActivity)
-                    if index == 0 || !Calendar.current.isDate(card.lastActivity,
-                        inSameDayAs: presentation.conversation[index - 1].lastActivity) {
-                        dayLabel(card.lastActivity)
+                ForEach(rows) { row in
+                    switch row {
+                    case let .day(date):
+                        dayLabel(date)
+                    case let .card(card):
+                        SessionThreadCard(card: card, store: store, notes: notes)
+                    case let .note(note):
+                        if let notesAPI { SessionNoteBubble(note: note, api: notesAPI) }
                     }
-                    SessionThreadCard(card: card, store: store, notes: notes)
                 }
             }
-            noteRows(before: .distantPast,
-                     after: presentation.conversation.last?.lastActivity ?? .distantFuture)
         }.frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    @ViewBuilder private func noteRows(before: Date, after: Date) -> some View {
-        if let notesAPI {
-            ForEach(notes.filter {
-                let date = ISODate.parse($0.createdAt) ?? .distantPast
-                return date >= before && date < after
-            }.sorted {
-                (ISODate.parse($0.createdAt) ?? .distantPast) > (ISODate.parse($1.createdAt) ?? .distantPast)
-            }) { note in
-                SessionNoteBubble(note: note, api: notesAPI)
-            }
-        }
     }
 
     @ViewBuilder private func pendingThread(_ thread: MessageThread) -> some View {
