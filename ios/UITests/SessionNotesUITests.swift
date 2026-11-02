@@ -4,6 +4,7 @@
 
 import XCTest
 
+@MainActor
 final class SessionNotesUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
@@ -111,7 +112,7 @@ final class SessionNotesUITests: XCTestCase {
             XCTAssertTrue(mode.waitForExistence(timeout: 15))
             captureDemoScreenshot(app, name: "session-reply-mode-\(appearance)", test: self)
             mode.tap()
-            app.buttons["Leave a note for session"].lastMatch.tap()
+            app.buttons["Leave a note for session"].firstMatch.tap()
             XCTAssertTrue(app.textFields["session-note-body"].waitForExistence(timeout: 5))
         }
         return app

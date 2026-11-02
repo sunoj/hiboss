@@ -63,7 +63,7 @@ struct SessionConversation: View {
             VStack(alignment: .leading, spacing: 8) {
                 pendingDecision(thread)
                 ForEach(thread.entries) { entry in
-                    SessionThreadCard(card: .init(threads: [thread]), store: store)
+                    SessionThreadCard(card: .init(threads: [thread]), store: store, notes: notes)
                         .entryRow(entry, root: thread.message)
                         .padding(.leading, 16).padding(.horizontal, 14)
                 }
