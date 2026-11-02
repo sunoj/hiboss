@@ -98,6 +98,26 @@ extension XCUIApplication {
         "HIBOSS_TAB",
     ]
 
+    /// Scrolls a session action fully clear of the navigation bar and bottom composer.
+    func revealSessionControl(_ control: XCUIElement) {
+        let transcript = scrollViews["session-transcript"]
+        let composer = descendants(matching: .any)["session-reply-composer"]
+        for _ in 0..<20 {
+            let top = navigationBars.firstMatch.frame.maxY + 8
+            let bottom = composer.frame.minY - 8
+            let frame = control.frame
+            if control.exists, frame.minY >= top, frame.maxY <= bottom {
+                XCTAssertTrue(control.isHittable)
+                return
+            }
+            let direction: CGFloat = control.exists && frame.minY < top ? 0.18 : -0.18
+            let start = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            let end = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5 + direction))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        XCTFail("Session control must be fully visible before interaction")
+    }
+
     /// Sets `HIBOSS_DEMO=1`, clears stale route flags, then applies `extra` overrides.
     func configureDemoLaunch(_ extra: [String: String] = [:]) {
         launchEnvironment["HIBOSS_DEMO"] = "1"

@@ -9,6 +9,7 @@ struct SessionNoteComposer: View {
     let api: any SessionNotesServing
     let onSent: (SessionNote) -> Void
     @State private var bodyText = ""
+    @FocusState private var editing: Bool
     @State private var sending = false
     @State private var error: String?
     @State private var attempt: (body: String, images: [SessionNoteUpload], key: String)?
@@ -55,8 +56,10 @@ struct SessionNoteComposer: View {
                                 .clipped().overlay(alignment: .topTrailing) {
                                     Button { images.remove(at: index) } label: {
                                         Image(systemName: "xmark.circle.fill")
-                                            .frame(width: 44, height: 44)
-                                    }.accessibilityLabel("Remove image").disabled(sending || loading)
+                                            .frame(width: 44, height: 44, alignment: .topTrailing)
+                                            .contentShape(Rectangle())
+                                    }.buttonStyle(.plain).accessibilityLabel("Remove image")
+                                        .disabled(sending || loading)
                                 }
                         }
                     }
@@ -69,7 +72,7 @@ struct SessionNoteComposer: View {
         TextField("", text: $bodyText,
                   prompt: Text("Write a note…").foregroundStyle(Theme.ink2), axis: .vertical)
             .lineLimit(1...5).textFieldStyle(.roundedBorder)
-            .accessibilityIdentifier("session-note-body").disabled(sending)
+            .accessibilityIdentifier("session-note-body").disabled(sending).focused($editing)
             .onChange(of: bodyText) { _, value in
                 if value.unicodeScalars.count > 4000 {
                     bodyText = String(String.UnicodeScalarView(value.unicodeScalars.prefix(4000)))
@@ -107,6 +110,7 @@ struct SessionNoteComposer: View {
                     sessionID: sessionID, body: attempt.body, images: attempt.images,
                     idempotencyKey: attempt.key)
                 onSent(note)
+                editing = false
                 bodyText = ""
                 images = []
                 self.attempt = nil

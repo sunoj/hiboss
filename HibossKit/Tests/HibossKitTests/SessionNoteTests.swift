@@ -22,6 +22,7 @@ final class SessionNoteTests: XCTestCase {
         XCTAssertEqual(pending.status, .pending)
         XCTAssertNil(pending.readAt)
         XCTAssertEqual(pending.images, [])
+        XCTAssertEqual(pending.replies, [])
         let emptyJSON = Self.json.replacingOccurrences(
             of: "\"read_at\":null", with: "\"images\":[],\"read_at\":null")
         XCTAssertEqual(try JSONDecoder().decode(SessionNote.self, from: Data(emptyJSON.utf8)).images, [])
@@ -34,6 +35,25 @@ final class SessionNoteTests: XCTestCase {
         let read = try JSONDecoder().decode(SessionNote.self, from: Data(readJSON.utf8))
         XCTAssertEqual(read.status, .read)
         XCTAssertNotNil(ISODate.parse(read.readAt))
+    }
+
+    func testDecodesRepliesAndPreservesWireOrder() throws {
+        let replies = """
+        "replies":[{"message_id":"m1","body":"Checked","agent_name":"worker",
+        "created_at":"2026-11-02 10:01:00"},{"message_id":"m2","body":"Ready",
+        "agent_name":"worker","created_at":"2026-11-02 10:02:00"}],
+        """
+        let json = Self.json.replacingOccurrences(of: "\"read_at\":null", with: replies + "\"read_at\":null")
+        let note = try JSONDecoder().decode(SessionNote.self, from: Data(json.utf8))
+        XCTAssertEqual(note.replies.map(\.messageID), ["m1", "m2"])
+        XCTAssertEqual(note.replies.map(\.body), ["Checked", "Ready"])
+        XCTAssertEqual(note.replies.first?.agentName, "worker")
+        XCTAssertNotNil(ISODate.parse(note.replies.first?.createdAt))
+        let encoded = try JSONEncoder().encode(note)
+        XCTAssertEqual(try JSONDecoder().decode(SessionNote.self, from: encoded), note)
+        let empty = Self.json.replacingOccurrences(of: "\"read_at\":null",
+                                                  with: "\"replies\":[],\"read_at\":null")
+        XCTAssertEqual(try JSONDecoder().decode(SessionNote.self, from: Data(empty.utf8)).replies, [])
     }
 
     func testListUsesExactSessionPathAndEnvelope() async throws {

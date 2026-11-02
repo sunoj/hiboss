@@ -1,4 +1,4 @@
-// Session-specific boss notes, independent of message delivery and replies.
+// Session-specific boss notes, with linked agent message replies.
 // Exports SessionNote and SessionNotesServing for native clients and demo services.
 // Dependencies: Foundation and HibossAPI authenticated requests.
 
@@ -14,17 +14,18 @@ public struct SessionNote: Codable, Identifiable, Equatable, Sendable {
     public let status: Status
     public let createdAt: String
     public let readAt: String?
+    public let replies: [SessionNoteReply]
     public let images: [SessionNoteImage]
 
     enum CodingKeys: String, CodingKey {
-        case id, body, status, images
+        case id, body, status, images, replies
         case sessionID = "session_id", agentID = "agent_id", bossName = "boss_name"
         case createdAt = "created_at", readAt = "read_at"
     }
 
     public init(id: String, sessionID: String, agentID: String, bossName: String,
                 body: String, status: Status, createdAt: String, readAt: String? = nil,
-                images: [SessionNoteImage] = []) {
+                images: [SessionNoteImage] = [], replies: [SessionNoteReply] = []) {
         self.id = id
         self.sessionID = sessionID
         self.agentID = agentID
@@ -34,6 +35,7 @@ public struct SessionNote: Codable, Identifiable, Equatable, Sendable {
         self.createdAt = createdAt
         self.readAt = readAt
         self.images = images
+        self.replies = replies
     }
 
     public init(from decoder: Decoder) throws {
@@ -46,6 +48,7 @@ public struct SessionNote: Codable, Identifiable, Equatable, Sendable {
         status = try values.decode(Status.self, forKey: .status)
         createdAt = try values.decode(String.self, forKey: .createdAt)
         readAt = try values.decodeIfPresent(String.self, forKey: .readAt)
+        replies = try values.decodeIfPresent([SessionNoteReply].self, forKey: .replies) ?? []
         images = try values.decodeIfPresent([SessionNoteImage].self, forKey: .images) ?? []
     }
 }
@@ -125,5 +128,25 @@ public struct SessionNoteUpload: Equatable, Sendable {
     public init(data: Data, contentType: String) {
         self.data = data
         self.contentType = contentType
+    }
+}
+
+public struct SessionNoteReply: Codable, Identifiable, Equatable, Sendable {
+    public var id: String { messageID }
+    public let messageID: String
+    public let body: String
+    public let agentName: String
+    public let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case body
+        case messageID = "message_id", agentName = "agent_name", createdAt = "created_at"
+    }
+
+    public init(messageID: String, body: String, agentName: String, createdAt: String) {
+        self.messageID = messageID
+        self.body = body
+        self.agentName = agentName
+        self.createdAt = createdAt
     }
 }

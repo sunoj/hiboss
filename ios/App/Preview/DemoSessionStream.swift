@@ -13,7 +13,11 @@ extension DemoBossAPI {
 
 enum DemoSessionStream {
     static func events(for sessionID: String, from messages: [HistoryMessage]) -> [SessionEvent] {
-        let projected = messages
+        let noteReply = HistoryMessage(
+            id: MessageID(rawValue: "reply-1"), body: "The small rollout is underway.",
+            agentName: "worker-deploy", direction: "agent_to_boss", status: "delivered",
+            priority: "normal", createdAt: "2026-11-02 09:06:00", sessionId: "sess-deploy")
+        let projected = (messages + (sessionID == "sess-deploy" ? [noteReply] : []))
             .filter { $0.sessionId == sessionID || $0.targetSessionId == sessionID }
             .sorted { ($0.createdDate ?? .distantPast) < ($1.createdDate ?? .distantPast) }
             .enumerated()

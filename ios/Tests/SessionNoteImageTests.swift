@@ -6,6 +6,17 @@ import XCTest
 @testable import HiBoss
 
 final class SessionNoteImageTests: XCTestCase {
+    func testReplyQuoteUsesFirstLineAndExactMessageID() {
+        let reply = SessionNoteReply(messageID: "m1", body: "Ready", agentName: "worker",
+                                     createdAt: "2026-11-02 09:00:00")
+        let note = SessionNote(id: "n1", sessionID: "s1", agentID: "a1", bossName: "Alex",
+                               body: "Check\nSecond line", status: .read,
+                               createdAt: reply.createdAt, replies: [reply])
+        XCTAssertEqual(SessionNoteQuote.text(for: "m1", notes: [note]), "Check")
+        XCTAssertNil(SessionNoteQuote.text(for: "m", notes: [note]))
+        XCTAssertNil(SessionNoteQuote.text(for: "m1", notes: []))
+    }
+
     func testDownscalesAndEncodesJPEG() throws {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 3000, height: 1500))
         let original = renderer.image { context in

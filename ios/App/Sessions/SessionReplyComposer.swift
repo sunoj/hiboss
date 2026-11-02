@@ -8,6 +8,16 @@ import SwiftUI
 struct SessionReplyComposer: View {
     let targets: [SessionReplyTarget]
     @ObservedObject var store: InboxStore
+    let sessionID: String
+    let canCreateNotes: Bool
+    let onNoteSent: (SessionNote) -> Void
+    @State private var selectedReply: SessionReplyTarget?
+    @State private var choseNote = false
+    private var noteMode: Bool {
+        sessionID != SessionGrouping.directSessionID
+            && (choseNote || (store.requiredInputLoaded && selectedReply == nil && replyDraft.pinned == nil
+                             && !targets.contains { $0.isDecision }))
+    }
     private var replyDraft: SessionReplyDraft {
         get { store.sessionReplyDraft }
         nonmutating set { store.sessionReplyDraft = newValue }
@@ -16,22 +26,56 @@ struct SessionReplyComposer: View {
     @State private var note: String?
 
     private var target: SessionReplyTarget? {
-        store.requiredInputLoaded ? replyDraft.target(in: targets) : nil
+        guard store.requiredInputLoaded else { return nil }
+        if let pinned = replyDraft.pinned {
+            return targets.first { $0.id == pinned.id }
+        }
+        if let selectedReply { return targets.first { $0.id == selectedReply.id } }
+        return targets.last(where: { $0.isDecision })
+            ?? (sessionID == SessionGrouping.directSessionID ? targets.last : nil)
     }
     private var submitting: Bool { target.map { store.replying[$0.id] != nil } ?? false }
     private var locksControls: Bool { target.map { store.replyGate.locksControls(for: $0.id) } ?? false }
     private var draft: Binding<String> {
-        Binding(get: { replyDraft.text }, set: { replyDraft.update($0, targets: targets) })
+        Binding(get: { replyDraft.text }, set: { replyDraft.update($0, targets: target.map { [$0] } ?? []) })
     }
     private var boxAPI: (any BoxServing)? {
         isDemoMode ? DemoBoxAPI.shared : store.api as? any BoxServing
     }
 
     var body: some View {
+        if canCreateNotes {
+            VStack(alignment: .leading, spacing: 4) {
+                if noteMode, let api = store.api as? any SessionNotesServing {
+                    modePicker
+                    SessionNoteComposer(sessionID: sessionID, api: api, onSent: onNoteSent)
+                } else {
+                    replyControls
+                }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 4).background(.bar)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("session-reply-composer")
+            .sheet(isPresented: $picking) {
+                NavigationStack {
+                    BoxListView(api: boxAPI, onSelect: attach)
+                        .navigationTitle("Attach from Box")
+                        .toolbar { ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { picking = false }
+                        } }
+                }
+            }
+        }
+    }
+
+    private var replyControls: some View {
         VStack(alignment: .leading, spacing: 4) {
             targetLabel
             if let newer = replyDraft.newer(in: targets) {
-                Button("Reply to the newer message") { replyDraft.select(newer) }
+                Button("Reply to the newer message") {
+                    selectedReply = newer
+                    replyDraft.select(newer)
+                }
                     .font(.footnote).frame(minHeight: 44).disabled(submitting)
             }
             if target == nil, replyDraft.pinned != nil {
@@ -40,6 +84,7 @@ struct SessionReplyComposer: View {
             }
             if let note { Text(verbatim: note).font(.footnote).foregroundStyle(Theme.ink2) }
             HStack(alignment: .bottom, spacing: 8) {
+                modePicker
                 Button { picking = true } label: {
                     Image(systemName: "plus").frame(minWidth: 44, minHeight: 44)
                 }.accessibilityLabel("Attach from Box")
@@ -57,18 +102,32 @@ struct SessionReplyComposer: View {
                               || replyDraft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(.horizontal, 12).padding(.vertical, 4).background(.bar)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("session-reply-composer")
-        .sheet(isPresented: $picking) {
-            NavigationStack {
-                BoxListView(api: boxAPI, onSelect: attach)
-                    .navigationTitle("Attach from Box")
-                    .toolbar { ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { picking = false }
-                    } }
+    }
+
+    private var modePicker: some View {
+        Menu {
+            if sessionID != SessionGrouping.directSessionID {
+                Button("Leave a note for session") {
+                    choseNote = true
+                    selectedReply = nil
+                }
             }
+            ForEach(targets, id: \.id) { candidate in
+                Button {
+                    selectedReply = candidate
+                    choseNote = false
+                    replyDraft.select(candidate)
+                } label: { Text(verbatim: candidate.label) }
+            }
+        } label: {
+            HStack {
+                if noteMode { Text("Leave a note for session") }
+                Image(systemName: "chevron.up.chevron.down")
+            }.font(.footnote).lineLimit(1).frame(minWidth: 44, minHeight: 44)
         }
+        .accessibilityLabel(noteMode ? String(localized: "Leave a note for session")
+                            : String(localized: "Choose reply target"))
+        .accessibilityIdentifier("session-composer-mode")
     }
 
     private var targetLabel: some View {
@@ -78,7 +137,7 @@ struct SessionReplyComposer: View {
             } else if !store.requiredInputLoaded {
                 Text("Checking…")
             } else if let target {
-                Text(verbatim: target.label)
+                Text("Reply: \(target.text)")
             } else if replyDraft.pinned != nil {
                 Text("This draft's target is unavailable. Discard it or choose a newer message.")
             } else {

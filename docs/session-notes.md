@@ -146,3 +146,16 @@ may trigger an earlier announcement. SessionStart also polls and announces pendi
 notes. Pending and announcement state include the session ID to reject stale state.
 Polling failures preserve the last successful snapshot. The Codex hook adapter
 uses the same lifecycle path and inherits the detached poller's session context.
+
+## iOS
+
+The session transcript includes boss notes at their creation timestamps, with images
+that open in the full-screen viewer and a compact time and read receipt footer.
+Agent replies remain ordinary session messages; linked message IDs display a quote
+of the note's first line above the reply. Notes refresh on appearance, foreground,
+after sending, and every 15 seconds while the session page is visible.
+
+The bottom composer defaults to a session note, or a custom answer when an open
+decision awaits input. Its target menu selects a specific agent message or returns
+to note mode. Notes accept up to four prepared images and 4000 Unicode scalars,
+with a stable idempotency key for retries of unchanged content. Viewers have no composer.

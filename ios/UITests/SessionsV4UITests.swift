@@ -53,7 +53,7 @@ final class SessionsV4UITests: XCTestCase {
         let enabled = NSPredicate(format: "isEnabled == true")
         XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: enabled,
             evaluatedWith: app.textFields["session-reply-draft"])], timeout: 25), .completed)
-        XCTAssertTrue(target.label.hasPrefix("Custom answer to:"))
+        XCTAssertTrue(target.label.hasPrefix("Reply:"))
     }
 
     func testTodayShowsLoadingBeforeRequiredInputsLoad() {
@@ -82,6 +82,7 @@ final class SessionsV4UITests: XCTestCase {
         for _ in 0..<8 where !open.buttons["Approve"].isHittable { app.swipeUp() }
         XCTAssertTrue(open.buttons["Approve"].isHittable)
         shot(app, "\(appearance)-thread-open")
+        app.revealSessionControl(open.buttons["Approve"])
         open.buttons["Approve"].tap()
         let resolved = app.descendants(matching: .any)["transcript-answer-c1"]
         for _ in 0..<4 where !resolved.isHittable { app.swipeUp() }
@@ -209,10 +210,10 @@ final class SessionsV4UITests: XCTestCase {
 
     func testReplyWithoutAnAgentMessageIsDisabledWithAnExplanation() {
         let app = launch(extra: ["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_TEXT_ASK": "1"])
-        XCTAssertTrue(app.staticTexts["No eligible agent message. Resolved decisions cannot receive replies."]
-            .waitForExistence(timeout: 10))
-        XCTAssertFalse(app.buttons["Send reply"].isEnabled)
-        XCTAssertFalse(app.buttons["Attach from Box"].isEnabled)
+        XCTAssertTrue(app.textFields["session-note-body"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["session-composer-mode"].label.contains("Leave a note for session"))
+        XCTAssertFalse(app.buttons["send-session-note"].isEnabled)
+        XCTAssertTrue(app.buttons["Add images"].isEnabled)
     }
 
     func testBoxFiltersAndSearchIncludeOlderPages() {
