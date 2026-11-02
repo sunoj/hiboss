@@ -6,6 +6,7 @@ import { env, SELF } from 'cloudflare:test';
 import { hashApiKey } from './middleware/auth';
 import { approveJoin } from './devices/approve';
 import notesMigration from '../migrations/0065_session_notes.sql?raw';
+import noteImagesMigration from '../migrations/0066_session_note_images.sql?raw';
 import targetMigration from '../migrations/0041_destination_targets_external_accounts.sql?raw';
 import credentialMigration from '../migrations/0042_provider_credentials.sql?raw';
 import destinationMigration from '../migrations/0040_destinations.sql?raw';
@@ -144,7 +145,7 @@ export async function seedDatabase(): Promise<void> {
   const minterStatements = agentKeyMinterMigration.replace(/^--.*$/gm, '').split(';')
     .map(value => value.trim()).filter(Boolean);
   await env.DB.batch(minterStatements.map(sql => env.DB.prepare(sql)));
-  const noteStatements = notesMigration.replace(/^--.*$/gm, '').split(';')
+  const noteStatements = `${notesMigration}\n${noteImagesMigration}`.replace(/^--.*$/gm, '').split(';')
     .map(value => value.trim()).filter(Boolean);
   await env.DB.batch(noteStatements.map(sql => env.DB.prepare(sql)));
   const keyHash = await hashApiKey(TEST_API_KEY);

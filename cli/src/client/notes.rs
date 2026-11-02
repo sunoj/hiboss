@@ -5,6 +5,14 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct NoteImage {
+    pub index: u32,
+    pub content_type: String,
+    pub bytes: u64,
+    #[serde(skip_deserializing, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+}
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Note {
     pub id: String,
     pub session_id: String,
@@ -14,6 +22,8 @@ pub struct Note {
     pub status: String,
     pub created_at: String,
     pub read_at: Option<String>,
+    #[serde(default)]
+    pub images: Vec<NoteImage>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NotesResponse {
@@ -24,13 +34,35 @@ struct ReadResponse {
     read: u32,
 }
 impl HiBossClient {
-    pub async fn session_notes(&self, session: &str, all: bool) -> Result<NotesResponse, Box<dyn Error>> {
+    pub async fn session_notes(
+        &self,
+        session: &str,
+        all: bool,
+    ) -> Result<NotesResponse, Box<dyn Error>> {
         let status = if all { "all" } else { "pending" };
         let path = format!(
             "/api/sessions/{}/notes?status={status}",
             session_segment(session)?
         );
         Self::send_json(self.request(reqwest::Method::GET, &path)).await
+    }
+
+    pub async fn note_image(
+        &self,
+        session: &str,
+        note: &str,
+        index: u32,
+    ) -> Result<reqwest::Response, Box<dyn Error>> {
+        let path = format!(
+            "/api/sessions/{}/notes/{}/images/{index}",
+            session_segment(session)?,
+            session_segment(note)?
+        );
+        Self::checked_response(
+            self.request(reqwest::Method::GET, &path).send().await?,
+            "note image download failed",
+        )
+        .await
     }
 
     pub async fn read_notes(&self, session: &str, ids: &[&str]) -> Result<u32, Box<dyn Error>> {
@@ -58,7 +90,10 @@ mod tests {
 
     #[test]
     fn session_ids_cannot_change_the_route_or_query() {
-        assert_eq!(session_segment("a/b?c#d").expect("segment"), "a%2Fb%3Fc%23d");
+        assert_eq!(
+            session_segment("a/b?c#d").expect("segment"),
+            "a%2Fb%3Fc%23d"
+        );
     }
 
     #[test]

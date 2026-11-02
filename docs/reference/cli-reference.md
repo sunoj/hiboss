@@ -37,7 +37,11 @@ hiboss note list --all    # include read notes
 hiboss note list --json   # JSON output without acknowledgement
 ```
 
-Notes show boss name, time and full body. Empty text output says no pending notes;
+Notes show boss name, time, full body and local image paths. Both commands download
+images into `<cache>/hiboss/notes/<note_id>/<index>.<ext>` (0700 directories, 0600
+files), reusing complete files. JSON adds `images[].path`. Download failures print
+per-image errors; read acknowledges a note only if all its images downloaded.
+Hook announcements include both note and image counts. Empty text output says no pending notes;
 JSON returns an empty array. When the hook prints `BOSS NOTE (留言)`, run
 `hiboss note read`. PostToolUse reads private local state only; the detached
 background check polls at a 15-second TTL. Unread notes repeat at most every five

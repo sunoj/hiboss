@@ -3,6 +3,7 @@
 import { Hono, type MiddlewareHandler } from 'hono';
 import type { Env } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
+import { noteImage, withImages } from './note-images';
 
 export interface Note {
   id: string;
@@ -35,7 +36,7 @@ routes.get('/:id/notes', async (c) => {
   const rows = await c.env.DB.prepare(`${NOTE_SELECT} WHERE n.session_id = ? AND n.agent_id = ?
     ${status === 'pending' ? "AND n.status = 'pending'" : ''} ORDER BY n.created_at, n.rowid`)
     .bind(c.req.param('id'), getAgentId(c)).all<Note>();
-  return c.json({ notes: rows.results });
+  return c.json({ notes: await Promise.all(rows.results.map(note => withImages(c.env, note))) });
 });
 routes.post('/:id/notes/read', async (c) => {
   const payload = await c.req.json<{ ids?: unknown }>().catch(() => null);
@@ -50,4 +51,5 @@ routes.post('/:id/notes/read', async (c) => {
     .bind(c.req.param('id'), getAgentId(c), ...ids).run();
   return c.json({ read: result.meta.changes });
 });
+routes.get('/:id/notes/:noteId/images/:index', noteImage);
 export const agentNotesRouter = routes;

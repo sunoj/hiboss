@@ -119,7 +119,7 @@ fn bg_check_writes_private_ids_and_post_tool_use_announces_without_http() {
     assert_eq!(result.code, 0);
     let pending = dir.join("note-pending");
     let stored: Value = serde_json::from_str(&read(&pending)).expect("pending state");
-    assert_eq!(stored, json!({"session": "sid", "ids": ["note-0"]}));
+    assert_eq!(stored, json!({"session": "sid", "ids": ["note-0"], "images": 0}));
     assert_eq!(
         std::fs::metadata(&pending).expect("state").permissions().mode() & 0o777,
         0o600
@@ -238,3 +238,6 @@ fn post_tool_use_with_nothing_pending_has_empty_stdout() {
     assert_eq!(result.code, 0, "{}", result.stderr);
     assert_eq!(result.stdout, "");
 }
+
+#[path = "session_notes_images/mod.rs"]
+mod images;

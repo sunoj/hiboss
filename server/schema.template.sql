@@ -264,3 +264,4 @@ CREATE INDEX idx_box_shares_item;
 CREATE TABLE session_notes;
 CREATE INDEX idx_session_notes_status;
 CREATE TABLE session_note_keys;
+CREATE TABLE session_note_images;
