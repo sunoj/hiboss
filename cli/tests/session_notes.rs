@@ -222,6 +222,8 @@ fn post_tool_use_emits_one_context_for_all_local_notices_then_stays_silent() {
     ] {
         assert!(context.contains(expected), "{context:?}");
     }
+    // Each notice starts on its own line; trimmed urgent text must not glue to the next.
+    assert!(context.contains("PEER MESSAGE: peer\nBROADCAST REMINDER:"), "{context:?}");
     let second = fixture.run(&fixture.repo, &["hook", "post-tool-use"], ENV);
     assert_eq!(second.code, 0, "{}", second.stderr);
     assert_eq!(second.stdout, "");

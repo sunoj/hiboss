@@ -63,7 +63,7 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
     print_pending_messages(&mut context)?;
     // Urgent notices enter the agent context, so they come only from the private state dir.
     if let Some(content) = session::take_urgent() {
-        write!(context, "{}", content.trim())?;
+        writeln!(context, "{}", content.trim())?;
     }
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
