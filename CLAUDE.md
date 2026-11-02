@@ -16,7 +16,7 @@ Prefer HiBoss for boss-facing progress, results, and input during substantive ta
 Read `hiboss panel guide`, then inspect `hiboss panel --help` and `hiboss request
 --help`. Respect an explicit channel preference or notification opt-out.
 
-- When the hook announces a boss note (留言), run `hiboss note read`.
+- When the hook announces a boss note (留言), run `hiboss note read`, reply with `hiboss note reply`.
 - Handle actual unread messages with `hiboss reply <id> "response"`.
 - A panel only when the task has state the boss would watch change: a series, per-test
   status, sweep counters, a monitor. A progress note, a result, or a final report is

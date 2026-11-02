@@ -35,8 +35,14 @@ hiboss note read --json   # same acknowledgement, JSON { "notes": [...] }
 hiboss note list          # pending notes, no acknowledgement
 hiboss note list --all    # include read notes
 hiboss note list --json   # JSON output without acknowledgement
+hiboss note reply <note-id> "Checked the output."
+hiboss note reply <note-id> "Detailed response" --content-file response.md
 ```
 
+Replies use the current session and the same signed send client as `hiboss send`,
+printing the server message ID. Text is a title (max 144 Unicode characters);
+`--content-file` supplies full UTF-8 Markdown details. Read/list show each reply and
+end each note with `Reply: hiboss note reply <note-id> "<text>"`; JSON includes `replies`.
 Notes show boss name, time, full body and local image paths. Both commands download
 images into `<cache>/hiboss/notes/<note_id>/<index>.<ext>` (0700 directories, 0600
 files), reusing complete files. JSON adds `images[].path`. Download failures print

@@ -15,6 +15,7 @@ import {
 } from './message-helpers';
 import { prepareSendInput, type SendInput } from './message-send-input';
 import type { SendTarget } from './message-send-target';
+import { noteReplyStatements, validateNoteReply } from './note-replies';
 
 import { dispatchDestinations } from '../delivery';
 import { deliverLegacySend } from './message-send-legacy';
@@ -40,6 +41,7 @@ export async function insertMessageWithRecovery(
       [messageId, agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId],
       // The event belongs to the sender's own session; a peer's session is not the sender's transcript.
       sessionId ?? (targetAgentId === agentId ? targetSessionId : null),
+      noteReplyStatements(env, metadataJson, messageId),
     );
     return { inserted, existing: null };
   } catch (error) {
@@ -57,6 +59,8 @@ routes.post('/', async (c) => {
   if (parsed instanceof Response) return parsed;
   const { toAgent, sessionId } = parsed;
   if (!await ownsSession(c.env.DB, sessionId, parsed.agentId)) return c.text('session does not belong to calling agent', 400);
+  const invalidReply = await validateNoteReply(c, parsed);
+  if (invalidReply) return invalidReply;
   const target = await resolveSendTarget(c, toAgent, sessionId);
   if (target instanceof Response) return target;
   const input = await admitSend(c, parsed, target);

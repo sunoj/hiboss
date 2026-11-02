@@ -4,10 +4,19 @@ use crate::{client::HiBossClient, session};
 use clap::Subcommand;
 #[path = "note_images.rs"]
 mod note_images;
+#[path = "note_reply.rs"]
+mod note_reply;
 use std::{error::Error, io::Write};
 
 #[derive(Debug, Subcommand)]
 pub enum NoteCommand {
+    Reply {
+        note_id: String,
+        #[arg(value_name = "text")]
+        text: String,
+        #[arg(long)]
+        content_file: Option<std::path::PathBuf>,
+    },
     Read {
         #[arg(long)]
         json: bool,
@@ -24,6 +33,13 @@ pub async fn run(command: &NoteCommand, client: &HiBossClient) -> Result<(), Box
     let session =
         session::read_session_id().ok_or("No current session; run hiboss hook session-start")?;
     let (all, json, mark) = match command {
+        NoteCommand::Reply {
+            note_id,
+            text,
+            content_file,
+        } => {
+            return note_reply::run(client, &session, note_id, text, content_file.as_deref()).await;
+        }
         NoteCommand::Read { json } => (false, *json, true),
         NoteCommand::List { all, json } => (*all, *json, false),
     };
@@ -71,27 +87,40 @@ fn print_notes(
         )?;
     } else {
         for note in &response.notes {
-            writeln!(
-                stdout,
-                "{} · {} · {} [{}]\n{}\n",
-                note.boss_name, note.created_at, note.id, note.status, note.body
-            )?;
-            for (position, image) in note.images.iter().enumerate() {
-                if let Some(path) = &image.path {
-                    writeln!(
-                        stdout,
-                        "  image {}/{}: {} ({}, {} KB) — open it to view",
-                        position + 1,
-                        note.images.len(),
-                        path,
-                        image.content_type,
-                        image.bytes.div_ceil(1024)
-                    )?;
-                }
-            }
+            print_note(&mut stdout, note)?;
         }
     }
     stdout.flush()?;
     drop(stdout);
+    Ok(())
+}
+
+fn print_note(stdout: &mut impl Write, note: &crate::client::notes::Note) -> std::io::Result<()> {
+    writeln!(
+        stdout,
+        "{} · {} · {} [{}]\n{}\n",
+        note.boss_name, note.created_at, note.id, note.status, note.body
+    )?;
+    for (position, image) in note.images.iter().enumerate() {
+        if let Some(path) = &image.path {
+            writeln!(
+                stdout,
+                "  image {}/{}: {} ({}, {} KB) — open it to view",
+                position + 1,
+                note.images.len(),
+                path,
+                image.content_type,
+                image.bytes.div_ceil(1024)
+            )?;
+        }
+    }
+    for reply in &note.replies {
+        writeln!(
+            stdout,
+            "  {} · {} · {}\n{}",
+            reply.agent_name, reply.created_at, reply.message_id, reply.body
+        )?;
+    }
+    writeln!(stdout, "Reply: hiboss note reply {} \"<text>\"", note.id)?;
     Ok(())
 }
