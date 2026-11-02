@@ -191,6 +191,11 @@ final class SessionBubblesUITests: XCTestCase {
         app.terminate()
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_EMPTY": "1"])
         app.launchConfiguredDemo()
+        let mode = app.buttons["session-composer-mode"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textFields["session-note-body"].exists)
+        mode.tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "回复对象：")).firstMatch.tap()
         XCTAssertTrue(label.waitForExistence(timeout: 10))
         XCTAssertTrue(label.label.hasPrefix("回复对象："))
     }

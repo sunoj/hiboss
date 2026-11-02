@@ -1,4 +1,4 @@
-// Exercises session notes independently of message replies in configured demo mode.
+// Exercises inline session notes and quoted agent messages in configured demo mode.
 // Exports SessionNotesUITests, retaining list and compose screenshot evidence.
 // Dependencies: XCTest and DemoLaunchSupport.
 
@@ -42,13 +42,17 @@ final class SessionNotesUITests: XCTestCase {
             XCTAssertGreaterThanOrEqual(app.buttons["Remove image"].firstMatch.frame.width, 44)
             XCTAssertGreaterThanOrEqual(app.buttons["Remove image"].firstMatch.frame.height, 44)
             captureDemoScreenshot(app, name: "notes-thumbnails-\(appearance)", test: self)
+            let body = "Inline image note \(appearance)"
+            app.textFields["session-note-body"].tap()
+            app.textFields["session-note-body"].typeText(body)
             XCTAssertTrue(app.buttons["send-session-note"].isEnabled)
             app.buttons["send-session-note"].tap()
             let sent = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                 !app.buttons["Remove image"].exists
             }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [sent], timeout: 10), .completed)
-            for _ in 0..<12 { app.swipeDown() }
+            for _ in 0..<12 where !app.staticTexts[body].isHittable { app.swipeDown() }
+            XCTAssertTrue(app.staticTexts[body].waitForExistence(timeout: 10))
             XCTAssertTrue(app.buttons["session-note-image"].firstMatch.waitForExistence(timeout: 10))
             captureDemoScreenshot(app, name: "session-inline-sent-image-\(appearance)", test: self)
             app.terminate()
@@ -56,16 +60,17 @@ final class SessionNotesUITests: XCTestCase {
     }
 
     @MainActor
-    func testRepliesFollowTheirNoteInLightAndDark() {
+    func testReplyMessageQuotesItsNoteInLightAndDark() {
         for appearance in ["Light", "Dark"] {
             let app = launch([:], appearance: appearance)
             let note = app.staticTexts["Keep the rollout small for the first hour."]
             let first = app.staticTexts["The small rollout is underway."]
             let quote = app.staticTexts["Reply to note: Keep the rollout small for the first hour."]
-            for _ in 0..<6 where !note.isHittable { app.swipeDown() }
+            for _ in 0..<12 where !note.isHittable { app.swipeUp() }
             XCTAssertTrue(note.isHittable)
             XCTAssertTrue(first.isHittable)
             XCTAssertTrue(quote.exists)
+            XCTAssertTrue(app.staticTexts["Read"].exists)
             XCTAssertLessThan(first.frame.minY, note.frame.minY)
             captureDemoScreenshot(app, name: "notes-replies-\(appearance)", test: self)
             app.terminate()

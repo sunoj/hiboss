@@ -22,6 +22,7 @@ struct SessionMessagesView: View {
     @State private var canCreateNotes = false
     @State private var notesError: String?
     @State private var jumpToLatestRequest = 0
+    @State private var sentNoteID: String?
 
     init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore,
          panels: PanelsModel? = nil) {
@@ -33,7 +34,7 @@ struct SessionMessagesView: View {
     }
 
     private var connectedTranscript: some View {
-        ZStack(alignment: .bottom) {
+        VStack(spacing: 0) {
             content
             if !stream.isFollowingLive, !stream.usesHistory {
                 jumpToLiveButton
@@ -43,7 +44,12 @@ struct SessionMessagesView: View {
         .safeAreaInset(edge: .bottom) {
             SessionReplyComposer(targets: SessionReplyTarget.eligible(events: transcriptEvents, store: store),
                                  store: store, sessionID: route.id, canCreateNotes: canCreateNotes,
-                                 onNoteSent: { _ in Task { await refreshNotes() } })
+                                 onNoteSent: { note in
+                                     notes.removeAll { $0.id == note.id }
+                                     notes.append(note)
+                                     sentNoteID = note.id
+                                     Task { await refreshNotes() }
+                                 })
         }
         .navigationTitle(Text(verbatim: facts.session?.namedLabel ?? route.label))
         .navigationBarTitleDisplayMode(.inline)
@@ -194,6 +200,9 @@ struct SessionMessagesView: View {
             .accessibilityIdentifier("session-transcript")
             .coordinateSpace(name: "transcript")
             .simultaneousGesture(readerGesture)
+            .onChange(of: sentNoteID) { _, id in
+                if let id { proxy.scrollTo(id, anchor: .bottom) }
+            }
             .onChange(of: jumpToLatestRequest) { _, _ in
                 scrollToLive(proxy)
             }
