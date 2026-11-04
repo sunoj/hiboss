@@ -7,6 +7,8 @@ import SwiftUI
 extension Font {
     static let hbLargeTitle = Font.largeTitle.weight(.bold)
     static let hbH2 = Font.title2.weight(.semibold)
+    /// Section headers outside cards.
+    static let hbH3 = Font.title3.weight(.semibold)
     static let hbBody = Font.body
     static let hbBodyStrong = Font.body.weight(.semibold)
     static let hbCallout = Font.callout
