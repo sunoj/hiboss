@@ -5,11 +5,10 @@
 import HibossKit
 import SwiftUI
 
-struct BoxResultsView<Header: View, Row: View, Footer: View>: View {
+struct BoxResultsView<Row: View, Footer: View>: View {
     let items: [BoxItem]
     let filter: BoxFilter
     let style: BoxListStyle
-    @ViewBuilder let header: () -> Header
     @ViewBuilder let row: (BoxItem) -> Row
     @ViewBuilder let footer: () -> Footer
     @Environment(\.dynamicTypeSize) private var textSize
@@ -22,10 +21,6 @@ struct BoxResultsView<Header: View, Row: View, Footer: View>: View {
 
     private var list: some View {
         List {
-            header()
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             ForEach(BoxDayGroup.allCases, id: \.self) { group in
                 let matches = items.filter { BoxDayGroup.group($0) == group }
                 if !matches.isEmpty {
@@ -43,10 +38,6 @@ struct BoxResultsView<Header: View, Row: View, Footer: View>: View {
 
     private var grid: some View {
         List {
-            header()
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             ForEach(BoxDayGroup.allCases, id: \.self) { group in
                 let matches = items.filter { BoxDayGroup.group($0) == group }
                 if !matches.isEmpty {
