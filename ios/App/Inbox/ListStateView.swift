@@ -1,5 +1,5 @@
 // Shared loading / error / empty / content gate for store-backed list screens.
-// Exports ListStateView and ListStatePhase, retaining cached rows during refresh and failure.
+// Exports ListStateView, ListStatePhase and ListRefreshNotice for cached native lists.
 // Dependencies: SwiftUI, PendingStateView, RetryButton and Theme.
 
 import SwiftUI
@@ -32,6 +32,7 @@ struct ListStateView<Content: View>: View {
     var loadingTitle: String = String(localized: "Loading messages…")
     var hasLoaded = false
     var reconnecting = false
+    var embedsInList = false
     let onRetry: () async -> Void
     @ViewBuilder var content: () -> Content
 
@@ -40,11 +41,16 @@ struct ListStateView<Content: View>: View {
             isLoading: isLoading, error: error, isEmpty: isEmpty, hasLoaded: hasLoaded
         ) {
         case .loading:
-            ScrollView {
+            if embedsInList {
                 PendingStateView(title: loadingTitle, showsPlaceholder: true, onRetry: onRetry)
                     .padding(Space.m)
-            }
+            } else {
+                ScrollView {
+                    PendingStateView(title: loadingTitle, showsPlaceholder: true, onRetry: onRetry)
+                        .padding(Space.m)
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         case let .unreachable(error):
             ContentUnavailableView {
                 Label("Can't reach the server", systemImage: "wifi.exclamationmark")
@@ -62,8 +68,19 @@ struct ListStateView<Content: View>: View {
     }
 
     private var cachedNotice: some View {
-        CompactRefreshNotice(isRefreshing: isLoading || reconnecting, error: error,
-                             title: reconnecting && !isLoading
+        ListRefreshNotice(isRefreshing: isLoading, error: error, reconnecting: reconnecting, onRetry: onRetry)
+    }
+}
+
+struct ListRefreshNotice: View {
+    let isRefreshing: Bool
+    let error: String?
+    var reconnecting = false
+    let onRetry: () async -> Void
+
+    var body: some View {
+        CompactRefreshNotice(isRefreshing: isRefreshing || reconnecting, error: error,
+                             title: reconnecting && !isRefreshing
                                 ? String(localized: "Reconnecting transcript. Showing earlier events.")
                                 : String(localized: "Refreshing. Showing earlier results."),
                              onRetry: onRetry, statusIdentifier: "list-stale-banner")

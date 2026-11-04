@@ -34,9 +34,6 @@ struct ActivityView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if showsEmptyState {
-                ActivitySectionPicker(section: $section).padding(.horizontal, Space.m)
-            }
             switch section {
             case .sessions: sessions
             case .messages: MessagesView(store: store, search: search, activitySection: $section)
@@ -50,11 +47,6 @@ struct ActivityView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: store.connectionState) }
         }
-    }
-
-    private var showsEmptyState: Bool {
-        section == .sessions ? isEmpty(directory)
-            : (search.isEmpty ? store.history.isEmpty : matchingMessages.isEmpty)
     }
 
     /// An empty bucket shows nothing: a lone "Needs you" header with no rows reads as a fault.
@@ -83,19 +75,11 @@ struct ActivityView: View {
     private var sessions: some View {
         // Built once per redraw: every access rebuilds the whole Today projection.
         let directory = self.directory
-        return ListStateView(
-            isLoading: !store.didLoad || store.isRefreshing,
-            error: store.loadError,
-            isEmpty: isEmpty(directory),
-            emptyIcon: "square.stack.3d.up",
-            emptyTitle: String(localized: "No sessions yet"),
-            emptyDetail: String(localized: "Agent sessions appear here as they report in."),
-            loadingTitle: String(localized: "Loading sessions…"),
-            hasLoaded: store.didLoad,
-            onRetry: { await store.refresh() }
-        ) {
-            List {
-                Section { ActivitySectionPicker(section: $section) }
+        return List {
+            Section { ActivitySectionPicker(section: $section) }
+            if isEmpty(directory) {
+                sessionState.listRowBackground(Theme.paper).listRowSeparator(.hidden)
+            } else {
                 sessionSection(Text("Needs you"), sessions: directory.needsYou)
                 sessionSection(Text("Working"), sessions: directory.working)
                 sessionSection(Text("Idle"), sessions: directory.idle)
@@ -111,10 +95,32 @@ struct ActivityView: View {
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+        }
+        .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !isEmpty(directory) {
+                ListRefreshNotice(isRefreshing: !store.didLoad || store.isRefreshing, error: store.loadError,
+                                  onRetry: { await store.refresh() })
+            }
         }
         .refreshable { await store.refresh() }
     }
+
+    private var sessionState: some View {
+        ListStateView(
+            isLoading: !store.didLoad || store.isRefreshing,
+            error: store.loadError,
+            isEmpty: true,
+            emptyIcon: "square.stack.3d.up",
+            emptyTitle: String(localized: "No sessions yet"),
+            emptyDetail: String(localized: "Agent sessions appear here as they report in."),
+            loadingTitle: String(localized: "Loading sessions…"),
+            hasLoaded: store.didLoad,
+            embedsInList: true,
+            onRetry: { await store.refresh() }
+        ) { EmptyView() }
+    }
+
 }
 
 // Shared segment control lives in the first list section so native large titles track the list.
