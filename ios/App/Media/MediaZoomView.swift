@@ -95,7 +95,7 @@ struct MediaZoomView<Content: View>: UIViewRepresentable {
             scroll.bouncesZoom = true
             scroll.showsHorizontalScrollIndicator = false
             scroll.showsVerticalScrollIndicator = false
-            scroll.backgroundColor = .systemBackground
+            scroll.backgroundColor = .black
             scroll.accessibilityIdentifier = "media-zoom-scroll host:0x0@0,0"
             scroll.accessibilityValue = String(localized: "Fitted")
             scroll.addSubview(host.view)
