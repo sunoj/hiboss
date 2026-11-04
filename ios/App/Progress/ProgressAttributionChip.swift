@@ -11,7 +11,7 @@ struct ProgressAttributionChip: View {
 
     var body: some View {
         if let caption {
-            HStack(alignment: .firstTextBaseline, spacing: Space.xxs) {
+            HStack(spacing: Space.xxs) {
                 monogram
                 Text(verbatim: caption)
                     .font(.caption)
