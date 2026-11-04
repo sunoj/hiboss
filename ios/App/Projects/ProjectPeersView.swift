@@ -7,6 +7,7 @@ import SwiftUI
 struct ProjectPeersView: View {
     let peers: [RecentProjectPeer]
     @State private var showsAll = false
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.needsYouSessionIDs) private var needsYou
 
     var body: some View {
@@ -33,6 +34,11 @@ struct ProjectPeersView: View {
         }
     }
 
+    private func peerTime(_ peer: RecentProjectPeer) -> some View {
+        RecordedTimeText(date: peer.activityDate).font(.caption).foregroundStyle(Theme.ink3)
+            .fixedSize()
+    }
+
     private func row(_ peer: RecentProjectPeer) -> some View {
         HStack(alignment: .top, spacing: Space.s) {
             ProjectAvatarView(project: peer.session.avatarProject, size: AvatarSize.row)
@@ -42,9 +48,9 @@ struct ProjectPeersView: View {
                         .lineLimit(1).truncationMode(.middle).layoutPriority(1)
                     Spacer(minLength: Space.xxs)
                     SessionReadIndicator(sessionID: peer.id, needsYou: needsYou.contains(peer.id))
-                    RecordedTimeText(date: peer.activityDate).font(.caption).foregroundStyle(Theme.ink3)
-                        .lineLimit(1).minimumScaleFactor(0.5)
+                    if !typeSize.isAccessibilitySize { peerTime(peer) }
                 }
+                if typeSize.isAccessibilitySize { peerTime(peer) }
                 HStack(spacing: Space.xxs) {
                     if let agent = peer.session.agentName {
                         AgentAvatarView(name: agent, size: AvatarSize.inline)

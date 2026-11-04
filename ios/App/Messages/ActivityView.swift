@@ -34,9 +34,12 @@ struct ActivityView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            ActivitySectionPicker(section: $section)
+                .padding(.horizontal, Space.m)
+                .padding(.vertical, Space.xs)
             switch section {
             case .sessions: sessions
-            case .messages: MessagesView(store: store, search: search, activitySection: $section)
+            case .messages: MessagesView(store: store, search: search)
             }
         }
         .navigationTitle("Sessions")
@@ -75,11 +78,18 @@ struct ActivityView: View {
     private var sessions: some View {
         // Built once per redraw: every access rebuilds the whole Today projection.
         let directory = self.directory
-        return List {
-            Section { ActivitySectionPicker(section: $section) }
-            if isEmpty(directory) {
-                sessionState.listRowBackground(Theme.paper).listRowSeparator(.hidden)
-            } else {
+        return ListStateView(
+            isLoading: !store.didLoad || store.isRefreshing,
+            error: store.loadError,
+            isEmpty: isEmpty(directory),
+            emptyIcon: "square.stack.3d.up",
+            emptyTitle: String(localized: "No sessions yet"),
+            emptyDetail: String(localized: "Agent sessions appear here as they report in."),
+            loadingTitle: String(localized: "Loading sessions…"),
+            hasLoaded: store.didLoad,
+            onRetry: { await store.refresh() }
+        ) {
+            List {
                 sessionSection(Text("Needs you"), sessions: directory.needsYou)
                 sessionSection(Text("Working"), sessions: directory.working)
                 sessionSection(Text("Idle"), sessions: directory.idle)
@@ -95,35 +105,13 @@ struct ActivityView: View {
                     }
                 }
             }
-        }
-        .listStyle(.insetGrouped)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !isEmpty(directory) {
-                ListRefreshNotice(isRefreshing: !store.didLoad || store.isRefreshing, error: store.loadError,
-                                  onRetry: { await store.refresh() })
-            }
+            .listStyle(.insetGrouped)
         }
         .refreshable { await store.refresh() }
     }
-
-    private var sessionState: some View {
-        ListStateView(
-            isLoading: !store.didLoad || store.isRefreshing,
-            error: store.loadError,
-            isEmpty: true,
-            emptyIcon: "square.stack.3d.up",
-            emptyTitle: String(localized: "No sessions yet"),
-            emptyDetail: String(localized: "Agent sessions appear here as they report in."),
-            loadingTitle: String(localized: "Loading sessions…"),
-            hasLoaded: store.didLoad,
-            embedsInList: true,
-            onRetry: { await store.refresh() }
-        ) { EmptyView() }
-    }
-
 }
 
-// Shared segment control lives in the first list section so native large titles track the list.
+// Shared segment control sits above the content, matching the native navigation title layout.
 struct ActivitySectionPicker: View {
     @Binding var section: ActivitySection
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -148,6 +136,7 @@ struct ActivitySectionPicker: View {
             Text("Sessions").tag(ActivitySection.sessions)
             Text("Messages").tag(ActivitySection.messages)
         }
+        .labelsHidden()
     }
 
 }
