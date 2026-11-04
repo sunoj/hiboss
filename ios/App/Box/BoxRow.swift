@@ -7,28 +7,29 @@ import SwiftUI
 
 struct BoxRow: View {
     @Environment(\.dynamicTypeSize) private var textSize
-    @ScaledMetric(relativeTo: .body) private var rowHeight = 64
     let item: BoxItem
     @ObservedObject var media: BoxMediaStore
 
     var grid = false
 
     private var layout: AnyLayout {
-        grid || textSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+        grid || textSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: Space.s))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: Space.s))
     }
 
     var body: some View {
         layout {
             if !grid || item.kind != .text {
                 BoxThumbnail(item: item, media: media)
-                    .frame(width: grid ? nil : 56, height: grid ? (item.hasMedia ? 120 : 44) : 56)
+                    .frame(width: grid ? nil : AvatarSize.row,
+                           height: grid ? (item.hasMedia ? AvatarSize.row * 3 : ControlMetric.minTap)
+                               : AvatarSize.row)
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(verbatim: item.boxTitle).font(.body).foregroundStyle(Theme.ink)
                     .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? (item.hasMedia ? 2 : 4) : 1))
                     .fixedSize(horizontal: false, vertical: true)
-                if let summary = item.summary, !summary.isEmpty {
+                if grid, let summary = item.summary, !summary.isEmpty {
                     Text(verbatim: summary).font(.callout)
                         .foregroundStyle(item.kind == .link ? Theme.link : Theme.ink2)
                         .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? (item.hasMedia ? 1 : 2) : 1))
@@ -38,18 +39,18 @@ struct BoxRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .multilineTextAlignment(.leading)
-        .padding(grid ? 12 : 0)
-        .frame(maxWidth: .infinity, minHeight: grid ? nil : rowHeight, alignment: .leading)
+        .padding(grid ? Space.s : .zero)
+        .frame(maxWidth: .infinity, minHeight: grid ? nil : ControlMetric.minTap, alignment: .leading)
         .frame(maxHeight: grid ? .infinity : nil, alignment: .topLeading)
-        .background(grid ? Theme.surface : Color.clear, in: RoundedRectangle(cornerRadius: 12))
+        .background(grid ? Theme.surface : Color.clear, in: RoundedRectangle(cornerRadius: Radius.medium))
         .contentShape(Rectangle())
         .alignmentGuide(.listRowSeparatorLeading) { dimensions in
-            grid || textSize.isAccessibilitySize ? 0 : dimensions[.leading] + 68
+            grid || textSize.isAccessibilitySize ? 0 : dimensions[.leading] + AvatarSize.row + Space.s
         }
     }
 
     private var metadata: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.xxs) {
             if item.liked {
                 Image(systemName: "heart.fill").font(.caption)
                     .foregroundStyle(.secondary).accessibilityLabel("Liked")
@@ -89,7 +90,7 @@ struct BoxThumbnail: View {
                         CompactImageWait(onRetry: { Task { await media.retryThumbnail(item) } })
                     }
                 } else {
-                    VStack(spacing: 2) {
+                    VStack(spacing: Space.xxs) {
                         Image(systemName: item.symbol).font(.title2)
                         if item.kind == .file {
                             Text(verbatim: item.fileExtension).font(.caption2).lineLimit(1)
@@ -102,11 +103,11 @@ struct BoxThumbnail: View {
                         if let duration = item.durationLabel {
                             Text(verbatim: duration).font(.caption)
                         }
-                    }.padding(4).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    }.padding(Space.xxs).background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.small))
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height).clipped()
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.small))
         }
         .accessibilityHidden(media.thumbnailErrors[item.id] == nil)
         .task(id: "\(item.id)#\(media.thumbnailEpochs[item.id] ?? 0)") { await media.showThumbnail(item) }

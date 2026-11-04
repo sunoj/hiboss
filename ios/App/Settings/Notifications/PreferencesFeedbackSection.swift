@@ -62,19 +62,18 @@ struct PreferencesSaveButton: View {
 
     var body: some View {
         if store.isDirty || store.isSaving {
-            VStack(spacing: 12) {
+            VStack(spacing: Space.s) {
                 if store.isSaving {
                     SettingsWaitView(title: "Saving changes…", actionTitle: "Go Back", showsContext: false) {
                         dismiss()
                     }
                 }
                 Button("Save Changes") { Task { await store.save() } }
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .buttonStyle(.borderedProminent)
+                    .hbButton(.primary)
                     .disabled(store.isSaving)
                     .accessibilityIdentifier("settings-preferences-save")
             }
-            .padding()
+            .padding(Space.m)
             .background(Theme.paper)
         }
     }

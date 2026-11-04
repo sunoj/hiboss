@@ -26,9 +26,12 @@ struct SettingsDevicesView: View {
                     NavigationLink {
                         DeviceRequestsView(model: joinRequests)
                     } label: {
-                        Label("Device Requests", systemImage: "desktopcomputer.and.arrow.down")
+                        LabeledContent {
+                            Text(verbatim: String(joinRequests.pendingCount))
+                        } label: {
+                            Label("Device Requests", systemImage: "desktopcomputer.and.arrow.down")
+                        }
                     }
-                    .badge(joinRequests.pendingCount)
                 }
             }
             if let api = connection.makeAPI(), let config = connection.config {
@@ -47,6 +50,8 @@ struct SettingsDevicesView: View {
                 Section { Text("Connect to a server before pairing another device.") }
             }
         }
+        .formStyle(.grouped)
+        .contentMargins(.horizontal, Space.m, for: .scrollContent)
         .navigationTitle("Devices")
         .navigationBarTitleDisplayMode(.inline)
     }

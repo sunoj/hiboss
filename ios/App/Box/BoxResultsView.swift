@@ -26,12 +26,13 @@ struct BoxResultsView<Row: View, Footer: View>: View {
                 if !matches.isEmpty {
                     Section {
                         ForEach(matches) { row($0) }
-                            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-                    } header: { Text(verbatim: group.title) }
+                            .listRowInsets(EdgeInsets(top: Space.s, leading: Space.m, bottom: Space.s, trailing: Space.m))
+                    } header: { Text(verbatim: group.title).hbSectionHeader() }
                 }
             }
             footer()
         }.listStyle(.insetGrouped)
+            .contentMargins(.horizontal, Space.m, for: .scrollContent)
     }
 
     private var grid: some View {
@@ -41,9 +42,9 @@ struct BoxResultsView<Row: View, Footer: View>: View {
                 if !matches.isEmpty {
                     Section {
                         LazyVGrid(columns: Array(
-                            repeating: GridItem(.flexible(), spacing: 8, alignment: .top),
+                            repeating: GridItem(.flexible(), spacing: Space.xs, alignment: .top),
                             count: filter.isMedia ? 3 : 2
-                        ), spacing: 8) {
+                        ), spacing: Space.xs) {
                             ForEach(matches) { item in
                                 row(item)
                                     .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -51,13 +52,14 @@ struct BoxResultsView<Row: View, Footer: View>: View {
                                            : (textSize.isAccessibilitySize ? 460 : 260), alignment: .top)
                             }
                         }
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: .zero, leading: .zero, bottom: .zero, trailing: .zero))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                    } header: { Text(verbatim: group.title) }
+                    } header: { Text(verbatim: group.title).hbSectionHeader() }
                 }
             }
             footer()
         }.listStyle(.insetGrouped)
+            .contentMargins(.horizontal, Space.m, for: .scrollContent)
     }
 }

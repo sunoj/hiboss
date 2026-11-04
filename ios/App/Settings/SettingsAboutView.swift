@@ -15,6 +15,8 @@ struct SettingsAboutView: View {
                     forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—")
             }
         }
+        .formStyle(.grouped)
+        .contentMargins(.horizontal, Space.m, for: .scrollContent)
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
     }

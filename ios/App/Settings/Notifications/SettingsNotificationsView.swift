@@ -29,6 +29,8 @@ struct SettingsNotificationsView: View {
             }
             PreferencesFeedbackSection(store: store, api: api)
         }
+        .formStyle(.grouped)
+        .contentMargins(.horizontal, Space.m, for: .scrollContent)
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) { PreferencesSaveButton(store: store) }
@@ -85,6 +87,8 @@ struct SettingsDeliveryView: View {
             RoutingSection(store: store)
             PreferencesFeedbackSection(store: store, api: api)
         }
+        .formStyle(.grouped)
+        .contentMargins(.horizontal, Space.m, for: .scrollContent)
         .navigationTitle("Delivery details")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) { PreferencesSaveButton(store: store) }
