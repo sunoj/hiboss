@@ -10,6 +10,7 @@ struct MessagesView: View {
 
     var search = ""
     var sessionID: String? = nil
+    var activitySection: Binding<ActivitySection>? = nil
 
     private var messages: [HistoryMessage] {
         store.history.filter {
@@ -20,24 +21,40 @@ struct MessagesView: View {
     }
 
     var body: some View {
-        ListStateView(
-            isLoading: !store.didLoad || store.isRefreshing,
-            error: store.loadError,
-            isEmpty: messages.isEmpty,
-            emptyIcon: "tray",
-            emptyTitle: String(localized: "No messages yet"),
-            emptyDetail: String(localized: "Agent messages will appear here."),
-            hasLoaded: store.didLoad,
-            onRetry: { await store.refresh() }
-        ) {
-            List {
+        List {
+            if let activitySection {
+                Section { ActivitySectionPicker(section: activitySection) }
+            }
+            if messages.isEmpty {
+                emptyState.listRowBackground(Theme.paper).listRowSeparator(.hidden)
+            } else {
                 ForEach(MessageThreading.items(from: messages)) { item in
                     NavigationLink(value: item.id) { row(item) }
                 }
             }
-            .listStyle(.plain)
+        }
+        .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !messages.isEmpty {
+                ListRefreshNotice(isRefreshing: !store.didLoad || store.isRefreshing, error: store.loadError,
+                                  onRetry: { await store.refresh() })
+            }
         }
         .refreshable { await store.refresh() }
+    }
+
+    private var emptyState: some View {
+        ListStateView(
+            isLoading: !store.didLoad || store.isRefreshing,
+            error: store.loadError,
+            isEmpty: true,
+            emptyIcon: "tray",
+            emptyTitle: String(localized: "No messages yet"),
+            emptyDetail: String(localized: "Agent messages will appear here."),
+            hasLoaded: store.didLoad,
+            embedsInList: true,
+            onRetry: { await store.refresh() }
+        ) { EmptyView() }
     }
 
     @ViewBuilder

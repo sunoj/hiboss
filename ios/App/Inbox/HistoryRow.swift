@@ -13,26 +13,28 @@ struct HistoryRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Space.s) {
             if !dynamicTypeSize.isAccessibilitySize {
-                AgentAvatarView(name: message.displayName, size: 40, lookupName: message.agentName)
+                AgentAvatarView(name: message.displayName, size: AvatarSize.row,
+                                lookupName: message.agentName)
             }
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 RowHeader(name: Text(verbatim: message.displayName), date: message.createdDate)
                 Text(verbatim: message.body)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 4 : 2)
-                if let answer { answerLine(answer) }
-                MessageReactions(message: message)
-                if let badge = MessageRowBadge.badge(for: message, answerability: answerability) {
-                    Text(verbatim: badge.title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(badge.tint)
+                    .lineLimit(2)
+                HStack(spacing: Space.xs) {
+                    if let answer { answerLine(answer) }
+                    if let badge = MessageRowBadge.badge(for: message, answerability: answerability) {
+                        Text(verbatim: badge.title).font(.caption.weight(.semibold))
+                            .foregroundStyle(badge.tint).lineLimit(1)
+                    }
                 }
+                MessageReactions(message: message)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xxs)
         .contentShape(Rectangle())
     }
 
@@ -44,9 +46,9 @@ struct HistoryRow: View {
                 Text("You replied: \(answer)")
             }
         }
-        .font(.subheadline)
+        .font(.caption)
         .foregroundStyle(.primary)
-        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+        .lineLimit(1)
     }
 }
 
@@ -57,16 +59,16 @@ struct BossHistoryRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Space.s) {
             if !dynamicTypeSize.isAccessibilitySize {
                 Image(systemName: "arrowshape.turn.up.left.fill")
                     .font(.body)
                     .foregroundStyle(Theme.accent)
-                    .frame(width: 40, height: 40)
+                    .frame(width: AvatarSize.row, height: AvatarSize.row)
                     .background(Theme.surface2, in: Circle())
                     .accessibilityHidden(true)
             }
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 RowHeader(name: Text("You"), date: message.createdDate)
                 if let agent = message.agentName, !agent.isEmpty {
                     Text("To \(agent)")
@@ -76,11 +78,11 @@ struct BossHistoryRow: View {
                 Text(verbatim: message.body)
                     .font(.subheadline)
                     .foregroundStyle(.primary)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 4 : 2)
+                    .lineLimit(2)
                 MessageReactions(message: message)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xxs)
         .contentShape(Rectangle())
     }
 }
@@ -93,14 +95,14 @@ private struct RowHeader: View {
 
     var body: some View {
         if dynamicTypeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 name.font(.headline).foregroundStyle(.primary)
                 timeText
             }
         } else {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                 name.font(.headline).foregroundStyle(.primary).lineLimit(1)
-                Spacer(minLength: 4)
+                Spacer(minLength: Space.xxs)
                 timeText
             }
         }

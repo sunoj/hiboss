@@ -1,5 +1,5 @@
 // Sessions browser retaining native session rows and message history.
-// Exports: ActivityView and ActivitySection; the shell owns selection for deep links.
+// Exports: ActivityView, ActivitySection and ActivitySectionPicker; the shell owns selection for deep links.
 // Dependencies: SwiftUI, HibossKit SessionDirectory/SessionGrouping, InboxStore, and SessionRow.
 
 import HibossKit
@@ -14,7 +14,6 @@ struct ActivityView: View {
     @ObservedObject var store: InboxStore
     @Binding var section: ActivitySection
     @ObservedObject var connection: ConnectionStore
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Environment(\.projectSessions) private var inventory
 
@@ -35,39 +34,18 @@ struct ActivityView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            sectionPicker
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
             switch section {
             case .sessions: sessions
-            case .messages: MessagesView(store: store, search: search)
+            case .messages: MessagesView(store: store, search: search, activitySection: $section)
             }
         }
         .navigationTitle("Sessions")
+        .navigationBarTitleDisplayMode(.large)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
                     prompt: "Search sessions and messages")
         .background(Theme.paper)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: store.connectionState) }
-        }
-    }
-
-    private var sectionPicker: some View {
-        Group {
-            if typeSize.isAccessibilitySize {
-                picker.pickerStyle(.menu)
-            } else {
-                picker.pickerStyle(.segmented)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .accessibilityIdentifier("activity-section")
-    }
-
-    private var picker: some View {
-        Picker("Sessions", selection: $section) {
-            Text("Sessions").tag(ActivitySection.sessions)
-            Text("Messages").tag(ActivitySection.messages)
         }
     }
 
@@ -90,25 +68,18 @@ struct ActivityView: View {
                     .accessibilityIdentifier("activity-session-\(session.id)")
                     .accessibilityHint("Opens the session")
                 }
-            } header: { title }
+            } header: { title.hbSectionHeader().textCase(nil) }
         }
     }
 
     private var sessions: some View {
         // Built once per redraw: every access rebuilds the whole Today projection.
         let directory = self.directory
-        return ListStateView(
-            isLoading: !store.didLoad || store.isRefreshing,
-            error: store.loadError,
-            isEmpty: isEmpty(directory),
-            emptyIcon: "square.stack.3d.up",
-            emptyTitle: String(localized: "No sessions yet"),
-            emptyDetail: String(localized: "Agent sessions appear here as they report in."),
-            loadingTitle: String(localized: "Loading sessions…"),
-            hasLoaded: store.didLoad,
-            onRetry: { await store.refresh() }
-        ) {
-            List {
+        return List {
+            Section { ActivitySectionPicker(section: $section) }
+            if isEmpty(directory) {
+                sessionState.listRowBackground(Theme.paper).listRowSeparator(.hidden)
+            } else {
                 sessionSection(Text("Needs you"), sessions: directory.needsYou)
                 sessionSection(Text("Working"), sessions: directory.working)
                 sessionSection(Text("Idle"), sessions: directory.idle)
@@ -124,8 +95,59 @@ struct ActivityView: View {
                     }
                 }
             }
-            .listStyle(.plain)
+        }
+        .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !isEmpty(directory) {
+                ListRefreshNotice(isRefreshing: !store.didLoad || store.isRefreshing, error: store.loadError,
+                                  onRetry: { await store.refresh() })
+            }
         }
         .refreshable { await store.refresh() }
     }
+
+    private var sessionState: some View {
+        ListStateView(
+            isLoading: !store.didLoad || store.isRefreshing,
+            error: store.loadError,
+            isEmpty: true,
+            emptyIcon: "square.stack.3d.up",
+            emptyTitle: String(localized: "No sessions yet"),
+            emptyDetail: String(localized: "Agent sessions appear here as they report in."),
+            loadingTitle: String(localized: "Loading sessions…"),
+            hasLoaded: store.didLoad,
+            embedsInList: true,
+            onRetry: { await store.refresh() }
+        ) { EmptyView() }
+    }
+
+}
+
+// Shared segment control lives in the first list section so native large titles track the list.
+struct ActivitySectionPicker: View {
+    @Binding var section: ActivitySection
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                picker.pickerStyle(.menu)
+            } else {
+                picker.pickerStyle(.segmented)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
+        .accessibilityIdentifier("activity-section")
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Theme.paper)
+        .listRowSeparator(.hidden)
+    }
+
+    private var picker: some View {
+        Picker("Sessions", selection: $section) {
+            Text("Sessions").tag(ActivitySection.sessions)
+            Text("Messages").tag(ActivitySection.messages)
+        }
+    }
+
 }

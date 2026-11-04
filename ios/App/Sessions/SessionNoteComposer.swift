@@ -19,27 +19,30 @@ struct SessionNoteComposer: View {
     private var trimmed: String { bodyText.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             thumbnails
             if let error { Text(verbatim: error).font(.caption).foregroundStyle(Theme.ink2) }
-            HStack(alignment: .bottom) {
+            HStack(alignment: .bottom, spacing: Space.xs) {
                 PhotosPicker(selection: $selection,
                              maxSelectionCount: max(1, 4 - images.count), matching: .images) {
-                    Image(systemName: "photo").frame(width: 44, height: 44)
+                    Image(systemName: "photo")
+                        .frame(width: ControlMetric.minTap, height: ControlMetric.minTap)
                 }.accessibilityLabel("Add images").disabled(sending || loading || images.count == 4)
                 draftField
                 Button(action: send) {
-                    if sending { ProgressView().frame(width: 44, height: 44) }
-                    else {
-                        Image(systemName: "arrow.up.circle.fill").font(.title).frame(width: 44, height: 44)
+                    Group {
+                        if sending { ProgressView() }
+                        else { Image(systemName: "arrow.up.circle.fill").font(.title) }
                     }
+                    .frame(width: ControlMetric.minTap)
+                    .frame(minHeight: ControlMetric.minTap, maxHeight: .infinity)
                 }.accessibilityLabel("Send note")
                     .disabled(sending || loading || (trimmed.isEmpty && images.isEmpty))
                     .accessibilityIdentifier("send-session-note")
-            }
+            }.fixedSize(horizontal: false, vertical: true)
             Text(verbatim: "\(bodyText.unicodeScalars.count) / 4000")
                 .font(.caption2).foregroundStyle(Theme.ink2)
-        }.padding().background(.bar)
+        }.padding(.vertical, Space.xs).background(.bar)
             .onChange(of: selection) { _, items in
                 if !items.isEmpty { Task { await loadImages(items) } }
             }
@@ -49,14 +52,15 @@ struct SessionNoteComposer: View {
     private var thumbnails: some View {
         if !images.isEmpty {
             ScrollView(.horizontal) {
-                HStack {
+                HStack(spacing: Space.xs) {
                     ForEach(images.indices, id: \.self) { index in
                         if let image = UIImage(data: images[index].data) {
                             Image(uiImage: image).resizable().scaledToFill().frame(width: 64, height: 64)
                                 .clipped().overlay(alignment: .topTrailing) {
                                     Button { images.remove(at: index) } label: {
                                         Image(systemName: "xmark.circle.fill")
-                                            .frame(width: 44, height: 44, alignment: .topTrailing)
+                                            .frame(width: ControlMetric.minTap, height: ControlMetric.minTap,
+                                                   alignment: .topTrailing)
                                             .contentShape(Rectangle())
                                     }.buttonStyle(.plain).accessibilityLabel("Remove image")
                                         .disabled(sending || loading)
@@ -71,7 +75,10 @@ struct SessionNoteComposer: View {
     private var draftField: some View {
         TextField("", text: $bodyText,
                   prompt: Text("Write a note…").foregroundStyle(Theme.ink2), axis: .vertical)
-            .lineLimit(1...5).textFieldStyle(.roundedBorder)
+            .lineLimit(1...5).textFieldStyle(.plain)
+            .padding(.horizontal, Space.s).padding(.vertical, Space.xs)
+            .frame(minHeight: ControlMetric.minTap)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium))
             .accessibilityIdentifier("session-note-body").disabled(sending).focused($editing)
             .onChange(of: bodyText) { _, value in
                 if value.unicodeScalars.count > 4000 {

@@ -18,7 +18,7 @@ struct SessionConversation: View {
 
     var body: some View {
         let presentation = layout
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Space.s) {
             if !presentation.needsYou.isEmpty {
                 Text("Needs you").font(.headline).accessibilityAddTraits(.isHeader)
                 ForEach(presentation.needsYou) { thread in
@@ -46,16 +46,16 @@ struct SessionConversation: View {
         if thread.entries.isEmpty {
             pendingDecision(thread)
         } else {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 pendingDecision(thread)
                 ForEach(thread.entries) { entry in
                     SessionThreadCard(card: .init(threads: [thread]), store: store, notes: notes)
                         .entryRow(entry, root: thread.message)
-                        .padding(.leading, 16).padding(.horizontal, 14)
+                        .padding(.leading, Space.m).padding(.horizontal, Space.m)
                 }
             }
-            .padding(.bottom, 14)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .padding(.bottom, Space.m)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.large))
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("needs-thread-\(thread.id.rawValue)")
         }
@@ -93,10 +93,10 @@ struct SessionThreadCard: View {
     var notes: [SessionNote] = []
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.s) {
+            HStack(alignment: .top, spacing: Space.s) {
                 if !card.threads[0].isBoss {
-                    AgentAvatarView(name: card.threads[0].message.displayName, size: 32,
+                    AgentAvatarView(name: card.threads[0].message.displayName, size: AvatarSize.compact,
                                     lookupName: card.threads[0].message.agentName)
                 }
                 Text(verbatim: card.threads[0].isBoss
@@ -110,7 +110,7 @@ struct SessionThreadCard: View {
                                       metadata: thread.message.metadata,
                                       settlement: store.settlement(for: thread.id))
                 ForEach(thread.entries) { entry in
-                    entryRow(entry, root: thread.message).padding(.leading, 16)
+                    entryRow(entry, root: thread.message).padding(.leading, Space.m)
                 }
                 if thread.replies.isEmpty, let settlement = store.settlement(for: thread.id) {
                     ResolvedBanner(settlement: settlement, date: nil)
@@ -121,8 +121,8 @@ struct SessionThreadCard: View {
                 }
             }
         }
-        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+        .padding(Space.m).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.large))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(card.threads[0].message.isDecision
             ? "transcript-decision-\(card.id.rawValue)" : "thread-\(card.id.rawValue)")
@@ -130,7 +130,7 @@ struct SessionThreadCard: View {
 
     @ViewBuilder fileprivate func entryRow(_ entry: HistoryMessage, root: HistoryMessage) -> some View {
         if entry.direction == "boss_to_agent", let settlement = settlement(entry, root: root) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 ResolvedBanner(settlement: settlement, date: entry.createdDate,
                                optionDescription: root.metadata?.optionDescription(for: entry.body))
                     .accessibilityIdentifier("transcript-answer-\(root.id.rawValue)")
@@ -144,7 +144,7 @@ struct SessionThreadCard: View {
                 .accessibilityIdentifier(settlement.isAutoDefault
                     ? "session-automatic-reply" : "session-bubble-outgoing")
         } else {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 if entry.agentName != root.agentName {
                     Text(verbatim: entry.displayName).font(.caption.weight(.semibold))
                 }
@@ -155,7 +155,7 @@ struct SessionThreadCard: View {
     }
 
     private func messageRow(_ message: HistoryMessage) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             if let quote = SessionNoteQuote.text(for: message.id.rawValue, notes: notes) {
                 Text("Reply to note: \(quote)").font(.caption).foregroundStyle(Theme.ink2)
                     .lineLimit(1).accessibilityIdentifier("session-note-quote")
@@ -194,7 +194,7 @@ private struct ThreadMessageDetails: View {
                     Text(verbatim: file).font(.footnote)
                 }
             } label: {
-                Text("Details").frame(minHeight: 44, alignment: .leading)
+                Text("Details").frame(minHeight: ControlMetric.minTap, alignment: .leading)
             }
         }
     }
