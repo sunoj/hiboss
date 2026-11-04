@@ -26,7 +26,8 @@ struct BoxResultsView<Row: View, Footer: View>: View {
                 if !matches.isEmpty {
                     Section {
                         ForEach(matches) { row($0) }
-                            .listRowInsets(EdgeInsets(top: Space.s, leading: Space.m, bottom: Space.s, trailing: Space.m))
+                            .listRowInsets(EdgeInsets(top: Space.s, leading: Space.m,
+                                                     bottom: Space.s, trailing: Space.m))
                     } header: { Text(verbatim: group.title).hbSectionHeader() }
                 }
             }

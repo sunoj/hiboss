@@ -103,7 +103,8 @@ struct BoxThumbnail: View {
                         if let duration = item.durationLabel {
                             Text(verbatim: duration).font(.caption)
                         }
-                    }.padding(Space.xxs).background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.small))
+                    }.padding(Space.xxs)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.small))
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height).clipped()
