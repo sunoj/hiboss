@@ -30,7 +30,7 @@ struct ProjectAvatarContent: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let shape = RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+            let shape = RoundedRectangle(cornerRadius: geometry.size.width * 0.22, style: .continuous)
             if case let .success(image) = phase {
                 image.resizable().scaledToFill()
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -41,7 +41,7 @@ struct ProjectAvatarContent: View {
                         Text(verbatim: placeholder.initial).font(.caption.bold())
                             .foregroundStyle(Color("AvatarInitial"))
                             .minimumScaleFactor(0.5).lineLimit(1)
-                            .padding(Space.xxs)
+                            .padding(geometry.size.width * 0.2)
                     }
             }
         }
