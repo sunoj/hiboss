@@ -17,6 +17,19 @@ final class BoxUITests: XCTestCase {
         app.tabBars.buttons["Box"].tap()
     }
 
+    func testBoxLargeTitleSitsBelowTrailingToolbarActions() throws {
+        XCTAssertTrue(app.buttons["box-item-demo-image"].waitForExistence(timeout: 10))
+        let titles = app.navigationBars.staticTexts.matching(identifier: "Box")
+        XCTAssertTrue(titles.firstMatch.waitForExistence(timeout: 5))
+        let title = try XCTUnwrap(titles.allElementsBoundByIndex.max { $0.frame.height < $1.frame.height })
+        for identifier in ["box-collections", "box-author-menu", "box-style-menu"] {
+            let action = app.navigationBars.buttons[identifier]
+            XCTAssertTrue(action.isHittable)
+            XCTAssertLessThan(action.frame.midY, title.frame.minY)
+        }
+        screenshot("box-large-title-toolbar")
+    }
+
     func testAgentProvenanceAppearsInRowAndDetailWhileBossItemsHaveNoBadge() {
         let agent = app.buttons["box-item-demo-agent-text"]
         XCTAssertTrue(agent.waitForExistence(timeout: 10))
