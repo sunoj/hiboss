@@ -15,6 +15,8 @@ struct SettingsConnectionView: View {
             connectionSection
             guidanceSection
         }
+        .formStyle(.grouped)
+        .contentMargins(.horizontal, Space.m, for: .scrollContent)
         .navigationTitle("Connection")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) { reconnectButton }
@@ -66,9 +68,8 @@ struct SettingsConnectionView: View {
     private var reconnectButton: some View {
         if connection.isConfigured, case .failed = connectionState {
             Button("Reconnect", action: onReconnect)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .buttonStyle(.borderedProminent)
-                .padding()
+                .hbButton(.primary)
+                .padding(Space.m)
                 .background(Theme.paper)
         }
     }
@@ -80,10 +81,13 @@ struct SettingsConnectionSummary: View {
     let status: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Connection")
-            Text(verbatim: server).font(.subheadline).foregroundStyle(Theme.ink2)
-            Text(verbatim: status).font(.subheadline).foregroundStyle(Theme.ink2)
+        LabeledContent {
+            Text(verbatim: status)
+        } label: {
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                Text("Connection")
+                Text(verbatim: server).font(.caption).foregroundStyle(Theme.ink2)
+            }
         }
     }
 
