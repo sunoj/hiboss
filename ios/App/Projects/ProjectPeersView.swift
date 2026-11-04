@@ -20,6 +20,7 @@ struct ProjectPeersView: View {
             } label: {
                 Text("Recent peers").accessibilityIdentifier("project-peers")
             }
+            .hbCard()
             .sheet(isPresented: $showsAll) {
                 NavigationStack {
                     List(peers) { peer in row(peer) }.listStyle(.insetGrouped)
@@ -34,22 +35,24 @@ struct ProjectPeersView: View {
 
     private func row(_ peer: RecentProjectPeer) -> some View {
         HStack(alignment: .top, spacing: Space.s) {
-            ProjectAvatarView(project: peer.session.avatarProject, size: AvatarSize.compact)
+            ProjectAvatarView(project: peer.session.avatarProject, size: AvatarSize.row)
             VStack(alignment: .leading, spacing: Space.xxs) {
-                Text(verbatim: peer.session.namedLabel).font(.subheadline)
-                if let agent = peer.session.agentName {
-                    HStack(spacing: Space.xxs) {
-                        AgentAvatarView(name: agent, size: AvatarSize.inline)
-                        Text(verbatim: agent).font(.caption)
-                    }
+                HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                    Text(verbatim: peer.session.namedLabel).font(.subheadline)
+                        .lineLimit(1).truncationMode(.middle).layoutPriority(1)
+                    Spacer(minLength: Space.xxs)
+                    SessionReadIndicator(sessionID: peer.id, needsYou: needsYou.contains(peer.id))
+                    RecordedTimeText(date: peer.activityDate).font(.caption).foregroundStyle(Theme.ink3)
+                        .lineLimit(1).minimumScaleFactor(0.5)
                 }
-                RecordedTimeText(date: peer.activityDate).font(.caption).foregroundStyle(Theme.ink3)
-            }
-            Spacer(minLength: 0)
-            VStack(spacing: Space.xs) {
-                SessionReadIndicator(sessionID: peer.id, needsYou: needsYou.contains(peer.id))
-                if SessionStatus(word: peer.session.status) == .working {
-                    Text("Working").font(.caption).foregroundStyle(Theme.positive)
+                HStack(spacing: Space.xxs) {
+                    if let agent = peer.session.agentName {
+                        AgentAvatarView(name: agent, size: AvatarSize.inline)
+                        Text(verbatim: agent).font(.caption).lineLimit(1)
+                    }
+                    if SessionStatus(word: peer.session.status) == .working {
+                        Text("Working").font(.caption).foregroundStyle(Theme.positive).lineLimit(1)
+                    }
                 }
             }
         }.padding(.vertical, Space.xxs).accessibilityElement(children: .combine)
