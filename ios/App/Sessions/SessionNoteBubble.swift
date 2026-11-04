@@ -8,12 +8,12 @@ struct SessionNoteBubble: View {
     let api: any SessionNotesServing
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+        VStack(alignment: .trailing, spacing: Space.xs) {
             ForEach(note.images, id: \.index) { image in
                 SessionNotePhoto(note: note, image: image, api: api)
             }
             if !note.body.isEmpty { Text(verbatim: note.body).textSelection(.enabled) }
-            HStack(spacing: 4) {
+            HStack(spacing: Space.xxs) {
                 timestamp(note.createdAt)
                 Text(verbatim: "·")
                 if note.status == .pending { Text("Unread") }
@@ -21,9 +21,9 @@ struct SessionNoteBubble: View {
                 if let readAt = note.readAt { timestamp(readAt) }
             }.font(.caption).foregroundStyle(Theme.ink2)
         }
-        .padding(12).background(Theme.surface2, in: RoundedRectangle(cornerRadius: 18))
+        .padding(Space.s).background(Theme.surface2, in: RoundedRectangle(cornerRadius: Radius.large))
         .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.leading, 32).id(note.id)
+        .padding(.leading, Space.xxl).id(note.id)
     }
 
     private func timestamp(_ value: String) -> some View {

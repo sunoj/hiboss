@@ -14,38 +14,52 @@ extension TodaySession {
 struct SessionRow: View {
     let session: TodaySession
     @Environment(\.projectSessions) private var inventory
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var identity: ProjectSession? { inventory.first { $0.id == session.id } }
 
+    private var label: String {
+        identity?.namedLabel ?? [session.localizedLabel, session.branch].compactMap { $0 }
+            .joined(separator: " / ")
+    }
+
+    private var title: some View {
+        HStack(spacing: 0) {
+            if label.hasPrefix(session.localizedLabel), label != session.localizedLabel {
+                Text(verbatim: session.localizedLabel).fixedSize(horizontal: true, vertical: false)
+                Text(verbatim: String(label.dropFirst(session.localizedLabel.count)))
+                    .truncationMode(.middle)
+            } else {
+                Text(verbatim: label).truncationMode(.middle)
+            }
+        }
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ProjectAvatarView(project: identity?.avatarProject ?? .fallback(session.localizedLabel), size: 44)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: identity?.namedLabel ?? [session.localizedLabel, session.branch]
-                    .compactMap { $0 }.joined(separator: " / ")).font(.headline)
+        HStack(alignment: .top, spacing: Space.s) {
+            ProjectAvatarView(project: identity?.avatarProject ?? .fallback(session.localizedLabel),
+                              size: AvatarSize.row)
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                    title.font(.headline).lineLimit(1).truncationMode(.middle).layoutPriority(1)
+                    Spacer(minLength: Space.xxs)
+                    SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
+                    if let date = session.lastActivityDate {
+                        RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
+                            .fixedSize()
+                    }
+                }
                 Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
-                    .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                    .lineLimit(2)
                 if let agent = session.agentName {
-                    HStack(spacing: 4) {
-                        AgentAvatarView(name: agent, size: 22)
+                    HStack(spacing: Space.xxs) {
+                        AgentAvatarView(name: agent, size: AvatarSize.inline)
                         Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
                     }
                 }
-                if let date = session.lastActivityDate {
-                    RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
-                }
-            }
-            Spacer(minLength: 0)
-            VStack(spacing: 6) {
-                SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
-                if session.hasLiveWork(now: .now) && !session.needsYou {
-                    Text("Working").font(.caption).foregroundStyle(Theme.positive)
-                }
             }
         }
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(.vertical, Space.xs)
+        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 }

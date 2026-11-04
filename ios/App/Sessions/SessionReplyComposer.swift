@@ -45,7 +45,7 @@ struct SessionReplyComposer: View {
 
     var body: some View {
         if canCreateNotes {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 if noteMode, let api = store.api as? any SessionNotesServing {
                     modePicker
                     SessionNoteComposer(sessionID: sessionID, api: api, onSent: onNoteSent)
@@ -53,7 +53,7 @@ struct SessionReplyComposer: View {
                     replyControls
                 }
             }
-            .padding(.horizontal, 12).padding(.vertical, 4).background(.bar)
+            .padding(.horizontal, Space.s).padding(.vertical, Space.xxs).background(.bar)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("session-reply-composer")
             .sheet(isPresented: $picking) {
@@ -69,35 +69,40 @@ struct SessionReplyComposer: View {
     }
 
     private var replyControls: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Space.xxs) {
             targetLabel
             if let newer = replyDraft.newer(in: targets) {
                 Button("Reply to the newer message") {
                     selectedReply = newer
                     replyDraft.select(newer)
                 }
-                    .font(.footnote).frame(minHeight: 44).disabled(submitting)
+                    .font(.footnote).frame(minHeight: ControlMetric.minTap).disabled(submitting)
             }
             if target == nil, replyDraft.pinned != nil {
                 Button("Discard draft") { replyDraft = SessionReplyDraft() }
-                    .frame(minHeight: 44)
+                    .frame(minHeight: ControlMetric.minTap)
             }
             if let note { Text(verbatim: note).font(.footnote).foregroundStyle(Theme.ink2) }
-            HStack(alignment: .bottom, spacing: 8) {
+            HStack(alignment: .bottom, spacing: Space.xs) {
                 modePicker
                 Button { picking = true } label: {
-                    Image(systemName: "plus").frame(minWidth: 44, minHeight: 44)
+                    Image(systemName: "plus")
+                        .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
                 }.accessibilityLabel("Attach from Box")
                     .disabled(target == nil || locksControls)
                 TextField("Reply to session…", text: draft, axis: .vertical)
-                    .lineLimit(1...5).textFieldStyle(.roundedBorder)
-                    .frame(minHeight: 44).accessibilityIdentifier("session-reply-draft")
+                    .lineLimit(1...5).textFieldStyle(.plain)
+                    .padding(.horizontal, Space.s).padding(.vertical, Space.xs)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium))
+                    .frame(minHeight: ControlMetric.minTap).accessibilityIdentifier("session-reply-draft")
                     .disabled(target == nil || locksControls)
                 Button(action: send) {
                     Image(systemName: "arrow.up").opacity(submitting ? 0 : 1)
-                        .frame(minWidth: 44, minHeight: 44)
+                        .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
                         .overlay { if submitting { DelayedProgressView() } }
-                }.prominentAction().tint(Theme.primaryAction).accessibilityLabel("Send reply")
+                }.buttonStyle(.plain).foregroundStyle(Theme.onAccent)
+                    .background(Theme.primaryAction, in: RoundedRectangle(cornerRadius: Radius.medium))
+                    .accessibilityLabel("Send reply")
                     .disabled(target == nil || locksControls
                               || replyDraft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -123,7 +128,9 @@ struct SessionReplyComposer: View {
             HStack {
                 if noteMode { Text("Leave a note for session") }
                 Image(systemName: "chevron.up.chevron.down")
-            }.font(.footnote).lineLimit(1).frame(minWidth: 44, minHeight: 44)
+            }
+            .font(.footnote).lineLimit(1)
+            .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
         }
         .accessibilityLabel(noteMode ? String(localized: "Leave a note for session")
                             : String(localized: "Choose reply target"))

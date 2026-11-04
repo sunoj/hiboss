@@ -35,7 +35,7 @@ struct MessagesView: View {
                     NavigationLink(value: item.id) { row(item) }
                 }
             }
-            .listStyle(.plain)
+            .listStyle(.insetGrouped)
         }
         .refreshable { await store.refresh() }
     }

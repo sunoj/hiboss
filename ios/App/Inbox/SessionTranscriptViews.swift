@@ -79,7 +79,7 @@ struct SessionTimeSeparator: View {
             .font(.caption2)
             .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .padding(.vertical, Space.s)
             .accessibilityAddTraits(.isHeader)
     }
 
@@ -90,7 +90,7 @@ struct SessionSystemLine: View {
     @State private var expanded = false
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: Space.xxs) {
             Text(verbatim: shown)
                 .font(bodyFont)
                 .foregroundStyle(.secondary)
@@ -107,8 +107,8 @@ struct SessionSystemLine: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 6)
+        .padding(.horizontal, Space.xl)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("session-system-line")
     }
@@ -145,31 +145,31 @@ struct SessionBubbleView: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
-            if style.isOutgoing { Spacer(minLength: 48) }
+            if style.isOutgoing { Spacer(minLength: Space.xxl) }
             bubbleColumn
-            if !style.isOutgoing { Spacer(minLength: 48) }
+            if !style.isOutgoing { Spacer(minLength: Space.xxl) }
         }
-        .padding(.top, style.isFirstInGroup ? 10 : 2)
-        .padding(.bottom, style.isLastInGroup ? 8 : 2)
+        .padding(.top, style.isFirstInGroup ? Space.s : Space.xxs)
+        .padding(.bottom, style.isLastInGroup ? Space.xs : Space.xxs)
         .accessibilityElement(children: agentAttachment == nil && !hasInlineImages ? .combine : .contain)
         .accessibilityLabel(Text(verbatim: accessibilityText))
         .accessibilityIdentifier(style.isOutgoing ? "session-bubble-outgoing" : "session-bubble-incoming")
     }
 
     private var bubbleColumn: some View {
-        VStack(alignment: style.isOutgoing ? .trailing : .leading, spacing: 2) {
+        VStack(alignment: style.isOutgoing ? .trailing : .leading, spacing: Space.xxs) {
             if style.showsSender {
                 Text(verbatim: SessionTranscriptLayout.actorLabel(for: event))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, Space.s)
             }
             bubbleBody
         }
     }
 
     private var bubbleBody: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             if event.direction == "agent_to_boss", event.kind == "message" {
                 let text = MessageText(body: event.displayBody, content: content ?? event.messageContent)
                 Text(verbatim: text.title).font(.body.weight(.semibold))
@@ -185,10 +185,10 @@ struct SessionBubbleView: View {
             }
             if let message { MessageReactions(message: message) }
         }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .padding(.leading, style.isOutgoing || !style.isLastInGroup ? 0 : 5)
-            .padding(.trailing, style.isOutgoing && style.isLastInGroup ? 5 : 0)
+            .padding(.horizontal, Space.s)
+            .padding(.vertical, Space.xs)
+            .padding(.leading, style.isOutgoing || !style.isLastInGroup ? 0 : Space.xxs)
+            .padding(.trailing, style.isOutgoing && style.isLastInGroup ? Space.xxs : 0)
             .background(fill, in: SessionChatBubble(style: style))
     }
 
@@ -232,20 +232,20 @@ struct SessionChatBubble: Shape {
     }
 
     private var cornerRadii: UnevenRoundedRectangle {
-        let r: CGFloat = 18
-        let tight: CGFloat = 4
+        let r = Radius.large
+        let tight = Radius.small
         if style.isOutgoing {
             return UnevenRoundedRectangle(
                 topLeadingRadius: r,
                 bottomLeadingRadius: r,
-                bottomTrailingRadius: style.isLastInGroup ? 6 : tight,
+                bottomTrailingRadius: style.isLastInGroup ? Radius.small : tight,
                 topTrailingRadius: style.isFirstInGroup ? r : tight,
                 style: .continuous
             )
         }
         return UnevenRoundedRectangle(
             topLeadingRadius: style.isFirstInGroup ? r : tight,
-            bottomLeadingRadius: style.isLastInGroup ? 6 : tight,
+            bottomLeadingRadius: style.isLastInGroup ? Radius.small : tight,
             bottomTrailingRadius: r,
             topTrailingRadius: r,
             style: .continuous

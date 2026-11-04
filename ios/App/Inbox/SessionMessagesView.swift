@@ -190,7 +190,7 @@ struct SessionMessagesView: View {
                     if stream.usesHistory {
                         Text(verbatim: historyNote).font(.footnote).foregroundStyle(Theme.ink2)
                             .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, Space.xs)
                             .accessibilityIdentifier("session-history-note")
                         if route.id != SessionGrouping.directSessionID {
                             RetryButton { await stream.refresh() }
@@ -198,8 +198,8 @@ struct SessionMessagesView: View {
                     }
                     Color.clear.frame(height: 1).id("live-end")
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.horizontal, Space.m)
+                .padding(.vertical, Space.xs)
             }
             .accessibilityIdentifier("session-transcript")
             .coordinateSpace(name: "transcript")
@@ -261,9 +261,9 @@ struct SessionMessagesView: View {
                                  onRetry: { await stream.refresh() })
             } else {
                 Button("Load earlier events") { Task { await stream.loadEarlier() } }
-                    .buttonStyle(.bordered).frame(minHeight: 44)
+                    .buttonStyle(.bordered).frame(minHeight: ControlMetric.minTap)
             }
-        }.padding(.vertical, 8)
+        }.padding(.vertical, Space.xs)
             .onAppear { Task { await stream.loadEarlier() } }
     }
 
@@ -279,11 +279,11 @@ struct SessionMessagesView: View {
                 systemImage: "arrow.up.to.line"
             )
             .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Space.m)
+            .padding(.vertical, Space.xs)
         }
         .prominentAction()
-        .padding(.bottom, 12)
+        .padding(.bottom, Space.s)
         .accessibilityIdentifier("jump-to-live")
     }
 

@@ -34,16 +34,18 @@ struct ActivityView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            sectionPicker
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+        Group {
             switch section {
             case .sessions: sessions
             case .messages: MessagesView(store: store, search: search)
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            sectionPicker.padding(.horizontal, Space.m).padding(.vertical, Space.xs)
+                .background(Theme.paper)
+        }
         .navigationTitle("Sessions")
+        .navigationBarTitleDisplayMode(.large)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
                     prompt: "Search sessions and messages")
         .background(Theme.paper)
@@ -60,7 +62,7 @@ struct ActivityView: View {
                 picker.pickerStyle(.segmented)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 44)
+        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
         .accessibilityIdentifier("activity-section")
     }
 
@@ -90,7 +92,7 @@ struct ActivityView: View {
                     .accessibilityIdentifier("activity-session-\(session.id)")
                     .accessibilityHint("Opens the session")
                 }
-            } header: { title }
+            } header: { title.hbSectionHeader().textCase(nil) }
         }
     }
 
@@ -124,7 +126,7 @@ struct ActivityView: View {
                     }
                 }
             }
-            .listStyle(.plain)
+            .listStyle(.insetGrouped)
         }
         .refreshable { await store.refresh() }
     }

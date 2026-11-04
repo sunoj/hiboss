@@ -42,7 +42,7 @@ struct ListStateView<Content: View>: View {
         case .loading:
             ScrollView {
                 PendingStateView(title: loadingTitle, showsPlaceholder: true, onRetry: onRetry)
-                    .padding(16)
+                    .padding(Space.m)
             }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case let .unreachable(error):
