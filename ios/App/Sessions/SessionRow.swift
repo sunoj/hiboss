@@ -50,10 +50,13 @@ struct SessionRow: View {
                 }
                 Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
                     .lineLimit(2)
-                if let agent = session.agentName {
-                    HStack(spacing: Space.xxs) {
+                HStack(spacing: Space.xxs) {
+                    if let agent = session.agentName {
                         AgentAvatarView(name: agent, size: AvatarSize.inline)
                         Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
+                    }
+                    if session.hasLiveWork(now: .now) && !session.needsYou {
+                        Text("Working").font(.caption).foregroundStyle(Theme.positive)
                     }
                 }
             }
