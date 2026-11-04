@@ -73,30 +73,31 @@ struct BoxListView: View {
     }
 
     private var list: some View {
-        BoxResultsView(items: matches, filter: filter, style: style, header: {
+        VStack(spacing: Space.xxs) {
             BoxFilterChips(selection: $filter, liked: $liked)
             BoxOrganizationError(store: store)
             if matches.isEmpty && !store.isLoadingMore { ContentUnavailableView.search(text: search) }
-        }, row: { item in
-            actionableRow(item)
-                .contextMenu {
-                    if onSelect == nil {
-                        BoxLikeButton(item: item, store: store)
-                        Button("Share", systemImage: "square.and.arrow.up") { share(item) }
-                        Button("Add to Collection…", systemImage: "rectangle.stack") {
-                            collectionItem = item
+            BoxResultsView(items: matches, filter: filter, style: style, row: { item in
+                actionableRow(item)
+                    .contextMenu {
+                        if onSelect == nil {
+                            BoxLikeButton(item: item, store: store)
+                            Button("Share", systemImage: "square.and.arrow.up") { share(item) }
+                            Button("Add to Collection…", systemImage: "rectangle.stack") {
+                                collectionItem = item
+                            }
+                            Button("Delete", role: .destructive) { pendingDelete = item }
+                                .disabled(store.deleting.contains(item.id))
                         }
-                        Button("Delete", role: .destructive) { pendingDelete = item }
-                            .disabled(store.deleting.contains(item.id))
                     }
-                }
-                .overlay {
-                    if store.deleting.contains(item.id) {
-                        PendingStateView(title: String(localized: "Deleting item…"),
-                                         onSettings: openSettings).background(.regularMaterial)
+                    .overlay {
+                        if store.deleting.contains(item.id) {
+                            PendingStateView(title: String(localized: "Deleting item…"),
+                                             onSettings: openSettings).background(.regularMaterial)
+                        }
                     }
-                }
-        }, footer: { pagination })
+            }, footer: { pagination })
+        }
     }
 
     private var matches: [BoxItem] {
