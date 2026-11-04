@@ -17,9 +17,10 @@ final class BoxUITests: XCTestCase {
         app.tabBars.buttons["Box"].tap()
     }
 
-    func testBoxLargeTitleSitsBelowTrailingToolbarActions() {
-        let title = app.navigationBars.staticTexts["Box"]
-        XCTAssertTrue(title.waitForExistence(timeout: 5))
+    func testBoxLargeTitleSitsBelowTrailingToolbarActions() throws {
+        let titles = app.navigationBars.staticTexts.matching(identifier: "Box")
+        XCTAssertTrue(titles.firstMatch.waitForExistence(timeout: 5))
+        let title = try XCTUnwrap(titles.allElementsBoundByIndex.max { $0.frame.height < $1.frame.height })
         for identifier in ["box-collections", "box-author-menu", "box-style-menu"] {
             let action = app.navigationBars.buttons[identifier]
             XCTAssertTrue(action.isHittable)
