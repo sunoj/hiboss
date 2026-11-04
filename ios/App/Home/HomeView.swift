@@ -24,7 +24,7 @@ struct HomeView: View {
             .accessibilityHidden(showingDecision)
             .background(Theme.paper)
             .navigationTitle("Today")
-            .navigationBarTitleDisplayMode(.large)
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { openSettings() } label: { Image(systemName: "person.crop.circle.fill") }

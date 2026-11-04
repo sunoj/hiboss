@@ -27,7 +27,7 @@ struct ProgressFeedView: View {
         }
         .refreshable { await store.refresh() }
         .navigationTitle("Progress")
-        .navigationBarTitleDisplayMode(.large)
+        .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar { filterMenu }
         .task { await store.refresh() }
         .onChange(of: scenePhase) { _, phase in

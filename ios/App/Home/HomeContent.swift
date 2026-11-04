@@ -72,7 +72,7 @@ struct HomeContent: View {
         let onRetry: (() async -> Void)? = inbox.isReady ? { await retryCoverage() } : nil
         let isAllClear = (today.isAllClear || (hasCompletedCoverage && today.decisions.isEmpty))
             && attention.questionnaires.isEmpty && !connectionLost
-        return VStack(spacing: Space.xl) {
+        return VStack(spacing: Space.l) {
             TodayHeader(snapshot: today, requestCount: attention.count,
                         inputsLoaded: inbox.requiredInputLoaded || !inbox.isReady, isRefreshing: refreshing,
                         now: now, onSettings: openSettings)

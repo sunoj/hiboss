@@ -27,6 +27,7 @@ struct TodayHeader: View {
                 HStack(spacing: Space.xs) { chips }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Space.m)
         .task(id: isRefreshing) {
             refreshVisible = false
