@@ -11,6 +11,7 @@ struct HomeView: View {
     let inbox: InboxStore
     let sessionAPI: (any SessionStreamServing)?
     let panels: PanelsModel
+    @Environment(\.openConnectionSettings) private var openSettings
     @Environment(\.scenePhase) private var scenePhase
     @State private var actionNote: String?
     @State private var decisionID: MessageID?
@@ -22,6 +23,15 @@ struct HomeView: View {
                     showingDecision: $showingDecision, sessionRoute: $sessionRoute)
             .accessibilityHidden(showingDecision)
             .background(Theme.paper)
+            .navigationTitle("Today")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { openSettings() } label: { Image(systemName: "person.crop.circle.fill") }
+                        .accessibilityLabel("Settings")
+                        .accessibilityIdentifier("today-settings")
+                }
+            }
             .refreshable {
                 Task {
                     async let messages: Void = inbox.refresh()

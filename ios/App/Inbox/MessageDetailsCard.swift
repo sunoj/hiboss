@@ -10,21 +10,21 @@ struct MessageDetailsCard: View {
     @State private var showsMore = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             Text("Details").hbLabel().foregroundStyle(Theme.ink2)
-            VStack(alignment: .leading, spacing: 12) {
+                .padding(.horizontal, Space.m)
+            VStack(alignment: .leading, spacing: Space.s) {
                 primaryRows
                 Divider()
                 DisclosureGroup(isExpanded: $showsMore) {
-                    VStack(alignment: .leading, spacing: 12) { moreRows }
-                        .padding(.top, 12)
+                    VStack(alignment: .leading, spacing: Space.s) { moreRows }
+                        .padding(.top, Space.s)
                 } label: {
-                    Text("More information").frame(minHeight: 44, alignment: .leading)
+                    Text("More information").frame(minHeight: ControlMetric.minTap, alignment: .leading)
                 }
                 .accessibilityIdentifier("message-more-information")
             }
-            .padding(12)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .hbCard()
         }
     }
 
@@ -54,7 +54,8 @@ struct MessageDetailsCard: View {
         let files = message.metadata?.files ?? []
         if !files.isEmpty {
             AttributeRow(icon: "doc.text", label: "Files") {
-                Text(verbatim: files.map { $0.split(separator: "/").last.map(String.init) ?? $0 }.formatted(.list(type: .and, width: .narrow)))
+                Text(verbatim: files.map { $0.split(separator: "/").last.map(String.init) ?? $0 }
+                    .formatted(.list(type: .and, width: .narrow)))
             }
         }
     }
@@ -84,7 +85,9 @@ struct MessageDetailsCard: View {
     }
 
     private func trimmed(_ value: String?) -> String? {
-        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
+        }
         return value
     }
 }
