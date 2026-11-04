@@ -15,27 +15,14 @@ struct TodayHeader: View {
     @State private var refreshVisible = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(now, format: .dateTime.weekday(.wide).day().month(.wide))
-                        .font(.footnote).foregroundStyle(Theme.ink3)
-                    Text("Today").font(.largeTitle.bold())
-                }
-                Spacer()
-                Button(action: onSettings) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.largeTitle).frame(minWidth: 44, minHeight: 44)
-                }
-                .accessibilityLabel("Settings")
-                .accessibilityIdentifier("today-settings")
-            }
-            ViewThatFits(in: .horizontal) {
-                HStack { chips }
-                VStack(alignment: .leading) { chips }
+        VStack(alignment: .leading, spacing: Space.m) {
+            Text(now, format: .dateTime.weekday(.wide).day().month(.wide))
+                .font(.footnote).foregroundStyle(Theme.ink3)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Space.xs) { chips }.fixedSize(horizontal: true, vertical: false)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, Space.m)
         .task(id: isRefreshing) {
             refreshVisible = false
             guard isRefreshing else { return }
@@ -73,14 +60,14 @@ struct TodayHeader: View {
     }
 
     private func chip(_ label: Text, color: Color, reservesHealthWidth: Bool = false) -> some View {
-        HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 7, height: 7).accessibilityHidden(true)
+        HStack(spacing: Space.xs) {
+            Circle().fill(color).frame(width: Space.xs, height: Space.xs).accessibilityHidden(true)
             ZStack(alignment: .leading) {
                 if reservesHealthWidth { Text("Checking coverage").hidden() }
                 label.lineLimit(1)
             }.font(.footnote).foregroundStyle(Theme.ink2)
         }
-        .padding(.horizontal, 10).padding(.vertical, 7)
+        .padding(.horizontal, Space.s).padding(.vertical, Space.xs)
         .background(Theme.surface, in: Capsule())
     }
 }

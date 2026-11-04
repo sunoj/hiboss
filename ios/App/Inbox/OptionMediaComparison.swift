@@ -24,7 +24,7 @@ struct OptionMediaComparison: View {
     @ViewBuilder
     var body: some View {
         if !orderedMedia.isEmpty {
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: Space.xs) {
                 ForEach(orderedMedia) { media in
                     OptionMediaTile(media: media, description: metadata?.optionDescription(for: media.label),
                                     settlement: selection(for: media)) { open(media) }
@@ -61,7 +61,7 @@ private struct OptionMediaTile: View {
     let open: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: Space.xxs) {
             Text(verbatim: media.label)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.ink)
@@ -83,8 +83,8 @@ private struct OptionMediaTile: View {
                         thumbnail
                     }
                     .background(Theme.surface2)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .frame(minWidth: 44, minHeight: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+            .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
             if let settlement {
                 Label { Text(verbatim: selectionValue) } icon: { Image(systemName: settlement.symbol) }
                     .font(.caption)

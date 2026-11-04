@@ -37,12 +37,12 @@ struct HomeContent: View {
     @ViewBuilder
     private var content: some View {
         ScrollView {
-            LazyVStack(spacing: 22) {
+            LazyVStack(spacing: Space.xl) {
                 TimelineView(HomeRefreshSchedule(deadlines: refreshDeadlines)) { context in
                     todayContent(now: context.date)
                 }
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, Space.s)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             CompactRefreshNotice(isRefreshing: isRefreshingKnownContent,
@@ -72,7 +72,7 @@ struct HomeContent: View {
         let onRetry: (() async -> Void)? = inbox.isReady ? { await retryCoverage() } : nil
         let isAllClear = (today.isAllClear || (hasCompletedCoverage && today.decisions.isEmpty))
             && attention.questionnaires.isEmpty && !connectionLost
-        return VStack(spacing: 22) {
+        return VStack(spacing: Space.xl) {
             TodayHeader(snapshot: today, requestCount: attention.count,
                         inputsLoaded: inbox.requiredInputLoaded || !inbox.isReady, isRefreshing: refreshing,
                         now: now, onSettings: openSettings)
@@ -118,7 +118,7 @@ struct HomeContent: View {
                              statusIdentifier: "home-connection-status",
                              onRetry: inbox.isReady ? { await retryCoverage() } : nil,
                              onSettings: openSettings)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, Space.m)
         }
     }
 

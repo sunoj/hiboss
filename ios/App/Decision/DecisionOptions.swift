@@ -1,6 +1,6 @@
 // Native choice buttons for a pending decision, shared by the Home card and message detail.
-// Exports: DecisionOptions and DecisionOptionFlow. Today wraps choices to the available width;
-// detail and thread choices retain their shared-height two-option row or vertical stack.
+// Exports: DecisionOptions and the flow measurement helper used by projection tests.
+// Today, detail and thread choices share full-width, vertically stacked actions.
 // Dependencies: SwiftUI, DecisionTiming (which option is the live timeout default).
 
 import HibossKit
@@ -15,28 +15,9 @@ struct DecisionOptions: View {
     var wrapsToFit = false
     var fullWidth = false
     let onChoose: (String) -> Void
-    @Environment(\.layoutDirection) private var layoutDirection
-
     var body: some View {
-        if metadata?.optionDescriptions.isEmpty == false {
-            VStack(spacing: 8) {
-                ForEach(options, id: \.self) { button($0, alignment: .leading) }
-            }
-        } else if wrapsToFit {
-            DecisionOptionFlow(layoutDirection: layoutDirection) {
-                ForEach(options, id: \.self) { button($0, alignment: .center) }
-            }
-        } else if options.count == 2 && !fullWidth {
-            // The row takes its tallest label's height and both buttons fill it, so a label that
-            // wraps at large text never leaves its neighbour shorter.
-            HStack(spacing: 8) {
-                ForEach(options, id: \.self) { button($0, alignment: .center) }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-        } else {
-            VStack(spacing: 8) {
-                ForEach(options, id: \.self) { button($0, alignment: .leading) }
-            }
+        VStack(spacing: Space.xs) {
+            ForEach(options, id: \.self) { button($0, alignment: .leading) }
         }
     }
 
@@ -50,22 +31,12 @@ struct DecisionOptions: View {
                 .map { "\(option). \($0)" } ?? option))
             .accessibilityValue(isDefault ? Text("Default") : Text(verbatim: ""))
         .accessibilityHint(isDefault ? Text("Selected automatically when time runs out") : Text(verbatim: ""))
-        Group {
-            if option == options.first {
-                control.prominentAction().tint(Theme.primaryAction)
-            } else {
-                control.buttonStyle(.bordered).buttonBorderShape(.capsule)
-                    .tint(Theme.surface).foregroundStyle(Theme.ink)
-                    .overlay {
-                        Capsule().strokeBorder(Theme.line, lineWidth: 1).allowsHitTesting(false)
-                    }
-            }
-        }
+        control.hbButton(option == options.first ? .primary : .secondary)
         .disabled(submitting != nil && locksControls)
     }
 
     private func label(_ option: String, alignment: Alignment) -> some View {
-        VStack(alignment: alignment == .leading ? .leading : .center, spacing: 3) {
+        VStack(alignment: alignment == .leading ? .leading : .center, spacing: Space.xxs) {
             Text(verbatim: option)
             if let description = metadata?.optionDescription(for: option) {
                 Text(verbatim: description).font(.caption)
@@ -75,13 +46,12 @@ struct DecisionOptions: View {
             .multilineTextAlignment(alignment == .leading ? .leading : .center)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: alignment)
-            .padding(.horizontal, 20)
             .overlay(alignment: .trailing) {
                 if submitting == option.trimmingCharacters(in: .whitespacesAndNewlines) {
                     DelayedProgressView(tint: option == options.first ? Theme.onAccent : Theme.ink)
                 }
             }
-        .frame(minWidth: 44, minHeight: 44)
+        .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
         .frame(maxHeight: alignment == .center ? .infinity : nil)
     }
 }
@@ -114,7 +84,7 @@ struct DecisionOptionFlow: Layout {
         return Self.frames(sizes: sizes, width: width)
     }
 
-    static func frames(sizes: [CGSize], width: CGFloat, spacing: CGFloat = 8) -> [CGRect] {
+    static func frames(sizes: [CGSize], width: CGFloat, spacing: CGFloat = Space.xs) -> [CGRect] {
         var frames: [CGRect] = []
         var x: CGFloat = 0
         var y: CGFloat = 0

@@ -7245,7 +7245,7 @@
           "zh-Hans": {
             "stringUnit": {
               "state": "translated",
-              "value": "若 %@ 内未回答，将选择“%@”。这不代表批准。"
+              "value": "若%@内未回答，将选择“%@”。这不代表批准。"
             }
           },
           "ja": {
