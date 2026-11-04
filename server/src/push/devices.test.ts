@@ -70,7 +70,7 @@ it.each(['api', 'notify', 'destination'])('cleans only the removed device invent
   }
   const audits = await env.DB.prepare(`SELECT actor_type, actor_id, resource_type, resource_id, details
     FROM audit_log WHERE action = 'device.prune' AND resource_id = 'cleanup-device'`).all();
-  expect(audits.results).toEqual(path === 'api' ? [] : [{ actor_type: 'system', actor_id: null,
+  expect(audits.results).toEqual(path === 'api' ? [] : [{ actor_type: 'system', actor_id: 'push',
     resource_type: 'device', resource_id: 'cleanup-device',
     details: JSON.stringify({ reason: 'Unregistered', environment: 'sandbox', bundle_id: 'app' }) }]);
   expect(await env.DB.prepare("SELECT id FROM boss_devices WHERE id = 'cleanup-device'").first()).toBeNull();

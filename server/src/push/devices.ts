@@ -24,7 +24,7 @@ export async function deleteBossDevice(env: Env, bossId: string, token: string, 
     ...preserved,
     ...(reason === undefined ? [] : [env.DB.prepare(`INSERT INTO audit_log
       (actor_type, actor_id, action, resource_type, resource_id, details)
-      SELECT 'system', NULL, 'device.prune', 'device', id,
+      SELECT 'system', 'push', 'device.prune', 'device', id,
         json_object('reason', ?, 'environment', environment, 'bundle_id', bundle_id)
       FROM boss_devices WHERE boss_id = ? AND device_token = ?`).bind(reason, bossId, token)]),
     env.DB.prepare(`DELETE FROM boss_destinations WHERE kind = 'apns' AND json_extract(target, '$.device_id') IN
