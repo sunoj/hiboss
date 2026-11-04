@@ -1,5 +1,5 @@
 // Sessions browser retaining native session rows and message history.
-// Exports: ActivityView and ActivitySection; the shell owns selection for deep links.
+// Exports: ActivityView, ActivitySection and ActivitySectionPicker; the shell owns selection for deep links.
 // Dependencies: SwiftUI, HibossKit SessionDirectory/SessionGrouping, InboxStore, and SessionRow.
 
 import HibossKit
@@ -14,7 +14,6 @@ struct ActivityView: View {
     @ObservedObject var store: InboxStore
     @Binding var section: ActivitySection
     @ObservedObject var connection: ConnectionStore
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Environment(\.projectSessions) private var inventory
 
@@ -35,14 +34,13 @@ struct ActivityView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if showsEmptyState {
+                ActivitySectionPicker(section: $section).padding(.horizontal, Space.m)
+            }
             switch section {
             case .sessions: sessions
-            case .messages: MessagesView(store: store, search: search)
+            case .messages: MessagesView(store: store, search: search, activitySection: $section)
             }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            sectionPicker.padding(.horizontal, Space.m).padding(.vertical, Space.xs)
-                .background(Theme.paper)
         }
         .navigationTitle("Sessions")
         .navigationBarTitleDisplayMode(.large)
@@ -54,23 +52,9 @@ struct ActivityView: View {
         }
     }
 
-    private var sectionPicker: some View {
-        Group {
-            if typeSize.isAccessibilitySize {
-                picker.pickerStyle(.menu)
-            } else {
-                picker.pickerStyle(.segmented)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
-        .accessibilityIdentifier("activity-section")
-    }
-
-    private var picker: some View {
-        Picker("Sessions", selection: $section) {
-            Text("Sessions").tag(ActivitySection.sessions)
-            Text("Messages").tag(ActivitySection.messages)
-        }
+    private var showsEmptyState: Bool {
+        section == .sessions ? isEmpty(directory)
+            : (search.isEmpty ? store.history.isEmpty : matchingMessages.isEmpty)
     }
 
     /// An empty bucket shows nothing: a lone "Needs you" header with no rows reads as a fault.
@@ -111,6 +95,7 @@ struct ActivityView: View {
             onRetry: { await store.refresh() }
         ) {
             List {
+                Section { ActivitySectionPicker(section: $section) }
                 sessionSection(Text("Needs you"), sessions: directory.needsYou)
                 sessionSection(Text("Working"), sessions: directory.working)
                 sessionSection(Text("Idle"), sessions: directory.idle)
@@ -130,4 +115,33 @@ struct ActivityView: View {
         }
         .refreshable { await store.refresh() }
     }
+}
+
+// Shared segment control lives in the first list section so native large titles track the list.
+struct ActivitySectionPicker: View {
+    @Binding var section: ActivitySection
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                picker.pickerStyle(.menu)
+            } else {
+                picker.pickerStyle(.segmented)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
+        .accessibilityIdentifier("activity-section")
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Theme.paper)
+        .listRowSeparator(.hidden)
+    }
+
+    private var picker: some View {
+        Picker("Sessions", selection: $section) {
+            Text("Sessions").tag(ActivitySection.sessions)
+            Text("Messages").tag(ActivitySection.messages)
+        }
+    }
+
 }

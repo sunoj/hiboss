@@ -10,6 +10,7 @@ struct MessagesView: View {
 
     var search = ""
     var sessionID: String? = nil
+    var activitySection: Binding<ActivitySection>? = nil
 
     private var messages: [HistoryMessage] {
         store.history.filter {
@@ -31,6 +32,9 @@ struct MessagesView: View {
             onRetry: { await store.refresh() }
         ) {
             List {
+                if let activitySection {
+                    Section { ActivitySectionPicker(section: activitySection) }
+                }
                 ForEach(MessageThreading.items(from: messages)) { item in
                     NavigationLink(value: item.id) { row(item) }
                 }
