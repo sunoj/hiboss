@@ -65,10 +65,12 @@ final class PushManager: NSObject, ObservableObject {
     private let relay = PushRelayRegistrar()
 
     var environment: String {
-        #if DEBUG
-        "sandbox"
+        let profile = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision")
+            .flatMap { try? Data(contentsOf: $0) }
+        #if targetEnvironment(simulator)
+        return PushEnvironment.resolve(profile: profile, isSimulator: true)
         #else
-        "production"
+        return PushEnvironment.resolve(profile: profile, isSimulator: false)
         #endif
     }
 
