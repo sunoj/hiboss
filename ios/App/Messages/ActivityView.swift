@@ -34,7 +34,7 @@ struct ActivityView: View {
     }
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
             switch section {
             case .sessions: sessions
             case .messages: MessagesView(store: store, search: search)

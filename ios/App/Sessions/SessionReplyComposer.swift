@@ -93,8 +93,9 @@ struct SessionReplyComposer: View {
                 TextField("Reply to session…", text: draft, axis: .vertical)
                     .lineLimit(1...5).textFieldStyle(.plain)
                     .padding(.horizontal, Space.s).padding(.vertical, Space.xs)
+                    .frame(minHeight: ControlMetric.minTap)
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium))
-                    .frame(minHeight: ControlMetric.minTap).accessibilityIdentifier("session-reply-draft")
+                    .accessibilityIdentifier("session-reply-draft")
                     .disabled(target == nil || locksControls)
                 Button(action: send) {
                     Image(systemName: "arrow.up").opacity(submitting ? 0 : 1)
