@@ -12,7 +12,7 @@ struct DecisionProvenance: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xxs) {
-            HStack(alignment: .top, spacing: Space.s) {
+            HStack(alignment: .center, spacing: Space.s) {
                 ProjectAvatarView(project: session?.avatarProject
                                   ?? inventory.project(slug: message.project ?? message.sessionLabel ?? ""),
                                   size: AvatarSize.compact)

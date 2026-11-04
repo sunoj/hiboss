@@ -12,6 +12,7 @@ struct MessageDetailsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xs) {
             Text("Details").hbLabel().foregroundStyle(Theme.ink2)
+                .padding(.horizontal, Space.m)
             VStack(alignment: .leading, spacing: Space.s) {
                 primaryRows
                 Divider()

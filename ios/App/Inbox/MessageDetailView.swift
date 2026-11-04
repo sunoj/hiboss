@@ -195,8 +195,7 @@ struct MessageDetailView: View {
                     optionRow(answer, chosen: true, custom: true)
                 }
             }
-            .padding(Space.s)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+            .hbCard()
             decisionFooter(for: message)?.font(.hbFootnote).foregroundStyle(Theme.ink2)
         }
     }
@@ -205,7 +204,7 @@ struct MessageDetailView: View {
         HStack(alignment: .bottom, spacing: Space.xs) {
             TextField("Reply…", text: draftBinding, axis: .vertical)
                 .accessibilityIdentifier("message-reply-draft")
-                .padding(.horizontal, Space.s)
+                .padding(.horizontal, Space.m)
                 .padding(.vertical, Space.xs)
                 .frame(minHeight: ControlMetric.fullWidth + Space.m)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium,
