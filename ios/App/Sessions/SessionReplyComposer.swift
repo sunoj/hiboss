@@ -53,7 +53,7 @@ struct SessionReplyComposer: View {
                     replyControls
                 }
             }
-            .padding(.horizontal, Space.s).padding(.vertical, Space.xxs).background(.bar)
+            .padding(.horizontal, Space.m).padding(.vertical, Space.xxs).background(.bar)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("session-reply-composer")
             .sheet(isPresented: $picking) {
@@ -99,14 +99,15 @@ struct SessionReplyComposer: View {
                     .disabled(target == nil || locksControls)
                 Button(action: send) {
                     Image(systemName: "arrow.up").opacity(submitting ? 0 : 1)
-                        .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
+                        .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap,
+                               maxHeight: .infinity)
                         .overlay { if submitting { DelayedProgressView() } }
                 }.buttonStyle(.plain).foregroundStyle(Theme.onAccent)
                     .background(Theme.primaryAction, in: RoundedRectangle(cornerRadius: Radius.medium))
                     .accessibilityLabel("Send reply")
                     .disabled(target == nil || locksControls
                               || replyDraft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
+            }.fixedSize(horizontal: false, vertical: true)
         }
     }
 

@@ -25,7 +25,7 @@ struct SessionRow: View {
     private var title: some View {
         HStack(spacing: 0) {
             if label.hasPrefix(session.localizedLabel), label != session.localizedLabel {
-                Text(verbatim: session.localizedLabel).fixedSize(horizontal: true, vertical: false)
+                Text(verbatim: session.localizedLabel).minimumScaleFactor(0.5).layoutPriority(1)
                 Text(verbatim: String(label.dropFirst(session.localizedLabel.count)))
                     .truncationMode(.middle)
             } else {

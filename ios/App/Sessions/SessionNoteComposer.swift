@@ -30,20 +30,19 @@ struct SessionNoteComposer: View {
                 }.accessibilityLabel("Add images").disabled(sending || loading || images.count == 4)
                 draftField
                 Button(action: send) {
-                    if sending {
-                        ProgressView().frame(width: ControlMetric.minTap, height: ControlMetric.minTap)
+                    Group {
+                        if sending { ProgressView() }
+                        else { Image(systemName: "arrow.up.circle.fill").font(.title) }
                     }
-                    else {
-                        Image(systemName: "arrow.up.circle.fill").font(.title)
-                            .frame(width: ControlMetric.minTap, height: ControlMetric.minTap)
-                    }
+                    .frame(width: ControlMetric.minTap)
+                    .frame(minHeight: ControlMetric.minTap, maxHeight: .infinity)
                 }.accessibilityLabel("Send note")
                     .disabled(sending || loading || (trimmed.isEmpty && images.isEmpty))
                     .accessibilityIdentifier("send-session-note")
-            }
+            }.fixedSize(horizontal: false, vertical: true)
             Text(verbatim: "\(bodyText.unicodeScalars.count) / 4000")
                 .font(.caption2).foregroundStyle(Theme.ink2)
-        }.padding(Space.m).background(.bar)
+        }.padding(.vertical, Space.xs).background(.bar)
             .onChange(of: selection) { _, items in
                 if !items.isEmpty { Task { await loadImages(items) } }
             }
