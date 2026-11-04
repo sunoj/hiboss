@@ -55,6 +55,26 @@ follow; it keeps its fixed sizes deliberately. The ban applies to `ios/App`.
 When the sweep of 2026-09-03 cleared `ios/App` it left 17 fixed sizes in the
 widget on purpose — that is a decision, not an oversight.
 
+## 2a. Layout — one scale, named in `Theme/Layout.swift`
+
+Until 2026-11 the app had colour and type tokens but no layout scale, and it showed: 14 padding
+values, 13 stack spacings and six corner radii, so no two screens lined up.
+
+- **Spacing comes from `Space`** (4/8/12/16/20/24/32), for padding and stack spacing alike.
+  The screen's side margin and a card's inner padding are both `Space.m`. A number outside the
+  scale is added to `Space` with a name first, or it is not used.
+- **Radii come from `Radius`**: `small` 8 for thumbnails and tags, `medium` 12 for buttons,
+  fields and inline media, `large` 16 for cards. Capsules are for chips and badges only.
+- **Avatars and leading tiles come from `AvatarSize`**: `inline` 20 beside caption text,
+  `compact` 28 beside a card's meta line, `row` 40 as a list row's or post's leading tile.
+- **One button shape.** Full-width actions and decision options use `.hbButton(.primary)` /
+  `.hbButton(.secondary)`: a 12 pt rounded rectangle at least 48 pt tall that wraps. Options in
+  one group all have the same width. Toolbar and inline text buttons stay system buttons.
+- **One list surface.** Lists are inset grouped cards (`.insetGrouped`, or `hbCard()` for a
+  custom stack); section headers align with the card's content edge, not the screen edge.
+- **One title per screen.** A navigation title and a first row that repeat the same name keep
+  only one of them.
+
 ## 3. The fold is the scarcest thing on the phone
 
 A Mac window can afford a heading that says where you are. A phone cannot.
