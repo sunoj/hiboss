@@ -17,7 +17,7 @@ final class ProjectIdentityUITests: XCTestCase {
         app.buttons["消息"].tap()
         shot(app, "zh-large-messages")
         app.buttons["activity-section"].tap()
-        app.buttons["会话"].tap()
+        app.collectionViews.buttons["会话"].tap()
         app.buttons["activity-session-sess-deploy"].tap()
         let peers = app.descendants(matching: .any).matching(identifier: "project-peers").firstMatch
         for _ in 0..<8 where !peers.exists || !peers.isHittable { app.swipeDown() }
@@ -54,7 +54,7 @@ final class ProjectIdentityUITests: XCTestCase {
 
     private func capture(_ appearance: String) {
         continueAfterFailure = false
-        let app = launch(appearance)
+        var app = launch(appearance, peers: false)
         app.tabBars.buttons["Sessions"].tap()
         let session = app.buttons["activity-session-sess-deploy"]
         XCTAssertTrue(session.waitForExistence(timeout: 10))
@@ -69,7 +69,10 @@ final class ProjectIdentityUITests: XCTestCase {
         verifySessionTitle(app, label: "Sessions")
         shot(app, "\(appearance)-messages")
         app.segmentedControls.buttons["Sessions"].tap()
-        session.tap()
+        app.terminate()
+        app = launch(appearance)
+        app.tabBars.buttons["Sessions"].tap()
+        app.buttons["activity-session-sess-deploy"].tap()
         XCTAssertTrue(app.staticTexts["prod-release · otter"].waitForExistence(timeout: 10))
         let peers = app.descendants(matching: .any).matching(identifier: "project-peers").firstMatch
         for _ in 0..<8 where !peers.exists || !peers.isHittable { app.swipeDown() }
@@ -91,10 +94,10 @@ final class ProjectIdentityUITests: XCTestCase {
         app.terminate()
     }
 
-    private func launch(_ appearance: String, language: String = "en", largeText: Bool = false)
+    private func launch(_ appearance: String, language: String = "en", largeText: Bool = false, peers: Bool = true)
         -> XCUIApplication {
         let app = XCUIApplication()
-        app.configureDemoLaunch(["HIBOSS_DEMO_PEERS": "1"])
+        app.configureDemoLaunch(peers ? ["HIBOSS_DEMO_PEERS": "1"] : [:])
         app.launchArguments = ["-AppleLanguages", "(\(language))", "-AppleInterfaceStyle", appearance]
         if largeText {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName",

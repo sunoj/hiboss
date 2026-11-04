@@ -19,8 +19,10 @@ struct SessionRow: View {
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
+    private var projectName: String { identity?.label ?? session.localizedLabel }
+
     private var caption: String {
-        [session.branch, session.agentName].compactMap { $0 }.joined(separator: " · ")
+        [session.branch ?? identity?.branch, session.agentName ?? identity?.agentName].compactMap { $0 }.joined(separator: " · ")
     }
 
     var body: some View {
@@ -29,15 +31,18 @@ struct SessionRow: View {
                               size: AvatarSize.row)
             VStack(alignment: .leading, spacing: Space.xxs) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                    Text(verbatim: session.localizedLabel).font(.headline)
+                    Text(verbatim: projectName).font(.headline)
                         .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
                         .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
                     Spacer(minLength: Space.xxs)
                     SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
-                    if let date = session.lastActivityDate {
+                    if !typeSize.isAccessibilitySize, let date = session.lastActivityDate {
                         RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
                             .fixedSize()
                     }
+                }
+                if typeSize.isAccessibilitySize, let date = session.lastActivityDate {
+                    RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3).fixedSize()
                 }
                 Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
                     .lineLimit(2)
