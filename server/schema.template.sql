@@ -265,3 +265,5 @@ CREATE TABLE session_notes;
 CREATE INDEX idx_session_notes_status;
 CREATE TABLE session_note_keys;
 CREATE TABLE session_note_images;
+CREATE TABLE session_note_replies;
+CREATE INDEX idx_session_note_replies_message;
