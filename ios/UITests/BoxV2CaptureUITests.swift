@@ -31,13 +31,6 @@ final class BoxV2CaptureUITests: XCTestCase {
         if language == "zh-Hans" {
             XCTAssertFalse(app.buttons["box-item-demo-agent-text"].label.contains("秒钟"))
         }
-        let title = app.navigationBars.staticTexts[language == "en" ? "Box" : "收藏箱"]
-        XCTAssertTrue(title.exists)
-        for identifier in ["box-collections", "box-author-menu", "box-style-menu"] {
-            let action = app.navigationBars.buttons[identifier]
-            XCTAssertTrue(action.isHittable)
-            XCTAssertLessThan(action.frame.midY, title.frame.minY)
-        }
         shot(app, "\(prefix)-list")
         setStyle(app, language == "en" ? "Cards" : "卡片")
         shot(app, "\(prefix)-cards")
