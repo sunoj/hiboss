@@ -17,21 +17,13 @@ struct SessionRow: View {
 
     private var identity: ProjectSession? { inventory.first { $0.id == session.id } }
 
-    private var label: String {
-        identity?.namedLabel ?? [session.localizedLabel, session.branch].compactMap { $0 }
-            .joined(separator: " / ")
-    }
+    @Environment(\.dynamicTypeSize) private var typeSize
 
-    private var title: some View {
-        HStack(spacing: 0) {
-            if label.hasPrefix(session.localizedLabel), label != session.localizedLabel {
-                Text(verbatim: session.localizedLabel).minimumScaleFactor(0.5).layoutPriority(1)
-                Text(verbatim: String(label.dropFirst(session.localizedLabel.count)))
-                    .truncationMode(.middle)
-            } else {
-                Text(verbatim: label).truncationMode(.middle)
-            }
-        }
+    private var projectName: String { identity?.label ?? session.localizedLabel }
+
+    private var caption: String {
+        [session.branch ?? identity?.branch, session.agentName ?? identity?.agentName]
+            .compactMap { $0 }.joined(separator: " · ")
     }
 
     var body: some View {
@@ -40,21 +32,27 @@ struct SessionRow: View {
                               size: AvatarSize.row)
             VStack(alignment: .leading, spacing: Space.xxs) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                    title.font(.headline).lineLimit(1).truncationMode(.middle).layoutPriority(1)
+                    Text(verbatim: projectName).font(.headline)
+                        .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                        .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
                     Spacer(minLength: Space.xxs)
                     SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
-                    if let date = session.lastActivityDate {
+                    if !typeSize.isAccessibilitySize, let date = session.lastActivityDate {
                         RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
                             .fixedSize()
                     }
+                }
+                if typeSize.isAccessibilitySize, let date = session.lastActivityDate {
+                    RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3).fixedSize()
                 }
                 Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
                     .lineLimit(2)
                 HStack(spacing: Space.xxs) {
                     if let agent = session.agentName {
                         AgentAvatarView(name: agent, size: AvatarSize.inline)
-                        Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
                     }
+                    Text(verbatim: caption).font(.caption).foregroundStyle(Theme.ink2)
+                        .lineLimit(1).truncationMode(.tail)
                     if session.hasLiveWork(now: .now) && !session.needsYou {
                         Text("Working").font(.caption).foregroundStyle(Theme.positive)
                     }

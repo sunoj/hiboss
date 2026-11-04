@@ -10,7 +10,6 @@ struct MessagesView: View {
 
     var search = ""
     var sessionID: String? = nil
-    var activitySection: Binding<ActivitySection>? = nil
 
     private var messages: [HistoryMessage] {
         store.history.filter {
@@ -22,9 +21,6 @@ struct MessagesView: View {
 
     var body: some View {
         List {
-            if let activitySection {
-                Section { ActivitySectionPicker(section: activitySection) }
-            }
             if messages.isEmpty {
                 emptyState.listRowBackground(Theme.paper).listRowSeparator(.hidden)
             } else {
