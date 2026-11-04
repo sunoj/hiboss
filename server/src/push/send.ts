@@ -99,13 +99,8 @@ function safeReason(device: PushDevice, error: unknown): string {
 
 function warnPushFailure(env: Env, device: PushDevice, error: unknown): void {
   console.warn('Push failed', { reason: safeReason(device, error), transport: pushMode(env),
-    environment: device.environment, bundle_id: safeBundleId(device.bundle_id),
+    environment: device.environment,
     token_prefix: /^[0-9a-fA-F]{32,}$/.test(device.device_token) ? device.device_token.slice(0, 8) : null });
-}
-
-/** Bundle ids are client-supplied: log only a reverse-DNS shape, never arbitrary text. */
-function safeBundleId(bundleId: string): string {
-  return /^[A-Za-z0-9-]{1,63}(\.[A-Za-z0-9-]{1,63}){1,7}$/.test(bundleId) ? bundleId : '[invalid]';
 }
 
 export async function sendDevicePush(env: Env, device: PushDevice, payload: ApnsPayload,

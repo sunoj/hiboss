@@ -24,7 +24,7 @@ it.each(senders)('logs failed direct sends with only a token prefix', async send
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   await expect(send(device)).resolves.toMatchObject({ ok: false });
   expect(warn).toHaveBeenCalledExactlyOnceWith('Push failed', { reason: 'TooManyRequests',
-    transport: 'direct', environment: 'sandbox', bundle_id: 'ai.hiboss.app', token_prefix: 'abcdef12' });
+    transport: 'direct', environment: 'sandbox', token_prefix: 'abcdef12' });
 });
 
 it.each(senders)('logs thrown relay failures with credentials redacted', async send => {
@@ -37,17 +37,17 @@ it.each(senders)('logs thrown relay failures with credentials redacted', async s
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   await expect(send(target)).rejects.toBe(error);
   expect(warn).toHaveBeenCalledExactlyOnceWith('Push failed', { reason: 'network [redacted] [redacted] [redacted]',
-    transport: 'relay', environment: 'sandbox', bundle_id: 'ai.hiboss.app', token_prefix: null });
+    transport: 'relay', environment: 'sandbox', token_prefix: null });
 });
 
-it('logs no full short token and no free-form bundle id', async () => {
-  const target = { ...device, device_token: 'abcdef12', bundle_id: 'secret value with spaces' };
+it('logs no full short token and no client-supplied bundle id', async () => {
+  const target = { ...device, device_token: 'abcdef12', bundle_id: 'abcdef12.app' };
   vi.spyOn(apns, 'hasApnsConfig').mockReturnValue(true);
   vi.spyOn(apns, 'sendPush').mockResolvedValue({ ok: false, prune: false, reason: 'TooManyRequests' });
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   await sendDevicePush(env, target, payload);
-  expect(warn).toHaveBeenCalledExactlyOnceWith('Push failed', expect.objectContaining({
-    bundle_id: '[invalid]', token_prefix: null }));
+  expect(warn).toHaveBeenCalledExactlyOnceWith('Push failed', expect.objectContaining({ token_prefix: null }));
+  expect(JSON.stringify(warn.mock.calls)).not.toContain('abcdef12');
 });
 
 it('logs unavailable transports', async () => {
