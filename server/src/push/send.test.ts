@@ -6,7 +6,7 @@ import * as apns from '../apns';
 import * as relay from './relay';
 import { sendDevicePush, sendDeviceResolution, type PushDevice } from './send';
 
-const device: PushDevice = { boss_id: 'boss', device_token: 'abcdef12'.repeat(2),
+const device: PushDevice = { boss_id: 'boss', device_token: 'abcdef12'.repeat(8),
   bundle_id: 'ai.hiboss.app', environment: 'sandbox' };
 const payload: apns.ApnsPayload = { aps: { alert: { title: 'Test', body: 'Test' },
   'interruption-level': 'active', 'thread-id': 'test' } };
@@ -38,6 +38,16 @@ it.each(senders)('logs thrown relay failures with credentials redacted', async s
   await expect(send(target)).rejects.toBe(error);
   expect(warn).toHaveBeenCalledExactlyOnceWith('Push failed', { reason: 'network [redacted] [redacted] [redacted]',
     transport: 'relay', environment: 'sandbox', bundle_id: 'ai.hiboss.app', token_prefix: null });
+});
+
+it('logs no full short token and no free-form bundle id', async () => {
+  const target = { ...device, device_token: 'abcdef12', bundle_id: 'secret value with spaces' };
+  vi.spyOn(apns, 'hasApnsConfig').mockReturnValue(true);
+  vi.spyOn(apns, 'sendPush').mockResolvedValue({ ok: false, prune: false, reason: 'TooManyRequests' });
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  await sendDevicePush(env, target, payload);
+  expect(warn).toHaveBeenCalledExactlyOnceWith('Push failed', expect.objectContaining({
+    bundle_id: '[invalid]', token_prefix: null }));
 });
 
 it('logs unavailable transports', async () => {
