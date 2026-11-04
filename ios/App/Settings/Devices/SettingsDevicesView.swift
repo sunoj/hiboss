@@ -32,6 +32,7 @@ struct SettingsDevicesView: View {
                             Label("Device Requests", systemImage: "desktopcomputer.and.arrow.down")
                         }
                     }
+                    .accessibilityLabel("Device Requests")
                 }
             }
             if let api = connection.makeAPI(), let config = connection.config {
