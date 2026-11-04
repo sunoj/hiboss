@@ -53,7 +53,8 @@ struct MessageDetailsCard: View {
         let files = message.metadata?.files ?? []
         if !files.isEmpty {
             AttributeRow(icon: "doc.text", label: "Files") {
-                Text(verbatim: files.map { $0.split(separator: "/").last.map(String.init) ?? $0 }.formatted(.list(type: .and, width: .narrow)))
+                Text(verbatim: files.map { $0.split(separator: "/").last.map(String.init) ?? $0 }
+                    .formatted(.list(type: .and, width: .narrow)))
             }
         }
     }
@@ -83,7 +84,9 @@ struct MessageDetailsCard: View {
     }
 
     private func trimmed(_ value: String?) -> String? {
-        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
+        }
         return value
     }
 }

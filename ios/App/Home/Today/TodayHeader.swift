@@ -1,4 +1,4 @@
-// Today date, native avatar Settings action, and status chips.
+// Today date and status chips; HomeView owns the navigation title and Settings action.
 // Exports TodayHeader; counts come directly from the shared snapshot.
 // Dependencies: SwiftUI, HibossKit TodaySnapshot, and Theme.
 
@@ -12,14 +12,19 @@ struct TodayHeader: View {
     var isRefreshing = false
     let now: Date
     let onSettings: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var refreshVisible = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.m) {
             Text(now, format: .dateTime.weekday(.wide).day().month(.wide))
                 .font(.footnote).foregroundStyle(Theme.ink3)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Space.xs) { chips }.fixedSize(horizontal: true, vertical: false)
+            if dynamicTypeSize.isAccessibilitySize {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Space.xs) { chips }.fixedSize(horizontal: true, vertical: false)
+                }
+            } else {
+                HStack(spacing: Space.xs) { chips }
             }
         }
         .padding(.horizontal, Space.m)

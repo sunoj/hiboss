@@ -208,7 +208,8 @@ struct MessageDetailView: View {
                 .padding(.horizontal, Space.s)
                 .padding(.vertical, Space.xs)
                 .frame(minHeight: ControlMetric.fullWidth + Space.m)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium,
+                                                               style: .continuous))
             Button { submit(replyDraft, for: message.id) } label: {
                 Text("Send").opacity(submitting == nil ? 1 : 0)
                     .frame(minHeight: ControlMetric.fullWidth)

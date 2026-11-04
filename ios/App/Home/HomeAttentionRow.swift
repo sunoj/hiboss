@@ -182,7 +182,9 @@ struct HomeAttentionRow: View {
     @ViewBuilder
     private func choices(timing: DecisionTiming) -> some View {
         if let label = answerability.label {
-            Button {} label: { Text(verbatim: label).frame(maxWidth: .infinity, minHeight: ControlMetric.minTap) }
+            Button {} label: {
+                Text(verbatim: label).frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
+            }
                 .hbButton(.secondary).disabled(true)
         } else if item.options.isEmpty {
             NavigationLink(value: item.id) {
@@ -237,7 +239,8 @@ struct DecisionCardInfo: View {
         VStack(alignment: .leading, spacing: Space.xs) {
             HStack(alignment: .center, spacing: Space.xs) {
                 ProjectAvatarView(project: inventory.first { $0.id == message.sessionId }?.avatarProject
-                                  ?? inventory.project(slug: message.project ?? project), size: AvatarSize.compact)
+                                  ?? inventory.project(slug: message.project ?? project),
+                                  size: AvatarSize.compact)
                 Text(verbatim: [inventory.first { $0.id == message.sessionId }?.namedLabel ?? project,
                                 message.sessionBranch, message.displayName]
                         .compactMap { $0 }.joined(separator: " · "))
