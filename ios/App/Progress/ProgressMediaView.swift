@@ -162,7 +162,8 @@ struct ProgressImageCell: View {
                     .fontWeight(.semibold)
                     .padding(.horizontal, Space.xs)
                     .padding(.vertical, Space.xxs)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+                    .background(.regularMaterial, in:
+                        RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
                     .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
                     .contentShape(Rectangle())
             }
