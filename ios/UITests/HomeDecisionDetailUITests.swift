@@ -205,7 +205,8 @@ final class HomeDecisionDetailUITests: XCTestCase {
         let project = row.staticTexts["prod-release"]
         XCTAssertTrue(project.exists, "Project must have its own untruncated text view")
         XCTAssertGreaterThan(project.frame.width, 70)
-        XCTAssertTrue(row.staticTexts[large ? "release/v2.4 · worker-design" : "· release/v2.4 · worker-design"].exists)
+        let branchAndAgent = (large ? "" : "· ") + "release/v2.4 · worker-design"
+        XCTAssertTrue(row.staticTexts[branchAndAgent].exists)
         keepScreenshot("round2-today-\(style)-\(large ? "AX" : "standard")")
         row.tap()
         XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
