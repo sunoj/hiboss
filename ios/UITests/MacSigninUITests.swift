@@ -32,6 +32,10 @@ final class MacSigninUITests: XCTestCase {
         // LabeledContent reads as one element: "Calls itself, Studio MacBook Pro".
         XCTAssertTrue(app.staticTexts["Calls itself, Studio MacBook Pro"].waitForExistence(timeout: 5), "the review names the Mac")
         XCTAssertTrue(app.staticTexts["Location, NL · Amsterdam"].exists, "the review shows where the request came from")
+        let bar = app.navigationBars["Sign in a Mac"]
+        let back = bar.buttons.matching(NSPredicate(
+            format: "identifier == 'BackButton' OR label IN {'Settings', 'Devices', 'Back'}"))
+        XCTAssertGreaterThan(back.count, 0, "the review can still be left")
         app.buttons["mac-signin.approve"].tap()
 
         let code = app.staticTexts["mac-signin.code"]
@@ -42,7 +46,9 @@ final class MacSigninUITests: XCTestCase {
         let warning = app.descendants(matching: .any)["mac-signin.warning"]
         XCTAssertTrue(warning.exists)
         XCTAssertTrue(warning.label.contains("Never read it out or send it to anyone"), warning.label)
-        XCTAssertFalse(app.navigationBars.buttons["Settings"].exists, "Back would drop the code; only Done leaves")
+        // Scoped to this screen's bar: Today's toolbar keeps its own "Settings" button under the sheet.
+        XCTAssertTrue(bar.exists)
+        XCTAssertEqual(back.count, 0, "Back would drop the code; only Done leaves")
 
         app.buttons["mac-signin.done"].tap()
         XCTAssertTrue(app.buttons["Sign in a Mac"].waitForExistence(timeout: 5), "Done returns to Settings")

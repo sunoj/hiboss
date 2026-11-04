@@ -47,11 +47,11 @@ final class HomeAttentionUITests: XCTestCase {
     }
 
     func testPopulatedDemoShowsAttentionCount() {
-        XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 need you"].waitForExistence(timeout: 10))
     }
 
     func testTwoChoiceDecisionCanBeAnsweredInline() {
-        XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 need you"].waitForExistence(timeout: 10))
         let choice = app.buttons["Coarse grid"]
         XCTAssertTrue(choice.waitForExistence(timeout: 5))
         let alternative = app.buttons["Fine grid"]
@@ -62,7 +62,7 @@ final class HomeAttentionUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(choice.frame.height, 44)
         XCTAssertGreaterThanOrEqual(alternative.frame.height, 44)
         choice.tap()
-        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["3 need you"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["home-message-c5"].exists)
     }
 
@@ -70,7 +70,7 @@ final class HomeAttentionUITests: XCTestCase {
         app.terminate()
         app.configureDemoLaunch(["HIBOSS_DEMO_TEXT_ASK": "1"])
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["1 item waiting on your call"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["1 need you"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["1 working"].exists)
         XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
         app.buttons["home-message-demo-text-ask"].tap()
@@ -89,7 +89,7 @@ final class HomeAttentionUITests: XCTestCase {
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
         ]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 need you"].waitForExistence(timeout: 10))
         let option = app.buttons["Fail over to Adyen"]
         for _ in 0..<12 where !option.isHittable { app.swipeUp() }
         // `isHittable` already holds for a sliver above the floating tab bar, and XCTest then
@@ -108,8 +108,8 @@ final class HomeAttentionUITests: XCTestCase {
                                  "the tap must reach the option, not the tab bar")
         option.tap()
         XCTAssertTrue(option.waitForNonExistence(timeout: 5), "the answered decision leaves Home")
-        for _ in 0..<12 where !app.staticTexts["3 items waiting on your call"].isHittable { app.swipeDown() }
-        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].exists)
+        for _ in 0..<12 where !app.staticTexts["3 need you"].isHittable { app.swipeDown() }
+        XCTAssertTrue(app.staticTexts["3 need you"].exists)
     }
 
     func testEmptyDemoShowsSettledAnswer() {

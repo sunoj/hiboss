@@ -73,7 +73,7 @@ struct BoxListView: View {
     }
 
     private var list: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: Space.xxs) {
             BoxFilterChips(selection: $filter, liked: $liked)
             BoxOrganizationError(store: store)
             if matches.isEmpty && !store.isLoadingMore { ContentUnavailableView.search(text: search) }
@@ -156,38 +156,44 @@ struct BoxListView: View {
     }
 
     @ToolbarContentBuilder private var controls: some ToolbarContent {
-        ToolbarItemGroup(placement: .topBarTrailing) {
+        Group {
             if onSelect == nil && store.collectionID == nil {
-                NavigationLink {
-                    BoxCollectionsView(store: store, media: media)
-                } label: { Image(systemName: "rectangle.stack") }
-                .accessibilityLabel("Collections")
-                .accessibilityIdentifier("box-collections")
-            }
-            Menu {
-                Picker("Author", selection: $author) {
-                    ForEach(BoxAuthorFilter.allCases, id: \.self) { option in
-                        Text(verbatim: option.title).tag(option)
-                            .accessibilityIdentifier("box-author-\(option.rawValue)")
-                    }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        BoxCollectionsView(store: store, media: media)
+                    } label: { Image(systemName: "rectangle.stack") }
+                    .accessibilityLabel("Collections")
+                    .accessibilityIdentifier("box-collections")
                 }
-            } label: { Image(systemName: "person.crop.circle") }
-                .accessibilityLabel("Author")
-                .accessibilityValue(Text(verbatim: author.title))
-                .accessibilityIdentifier("box-author-menu")
-            Menu {
-                Picker("List style", selection: $style) {
-                    ForEach(BoxListStyle.allCases, id: \.self) { option in
-                        Text(verbatim: option.title).tag(option)
-                            .accessibilityIdentifier("box-style-\(option.rawValue)")
-                    }
-                }
-            } label: {
-                Image(systemName: style == .list ? "list.bullet" : "square.grid.2x2")
             }
-                .accessibilityLabel("List style")
-                .accessibilityValue(Text(verbatim: style.title))
-                .accessibilityIdentifier("box-style-menu")
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Author", selection: $author) {
+                        ForEach(BoxAuthorFilter.allCases, id: \.self) { option in
+                            Text(verbatim: option.title).tag(option)
+                                .accessibilityIdentifier("box-author-\(option.rawValue)")
+                        }
+                    }
+                } label: { Image(systemName: "person.crop.circle") }
+                    .accessibilityLabel("Author")
+                    .accessibilityValue(Text(verbatim: author.title))
+                    .accessibilityIdentifier("box-author-menu")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("List style", selection: $style) {
+                        ForEach(BoxListStyle.allCases, id: \.self) { option in
+                            Text(verbatim: option.title).tag(option)
+                                .accessibilityIdentifier("box-style-\(option.rawValue)")
+                        }
+                    }
+                } label: {
+                    Image(systemName: style == .list ? "list.bullet" : "square.grid.2x2")
+                }
+                    .accessibilityLabel("List style")
+                    .accessibilityValue(Text(verbatim: style.title))
+                    .accessibilityIdentifier("box-style-menu")
+            }
         }
     }
 
@@ -203,7 +209,7 @@ struct BoxListView: View {
             )
         } else if store.nextCursor != nil {
             Button("Load more") { Task { await store.loadMore() } }
-                .frame(minHeight: 44).accessibilityIdentifier("box-load-more")
+                .frame(minHeight: ControlMetric.minTap).accessibilityIdentifier("box-load-more")
         }
     }
 }

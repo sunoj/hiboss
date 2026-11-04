@@ -11,13 +11,12 @@ struct ProgressAttributionChip: View {
 
     var body: some View {
         if let caption {
-            HStack(spacing: 4) {
+            HStack(spacing: Space.xxs) {
                 monogram
                 Text(verbatim: caption)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .font(.caption)
+                    .foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilityCaption)
@@ -59,7 +58,7 @@ struct ProgressAttributionChip: View {
             .font(.caption2.weight(.semibold))
             .foregroundStyle(monogramForeground)
             .minimumScaleFactor(0.5).lineLimit(1)
-            .frame(width: 20, height: 20)
+            .frame(width: AvatarSize.inline, height: AvatarSize.inline)
             .background(monogramBackground, in: Circle())
             .accessibilityHidden(true)
     }

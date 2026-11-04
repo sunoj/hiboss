@@ -1,4 +1,4 @@
-// One progress post as a full-width timeline row: avatar, identity, body, media, like.
+// One inset progress card with project identity, attribution, body, media and a caption footer.
 // Exports: ProgressPostCard.
 // Dependencies: SwiftUI, HibossKit ProgressPost, ProgressMediaView, RelativeTime,
 //   ProgressAttributionChip.
@@ -15,79 +15,81 @@ struct ProgressPostCard: View {
     var onToggleLike: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ProjectAvatarView(project: post.projectIdentity, size: 40)
-            VStack(alignment: .leading, spacing: 6) {
-                header
-                Text(verbatim: post.body)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if !post.media.isEmpty {
-                    ProgressMediaView(items: post.media, onOpen: onOpenMedia)
-                }
+        VStack(alignment: .leading, spacing: Space.s) {
+            header
+            Text(verbatim: post.body)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            if !post.media.isEmpty {
+                ProgressMediaView(items: post.media, onOpen: onOpenMedia)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                 if !post.tags.isEmpty {
                     Text(verbatim: post.tags.map { "#\($0)" }.joined(separator: " "))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                Spacer(minLength: Space.xs)
                 ProgressLikeButton(
                     liked: post.liked,
                     count: post.likeCount,
                     isSending: isLiking,
                     action: onToggleLike
                 )
-                if isLiking {
-                    PendingStateView(title: String(localized: "Updating like…"),
-                                     onSettings: openSettings)
+            }
+            if isLiking {
+                PendingStateView(title: String(localized: "Updating like…"),
+                                 onSettings: openSettings)
+            }
+            if let likeError {
+                Label {
+                    Text(verbatim: likeError)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle")
                 }
-                if let likeError {
-                    Label {
-                        Text(verbatim: likeError)
-                    } icon: {
-                        Image(systemName: "exclamationmark.triangle")
-                    }
-                        .font(.hbCaption).foregroundStyle(Theme.warn)
-                }
+                    .font(.hbCaption).foregroundStyle(Theme.warn)
             }
         }
+        .hbCard()
         .accessibilityElement(children: .contain)
     }
 
     @Environment(\.openConnectionSettings) private var openSettings
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(verbatim: post.projectIdentity.displayName).font(.subheadline.bold())
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(verbatim: post.team.displayName)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text(verbatim: "·")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-                Text(verbatim: "@\(post.team.handle)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .layoutPriority(-1)
-                if let date = post.createdDate {
-                    Text(verbatim: "·")
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
-                    RecordedTimeText(date: date)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+        HStack(alignment: .top, spacing: Space.s) {
+            ProjectAvatarView(project: post.projectIdentity, size: AvatarSize.row)
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                Text(verbatim: (post.projectIdentity.displayName.isEmpty
+                    ? post.projectIdentity.slug : post.projectIdentity.displayName)).font(.headline)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: Space.xxs) {
+                        attribution
+                        if hasAttribution && post.createdDate != nil { Text(verbatim: "·") }
+                        if let date = post.createdDate { RecordedTimeText(date: date) }
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+                    VStack(alignment: .leading, spacing: Space.xxs) {
+                        attribution
+                        if let date = post.createdDate { RecordedTimeText(date: date) }
+                    }
                 }
-                Spacer(minLength: 0)
-            }
-            if post.agentLabel != nil || post.model != nil {
-                ProgressAttributionChip(agentLabel: post.agentLabel, model: post.model)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
     }
+
+    private var hasAttribution: Bool { post.agentLabel != nil || post.model != nil }
+
+    @ViewBuilder
+    private var attribution: some View {
+        if hasAttribution {
+            ProgressAttributionChip(agentLabel: post.agentLabel, model: post.model)
+        }
+    }
+
 }
 
 struct ProgressLikeButton: View {
@@ -101,21 +103,21 @@ struct ProgressLikeButton: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             action()
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: Space.xxs) {
                 Image(systemName: liked ? "heart.fill" : "heart")
                     .contentTransition(.symbolEffect(.replace))
                     .symbolEffect(.bounce, value: liked)
                 if isSending { DelayedProgressView() }
                 if count > 0 {
                     Text(count, format: .number)
-                        .font(.subheadline)
+                        .font(.caption)
                         .monospacedDigit()
                         .contentTransition(.numericText())
                 }
             }
-            .font(.subheadline)
+            .font(.caption)
             .foregroundStyle(liked ? Theme.negative : Theme.ink2)
-            .frame(minHeight: 44)
+            .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
         }
         .buttonStyle(.plain)
         .disabled(isSending)

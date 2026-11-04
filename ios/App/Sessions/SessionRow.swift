@@ -14,38 +14,53 @@ extension TodaySession {
 struct SessionRow: View {
     let session: TodaySession
     @Environment(\.projectSessions) private var inventory
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var identity: ProjectSession? { inventory.first { $0.id == session.id } }
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var projectName: String { identity?.label ?? session.localizedLabel }
+
+    private var caption: String {
+        [session.branch ?? identity?.branch, session.agentName ?? identity?.agentName]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ProjectAvatarView(project: identity?.avatarProject ?? .fallback(session.localizedLabel), size: 44)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: identity?.namedLabel ?? [session.localizedLabel, session.branch]
-                    .compactMap { $0 }.joined(separator: " / ")).font(.headline)
-                Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
-                    .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
-                if let agent = session.agentName {
-                    HStack(spacing: 4) {
-                        AgentAvatarView(name: agent, size: 22)
-                        Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
+        HStack(alignment: .top, spacing: Space.s) {
+            ProjectAvatarView(project: identity?.avatarProject ?? .fallback(session.localizedLabel),
+                              size: AvatarSize.row)
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                    Text(verbatim: projectName).font(.headline)
+                        .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                        .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
+                    Spacer(minLength: Space.xxs)
+                    SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
+                    if !typeSize.isAccessibilitySize, let date = session.lastActivityDate {
+                        RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
+                            .fixedSize()
                     }
                 }
-                if let date = session.lastActivityDate {
-                    RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
+                if typeSize.isAccessibilitySize, let date = session.lastActivityDate {
+                    RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3).fixedSize()
                 }
-            }
-            Spacer(minLength: 0)
-            VStack(spacing: 6) {
-                SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
-                if session.hasLiveWork(now: .now) && !session.needsYou {
-                    Text("Working").font(.caption).foregroundStyle(Theme.positive)
+                Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
+                    .lineLimit(2)
+                HStack(spacing: Space.xxs) {
+                    if let agent = session.agentName {
+                        AgentAvatarView(name: agent, size: AvatarSize.inline)
+                    }
+                    Text(verbatim: caption).font(.caption).foregroundStyle(Theme.ink2)
+                        .lineLimit(1).truncationMode(.tail)
+                    if session.hasLiveWork(now: .now) && !session.needsYou {
+                        Text("Working").font(.caption).foregroundStyle(Theme.positive)
+                    }
                 }
             }
         }
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(.vertical, Space.xs)
+        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 }

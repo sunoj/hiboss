@@ -58,55 +58,53 @@ enum BoxListStyle: String, CaseIterable {
 struct BoxFilterChips: View {
     @Binding var selection: BoxFilter
     @Binding var liked: Bool
-    @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 8) {
+            HStack(spacing: Space.xs) {
                 likedChip
-                .frame(minWidth: 44, minHeight: 44)
+                .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
                 .accessibilityAddTraits(liked ? .isSelected : [])
                 .accessibilityIdentifier("box-filter-liked")
-                Divider().frame(height: 24).accessibilityHidden(true)
                 ForEach(BoxFilter.allCases, id: \.self) { filter in
                     chip(filter)
                     .accessibilityAddTraits(selection == filter ? .isSelected : [])
                     .accessibilityIdentifier("box-filter-\(filter.rawValue)")
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Space.m)
         }
         .defaultScrollAnchor(.leading)
         .scrollIndicators(.hidden)
-        .frame(height: textSize.isAccessibilitySize ? 88 : 64)
+        .padding(.vertical, Space.xs)
     }
 
-    @ViewBuilder private var likedChip: some View {
-        let button = Button { liked.toggle() } label: {
-            Label("Liked", systemImage: liked ? "heart.fill" : "heart").font(.subheadline)
-                .foregroundStyle(liked ? Theme.onAccent : Theme.ink2)
-        }
-        if liked {
-            button.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
-                .tint(Theme.primaryAction)
-        } else {
-            button.buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Theme.ink2)
-        }
+    private var likedChip: some View {
+        Button { liked.toggle() } label: {
+            Label("Liked", systemImage: liked ? "heart.fill" : "heart")
+                .modifier(BoxChipStyle(selected: liked))
+        }.buttonStyle(.plain)
     }
 
-    @ViewBuilder private func chip(_ filter: BoxFilter) -> some View {
-        let button = Button { selection = filter } label: {
-            Text(verbatim: filter.title).font(.subheadline)
-                .foregroundStyle(selection == filter ? Theme.onAccent : Theme.ink2)
-        }
-        if selection == filter {
-            button.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
-                .controlSize(.small).tint(Theme.primaryAction)
-                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
-        } else {
-            button.buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Theme.ink2)
-                .controlSize(.small)
-                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
-        }
+    private func chip(_ filter: BoxFilter) -> some View {
+        Button { selection = filter } label: {
+            Text(verbatim: filter.title)
+                .modifier(BoxChipStyle(selected: selection == filter))
+        }.buttonStyle(.plain)
+    }
+}
+
+private struct BoxChipStyle: ViewModifier {
+    let selected: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .font(.subheadline)
+            .padding(.horizontal, Space.s)
+            .padding(.vertical, Space.xs)
+            .foregroundStyle(selected ? Theme.onAccent : Theme.ink)
+            .background(selected ? Theme.ink : Theme.surface2, in: Capsule())
+            .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
+            .contentShape(Rectangle())
     }
 }

@@ -24,11 +24,10 @@ struct HomeAttentionSection: View {
     let onOpenPanel: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
     let onOpenDecision: (MessageID) -> Void
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var refreshVisible = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             if snapshot.count > 0 { title }
             if isAllClear {
                 allClear
@@ -36,7 +35,7 @@ struct HomeAttentionSection: View {
                 allClear.hidden().accessibilityHidden(true)
             } else {
                 ForEach(snapshot.groups, id: \.group) { group in
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Space.xs) {
                         ForEach(group.items) { item in
                             HomeAttentionRow(
                                 item: item, submitting: replying[item.id],
@@ -57,7 +56,7 @@ struct HomeAttentionSection: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, Space.m)
         .task(id: isRefreshing) {
             refreshVisible = false
             guard isRefreshing else { return }
@@ -67,41 +66,15 @@ struct HomeAttentionSection: View {
         }
     }
 
-    /// Side by side at ordinary sizes; stacked at accessibility sizes, where sharing a
-    /// row breaks the title across lines.
     private var title: some View {
-        let stacked = dynamicTypeSize.isAccessibilitySize
-        let layout = stacked
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
-        return layout {
-            Text("Your call")
-                .fixedSize(horizontal: false, vertical: true)
-                .font(.title3.bold())
-                .foregroundStyle(Theme.ink)
-            if !stacked { Spacer(minLength: 0) }
-            if snapshot.count > 0 || (status == nil && hasPanels) {
-                titleSubtitle
-                    .font(.hbCaption)
-                    .foregroundStyle(Theme.ink2)
-            }
-        }
-    }
-
-    private var titleSubtitle: Text {
-        guard inputsLoaded else { return Text("Loading") }
-        let count = snapshot.count
-        guard count > 0 else {
-            return status == nil
-                ? Text("Nothing is waiting on your call") : Text("Checking your attention queue")
-        }
-        return Text("\(count) items waiting on your call")
+        Text("Your call").hbSectionHeader()
+            .padding(.horizontal, Space.m)
     }
 
     private func questionnaireRow(_ request: PendingQuestionnaire) -> some View {
         Button { onOpenPanel(request.panelId) } label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: Space.s) {
+                VStack(alignment: .leading, spacing: Space.xxs) {
                     Text(verbatim: request.title).font(.hbBodyStrong).foregroundStyle(Theme.ink)
                     (request.blocking ? Text("Questionnaire · Agent waiting") : Text("Questionnaire"))
                         .font(.hbCaption).foregroundStyle(Theme.ink2)
@@ -110,9 +83,9 @@ struct HomeAttentionSection: View {
                 Image(systemName: "chevron.right").foregroundStyle(Theme.ink3)
             }
             .fixedSize(horizontal: false, vertical: true)
-            .frame(minHeight: 44)
-            .padding(12)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
+            .frame(minHeight: ControlMetric.minTap)
+            .padding(Space.s)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.large))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("home-questionnaire-\(request.requestId)")
@@ -120,9 +93,9 @@ struct HomeAttentionSection: View {
     }
 
     private var allClear: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Space.s) {
             idleIllustration
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text("Nothing needs you").font(.headline).foregroundStyle(Theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 ZStack(alignment: .leading) {
@@ -142,7 +115,7 @@ struct HomeAttentionSection: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 8)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("today-all-clear")
     }
@@ -171,7 +144,7 @@ struct HomeAttentionRow: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             infoButton
             MessageReactions(message: item.message)
             if let content = item.message.messageText.content,
@@ -209,13 +182,15 @@ struct HomeAttentionRow: View {
     @ViewBuilder
     private func choices(timing: DecisionTiming) -> some View {
         if let label = answerability.label {
-            Button {} label: { Text(verbatim: label).frame(maxWidth: .infinity, minHeight: 44) }
-                .buttonStyle(.bordered).disabled(true)
+            Button {} label: {
+                Text(verbatim: label).frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
+            }
+                .hbButton(.secondary).disabled(true)
         } else if item.options.isEmpty {
             NavigationLink(value: item.id) {
-                Text("Reply…").frame(maxWidth: .infinity, minHeight: 44)
+                Text("Reply…").frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
             }
-            .buttonStyle(.bordered)
+            .hbButton(.secondary)
         } else {
             DecisionOptions(options: item.options, metadata: item.message.metadata,
                             timing: timing, submitting: submitting,
@@ -236,7 +211,7 @@ struct DecisionCard<Header: View, Choices: View>: View {
     @Environment(\.openConnectionSettings) private var openSettings
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.s) {
             header
             if let attachment = message.metadata?.attachment {
                 MessageAttachmentView(attachment: attachment)
@@ -252,40 +227,60 @@ struct DecisionCard<Header: View, Choices: View>: View {
                 ReplyPendingNote(onSettings: openSettings)
             }
         }
-        .padding(12)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .hbCard()
     }
 }
 
 struct DecisionCardInfo: View {
+    @Environment(\.dynamicTypeSize) private var textSize
     @Environment(\.projectSessions) private var inventory
     let message: HistoryMessage
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top) {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            HStack(alignment: .center, spacing: Space.xs) {
                 ProjectAvatarView(project: inventory.first { $0.id == message.sessionId }?.avatarProject
-                                  ?? inventory.project(slug: message.project ?? project), size: 24)
-                Text(verbatim: [inventory.first { $0.id == message.sessionId }?.namedLabel ?? project,
-                                message.sessionBranch, message.displayName]
-                        .compactMap { $0 }.joined(separator: " · "))
+                                  ?? inventory.project(slug: message.project ?? project),
+                                  size: AvatarSize.compact)
+                metadata
                     .font(.hbCaption.weight(.semibold))
                     .foregroundStyle(Theme.ink2)
-                Spacer(minLength: 8)
-                if let deadline = message.expirationDate {
-                    CountdownText(deadline: deadline, tint: Theme.warn).font(.footnote)
-                } else {
-                    Text("No deadline").font(.footnote).foregroundStyle(Theme.ink3)
-                }
+                Spacer(minLength: Space.xs)
+                if !textSize.isAccessibilitySize { deadline }
             }
+            if textSize.isAccessibilitySize { deadline }
             // The question is the reason the card exists: it wraps fully at every text size.
             Text(verbatim: message.messageText.title)
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap, alignment: .leading)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder private var deadline: some View {
+        if let deadline = message.expirationDate {
+            CountdownText(deadline: deadline, tint: Theme.warn).font(.footnote)
+                .lineLimit(1).fixedSize()
+        } else {
+            Text("No deadline").font(.footnote).foregroundStyle(Theme.ink3)
+                .lineLimit(1).fixedSize()
+        }
+    }
+
+    private var metadata: some View {
+        let layout = textSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+            : AnyLayout(HStackLayout(spacing: Space.xxs))
+        return layout {
+            Text(verbatim: inventory.first { $0.id == message.sessionId }?.namedLabel ?? project)
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
+            Text(verbatim: (textSize.isAccessibilitySize ? "" : "· ")
+                 + [message.sessionBranch, message.displayName].compactMap { $0 }.joined(separator: " · "))
+                .lineLimit(1).truncationMode(.tail)
+        }
     }
 
     private var project: String {

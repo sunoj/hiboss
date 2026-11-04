@@ -60,11 +60,13 @@ struct MessageDetailView: View {
     var body: some View {
         if let message {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: Space.s) {
                     DecisionProvenance(message: message, session: facts.session)
                     question(for: message)
                     DecisionContextCard(message: message)
-                    MessageReactions(message: message)
+                    if !(message.metadata?.reactionGroups.isEmpty ?? true) {
+                        MessageReactions(message: message)
+                    }
                     if let actionNote {
                         Label(actionNote, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(Theme.warn)
@@ -74,8 +76,8 @@ struct MessageDetailView: View {
                     sessionLink(for: message)
                     MessageDetailsCard(message: message)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.horizontal, Space.m)
+                .padding(.vertical, Space.s)
             }
             .accessibilityIdentifier("decision-detail")
             .background(Theme.paper)
@@ -100,19 +102,18 @@ struct MessageDetailView: View {
             if let onOpenSession {
                 Button { onOpenSession(session) } label: {
                     Label("Open session", systemImage: "text.alignleft")
-                }.buttonStyle(.bordered).frame(maxWidth: .infinity, minHeight: 44)
+                }.hbButton(.secondary)
             } else {
                 NavigationLink(value: session) {
                     Label("Open session", systemImage: "text.alignleft")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }.buttonStyle(.bordered)
+                }.hbButton(.secondary)
             }
         }
     }
 
     /// The question leads, plain and large; it wraps fully at every text size.
     private func question(for message: HistoryMessage) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             Text(verbatim: message.messageText.title)
                 .font(.title2.bold())
                 .foregroundStyle(Theme.ink)
@@ -137,7 +138,7 @@ struct MessageDetailView: View {
     @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
         if message.isDecision,
            store.answerability(for: message.id) == .checking {
-            Button("Checking…") {}.buttonStyle(.bordered).disabled(true)
+            Button("Checking…") {}.hbButton(.secondary).disabled(true)
         } else if store.answerability(for: message.id) == .open {
             // Timing changes only when the deadline passes. A per-second clock here rebuilt the
             // options, option images and reply field every second.
@@ -151,10 +152,10 @@ struct MessageDetailView: View {
     }
 
     private func pendingDecision(for message: HistoryMessage, timing: DecisionTiming) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Space.s) {
             DecisionTimingView(timing: timing, messageID: message.id)
-                .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.signalSoft, in: RoundedRectangle(cornerRadius: 12))
+                .padding(Space.m).frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.signalSoft, in: RoundedRectangle(cornerRadius: Radius.medium))
             OptionMediaComparison(
                 options: message.options,
                 media: message.metadata?.optionMedia ?? [], metadata: message.metadata
@@ -177,7 +178,7 @@ struct MessageDetailView: View {
     }
 
     private func resolvedDecision(for message: HistoryMessage) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             if let settlement {
                 ResolvedBanner(settlement: settlement, date: reply?.createdDate,
                                optionDescription: message.metadata?.optionDescription(for: settlement.answer))
@@ -188,7 +189,7 @@ struct MessageDetailView: View {
                 media: message.metadata?.optionMedia ?? [], metadata: message.metadata,
                 settlement: settlement
             )
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Space.s) {
                 ForEach(message.options, id: \.self) { option in
                     optionRow(option, chosen: isChosen(option))
                 }
@@ -196,26 +197,28 @@ struct MessageDetailView: View {
                     optionRow(answer, chosen: true, custom: true)
                 }
             }
-            .padding(12)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .hbCard()
             decisionFooter(for: message)?.font(.hbFootnote).foregroundStyle(Theme.ink2)
         }
     }
 
     private func replyField(for message: HistoryMessage) -> some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        HStack(alignment: .bottom, spacing: Space.xs) {
             TextField("Reply…", text: draftBinding, axis: .vertical)
                 .accessibilityIdentifier("message-reply-draft")
-                .padding(.horizontal, 12)
-                .frame(minHeight: 44)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal, Space.m)
+                .padding(.vertical, Space.xs)
+                .frame(minHeight: ControlMetric.fullWidth + Space.m)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium,
+                                                               style: .continuous))
             Button { submit(replyDraft, for: message.id) } label: {
                 Text("Send").opacity(submitting == nil ? 1 : 0)
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(minHeight: ControlMetric.fullWidth)
                     .overlay { if submitting != nil { DelayedProgressView() } }
                     .accessibilityLabel("Send")
             }
-            .buttonStyle(.bordered)
+            .hbButton(.secondary, alignment: .center)
+            .fixedSize(horizontal: true, vertical: false)
             .disabled(store.replyGate.locksControls(for: message.id)
                       || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
@@ -223,10 +226,10 @@ struct MessageDetailView: View {
 
     @ViewBuilder private func optionRow(_ text: String, chosen: Bool, custom: Bool = false) -> some View {
         let automatic = chosen && settlement?.isAutoDefault == true
-        HStack(spacing: 12) {
+        HStack(spacing: Space.s) {
             Image(systemName: chosen ? (settlement?.symbol ?? "checkmark.circle.fill") : "circle")
                 .foregroundStyle(chosen ? Theme.accent : Theme.ink2)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(verbatim: text).foregroundStyle(chosen ? Theme.ink : Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
                 OptionDescriptionText(text: message?.metadata?.optionDescription(for: text))

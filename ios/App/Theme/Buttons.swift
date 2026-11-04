@@ -23,13 +23,19 @@ struct HBButtonStyle: ButtonStyle {
                    alignment: Alignment(horizontal: alignment, vertical: .center))
             .padding(.horizontal, Space.m)
             .padding(.vertical, Space.xs)
-            .foregroundStyle(role == .primary ? Theme.onAccent : Theme.ink)
+            .foregroundStyle(label)
             .background(fill, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 
-    private var fill: Color { role == .primary ? Theme.primaryAction : Theme.surface2 }
+    /// A disabled button drops its fill, not its legibility: the label keeps readable contrast
+    /// while another option is submitting (`ProminentActionAppearanceTests` checks > 3:1).
+    private var fill: Color { role == .primary && isEnabled ? Theme.primaryAction : Theme.surface2 }
+    private var label: Color {
+        guard isEnabled else { return Theme.ink2 }
+        return role == .primary ? Theme.onAccent : Theme.ink
+    }
 }
 
 extension View {

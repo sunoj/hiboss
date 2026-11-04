@@ -7,6 +7,7 @@ import SwiftUI
 struct ProjectPeersView: View {
     let peers: [RecentProjectPeer]
     @State private var showsAll = false
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.needsYouSessionIDs) private var needsYou
 
     var body: some View {
@@ -14,15 +15,16 @@ struct ProjectPeersView: View {
             DisclosureGroup {
                 ForEach(RecentProjectPeers.preview(peers)) { peer in row(peer) }
                 if peers.count > RecentProjectPeers.previewLimit {
-                    Button("Show all") { showsAll = true }.frame(minHeight: 44)
+                    Button("Show all") { showsAll = true }.frame(minHeight: ControlMetric.minTap)
                         .accessibilityIdentifier("project-peers-show-all")
                 }
             } label: {
                 Text("Recent peers").accessibilityIdentifier("project-peers")
             }
+            .hbCard()
             .sheet(isPresented: $showsAll) {
                 NavigationStack {
-                    List(peers) { peer in row(peer) }
+                    List(peers) { peer in row(peer) }.listStyle(.insetGrouped)
                         .navigationTitle("Recent peers")
                         .toolbar { ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { showsAll = false }
@@ -32,27 +34,34 @@ struct ProjectPeersView: View {
         }
     }
 
+    private func peerTime(_ peer: RecentProjectPeer) -> some View {
+        RecordedTimeText(date: peer.activityDate).font(.caption).foregroundStyle(Theme.ink3)
+            .fixedSize()
+    }
+
     private func row(_ peer: RecentProjectPeer) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            ProjectAvatarView(project: peer.session.avatarProject, size: 32)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: peer.session.namedLabel).font(.subheadline)
-                if let agent = peer.session.agentName {
-                    HStack(spacing: 4) {
-                        AgentAvatarView(name: agent, size: 20)
-                        Text(verbatim: agent).font(.caption)
+        HStack(alignment: .top, spacing: Space.s) {
+            ProjectAvatarView(project: peer.session.avatarProject, size: AvatarSize.row)
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                    Text(verbatim: peer.session.namedLabel).font(.subheadline)
+                        .lineLimit(1).truncationMode(.middle).layoutPriority(1)
+                    Spacer(minLength: Space.xxs)
+                    SessionReadIndicator(sessionID: peer.id, needsYou: needsYou.contains(peer.id))
+                    if !typeSize.isAccessibilitySize { peerTime(peer) }
+                }
+                if typeSize.isAccessibilitySize { peerTime(peer) }
+                HStack(spacing: Space.xxs) {
+                    if let agent = peer.session.agentName {
+                        AgentAvatarView(name: agent, size: AvatarSize.inline)
+                        Text(verbatim: agent).font(.caption).lineLimit(1)
+                    }
+                    if SessionStatus(word: peer.session.status) == .working {
+                        Text("Working").font(.caption).foregroundStyle(Theme.positive).lineLimit(1)
                     }
                 }
-                RecordedTimeText(date: peer.activityDate).font(.caption).foregroundStyle(Theme.ink3)
             }
-            Spacer(minLength: 0)
-            VStack(spacing: 6) {
-                SessionReadIndicator(sessionID: peer.id, needsYou: needsYou.contains(peer.id))
-                if SessionStatus(word: peer.session.status) == .working {
-                    Text("Working").font(.caption).foregroundStyle(Theme.positive)
-                }
-            }
-        }.padding(.vertical, 4).accessibilityElement(children: .combine)
+        }.padding(.vertical, Space.xxs).accessibilityElement(children: .combine)
             .accessibilityIdentifier("project-peer-\(peer.id)")
     }
 }

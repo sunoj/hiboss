@@ -11,6 +11,13 @@ final class ProjectIdentityUITests: XCTestCase {
         continueAfterFailure = false
         let app = launch("Light", language: "zh-Hans", largeText: true)
         app.tabBars.buttons["会话"].tap()
+        verifySessionTitle(app, label: "会话")
+        shot(app, "zh-large-sessions")
+        app.buttons["activity-section"].tap()
+        app.buttons["消息"].tap()
+        shot(app, "zh-large-messages")
+        app.buttons["activity-section"].tap()
+        app.collectionViews.buttons["会话"].tap()
         app.buttons["activity-session-sess-deploy"].tap()
         let peers = app.descendants(matching: .any).matching(identifier: "project-peers").firstMatch
         for _ in 0..<8 where !peers.exists || !peers.isHittable { app.swipeDown() }
@@ -33,15 +40,39 @@ final class ProjectIdentityUITests: XCTestCase {
         shot(app, "zh-large-peers")
     }
 
+    private func verifySessionTitle(_ app: XCUIApplication, label: String) {
+        let title = app.navigationBars[label].staticTexts[label]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(title.frame.height, 35, "Cold open retains the native large title")
+        let duplicate = app.staticTexts.matching(NSPredicate(format: "label == %@", label))
+            .allElementsBoundByIndex.filter {
+                $0.frame.minY >= app.navigationBars.firstMatch.frame.maxY
+                    && $0.frame.maxY < app.searchFields.firstMatch.frame.minY
+            }
+        XCTAssertTrue(duplicate.isEmpty, "Picker label must stay hidden")
+    }
+
     private func capture(_ appearance: String) {
         continueAfterFailure = false
-        let app = launch(appearance)
+        var app = launch(appearance, peers: false)
         app.tabBars.buttons["Sessions"].tap()
         let session = app.buttons["activity-session-sess-deploy"]
         XCTAssertTrue(session.waitForExistence(timeout: 10))
-        XCTAssertTrue(session.label.contains("prod-release · otter"))
+        verifySessionTitle(app, label: "Sessions")
+        XCTAssertTrue(session.label.contains("prod-release"))
+        XCTAssertFalse(session.label.contains("prod-release /"))
+        let payments = app.buttons["activity-session-sess-pay"]
+        XCTAssertTrue(payments.label.contains("payments-hotfix"))
+        XCTAssertTrue(payments.label.contains("fix/stripe-retry · worker-payments"))
         shot(app, "\(appearance)-sessions")
-        session.tap()
+        app.segmentedControls.buttons["Messages"].tap()
+        verifySessionTitle(app, label: "Sessions")
+        shot(app, "\(appearance)-messages")
+        app.segmentedControls.buttons["Sessions"].tap()
+        app.terminate()
+        app = launch(appearance)
+        app.tabBars.buttons["Sessions"].tap()
+        app.buttons["activity-session-sess-deploy"].tap()
         XCTAssertTrue(app.staticTexts["prod-release · otter"].waitForExistence(timeout: 10))
         let peers = app.descendants(matching: .any).matching(identifier: "project-peers").firstMatch
         for _ in 0..<8 where !peers.exists || !peers.isHittable { app.swipeDown() }
@@ -63,10 +94,10 @@ final class ProjectIdentityUITests: XCTestCase {
         app.terminate()
     }
 
-    private func launch(_ appearance: String, language: String = "en", largeText: Bool = false)
+    private func launch(_ appearance: String, language: String = "en", largeText: Bool = false, peers: Bool = true)
         -> XCUIApplication {
         let app = XCUIApplication()
-        app.configureDemoLaunch(["HIBOSS_DEMO_PEERS": "1"])
+        app.configureDemoLaunch(peers ? ["HIBOSS_DEMO_PEERS": "1"] : [:])
         app.launchArguments = ["-AppleLanguages", "(\(language))", "-AppleInterfaceStyle", appearance]
         if largeText {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName",

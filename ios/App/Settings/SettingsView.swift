@@ -47,6 +47,8 @@ struct SettingsView: View {
                 signOutSection
             }
         }
+        .formStyle(.grouped)
+        .contentMargins(.horizontal, Space.m, for: .scrollContent)
         .navigationTitle("Settings")
         .task {
             await push.refresh()
@@ -102,9 +104,8 @@ struct SettingsView: View {
         NavigationLink {
             SettingsDevicesView(connection: connection, joinRequests: joinRequests)
         } label: {
-            Text("Devices")
+            LabeledContent("Devices", value: String(joinRequests.pendingCount))
         }
-        .badge(joinRequests.pendingCount)
         .accessibilityValue(Text("\(joinRequests.pendingCount) pending"))
         .accessibilityIdentifier("settings-devices")
     }
@@ -114,13 +115,15 @@ struct SettingsView: View {
             SettingsNotificationsView(store: prefs, push: push, api: connection.makeAPI(),
                                       onDecisionAlertsChanged: onDecisionAlertsChanged)
         } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Notifications")
+            LabeledContent {
                 Text(verbatim: prefs.isDirty ? String(localized: "Unsaved changes") : push.label)
-                    .font(.subheadline).foregroundStyle(Theme.ink2)
-                if prefs.hasLoaded, prefs.quietHours.enabled {
-                    Text("Quiet hours \(prefs.quietHours.start)–\(prefs.quietHours.end)")
-                        .font(.subheadline).foregroundStyle(Theme.ink2)
+            } label: {
+                VStack(alignment: .leading, spacing: Space.xxs) {
+                    Text("Notifications")
+                    if prefs.hasLoaded, prefs.quietHours.enabled {
+                        Text("Quiet hours \(prefs.quietHours.start)–\(prefs.quietHours.end)")
+                            .font(.caption).foregroundStyle(Theme.ink2)
+                    }
                 }
             }
         }

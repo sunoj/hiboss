@@ -1,5 +1,5 @@
 // Sessions browser retaining native session rows and message history.
-// Exports: ActivityView and ActivitySection; the shell owns selection for deep links.
+// Exports: ActivityView, ActivitySection and ActivitySectionPicker; the shell owns selection for deep links.
 // Dependencies: SwiftUI, HibossKit SessionDirectory/SessionGrouping, InboxStore, and SessionRow.
 
 import HibossKit
@@ -14,7 +14,6 @@ struct ActivityView: View {
     @ObservedObject var store: InboxStore
     @Binding var section: ActivitySection
     @ObservedObject var connection: ConnectionStore
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Environment(\.projectSessions) private var inventory
 
@@ -35,39 +34,21 @@ struct ActivityView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            sectionPicker
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+            ActivitySectionPicker(section: $section)
+                .padding(.horizontal, Space.m)
+                .padding(.vertical, Space.xs)
             switch section {
             case .sessions: sessions
             case .messages: MessagesView(store: store, search: search)
             }
         }
         .navigationTitle("Sessions")
+        .navigationBarTitleDisplayMode(.large)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
                     prompt: "Search sessions and messages")
         .background(Theme.paper)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: store.connectionState) }
-        }
-    }
-
-    private var sectionPicker: some View {
-        Group {
-            if typeSize.isAccessibilitySize {
-                picker.pickerStyle(.menu)
-            } else {
-                picker.pickerStyle(.segmented)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .accessibilityIdentifier("activity-section")
-    }
-
-    private var picker: some View {
-        Picker("Sessions", selection: $section) {
-            Text("Sessions").tag(ActivitySection.sessions)
-            Text("Messages").tag(ActivitySection.messages)
         }
     }
 
@@ -90,7 +71,7 @@ struct ActivityView: View {
                     .accessibilityIdentifier("activity-session-\(session.id)")
                     .accessibilityHint("Opens the session")
                 }
-            } header: { title }
+            } header: { title.hbSectionHeader().textCase(nil) }
         }
     }
 
@@ -124,8 +105,38 @@ struct ActivityView: View {
                     }
                 }
             }
-            .listStyle(.plain)
+            .listStyle(.insetGrouped)
         }
         .refreshable { await store.refresh() }
     }
+}
+
+// Shared segment control sits above the content, matching the native navigation title layout.
+struct ActivitySectionPicker: View {
+    @Binding var section: ActivitySection
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                picker.pickerStyle(.menu)
+            } else {
+                picker.pickerStyle(.segmented)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
+        .accessibilityIdentifier("activity-section")
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Theme.paper)
+        .listRowSeparator(.hidden)
+    }
+
+    private var picker: some View {
+        Picker("Sessions", selection: $section) {
+            Text("Sessions").tag(ActivitySection.sessions)
+            Text("Messages").tag(ActivitySection.messages)
+        }
+        .labelsHidden()
+    }
+
 }

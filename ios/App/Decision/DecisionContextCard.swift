@@ -11,13 +11,15 @@ struct DecisionProvenance: View {
     @Environment(\.projectSessions) private var inventory
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.xxs) {
+            HStack(alignment: .center, spacing: Space.s) {
                 ProjectAvatarView(project: session?.avatarProject
                                   ?? inventory.project(slug: message.project ?? message.sessionLabel ?? ""),
-                                  size: 32)
-                Text(verbatim: session?.namedLabel ?? [message.sessionLabel, message.sessionBranch]
-                    .compactMap { $0 }.joined(separator: " / ")).font(.subheadline.bold())
+                                  size: AvatarSize.compact)
+                if let branch = message.sessionBranch {
+                    Text(verbatim: branch).font(.subheadline.bold())
+                        .lineLimit(1).truncationMode(.middle)
+                }
             }
             HStack {
                 if let agent = message.agentName ?? session?.agentName { Text(verbatim: agent) }
@@ -38,8 +40,7 @@ struct DecisionContextCard: View {
         MediaMarkdownView(message.messageText.content ?? message.body)
             .font(.subheadline).textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .hbCard()
             .accessibilityIdentifier("decision-facts")
     }
 }

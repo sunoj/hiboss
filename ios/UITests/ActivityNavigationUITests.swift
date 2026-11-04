@@ -60,7 +60,6 @@ final class ActivityNavigationUITests: XCTestCase {
             let status = app.staticTexts["home-connection-status"]
             XCTAssertTrue(status.waitForExistence(timeout: 10), state)
             XCTAssertFalse(app.staticTexts["Nothing needs you"].exists, state)
-            XCTAssertFalse(app.staticTexts["Nothing is waiting on your call"].exists, state)
             screenshot("empty-\(state)")
             app.terminate()
         }
