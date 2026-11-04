@@ -22,7 +22,8 @@ struct SessionRow: View {
     private var projectName: String { identity?.label ?? session.localizedLabel }
 
     private var caption: String {
-        [session.branch ?? identity?.branch, session.agentName ?? identity?.agentName].compactMap { $0 }.joined(separator: " · ")
+        [session.branch ?? identity?.branch, session.agentName ?? identity?.agentName]
+            .compactMap { $0 }.joined(separator: " · ")
     }
 
     var body: some View {
