@@ -68,7 +68,7 @@ struct TodayHeader: View {
         HStack(spacing: Space.xs) {
             Circle().fill(color).frame(width: Space.xs, height: Space.xs).accessibilityHidden(true)
             ZStack(alignment: .leading) {
-                if reservesHealthWidth { Text("Checking coverage").hidden() }
+                if reservesHealthWidth { Text("Checking coverage").lineLimit(1).hidden() }
                 label.lineLimit(1)
             }.font(.footnote).foregroundStyle(Theme.ink2)
         }
