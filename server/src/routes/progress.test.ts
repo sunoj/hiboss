@@ -118,6 +118,31 @@ describe('POST /api/progress', () => {
 });
 
 describe('progress visibility and lifecycle', () => {
+  it.each(['https://test.local/api/attachments/project-icon', null])(
+    'returns the real project avatar %s in posts, feeds, and project summaries', async (avatarUrl) => {
+      const slug = avatarUrl ? 'avatar-project' : 'no-avatar-project';
+      await env.DB.prepare('INSERT INTO projects (id, slug, display_name, avatar_url) VALUES (?, ?, ?, ?)')
+        .bind(slug, slug, slug, avatarUrl).run();
+      const post = await testJson(201, testRequest('POST', 'https://test.local/api/progress',
+        authHeaders(), { body: 'Project identity', project: slug })) as { id: string };
+      const projectRef = { id: slug, slug, display_name: slug, avatar_url: avatarUrl };
+      expect(post).toMatchObject({ project_ref: projectRef });
+      const feed = await testJson(200, SELF.fetch(
+        `https://test.local/api/progress?project=${slug}`, { headers: authHeaders() }));
+      expect(feed).toMatchObject({ posts: [expect.objectContaining({
+        id: post.id, project_ref: projectRef,
+        team: expect.objectContaining({
+          avatar_url: avatarUrl ?? `https://test.local/api/progress/teams/${slug}/avatar.png`,
+        }),
+      })] });
+      const projects = await testJson(200, SELF.fetch('https://test.local/api/progress/projects',
+        { headers: authHeaders() }));
+      expect(projects).toMatchObject({ projects: expect.arrayContaining([
+        expect.objectContaining({ project: slug, project_ref: projectRef }),
+      ]) });
+    },
+  );
+
   it('limits agent feeds to the caller own posts', async () => {
     const res = await SELF.fetch('https://test.local/api/progress?limit=10', { headers: authHeaders() });
     expect(res.status).toBe(200);
