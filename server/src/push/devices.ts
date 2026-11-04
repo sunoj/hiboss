@@ -10,7 +10,7 @@ export function liveDeviceSql(alias: string): string {
     AND (lt.client_id IS NULL OR lc.revoked_at IS NULL))`;
 }
 
-export async function deleteBossDevice(env: Env, bossId: string, token: string): Promise<void> {
+export async function deleteBossDevice(env: Env, bossId: string, token: string, reason?: string): Promise<void> {
   const destinations = await env.DB.prepare(`SELECT id FROM boss_destinations WHERE kind = 'apns'
     AND json_extract(target, '$.device_id') IN
       (SELECT id FROM boss_devices WHERE boss_id = ? AND device_token = ?)`)
@@ -22,6 +22,11 @@ export async function deleteBossDevice(env: Env, bossId: string, token: string):
   }
   await env.DB.batch([
     ...preserved,
+    ...(reason === undefined ? [] : [env.DB.prepare(`INSERT INTO audit_log
+      (actor_type, actor_id, action, resource_type, resource_id, details)
+      SELECT 'system', NULL, 'device.prune', 'device', id,
+        json_object('reason', ?, 'environment', environment, 'bundle_id', bundle_id)
+      FROM boss_devices WHERE boss_id = ? AND device_token = ?`).bind(reason, bossId, token)]),
     env.DB.prepare(`DELETE FROM boss_destinations WHERE kind = 'apns' AND json_extract(target, '$.device_id') IN
       (SELECT id FROM boss_devices WHERE boss_id = ? AND device_token = ?)`).bind(bossId, token),
     env.DB.prepare('DELETE FROM boss_devices WHERE boss_id = ? AND device_token = ?').bind(bossId, token),

@@ -20,7 +20,7 @@ export function pushMode(env: Env): 'direct' | 'relay' | 'none' {
   return env.PUSH_RELAY_URL?.trim().toLowerCase() === 'off' ? 'none' : 'relay';
 }
 
-export async function sendDevicePush(env: Env, device: PushDevice, payload: ApnsPayload,
+async function deliverDevicePush(env: Env, device: PushDevice, payload: ApnsPayload,
   priority: ApnsPriority = '10', kind?: AlertKind): Promise<ApnsSendResult> {
   const mode = pushMode(env);
   let result: ApnsSendResult;
@@ -37,9 +37,8 @@ export async function sendDevicePush(env: Env, device: PushDevice, payload: Apns
     || (mode === 'relay' && !device.relay_handle)) {
     result = { ok: false, prune: true, reason: 'push transport mismatch' };
   } else {
-    return { ok: false, prune: false, reason: 'push transport unavailable' };
+    result = { ok: false, prune: false, reason: 'push transport unavailable' };
   }
-  if (result.prune) await deleteBossDevice(env, device.boss_id, device.device_token);
   return result;
 }
 
@@ -50,7 +49,7 @@ function relayUrl(env: Env): string {
 }
 
 /** Silent push that tells one device an ask closed; prunes a dead token as alerts do. */
-export async function sendDeviceResolution(env: Env, device: PushDevice,
+async function deliverDeviceResolution(env: Env, device: PushDevice,
   resolution: Resolution): Promise<ApnsSendResult> {
   const mode = pushMode(env);
   const signal = AbortSignal.timeout(RESOLUTION_TIMEOUT_MS);
@@ -63,8 +62,53 @@ export async function sendDeviceResolution(env: Env, device: PushDevice,
   } else if (mode === 'relay' && device.relay_handle && device.push_key) {
     result = await sendRelayResolution(relayUrl(env), device.relay_handle, device.push_key, resolution, signal);
   } else {
-    return { ok: false, prune: false, reason: 'push transport unavailable' };
+    result = { ok: false, prune: false, reason: 'push transport unavailable' };
   }
-  if (result.prune) await deleteBossDevice(env, device.boss_id, device.device_token);
   return result;
+}
+
+/** Observe failures once at the shared boundary, preserving best-effort caller behavior. */
+async function observePush(env: Env, device: PushDevice,
+  send: () => Promise<ApnsSendResult>): Promise<ApnsSendResult> {
+  let result: ApnsSendResult;
+  try {
+    result = await send();
+  } catch (error) {
+    warnPushFailure(env, device, error);
+    throw error;
+  }
+  if (!result.ok) warnPushFailure(env, device, result.reason);
+  if (result.prune) {
+    try {
+      await deleteBossDevice(env, device.boss_id, device.device_token, safeReason(device, result.reason));
+    } catch (error) {
+      warnPushFailure(env, device, error);
+      throw error;
+    }
+  }
+  return result;
+}
+
+function safeReason(device: PushDevice, error: unknown): string {
+  let reason = error instanceof Error ? error.message : String(error);
+  for (const secret of [device.device_token, device.push_key, device.relay_handle]) {
+    if (secret) reason = reason.split(secret).join('[redacted]');
+  }
+  return reason.replace(/[0-9a-fA-F]{9,}/g, '[redacted]');
+}
+
+function warnPushFailure(env: Env, device: PushDevice, error: unknown): void {
+  console.warn('Push failed', { reason: safeReason(device, error), transport: pushMode(env),
+    environment: device.environment, bundle_id: device.bundle_id,
+    token_prefix: /^[0-9a-fA-F]+$/.test(device.device_token) ? device.device_token.slice(0, 8) : null });
+}
+
+export async function sendDevicePush(env: Env, device: PushDevice, payload: ApnsPayload,
+  priority: ApnsPriority = '10', kind?: AlertKind): Promise<ApnsSendResult> {
+  return observePush(env, device, () => deliverDevicePush(env, device, payload, priority, kind));
+}
+
+export async function sendDeviceResolution(env: Env, device: PushDevice,
+  resolution: Resolution): Promise<ApnsSendResult> {
+  return observePush(env, device, () => deliverDeviceResolution(env, device, resolution));
 }
