@@ -23,6 +23,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await env.DB.prepare('DELETE FROM boss_destinations WHERE boss_id = ?').bind(bossId).run();
   await env.DB.prepare('DELETE FROM boss_devices WHERE boss_id = ?').bind(bossId).run();
+  await env.DB.prepare("DELETE FROM audit_log WHERE action = 'device.prune'").run();
   const tokenId = await liveTokenId(bossId);
   await env.DB.prepare(`INSERT INTO boss_devices (id, boss_id, device_token, bundle_id, environment, token_id) VALUES
     ('cleanup-device', ?, ?, 'app', 'sandbox', ?), ('kept-device', ?, '11223344', 'app', 'sandbox', ?)`)
@@ -67,6 +68,11 @@ it.each(['api', 'notify', 'destination'])('cleans only the removed device invent
     if (!destination) throw new Error('missing push destination');
     await expect(sendDestination(env, destination, row)).rejects.toThrow('Unregistered');
   }
+  const audits = await env.DB.prepare(`SELECT actor_type, actor_id, resource_type, resource_id, details
+    FROM audit_log WHERE action = 'device.prune' AND resource_id = 'cleanup-device'`).all();
+  expect(audits.results).toEqual(path === 'api' ? [] : [{ actor_type: 'system', actor_id: 'push',
+    resource_type: 'device', resource_id: 'cleanup-device',
+    details: JSON.stringify({ reason: 'Unregistered', environment: 'sandbox', bundle_id: 'app' }) }]);
   expect(await env.DB.prepare("SELECT id FROM boss_devices WHERE id = 'cleanup-device'").first()).toBeNull();
   expect(await env.DB.prepare('SELECT id FROM boss_destinations WHERE boss_id = ? ORDER BY id').bind(bossId).all())
     .toMatchObject({ results: [{ id: 'kept-destination' }, { id: 'kept-native' }] });
