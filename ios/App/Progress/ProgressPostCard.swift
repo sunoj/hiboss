@@ -63,18 +63,33 @@ struct ProgressPostCard: View {
             VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(verbatim: (post.projectIdentity.displayName.isEmpty
                     ? post.projectIdentity.slug : post.projectIdentity.displayName)).font(.headline)
-                HStack(alignment: .firstTextBaseline, spacing: Space.xxs) {
-                    if post.agentLabel != nil || post.model != nil {
-                        ProgressAttributionChip(agentLabel: post.agentLabel, model: post.model)
-                        if post.createdDate != nil { Text(verbatim: "·") }
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: Space.xxs) {
+                        attribution
+                        if hasAttribution && post.createdDate != nil { Text(verbatim: "·") }
+                        if let date = post.createdDate { RecordedTimeText(date: date) }
                     }
-                    if let date = post.createdDate { RecordedTimeText(date: date) }
+                    .fixedSize(horizontal: true, vertical: false)
+                    VStack(alignment: .leading, spacing: Space.xxs) {
+                        attribution
+                        if let date = post.createdDate { RecordedTimeText(date: date) }
+                    }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
         }
     }
+
+    private var hasAttribution: Bool { post.agentLabel != nil || post.model != nil }
+
+    @ViewBuilder
+    private var attribution: some View {
+        if hasAttribution {
+            ProgressAttributionChip(agentLabel: post.agentLabel, model: post.model)
+        }
+    }
+
 }
 
 struct ProgressLikeButton: View {
