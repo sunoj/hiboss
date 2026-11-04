@@ -246,14 +246,9 @@ struct DecisionCardInfo: View {
                     .font(.hbCaption.weight(.semibold))
                     .foregroundStyle(Theme.ink2)
                 Spacer(minLength: Space.xs)
-                if let deadline = message.expirationDate {
-                    CountdownText(deadline: deadline, tint: Theme.warn).font(.footnote)
-                        .lineLimit(1).fixedSize()
-                } else {
-                    Text("No deadline").font(.footnote).foregroundStyle(Theme.ink3)
-                        .lineLimit(1).fixedSize()
-                }
+                if !textSize.isAccessibilitySize { deadline }
             }
+            if textSize.isAccessibilitySize { deadline }
             // The question is the reason the card exists: it wraps fully at every text size.
             Text(verbatim: message.messageText.title)
                 .font(.headline)
@@ -262,6 +257,16 @@ struct DecisionCardInfo: View {
         }
         .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap, alignment: .leading)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder private var deadline: some View {
+        if let deadline = message.expirationDate {
+            CountdownText(deadline: deadline, tint: Theme.warn).font(.footnote)
+                .lineLimit(1).fixedSize()
+        } else {
+            Text("No deadline").font(.footnote).foregroundStyle(Theme.ink3)
+                .lineLimit(1).fixedSize()
+        }
     }
 
     private var metadata: some View {
