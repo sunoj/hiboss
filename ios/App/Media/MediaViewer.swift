@@ -39,19 +39,22 @@ struct MediaViewer: View {
 
     var body: some View {
         ZStack {
-            Theme.mediaBackground.ignoresSafeArea()
+            Color.black.ignoresSafeArea()
             pager
                 .offset(y: offset)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .top) { if chromeVisible && itemActions == nil { topBar } }
         .overlay(alignment: .bottom) { if chromeVisible && itemActions == nil { captionArea } }
-        .safeAreaInset(edge: .top, spacing: 0) {
+        .safeAreaInset(edge: .top, spacing: .zero) {
             if chromeVisible && itemActions != nil { topBar }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .safeAreaInset(edge: .bottom, spacing: .zero) {
             if chromeVisible && itemActions != nil { captionArea }
         }
+        .preferredColorScheme(.dark)
+        .foregroundStyle(.white)
+        .tint(.white)
         .accessibilityAddTraits(.isModal)
         .task(id: currentID) {
             if let currentID { await onSelection?(currentID) }
@@ -142,8 +145,8 @@ struct MediaViewer: View {
             Button { unmuted.toggle() } label: {
                 Image(systemName: unmuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
                     .font(.body)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .background(.regularMaterial, in: Circle())
+                    .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
+                    .background(Color.black, in: Circle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(unmuted ? String(localized: "Mute") : String(localized: "Unmute"))
@@ -155,8 +158,8 @@ struct MediaViewer: View {
             Image(systemName: "xmark.circle.fill")
                 .font(.title)
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(Theme.ink)
-                .frame(minWidth: 44, minHeight: 44)
+                .foregroundStyle(.white)
+                .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
         }
         .accessibilityLabel("Close")
         .accessibilityIdentifier("media-viewer-close")
@@ -178,30 +181,30 @@ struct MediaViewer: View {
                 if let selectedItem { sharing.share(selectedItem) }
             } label: {
                 Image(systemName: "square.and.arrow.up").font(.title2)
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
             }
             .disabled(sharing.isLoading || selectedItem == nil ||
                       selectedItem.map { itemActions?.isAvailable($0) == false } == true)
             .accessibilityLabel("Share")
             .accessibilityIdentifier("media-viewer-share")
         }
-        .padding(.horizontal).padding(.vertical, 8)
-        .background(.regularMaterial)
+        .padding(.horizontal, Space.m).padding(.vertical, Space.xs)
+        .background(Color.black)
     }
 
     private var captionArea: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             if let item = selectedItem {
                 muteControl(for: item)
                 if item.title != nil || item.caption != nil {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: Space.xxs) {
                             if let title = item.title { Text(verbatim: title).font(.headline) }
                             if let caption = item.caption { Text(verbatim: caption).font(.body) }
                             if let itemActions {
                                 TimelineView(.everyMinute) { _ in
                                     Text(verbatim: itemActions.metadata(item)).font(.caption)
-                                        .foregroundStyle(Theme.ink2)
+                                        .foregroundStyle(.white.opacity(0.8))
                                 }
                             }
                         }.frame(maxWidth: .infinity, alignment: .leading)
@@ -220,11 +223,11 @@ struct MediaViewer: View {
             if let error = sharing.error {
                 Text(verbatim: error).font(.callout)
                 Button("Retry") { if let selectedItem { sharing.share(selectedItem) } }
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
             }
         }
-        .padding().frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial)
+        .padding(Space.m).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.black)
     }
 
     @ViewBuilder
@@ -243,7 +246,8 @@ struct MediaViewer: View {
     private func actionButtons(_ item: MediaItem, actions: MediaItemActions) -> some View {
         HStack {
             if let like = actions.likeContent {
-                like(item).labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
+                like(item).labelStyle(.iconOnly)
+                    .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
             }
             Button("Copy", systemImage: "doc.on.doc") { actions.copy(item) }
                 .disabled(!actions.isAvailable(item))

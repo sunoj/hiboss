@@ -1,4 +1,4 @@
-// Twitter-style media mosaic for a progress post: one clipped shape, 2 pt gaps.
+// Progress media mosaic with shared-scale gaps and rounded inline-media corners.
 // Exports: ProgressMediaView, ProgressImageCell.
 // Dependencies: SwiftUI, UIKit, HibossKit ProgressMedia, ProgressVideoCell.
 
@@ -146,7 +146,7 @@ struct ProgressImageCell: View {
             }
         } else if failed {
             Button("Retry image", systemImage: "arrow.clockwise", action: retry)
-                .font(.hbCaption).frame(minWidth: 44, minHeight: 44)
+                .font(.hbCaption).frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
                 .accessibilityValue("Image unavailable")
         } else {
             CompactImageWait(onRetry: retry).id(attempt)
@@ -160,14 +160,14 @@ struct ProgressImageCell: View {
                 Text("ALT")
                     .font(.caption2)
                     .fontWeight(.semibold)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                    .frame(minWidth: 44, minHeight: 44)
+                    .padding(.horizontal, Space.xs)
+                    .padding(.vertical, Space.xxs)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+                    .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(8)
+            .padding(Space.xs)
             .accessibilityLabel(String(localized: "Show alternative text"))
             .accessibilityValue(alt)
         }

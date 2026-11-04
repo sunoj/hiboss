@@ -27,6 +27,7 @@ struct ProgressFeedView: View {
         }
         .refreshable { await store.refresh() }
         .navigationTitle("Progress")
+        .navigationBarTitleDisplayMode(.large)
         .toolbar { filterMenu }
         .task { await store.refresh() }
         .onChange(of: scenePhase) { _, phase in
@@ -59,8 +60,9 @@ struct ProgressFeedView: View {
                 }) {
                     Task { await store.toggleLike(id: post.id) }
                 }
-                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
-                .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] - 16 }
+                .listRowInsets(EdgeInsets(top: .zero, leading: Space.m, bottom: Space.l, trailing: Space.m))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
                 .onAppear {
                     if post.id == store.posts.last?.id {
                         Task { await store.loadMore() }
@@ -74,6 +76,8 @@ struct ProgressFeedView: View {
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Theme.paper)
     }
 
     @ToolbarContentBuilder
@@ -84,7 +88,7 @@ struct ProgressFeedView: View {
                     Text("All projects").tag(nil as String?)
                     ForEach(store.projects) { item in
                         HStack {
-                            ProjectAvatarView(project: item.projectIdentity, size: 24)
+                            ProjectAvatarView(project: item.projectIdentity, size: AvatarSize.compact)
                             Text("\(item.slug) (\(item.count))")
                         }.tag(item.slug as String?)
                     }
@@ -95,12 +99,13 @@ struct ProgressFeedView: View {
                 } icon: {
                     if let slug = store.selectedProject {
                         ProjectAvatarView(project: store.projects.first { $0.slug == slug }?.projectIdentity
-                                          ?? .fallback(slug), size: 24)
+                                          ?? .fallback(slug), size: AvatarSize.compact)
                     } else {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                     }
                 }
             }
+            .labelStyle(.iconOnly)
             .accessibilityLabel("Filter by project")
         }
     }
