@@ -191,6 +191,35 @@ final class HomeDecisionDetailUITests: XCTestCase {
         add(attachment)
     }
 
+    func testMetadataAndDetailRhythmLight() { verifyMetadataAndDetailRhythm(style: "Light") }
+    func testMetadataAndDetailRhythmDark() { verifyMetadataAndDetailRhythm(style: "Dark") }
+    func testMetadataAndDetailRhythmChineseExtraLarge() {
+        verifyMetadataAndDetailRhythm(style: "Light", large: true)
+    }
+
+    private func verifyMetadataAndDetailRhythm(style: String, large: Bool = false) {
+        launch(arguments: ["-AppleInterfaceStyle", style] + (large ? Self.accessibilityXXXL : []))
+        let row = app.buttons["home-message-c5"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        for _ in 0..<8 where !row.isHittable { app.swipeUp() }
+        let project = row.staticTexts["prod-release"]
+        XCTAssertTrue(project.exists, "Project must have its own untruncated text view")
+        XCTAssertGreaterThan(project.frame.width, 70)
+        XCTAssertTrue(row.staticTexts[large ? "release/v2.4 · worker-design" : "· release/v2.4 · worker-design"].exists)
+        keepScreenshot("round2-today-\(style)-\(large ? "AX" : "standard")")
+        row.tap()
+        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        let facts = app.descendants(matching: .any)["decision-facts"].firstMatch
+        let notice = timing("c5")
+        if !large {
+            XCTAssertTrue(notice.exists)
+            let gap = notice.frame.minY - facts.frame.maxY
+            // The notice text is inset 16 points inside its background card.
+            XCTAssertEqual(gap, 28, accuracy: 2, "Visible blocks use one 12-point Space.s gap")
+        }
+        keepScreenshot("round2-detail-\(style)-\(large ? "AX" : "standard")")
+    }
+
     private func assertFullWidth(_ first: String, _ second: String) {
         let top = app.buttons[first].frame
         let bottom = app.buttons[second].frame

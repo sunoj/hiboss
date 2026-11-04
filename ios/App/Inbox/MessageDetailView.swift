@@ -60,11 +60,13 @@ struct MessageDetailView: View {
     var body: some View {
         if let message {
             ScrollView {
-                VStack(alignment: .leading, spacing: Space.l) {
+                VStack(alignment: .leading, spacing: Space.s) {
                     DecisionProvenance(message: message, session: facts.session)
                     question(for: message)
                     DecisionContextCard(message: message)
-                    MessageReactions(message: message)
+                    if !(message.metadata?.reactionGroups.isEmpty ?? true) {
+                        MessageReactions(message: message)
+                    }
                     if let actionNote {
                         Label(actionNote, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(Theme.warn)

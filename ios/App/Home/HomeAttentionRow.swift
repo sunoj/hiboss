@@ -232,6 +232,7 @@ struct DecisionCard<Header: View, Choices: View>: View {
 }
 
 struct DecisionCardInfo: View {
+    @Environment(\.dynamicTypeSize) private var textSize
     @Environment(\.projectSessions) private var inventory
     let message: HistoryMessage
 
@@ -241,10 +242,7 @@ struct DecisionCardInfo: View {
                 ProjectAvatarView(project: inventory.first { $0.id == message.sessionId }?.avatarProject
                                   ?? inventory.project(slug: message.project ?? project),
                                   size: AvatarSize.compact)
-                Text(verbatim: [inventory.first { $0.id == message.sessionId }?.namedLabel ?? project,
-                                message.sessionBranch, message.displayName]
-                        .compactMap { $0 }.joined(separator: " · "))
-                    .lineLimit(1).truncationMode(.middle)
+                metadata
                     .font(.hbCaption.weight(.semibold))
                     .foregroundStyle(Theme.ink2)
                 Spacer(minLength: Space.xs)
@@ -264,6 +262,20 @@ struct DecisionCardInfo: View {
         }
         .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap, alignment: .leading)
         .contentShape(Rectangle())
+    }
+
+    private var metadata: some View {
+        let layout = textSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+            : AnyLayout(HStackLayout(spacing: Space.xxs))
+        return layout {
+            Text(verbatim: inventory.first { $0.id == message.sessionId }?.namedLabel ?? project)
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
+            Text(verbatim: (textSize.isAccessibilitySize ? "" : "· ")
+                 + [message.sessionBranch, message.displayName].compactMap { $0 }.joined(separator: " · "))
+                .lineLimit(1).truncationMode(.tail)
+        }
     }
 
     private var project: String {
