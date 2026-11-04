@@ -15,7 +15,7 @@ struct ProgressAttributionChip: View {
                 monogram
                 Text(verbatim: caption)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .ignore)
