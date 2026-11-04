@@ -29,7 +29,7 @@ export interface ProgressTeam {
 
 export interface TeamProfile extends ProgressTeam {
   project: string;
-  project_ref: { id: string; slug: string; display_name: string };
+  project_ref: { id: string; slug: string; display_name: string; avatar_url: string | null };
   bio: string | null;
 }
 
@@ -218,7 +218,10 @@ export function mapTeamRow(row: TeamRow, requestUrl: URL): TeamProfile {
   const handle = row.handle ?? slugifyProject(row.project);
   return {
     project: row.project,
-    project_ref: { id: row.id, slug: row.project, display_name: row.display_name ?? row.project },
+    project_ref: {
+      id: row.id, slug: row.project, display_name: row.display_name ?? row.project,
+      avatar_url: row.avatar_url ?? null,
+    },
     handle,
     display_name: row.display_name ?? row.project,
     bio: row.bio,

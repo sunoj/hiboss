@@ -120,15 +120,20 @@ routes.get('/projects', async (c) => {
   const scope = scopedWhere(agentIds);
   const rows = await c.env.DB.prepare(
     `WITH activity AS (
-       SELECT t.slug AS project, t.id AS project_id, t.display_name,
+       SELECT t.slug AS project, t.id AS project_id, t.display_name, t.avatar_url,
          p.agent_id, p.created_at AS post_at FROM progress_posts p JOIN projects t ON t.id = p.project_id WHERE p.${scope.sql}
        UNION ALL
-       SELECT t.slug, t.id, t.display_name, s.agent_id, NULL FROM sessions s JOIN projects t ON t.id = s.project_id WHERE s.${scope.sql}
-     ) SELECT project, project_id, display_name, COUNT(post_at) AS count, MAX(post_at) AS last_post_at, agent_id
+       SELECT t.slug, t.id, t.display_name, t.avatar_url, s.agent_id, NULL
+         FROM sessions s JOIN projects t ON t.id = s.project_id WHERE s.${scope.sql}
+     ) SELECT project, project_id, display_name, avatar_url,
+         COUNT(post_at) AS count, MAX(post_at) AS last_post_at, agent_id
        FROM activity GROUP BY project, agent_id HAVING COUNT(post_at) > 0 ORDER BY last_post_at DESC`
-  ).bind(...scope.binds, ...scope.binds).all<{ project: string; project_id: string; display_name: string; count: number; last_post_at: string | null; agent_id: string }>();
-  return c.json({ projects: rows.results.map(({ project_id, display_name, ...row }) => ({
-    ...row, project_ref: { id: project_id, slug: row.project, display_name },
+  ).bind(...scope.binds, ...scope.binds).all<{
+    project: string; project_id: string; display_name: string; avatar_url: string | null;
+    count: number; last_post_at: string | null; agent_id: string;
+  }>();
+  return c.json({ projects: rows.results.map(({ project_id, display_name, avatar_url, ...row }) => ({
+    ...row, project_ref: { id: project_id, slug: row.project, display_name, avatar_url: avatar_url ?? null },
     last_post_at: row.last_post_at ? normalizeTimestamp(row.last_post_at) : null,
   })) });
 });
