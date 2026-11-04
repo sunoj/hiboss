@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A12300000000000000000001 /* PushEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12300000000000000000002 /* PushEnvironmentTests.swift */; };
 		0054F827436CE9DD811E689E /* BoxShareContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F571A87B5B4F8C288A20636 /* BoxShareContentTests.swift */; };
 		00F582F779BBE0D825994CE7 /* DecisionContextCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1896D64CBDA9A8CFCA2D173F /* DecisionContextCard.swift */; };
 		0233BC3781C6B1D455F3C295 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 449F5737D1DEA9D470795E5C /* BrandAssets.xcassets */; };
@@ -447,6 +448,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A12300000000000000000002 /* PushEnvironmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushEnvironmentTests.swift; sourceTree = "<group>"; };
 		00A00E9BC502BBFDA5294FD3 /* SessionNoteImagePreparation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionNoteImagePreparation.swift; sourceTree = "<group>"; };
 		014E4F17260E1DBC8E935026 /* DemoMessageDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoMessageDetail.swift; sourceTree = "<group>"; };
 		0244CD03336DD0F84AB18F5B /* HiBossShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HiBossShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1482,6 +1484,7 @@
 				395745C5A76DF538C4A19BFC /* RenderPixels.swift */,
 				F1628509AB789296B8FD5BD2 /* ProjectAvatarTests.swift */,
 				DB3DC737168F43D243C0AF4D /* ProminentActionAppearanceTests.swift */,
+				A12300000000000000000002 /* PushEnvironmentTests.swift */,
 				D4A219E8337CF16B70B1FB4C /* PushPanelRequestTests.swift */,
 				BBF57B916D4B2F49BD03ADB0 /* PushRelayCipherTests.swift */,
 				69C4E984AE3F879163718E9B /* PushRelayRegistrationTests.swift */,
@@ -1879,6 +1882,7 @@
 				B2738479E6FD127FCBE97ADB /* RenderPixels.swift in Sources */,
 				CA01018C53D3413D29DAC0A7 /* ProjectAvatarTests.swift in Sources */,
 				88FFDBDC0D6BF8EE9E253017 /* ProminentActionAppearanceTests.swift in Sources */,
+				A12300000000000000000001 /* PushEnvironmentTests.swift in Sources */,
 				CDAD925D96B518DAD11966B4 /* PushPanelRequestTests.swift in Sources */,
 				21E16154113F62990DD9095F /* PushRelayCipherTests.swift in Sources */,
 				76968C3C252CA9EF4C254861 /* PushRelayRegistrationTests.swift in Sources */,
