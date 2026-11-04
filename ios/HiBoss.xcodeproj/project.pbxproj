@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A12300000000000000000003 /* PushEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12300000000000000000004 /* PushEnvironment.swift */; };
 		A12300000000000000000001 /* PushEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12300000000000000000002 /* PushEnvironmentTests.swift */; };
 		0054F827436CE9DD811E689E /* BoxShareContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F571A87B5B4F8C288A20636 /* BoxShareContentTests.swift */; };
 		00F582F779BBE0D825994CE7 /* DecisionContextCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1896D64CBDA9A8CFCA2D173F /* DecisionContextCard.swift */; };
@@ -448,6 +449,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A12300000000000000000004 /* PushEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushEnvironment.swift; sourceTree = "<group>"; };
 		A12300000000000000000002 /* PushEnvironmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushEnvironmentTests.swift; sourceTree = "<group>"; };
 		00A00E9BC502BBFDA5294FD3 /* SessionNoteImagePreparation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionNoteImagePreparation.swift; sourceTree = "<group>"; };
 		014E4F17260E1DBC8E935026 /* DemoMessageDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoMessageDetail.swift; sourceTree = "<group>"; };
@@ -894,6 +896,7 @@
 				E0B54DB8245ABD2D293FC27D /* PushManager.swift */,
 				73E89ED60DDFC59D31688919 /* PushRelayClient.swift */,
 				79236E09B2B7E0B1D8F4EAFB /* PushRelayRegistrar.swift */,
+				A12300000000000000000004 /* PushEnvironment.swift */,
 				2F6D1186225BF82E13FCD2D7 /* PushRoute.swift */,
 				BBCB3BDEA56C0D86061C3AC4 /* ResolutionPush.swift */,
 				1C48EAB043B0120FC8A131DA /* SystemResolutionEffects.swift */,
@@ -2168,6 +2171,7 @@
 				E3B409AD430C0E9E25F5E04F /* PushPayloadCipher.swift in Sources */,
 				5F274876D56E5A6FC00F60BF /* PushRelayClient.swift in Sources */,
 				FF0631A8B0905A7DCA48A137 /* PushRelayRegistrar.swift in Sources */,
+				A12300000000000000000003 /* PushEnvironment.swift in Sources */,
 				46BB990D876642C76403436B /* PushRoute.swift in Sources */,
 				C94500F51CF3831B4E628F87 /* PushStatusStore.swift in Sources */,
 				0FBAC6CEA203B0BF22E247A4 /* PushTieringSection.swift in Sources */,
