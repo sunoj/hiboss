@@ -12,7 +12,8 @@ final class ProgressMediaLayoutTests: XCTestCase {
     @MainActor
     func testReadableWidthPreservesCompactAndCentersWideContent() throws {
         for width: CGFloat in [390, 466, 669, 744] {
-            let renderer = ImageRenderer(content: Color.red.frame(height: 10).hbReadableWidth())
+            let renderer = ImageRenderer(content: Color(red: 1, green: 0, blue: 0)
+                .frame(height: 10).hbReadableWidth())
             renderer.proposedSize = ProposedViewSize(width: width, height: 10)
             let image = try XCTUnwrap(renderer.cgImage)
             let pixels = try rgbaPixels(image)
