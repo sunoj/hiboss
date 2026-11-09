@@ -43,7 +43,8 @@ struct DecisionCardInfo: View {
         }
     }
 
-    /// One line while it fits, the branch going first; then project and agent on their own lines.
+    /// The project is its own text and never truncates; the tail drops the branch before the agent,
+    /// then project and tail stack.
     @ViewBuilder private var metadata: some View {
         let line = DecisionMetaLine(
             project: inventory.first { $0.id == message.sessionId }?.namedLabel ?? project,
@@ -52,7 +53,15 @@ struct DecisionCardInfo: View {
             stacked(line)
         } else {
             ViewThatFits(in: .horizontal) {
-                ForEach(line.lines, id: \.self) { Text(verbatim: $0).lineLimit(1) }
+                ForEach(line.tails.isEmpty ? [""] : line.tails, id: \.self) { tail in
+                    HStack(spacing: Space.xxs) {
+                        Text(verbatim: line.project).fixedSize()
+                        if !tail.isEmpty {
+                            Text(verbatim: "· " + tail).lineLimit(1)
+                                .accessibilityLabel(Text(verbatim: "· " + (line.tails.first ?? tail)))
+                        }
+                    }
+                }
                 stacked(line)
             }
         }
@@ -62,9 +71,12 @@ struct DecisionCardInfo: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(verbatim: line.project).fixedSize(horizontal: false, vertical: true)
             ViewThatFits(in: .horizontal) {
-                ForEach(line.tails, id: \.self) { Text(verbatim: $0).lineLimit(1) }
+                ForEach(line.tails, id: \.self) {
+                    Text(verbatim: $0).lineLimit(1).accessibilityLabel(Text(verbatim: line.tails.first ?? $0))
+                }
                 if let agent = line.tails.last {
                     Text(verbatim: agent).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel(Text(verbatim: line.tails.first ?? agent))
                 }
             }
         }
@@ -97,11 +109,6 @@ struct DecisionMetaLine: Equatable {
         case let (nil, agent?): tails = [agent]
         case (nil, nil): tails = []
         }
-    }
-
-    /// Single-line candidates in preference order.
-    var lines: [String] {
-        tails.isEmpty ? [project] : tails.map { "\(project) · \($0)" }
     }
 
     private static func clean(_ value: String?) -> String? {

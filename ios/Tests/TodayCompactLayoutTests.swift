@@ -8,18 +8,17 @@ import XCTest
 final class TodayCompactLayoutTests: XCTestCase {
     func testMetaLineDropsBranchBeforeAgent() {
         let line = DecisionMetaLine(project: "prod-release", branch: "release/v2.4", agent: "worker")
-        XCTAssertEqual(line.lines, ["prod-release · release/v2.4 · worker", "prod-release · worker"])
-        XCTAssertEqual(line.tails.last, "worker")
+        XCTAssertEqual(line.tails, ["release/v2.4 · worker", "worker"])
     }
 
     func testMetaLineDoesNotRepeatABranchThatNamesTheProject() {
         let line = DecisionMetaLine(project: "main", branch: " main ", agent: "worker")
-        XCTAssertEqual(line.lines, ["main · worker"])
+        XCTAssertEqual(line.tails, ["worker"])
     }
 
     func testMetaLineIgnoresBlankParts() {
-        XCTAssertEqual(DecisionMetaLine(project: "p", branch: "  ", agent: nil).lines, ["p"])
-        XCTAssertEqual(DecisionMetaLine(project: "p", branch: "b", agent: "").lines, ["p · b"])
+        XCTAssertEqual(DecisionMetaLine(project: "p", branch: "  ", agent: nil).tails, [])
+        XCTAssertEqual(DecisionMetaLine(project: "p", branch: "b", agent: "").tails, ["b"])
     }
 
     func testHeaderCompactsOnlyOnShortContainers() {
