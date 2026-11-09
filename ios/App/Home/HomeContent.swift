@@ -14,9 +14,15 @@ struct HomeContent: View {
     @Binding var sessionRoute: SessionRoute?
     @Environment(\.openConnectionSettings) private var openSettings
     @State private var hasCompletedCoverage = false
+    @State private var datesInSubtitle = false
 
     var body: some View {
         content
+            // Full height, bars included, so moving the date cannot feed back into the decision.
+            .onGeometryChange(for: Bool.self) {
+                TodayHeaderLayout.movesDate(
+                    containerHeight: $0.size.height + $0.safeAreaInsets.top + $0.safeAreaInsets.bottom)
+            } action: { datesInSubtitle = $0 }
             .onChange(of: attentionStatus == nil, initial: true) { _, complete in
                 if complete {
                     hasCompletedCoverage = true
@@ -75,7 +81,8 @@ struct HomeContent: View {
         return VStack(spacing: Space.l) {
             TodayHeader(snapshot: today, requestCount: attention.count,
                         inputsLoaded: inbox.requiredInputLoaded || !inbox.isReady, isRefreshing: refreshing,
-                        now: now, onSettings: openSettings)
+                        now: now, showsDate: !datesInSubtitle, onSettings: openSettings)
+                .todayDateSubtitle(now, shown: datesInSubtitle)
             // An empty section under a failure would still take two stack gaps from the results.
             if attention.count > 0 || isAllClear || !blocksCoverage {
                 HomeAttentionSection(

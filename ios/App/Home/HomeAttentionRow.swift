@@ -1,5 +1,5 @@
 // Actionable Home attention list with project, requester, wait, and choices.
-// Exports: HomeAttentionSection, HomeAttentionRow, DecisionCard, and DecisionCardInfo.
+// Exports: HomeAttentionSection, HomeAttentionRow, and DecisionCard.
 // Dependencies: SwiftUI, HibossKit MessageID, AttentionItem, DecisionOptions, DecisionTiming, Theme.
 
 import HibossKit
@@ -228,67 +228,5 @@ struct DecisionCard<Header: View, Choices: View>: View {
             }
         }
         .hbCard()
-    }
-}
-
-struct DecisionCardInfo: View {
-    @Environment(\.dynamicTypeSize) private var textSize
-    @Environment(\.projectSessions) private var inventory
-    let message: HistoryMessage
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Space.xs) {
-            HStack(alignment: .center, spacing: Space.xs) {
-                ProjectAvatarView(project: inventory.first { $0.id == message.sessionId }?.avatarProject
-                                  ?? inventory.project(slug: message.project ?? project),
-                                  size: AvatarSize.compact)
-                metadata
-                    .font(.hbCaption.weight(.semibold))
-                    .foregroundStyle(Theme.ink2)
-                Spacer(minLength: Space.xs)
-                if !textSize.isAccessibilitySize { deadline }
-            }
-            if textSize.isAccessibilitySize { deadline }
-            // The question is the reason the card exists: it wraps fully at every text size.
-            Text(verbatim: message.messageText.title)
-                .font(.headline)
-                .foregroundStyle(Theme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap, alignment: .leading)
-        .contentShape(Rectangle())
-    }
-
-    @ViewBuilder private var deadline: some View {
-        if let deadline = message.expirationDate {
-            CountdownText(deadline: deadline, tint: Theme.warn).font(.footnote)
-                .lineLimit(1).fixedSize()
-        } else {
-            Text("No deadline").font(.footnote).foregroundStyle(Theme.ink3)
-                .lineLimit(1).fixedSize()
-        }
-    }
-
-    private var metadata: some View {
-        let layout = textSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
-            : AnyLayout(HStackLayout(spacing: Space.xxs))
-        return layout {
-            Text(verbatim: inventory.first { $0.id == message.sessionId }?.namedLabel ?? project)
-                .fixedSize(horizontal: false, vertical: true)
-                .layoutPriority(1)
-            Text(verbatim: (textSize.isAccessibilitySize ? "" : "· ")
-                 + [message.sessionBranch, message.displayName].compactMap { $0 }.joined(separator: " · "))
-                .lineLimit(1).truncationMode(.tail)
-        }
-    }
-
-    private var project: String {
-        [message.sessionLabel, message.sessionBranch].compactMap { value -> String? in
-            guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
-                return nil
-            }
-            return value
-        }.first ?? String(localized: "Unassigned session")
     }
 }
