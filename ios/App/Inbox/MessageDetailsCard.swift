@@ -7,7 +7,6 @@ import SwiftUI
 
 struct MessageDetailsCard: View {
     let message: HistoryMessage
-    var showsSession = true
     @State private var showsMore = false
 
     var body: some View {
@@ -33,7 +32,7 @@ struct MessageDetailsCard: View {
         AttributeRow(icon: "cpu", label: "Agent") {
             Text(verbatim: message.displayName)
         }
-        if showsSession, let session = trimmed(message.sessionLabel) {
+        if let session = trimmed(message.sessionLabel) {
             AttributeRow(icon: "square.stack.3d.up", label: "Session") {
                 Text(verbatim: session)
             }
