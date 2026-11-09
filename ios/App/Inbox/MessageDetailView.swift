@@ -18,6 +18,7 @@ struct MessageDetailView: View {
     private var draftBinding: Binding<String> {
         Binding(get: { replyDraft }, set: { replyDraft = $0 })
     }
+    @State private var availableWidth: CGFloat = 0
     @State private var actionNote: String?
     @State var fallback: Fallback = .loading
     @State var loadAttempt = 0
@@ -74,11 +75,14 @@ struct MessageDetailView: View {
                     }
                     decisionSection(for: message)
                     sessionLink(for: message)
-                    MessageDetailsCard(message: message)
+                    MessageDetailsCard(message: message,
+                                       showsSession: availableWidth <= ReadableWidth.maximum)
                 }
                 .padding(.horizontal, Space.m)
                 .padding(.vertical, Space.s)
             }
+            .hbReadableWidth()
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
             .accessibilityIdentifier("decision-detail")
             .background(Theme.paper)
             .onChange(of: message, initial: true) { _, current in

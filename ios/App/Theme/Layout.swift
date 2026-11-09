@@ -1,5 +1,5 @@
 // Layout scale: spacing, corner radii, avatar sizes and the shared card/section treatments.
-// Exports: Space, Radius, AvatarSize, View.hbCard(), View.hbSectionHeader().
+// Exports: Space, Radius, AvatarSize, ReadableWidth and shared View treatments.
 // Dependencies: SwiftUI, Theme colours, Typography.
 
 import SwiftUI
@@ -49,6 +49,19 @@ enum ControlMetric {
     static let fullWidth: CGFloat = 48
 }
 
+enum ReadableWidth {
+    static let maximum: CGFloat = 640
+}
+
+struct HBReadableWidth: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: ReadableWidth.maximum)
+            .frame(maxWidth: .infinity)
+            .background(Theme.paper)
+    }
+}
+
 /// A grouped card: surface fill, large radius, standard inner padding.
 struct HBCard: ViewModifier {
     var padding: CGFloat = Space.m
@@ -72,6 +85,7 @@ struct HBSectionHeader: ViewModifier {
 }
 
 extension View {
+    func hbReadableWidth() -> some View { modifier(HBReadableWidth()) }
     func hbCard(padding: CGFloat = Space.m) -> some View { modifier(HBCard(padding: padding)) }
     func hbSectionHeader() -> some View { modifier(HBSectionHeader()) }
 }
