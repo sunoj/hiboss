@@ -75,12 +75,9 @@ struct ProgressMediaView: View {
         aspect: CGFloat,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        Theme.surface2
-            .aspectRatio(aspect, contentMode: .fit)
-            .frame(maxWidth: .infinity)
-            .fixedSize(horizontal: false, vertical: true)
-            .overlay { content() }
-            .clipped()
+        ProgressMediaFrame(aspect: aspect) {
+            Theme.surface2.overlay { content() }.clipped()
+        }
     }
 
     @ViewBuilder

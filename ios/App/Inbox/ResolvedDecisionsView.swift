@@ -56,6 +56,7 @@ struct ResolvedDecisionsView: View {
             hasLoaded: store.didLoad,
             onRetry: { await store.refresh() }
         ) { list }
+        .hbReadableWidth()
         .navigationTitle("Resolved")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await store.refresh() }

@@ -125,6 +125,7 @@ struct RootTabView: View {
                 sessionAPI: sessionStreamAPI,
                 panels: panels
             )
+            .hbReadableWidth()
             .safeAreaInset(edge: .bottom) {
                 if router.pendingPanel != nil {
                     PendingStateView(title: String(localized: "Opening panel…"),
@@ -151,7 +152,7 @@ struct RootTabView: View {
     }
 
     private var progressTabView: some View {
-        NavigationStack { ProgressFeedView(store: progress) }
+        NavigationStack { ProgressFeedView(store: progress).hbReadableWidth() }
             .tabItem { Label("Progress", systemImage: "calendar.day.timeline.leading") }
             .tag(Self.progressTab)
     }
@@ -172,11 +173,13 @@ struct RootTabView: View {
                 }
             }
         }
+        .hbReadableWidth()
     }
 
     private var boxTabView: some View {
         NavigationStack {
             BoxListView(api: isDemoMode ? DemoBoxAPI.shared : connection.makeAPI())
+                .hbReadableWidth()
                 .id(BoxStore.connectionIdentity(connection.config))
                 .navigationTitle("Box")
         }

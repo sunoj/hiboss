@@ -40,7 +40,6 @@ struct SessionMessagesView: View {
                 jumpToLiveButton
             }
         }
-        .background(Theme.paper)
         .safeAreaInset(edge: .bottom) {
             SessionReplyComposer(targets: SessionReplyTarget.eligible(events: transcriptEvents, store: store),
                                  store: store, sessionID: route.id, canCreateNotes: canCreateNotes,
@@ -51,6 +50,7 @@ struct SessionMessagesView: View {
                                      Task { await refreshNotes() }
                                  })
         }
+        .hbReadableWidth()
         .navigationTitle(Text(verbatim: facts.session?.namedLabel ?? route.label))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(showsHistory ? .visible : .hidden, for: .tabBar)

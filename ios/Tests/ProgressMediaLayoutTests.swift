@@ -9,6 +9,42 @@ import XCTest
 @testable import HiBoss
 
 final class ProgressMediaLayoutTests: XCTestCase {
+    @MainActor
+    func testReadableWidthPreservesCompactAndCentersWideContent() throws {
+        for width: CGFloat in [390, 466, 669, 744] {
+            let renderer = ImageRenderer(content: Color.red.frame(height: 10).hbReadableWidth())
+            renderer.proposedSize = ProposedViewSize(width: width, height: 10)
+            let image = try XCTUnwrap(renderer.cgImage)
+            let pixels = try rgbaPixels(image)
+            let redColumns = (0..<image.width).filter { x in
+                let offset = (5 * image.width + x) * 4
+                return pixels[offset] > 240 && pixels[offset + 1] < 10
+            }
+            let expected = Int(min(width, 640))
+            XCTAssertEqual(Double(redColumns.count), Double(expected), accuracy: 1)
+            XCTAssertEqual(Double(try XCTUnwrap(redColumns.first)),
+                           (Double(width) - Double(expected)) / 2, accuracy: 1)
+        }
+    }
+
+    @MainActor
+    func testMediaPreservesCompactGeometryAndCapsWidePortraitAndMosaics() {
+        for width: CGFloat in [326, 390, 434, 669, 744] {
+            for aspect: CGFloat in [3 / 4, 16 / 9, 2] {
+                let host = UIHostingController(rootView: ProgressMediaFrame(aspect: aspect) { Color.red })
+                let size = host.sizeThatFits(in: CGSize(width: width, height: 2_000))
+                if width <= 500 {
+                    XCTAssertEqual(size.width, width, accuracy: 1)
+                    XCTAssertEqual(size.height, width / aspect, accuracy: 1)
+                } else {
+                    XCTAssertLessThanOrEqual(size.width, 480)
+                    XCTAssertLessThanOrEqual(size.height, 320)
+                }
+                XCTAssertEqual(size.width / size.height, aspect, accuracy: 0.01)
+            }
+        }
+    }
+
     func testMissingDimensionsUseSixteenNine() {
         XCTAssertEqual(
             ProgressMediaLayout.clampedAspect(width: nil, height: nil),
