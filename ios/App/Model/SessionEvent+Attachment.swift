@@ -1,5 +1,5 @@
 // Resolves agent message attachments from the session stream without requiring cached history.
-// Exports: SessionEvent.messageAttachment, using the shared URL validation and file classification.
+// Exports: SessionEvent.messageAttachment with its optional display copy, using shared URL validation.
 // Dependencies: HibossKit SessionEvent, AnyJSON and MessageAttachment.
 
 import HibossKit
@@ -7,9 +7,10 @@ import HibossKit
 extension SessionEvent {
     var messageAttachment: MessageAttachment? {
         guard kind == "message", direction == "agent_to_boss",
-              let url = payload?.objectValue?["metadata"]?.objectValue?["file_url"]?.stringValue else {
+              let metadata = payload?.objectValue?["metadata"]?.objectValue,
+              let url = metadata["file_url"]?.stringValue else {
             return nil
         }
-        return MessageAttachment(urlString: url)
+        return MessageAttachment(urlString: url, thumbnailURLString: metadata["file_thumbnail_url"]?.stringValue)
     }
 }

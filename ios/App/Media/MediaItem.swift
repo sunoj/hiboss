@@ -10,6 +10,8 @@ struct MediaItem: Identifiable {
     var id = UUID().uuidString
     let url: URL
     let kind: Kind
+    /// A smaller display copy of an image, shown at once while `url` loads.
+    var previewURL: URL? = nil
     var title: String? = nil
     var caption: String? = nil
     var aspectRatio: CGFloat? = nil

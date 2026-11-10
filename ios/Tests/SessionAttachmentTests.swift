@@ -37,6 +37,27 @@ final class SessionAttachmentTests: XCTestCase {
         XCTAssertNil(event.messageAttachment)
     }
 
+    func testStreamMessagePrefersItsDisplayCopyAndFallsBackToTheOriginal() {
+        let metadata: [String: AnyJSON] = [
+            "file_url": .string("https://example.com/a.png"),
+            "file_thumbnail_url": .string("https://example.com/a.thumb.jpg"),
+        ]
+        let event = SessionEvent(id: "thumb", sessionId: "session", sequence: 1, kind: "message",
+                                 direction: "agent_to_boss", payload: .object(["metadata": .object(metadata)]),
+                                 createdAt: "")
+        XCTAssertEqual(event.messageAttachment?.displayURL.absoluteString, "https://example.com/a.thumb.jpg")
+        XCTAssertEqual(event.messageAttachment?.url.absoluteString, "https://example.com/a.png")
+        XCTAssertEqual(message(url: "https://example.com/a.png").messageAttachment?.displayURL.absoluteString,
+                       "https://example.com/a.png")
+    }
+
+    func testPixelBucketsCoverTheFrameAndCap() {
+        XCTAssertEqual(RemoteImagePixels.bucket(for: .zero, scale: 3), 512)
+        XCTAssertEqual(RemoteImagePixels.bucket(for: CGSize(width: 72, height: 72), scale: 3), 512)
+        XCTAssertEqual(RemoteImagePixels.bucket(for: CGSize(width: 360, height: 240), scale: 3), 2048)
+        XCTAssertEqual(RemoteImagePixels.bucket(for: CGSize(width: 430, height: 932), scale: 3), 4096)
+    }
+
     private func message(url: String, direction: String = "agent_to_boss",
                          kind: String = "message") -> SessionEvent {
         SessionEvent(id: "event", sessionId: "session", sequence: 1, kind: kind,
