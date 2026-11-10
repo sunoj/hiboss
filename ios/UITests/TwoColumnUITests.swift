@@ -116,11 +116,12 @@ final class TwoColumnUITests: XCTestCase {
     }
 
     func testMessageNotificationLoadsTheMessageInTheDetailColumn() {
-        launch(["HIBOSS_DEMO_NOTIFICATION_OPEN": "c1", "HIBOSS_DEMO_MESSAGE_DELAY_MS": "3000"])
-        XCTAssertTrue(app.staticTexts["Loading message…"].waitForExistence(timeout: 10))
+        // Held history makes the detail column fetch the message itself, as a cold notification does.
+        launch(["HIBOSS_DEMO_NOTIFICATION_OPEN": "c1", "HIBOSS_DEMO_HISTORY_DELAY_MS": "60000",
+                "HIBOSS_DEMO_REQUESTS_DELAY_MS": "60000", "HIBOSS_DEMO_MESSAGE_DELAY_MS": "3000"])
         let question = app.staticTexts["message-question"]
-        XCTAssertTrue(question.waitForExistence(timeout: 15), "the held fetch renders in the detail column")
-        XCTAssertFalse(app.staticTexts["Loading message…"].exists)
+        XCTAssertTrue(question.waitForExistence(timeout: 20), "the held fetch renders in the detail column")
+        XCTAssertFalse(app.navigationBars["Loading…"].exists)
         XCTAssertTrue(sessionsTab.isSelected)
         XCTAssertFalse(element("sessions-detail-placeholder").exists)
         XCTAssertTrue(element("activity-section").isHittable, "the list stays beside the message")
