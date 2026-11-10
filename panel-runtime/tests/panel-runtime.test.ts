@@ -19,6 +19,7 @@ import e2eTestRun from '../fixtures/examples/e2e-test-run.json' with { type: 'js
 import benchmarkSweep from '../fixtures/examples/benchmark-sweep.json' with { type: 'json' };
 import serviceMonitor from '../fixtures/examples/service-monitor.json' with { type: 'json' };
 import researchIntake from '../fixtures/questionnaires/research-intake.json' with { type: 'json' };
+import questionnaireIntake from '../fixtures/questionnaire-intake.json' with { type: 'json' };
 import boundChart from '../fixtures/bound-chart.json' with { type: 'json' };
 import {
   ACTION_NAMES,
@@ -134,6 +135,8 @@ describe('hiboss.panel catalog', () => {
   it('accepts the research intake form and validates its array answer', () => {
     const paths = ['/form/researchQuestion', '/form/background', '/form/evidenceTypes', '/form/confidence'];
     expect(validatePanelSpec(researchIntake.formSpec, { declaredPaths: paths })).toMatchObject({ ok: true });
+    expect(validatePanelSpec(questionnaireIntake.formSpec, { declaredPaths: paths })).toMatchObject({ ok: true });
+    expect(questionnaireIntake.formSpec.elements.evidence.props.options.every((option) => option.description)).toBe(true);
     const schema = validateAnswerSchema(researchIntake.answerSchema);
     expect(schema).toMatchObject({ ok: true });
     if (!schema.ok) return;

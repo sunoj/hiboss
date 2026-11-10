@@ -232,15 +232,17 @@ capture local answers; use `hiboss request` to publish a real durable questionna
 
 ## Durable intake questionnaires
 
-After migration 0038 and the matching Worker/client upgrade, attach a questionnaire
-to an existing panel with `hiboss request publish <panel-id> <file> --idempotency-key <key>`.
-The document declares `kind: "intake"`, title, blocking, priority, catalogId/version,
-formSpec, answerSchema, defaults, immutable context, and optional expiresAt.
-Inputs require `$bindState` under `/form/`; stable evidence uses `$state` under
-`/context`. Defaults are drafts only. A questionnaire needs at least two fields or a
-free-form value; a lone choice is `hiboss ask`. `blocking: true` sends the boss one
-push on publication; `blocking: false` is silent and relies on the Needs input filter.
-Adapt this `intake.json` schema to the information needed:
+Attach a questionnaire to an existing panel with `hiboss request publish <panel-id>
+<file> --idempotency-key <key>`. The document declares `kind: "intake"`, title, blocking,
+priority, catalogId/version, formSpec, answerSchema, defaults, immutable context, and
+optional expiresAt. Inputs require `$bindState` under `/form/`; stable evidence uses
+`$state` under `/context`. Defaults are drafts only. A questionnaire needs at least two
+fields or a free-form value; a lone choice is `hiboss ask`. `blocking: true` pushes once
+on publication; `blocking: false` is silent and relies on the Needs input filter.
+Put the question in the input's `label`. An option `label` is a short choice; its
+trade-off goes in the option's `description`, never in parentheses inside the label.
+iOS shows three or more top-level inputs one per step, then a review page; wrap related
+inputs in a `Section` to keep them on one step. Adapt this `intake.json` schema:
 
 ```json
 {
@@ -267,7 +269,7 @@ Adapt this `intake.json` schema to the information needed:
       "form": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["goal", "topic", "depth"] },
       "goal": { "type": "Text", "props": { "text": { "$state": "/context/goal" } }, "children": [] },
       "topic": { "type": "TextInput", "props": { "label": "Research topic", "value": { "$bindState": "/form/topic" } }, "children": [] },
-      "depth": { "type": "Select", "props": { "label": "Depth", "value": { "$bindState": "/form/depth" }, "options": [{ "id": "overview", "label": "Overview" }, { "id": "detailed", "label": "Detailed" }] }, "children": [] }
+      "depth": { "type": "Select", "props": { "label": "Depth", "value": { "$bindState": "/form/depth" }, "options": [{ "id": "overview", "label": "Overview", "description": "One page, ready today" }, { "id": "detailed", "label": "Detailed", "description": "Full report, about two days" }] }, "children": [] }
     }
   }
 }
@@ -279,22 +281,20 @@ hiboss request wait REQUEST_ID --timeout 1800
 hiboss request ack REQUEST_ID SUBMISSION_ID
 ```
 
-Keep `requestId` from publication and `submissionId` from the accepted response.
-Use a tracked tool call while waiting and continue independent work where possible.
+Keep `requestId` from publication and `submissionId` from the accepted response. Use
+a tracked tool call while waiting; continue independent work where possible.
 Native panel details provide the Submit action for this form. Publication does not
 create a discovery push yet; when immediate attention is needed, send one HiBoss
 notice identifying the panel and questionnaire. Do not duplicate the form as an ask.
 
-Use `hiboss request list <panel-id>` and `hiboss request show <request-id>` to inspect
-state. `hiboss request wait <request-id> --timeout 1800` returns a structured accepted
-submission or an explicit open/expired/withdrawn state. A timeout never supplies an
-answer. Deduplicate by submissionId and use `hiboss request ack <request-id>
-<submission-id>` only after receiving the answer; receipt does not mean execution.
+Inspect state with `hiboss request list <panel-id>` or `hiboss request show <request-id>`.
+`hiboss request wait <request-id> --timeout 1800` returns the accepted submission or an
+explicit open/expired/withdrawn state; a timeout never supplies an answer. Deduplicate by
+submissionId; `hiboss request ack` only after receiving it. Receipt is not execution.
 
 Replace an open questionnaire with `hiboss request replace <request-id> <file>
 --expected-revision <revision>`. Old drafts cannot submit against the new version.
 Withdraw with `hiboss request withdraw <request-id> --expected-revision <revision>
 --reason "..."`. Ending a panel rejects open questionnaires unless the terminal
 command explicitly provides `--withdraw-requests "reason"`. Accepted answers remain
-immutable. Execution authorization kinds and automatic callback delivery are not
-implemented by this intake release.
+immutable. This intake release has no execution authorization kinds or callback delivery.

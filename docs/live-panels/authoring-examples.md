@@ -24,6 +24,12 @@ none of these examples is a success rather than a mistake.
 `fixtures/questionnaires/research-intake.json` combines free text, a longer text area, multiple
 selection, a bounded slider, and submission. None of these arrangements is a template.
 
+In a form, the question is the input's `label`. An option's `label` is the short choice and
+its trade-off is the option's `description`; both clients render each option as a full-width
+row with the description beneath it. On iOS, a root `Stack` or `Grid` with three or more
+input children becomes one step per child, then a review page; a `Section` that groups several
+inputs stays on one step (see [questionnaires](questionnaires.md#native-clients)).
+
 ## The real boundaries
 
 Guessing at the limits wastes authoring time, so the contracts are explicit:

@@ -114,19 +114,23 @@
           "options": [
             {
               "id": "literature-review",
-              "label": "Literature review"
+              "label": "Literature review",
+              "description": "Broad and fast; findings may not match this team's setup."
             },
             {
               "id": "benchmarks",
-              "label": "Benchmarks"
+              "label": "Benchmarks",
+              "description": "Measured on our own workload; takes a day to set up."
             },
             {
               "id": "interviews",
-              "label": "Interviews"
+              "label": "Interviews",
+              "description": "Explains why reviews stall; small sample, slower to schedule."
             },
             {
               "id": "reproducibility",
-              "label": "Reproducibility checks"
+              "label": "Reproducibility checks",
+              "description": "Confirms published claims hold here; the slowest option."
             }
           ]
         },
