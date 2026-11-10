@@ -5,28 +5,42 @@
 #if os(iOS)
 import SwiftUI
 
-struct QuestionnaireStepper<Status: View>: View {
+struct QuestionnaireStepper<Action: View, Status: View>: View {
     @ObservedObject var model: QuestionnaireModel
     @ObservedObject var store: PanelStore
     let steps: QuestionnaireSteps
     let webModel: PanelWebModel
     let enabled: Bool
     @Binding var index: Int?
+    /// The review page's trailing control (Submit, or what replaces it while sending or recovering).
+    @ViewBuilder let reviewAction: () -> Action
     @ViewBuilder let status: (_ onReview: Bool) -> Status
 
     private var count: Int { steps.steps.count }
     private var current: Int { min(max(index ?? steps.initialIndex(state: store.state), 0), count) }
 
+    private var headerID: QuestionnaireHeaderID { QuestionnaireHeaderID(model: ObjectIdentifier(model)) }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
-            Group {
-                if current < count { stepBody } else { review }
-            }.id(current)
-            navigation
-            status(current == count)
+        ScrollViewReader { proxy in
+            VStack(alignment: .leading, spacing: 14) {
+                header.id(headerID)
+                Group {
+                    if current < count { stepBody } else { review }
+                }.id(current)
+                navigation
+                status(current == count)
+            }
+            .onAppear { if index == nil { index = steps.initialIndex(state: store.state) } }
+            .onChange(of: index) { previous, next in
+                // Opening on the first question keeps the panel's own header in view.
+                if previous == nil && next == 0 { return }
+                Task { @MainActor in
+                    await Task.yield()
+                    withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(headerID, anchor: .top) }
+                }
+            }
         }
-        .onAppear { if index == nil { index = steps.initialIndex(state: store.state) } }
     }
 
     private var header: some View {
@@ -90,7 +104,9 @@ struct QuestionnaireStepper<Status: View>: View {
             .buttonStyle(.bordered).disabled(current == 0)
             .accessibilityIdentifier("questionnaire-back")
             Spacer()
-            if current < count {
+            if current == count {
+                reviewAction()
+            } else {
                 Button { index = current + 1 } label: {
                     Text(current == count - 1 ? kitL("Review") : kitL("Next")).frame(minWidth: 72, minHeight: 44)
                 }
@@ -101,4 +117,7 @@ struct QuestionnaireStepper<Status: View>: View {
         }
     }
 }
+
+/// Scroll target for one questionnaire's step header inside the host's scroll view.
+private struct QuestionnaireHeaderID: Hashable { let model: ObjectIdentifier }
 #endif

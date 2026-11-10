@@ -31,6 +31,7 @@ final class QuestionnaireStepsUITests: IntermediateCaptureCase {
         XCTAssertTrue(next.isEnabled)
         next.tap()
         XCTAssertEqual(counter.label, "Question 2 of 11")
+        assertHeaderVisible(counter, "Next scrolls to the step header")
         app.buttons["questionnaire-back"].tap()
         XCTAssertEqual(counter.label, "Question 1 of 11")
         XCTAssertTrue(option(1, "2").isSelected, "Back keeps the earlier choice")
@@ -51,21 +52,46 @@ final class QuestionnaireStepsUITests: IntermediateCaptureCase {
         XCTAssertTrue(next.isEnabled, "the optional notes step may be skipped")
         next.tap()
         XCTAssertEqual(counter.label, "Review your answers")
-        let submit = app.buttons["Submit answers"].firstMatch
+        assertHeaderVisible(counter, atTop: true, "the review page opens at its header")
+        capture("questionnaire-review")
+        let submit = app.buttons["questionnaire-submit"]
         show(submit)
         XCTAssertTrue(submit.isEnabled)
-        capture("questionnaire-review")
+        assertSameRow(back: app.buttons["questionnaire-back"], submit: submit, next: next)
+        capture("questionnaire-review-actions")
 
         let firstRow = app.buttons["questionnaire-review-0"]
         show(firstRow, upward: false)
         firstRow.tap()
         XCTAssertEqual(counter.label, "Question 1 of 11", "a review row jumps back to its step")
+        assertHeaderVisible(counter, "a review row scrolls to the step header")
         for _ in 0..<11 { show(next); next.tap() }
         XCTAssertEqual(counter.label, "Review your answers")
         show(submit)
         submit.tap()
         XCTAssertTrue(app.staticTexts["Answer saved"].waitForExistence(timeout: 10))
         capture("questionnaire-submitted")
+    }
+
+    /// The step header ends up visible below the navigation bar after the animated scroll; a page
+    /// long enough to scroll that far puts it at the top (a short one stops at the content's end).
+    private func assertHeaderVisible(_ counter: XCUIElement, atTop: Bool = false, _ message: String) {
+        let barBottom = app.navigationBars["Release checklist"].frame.maxY - 1
+        let settled = { counter.isHittable && counter.frame.minY >= barBottom
+            && (!atTop || counter.frame.minY - barBottom < 60) }
+        let deadline = Date().addingTimeInterval(3)
+        while Date() < deadline && !settled() { RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }
+        XCTAssertTrue(counter.isHittable, message)
+        XCTAssertGreaterThanOrEqual(counter.frame.minY, barBottom, message)
+        if atTop { XCTAssertLessThan(counter.frame.minY - barBottom, 60, message) }
+    }
+
+    /// Back leads and Submit trails on one row, at the height of the step pages' Next.
+    private func assertSameRow(back: XCUIElement, submit: XCUIElement, next: XCUIElement) {
+        XCTAssertFalse(next.exists, "the review page replaces Next with Submit")
+        XCTAssertLessThan(abs(back.frame.midY - submit.frame.midY), 2, "Back and Submit share a row")
+        XCTAssertGreaterThan(submit.frame.minX, back.frame.maxX, "Submit trails Back")
+        XCTAssertEqual(submit.frame.height, back.frame.height, accuracy: 2, "Submit matches the bar height")
     }
 
     /// Swipes, unlike a press-and-drag, never lands as a tap on a choice or review row.

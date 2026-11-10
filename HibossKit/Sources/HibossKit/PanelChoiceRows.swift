@@ -57,9 +57,7 @@ private struct PanelChoiceRow: View {
     var body: some View {
         Button(action: action) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Image(systemName: indicator)
-                    .foregroundStyle(selected ? Color.accentColor : Color.secondary)
-                    .font(.body)
+                indicatorImage.font(.body)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(verbatim: option.label).font(.body).foregroundStyle(.primary)
                         .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
@@ -74,7 +72,7 @@ private struct PanelChoiceRow: View {
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .background(background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(selected ? Color.accentColor : Color.secondary.opacity(0.25), lineWidth: selected ? 1.5 : 1))
+                .strokeBorder(border, lineWidth: selected ? 2 : 1))
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .opacity(isEnabled ? 1 : 0.6)
         }
@@ -83,12 +81,32 @@ private struct PanelChoiceRow: View {
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
-    private var indicator: String {
-        switch style {
-        case .single: return selected ? "largecircle.fill.circle" : "circle"
-        case .multiple: return selected ? "checkmark.square.fill" : "square"
+    /// Selected rows use the prominent action ink: a filled shape with a check in the label color.
+    @ViewBuilder private var indicatorImage: some View {
+        let shape = style == .single ? "circle" : "square"
+        if selected {
+            Image(systemName: "checkmark.\(shape).fill").symbolRenderingMode(.palette)
+                .foregroundStyle(choiceOnAccent, .tint)
+        } else {
+            Image(systemName: shape).foregroundStyle(Color.secondary)
         }
     }
 
-    private var background: Color { selected ? Color.accentColor.opacity(0.10) : Color.secondary.opacity(0.06) }
+    /// `.tint` is the ink `borderedProminent` fills the Next and Submit buttons with.
+    private var border: AnyShapeStyle {
+        selected ? AnyShapeStyle(.tint) : AnyShapeStyle(Color.secondary.opacity(0.25))
+    }
+
+    private var background: AnyShapeStyle {
+        selected ? AnyShapeStyle(.tint.opacity(0.06)) : AnyShapeStyle(Color.secondary.opacity(0.06))
+    }
+}
+
+/// The label color the prominent action button draws on the accent fill.
+private var choiceOnAccent: Color {
+    #if os(iOS)
+    Color(uiColor: .systemBackground)
+    #else
+    Color.white
+    #endif
 }

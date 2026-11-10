@@ -55,8 +55,10 @@ struct QuestionnaireEditor: View {
         #if os(iOS)
         if let steps = model.steps {
             QuestionnaireStepper(model: model, store: model.store, steps: steps, webModel: webModel,
-                                 enabled: enabled, index: $stepIndex) { onReview in
-                status(at: now, submit: onReview ? .review(ready: steps.allRequiredAnswered(state: model.store.state)) : .hidden)
+                                 enabled: enabled, index: $stepIndex) {
+                primaryControl(at: now, submit: .review(ready: steps.allRequiredAnswered(state: model.store.state)))
+            } status: { onReview in
+                if onReview { notices(at: now) } else { status(at: now, submit: .hidden) }
             }
         } else {
             QuestionnaireFields(model: model, store: model.store, webModel: webModel, enabled: enabled)
@@ -84,40 +86,20 @@ struct QuestionnaireEditor: View {
     /// Where the editor's own Submit control goes: after the form, only on the review page, or nowhere.
     private enum SubmitSlot { case form, hidden, review(ready: Bool) }
 
+    /// Notices and the primary control together, below the form or the current step.
     @ViewBuilder private func status(at now: Date, submit: SubmitSlot) -> some View {
         if model.isSending {
-            sendingState(submit)
-        } else if model.pendingID != nil {
-            Text(kitL("Submission status is unconfirmed. Check before retrying.")).font(.callout)
-            Button(kitL("Check submission")) { Task { await model.recover() } }
-        } else if model.hasNewRevision && model.latest.isOpen(at: now) {
-            Text(kitL("This questionnaire changed. Your previous draft is preserved.")).font(.callout)
-            Button(kitL("Start revised questionnaire")) {
-                model.restart()
-                stepIndex = model.steps?.initialIndex(state: model.store.state)
-            }
-        } else if model.latest.isOpen(at: now), let reason = model.access.readOnlyReason {
-            Label(reason, systemImage: "eye").font(.callout).foregroundStyle(.secondary)
-        } else if model.latest.isOpen(at: now) {
-            switch submit {
-            case .form where !hasSubmitControl: submitButton(ready: true)
-            case let .review(ready): submitButton(ready: ready)
-            default: EmptyView()
-            }
+            primaryControl(at: now, submit: submit)
+            notices(at: now)
+        } else {
+            notices(at: now)
+            primaryControl(at: now, submit: submit)
         }
     }
 
-    private func submitButton(ready: Bool) -> some View {
-        Button(kitL("Submit answers")) { Task { await model.submit() } }
-            #if os(iOS)
-            .modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground)))
-            #else
-            .buttonStyle(.borderedProminent)
-            #endif
-            .disabled(!model.canEdit || !ready)
-    }
-
-    @ViewBuilder private func sendingState(_ submit: SubmitSlot) -> some View {
+    /// Submit, or what replaces it while sending or after an unconfirmed submission.
+    @ViewBuilder private func primaryControl(at now: Date, submit: SubmitSlot) -> some View {
+        if model.isSending {
             #if os(iOS)
             if submitShowsProgress(submit) || model.isRecovering {
                 Button {} label: {
@@ -127,6 +109,23 @@ struct QuestionnaireEditor: View {
                     }.frame(minHeight: 44)
                 }.buttonStyle(.bordered).disabled(true)
             }
+            #endif
+        } else if model.pendingID != nil {
+            Button { Task { await model.recover() } } label: {
+                Text(kitL("Check submission")).frame(minHeight: actionHeight)
+            }.buttonStyle(.bordered)
+        } else if model.latest.isOpen(at: now), !model.hasNewRevision, model.access.readOnlyReason == nil {
+            switch submit {
+            case .form where !hasSubmitControl: submitButton(ready: true)
+            case let .review(ready): submitButton(ready: ready)
+            default: EmptyView()
+            }
+        }
+    }
+
+    @ViewBuilder private func notices(at now: Date) -> some View {
+        if model.isSending {
+            #if os(iOS)
             NativePendingNotice(
                 title: kitL("Waiting for the submission receipt…"),
                 detail: kitL(
@@ -135,9 +134,41 @@ struct QuestionnaireEditor: View {
                 retry: { await changed() }
             )
             #else
-            let _ = submit
             ProgressView(model.isRecovering ? kitL("Checking saved answer…") : kitL("Submitting answers…"))
             #endif
+        } else if model.pendingID != nil {
+            Text(kitL("Submission status is unconfirmed. Check before retrying.")).font(.callout)
+        } else if model.hasNewRevision && model.latest.isOpen(at: now) {
+            Text(kitL("This questionnaire changed. Your previous draft is preserved.")).font(.callout)
+            Button(kitL("Start revised questionnaire")) {
+                model.restart()
+                stepIndex = model.steps?.initialIndex(state: model.store.state)
+            }
+        } else if model.latest.isOpen(at: now), let reason = model.access.readOnlyReason {
+            Label(reason, systemImage: "eye").font(.callout).foregroundStyle(.secondary)
+        }
+    }
+
+    private func submitButton(ready: Bool) -> some View {
+        Button { Task { await model.submit() } } label: {
+            Text(kitL("Submit answers")).frame(minWidth: 72, minHeight: actionHeight)
+        }
+            #if os(iOS)
+            .modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground)))
+            #else
+            .buttonStyle(.borderedProminent)
+            #endif
+            .disabled(!model.canEdit || !ready)
+            .accessibilityIdentifier("questionnaire-submit")
+    }
+
+    /// iOS matches the stepper's 44-point Next; macOS keeps its native control height.
+    private var actionHeight: CGFloat? {
+        #if os(iOS)
+        44
+        #else
+        nil
+        #endif
     }
 
     private func submitShowsProgress(_ submit: SubmitSlot) -> Bool {
