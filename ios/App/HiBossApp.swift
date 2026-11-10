@@ -13,6 +13,7 @@ struct HiBossApp: App {
     var body: some Scene {
         WindowGroup {
             AppSessionView().id(demo.generation)
+                .refreshesSupportedOrientations()
         }
     }
 }

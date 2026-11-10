@@ -18,6 +18,7 @@
 		0776F1220B1F25C0614A8FAC /* ActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C8B4D6B0113426539CC70F1 /* ActivityView.swift */; };
 		08EF7EA93F957F7036373FF2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 806C6A47288A474533AFC6A7 /* PrivacyInfo.xcprivacy */; };
 		0A33C435CDE42BF3D60E99A5 /* AgentAvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24822144570CE5CB53E106E5 /* AgentAvatarView.swift */; };
+		0A548EC3CF2C9D5A59D55487 /* OrientationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2EE7B992EA93B6B4C9584E /* OrientationPolicy.swift */; };
 		0B8ABB37FC006226311C7AA9 /* SessionNotePhoto.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4EC097917C2D6475C4FAEA /* SessionNotePhoto.swift */; };
 		0B8AD0F0F15C84EFBB4F2C2E /* DemoLaunchRouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E35550632DFB12DC17F132B /* DemoLaunchRouteTests.swift */; };
 		0C35236BC3E29A83BF9334CD /* ProgressPostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED8126397A2C498DB5507C4 /* ProgressPostCard.swift */; };
@@ -280,6 +281,7 @@
 		A979D8C73EE9C2860F53A983 /* PushEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C31C72567EF5E3777E851770 /* PushEnvironmentTests.swift */; };
 		AAC5E332D4DBD2663412E61A /* DemoMetricPanelAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DED6E116A7AB56AD0829C2F /* DemoMetricPanelAPI.swift */; };
 		AB9D562EFCA5531F730F05F8 /* live-activity-end-state.json in Resources */ = {isa = PBXBuildFile; fileRef = CB76335D1015E1A1F336008E /* live-activity-end-state.json */; };
+		AD2943275C167B8EF3C35C87 /* OrientationPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E1004B6CBAF7D9185FF4F7 /* OrientationPolicyTests.swift */; };
 		AE295A3CF0CBC86CF2BA7276 /* RelayNotificationContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F366648D9D5AF69BDC199847 /* RelayNotificationContent.swift */; };
 		AF9E5CE11D9D15BD05C2136D /* ShareVideoExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A934C7754455853962AFDBE7 /* ShareVideoExporter.swift */; };
 		B15EFCEA57E0B236D4A3BD49 /* InboxStore+ReplyFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8C11F94736F696D5263076 /* InboxStore+ReplyFeedback.swift */; };
@@ -375,6 +377,7 @@
 		ECDDEAAF8A6C6AD7DB23E425 /* ConnectionDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03191B27AD071D51213D17C1 /* ConnectionDot.swift */; };
 		ED47C0F1F909882C69E0D266 /* ShareViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAB2EB25EDED008B56730675 /* ShareViewModel.swift */; };
 		EDF6BEBD56D59679EF40BA2C /* BoxStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B56C9B1D98B2975EE5AD41FA /* BoxStoreTests.swift */; };
+		EEB03EF258A34EFBD66500F5 /* OrientationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EA813D7304C4BA0AD34FCE7 /* OrientationUITests.swift */; };
 		EF023325EE69F19260065ECE /* ShareSheetUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F92F7441561D21544B868A1F /* ShareSheetUITests.swift */; };
 		F00A1615561CB169D7C8459D /* ShareRetryCancellationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F25798A307FAB88A5E4EA41 /* ShareRetryCancellationTests.swift */; };
 		F01E0F76E8FDF1F0259D8B4F /* DecisionActivityControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74EF1BE0321FED22DEDD10B9 /* DecisionActivityControls.swift */; };
@@ -575,6 +578,7 @@
 		4DD2A601A8408FBC3A45C778 /* MacSigninModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSigninModel.swift; sourceTree = "<group>"; };
 		4E15641779CAD26EFFF92A2F /* MacSigninUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSigninUITests.swift; sourceTree = "<group>"; };
 		4E1C13B07C63457D93995FDD /* SessionReadTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReadTracking.swift; sourceTree = "<group>"; };
+		4EA813D7304C4BA0AD34FCE7 /* OrientationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationUITests.swift; sourceTree = "<group>"; };
 		4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionLiveActivity.swift; sourceTree = "<group>"; };
 		4F038DB693219FA633FDAACC /* InboxStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStore.swift; sourceTree = "<group>"; };
 		4F571A87B5B4F8C288A20636 /* BoxShareContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxShareContentTests.swift; sourceTree = "<group>"; };
@@ -683,6 +687,7 @@
 		95FDE03C6F19E39C56D1A3A1 /* TranscriptRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptRefreshTests.swift; sourceTree = "<group>"; };
 		9740B1A7F94047F2FD7B60A2 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		98B5D745465306553045D9A6 /* IntermediateBehaviorUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntermediateBehaviorUITests.swift; sourceTree = "<group>"; };
+		98E1004B6CBAF7D9185FF4F7 /* OrientationPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationPolicyTests.swift; sourceTree = "<group>"; };
 		98E9E73D7A0211CDD0473AC2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9B07DBD1FAFA58329FB88978 /* SessionStepsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStepsRow.swift; sourceTree = "<group>"; };
 		9B781B7F48D46FE6712A47F3 /* MessageAttachmentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageAttachmentUITests.swift; sourceTree = "<group>"; };
@@ -755,6 +760,7 @@
 		CC1A81AE4F75D3E97C4FC112 /* RequiredInputCoverageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequiredInputCoverageTests.swift; sourceTree = "<group>"; };
 		CC4EC097917C2D6475C4FAEA /* SessionNotePhoto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionNotePhoto.swift; sourceTree = "<group>"; };
 		CCDC745C836E39A5B0650834 /* ProgressFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressFeedView.swift; sourceTree = "<group>"; };
+		CE2EE7B992EA93B6B4C9584E /* OrientationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationPolicy.swift; sourceTree = "<group>"; };
 		CE512B87AB4778E24208134F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CED65559D80B8E922CF4288D /* HiBossShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HiBossShare.entitlements; sourceTree = "<group>"; };
 		CF50982E2497594AC315DD60 /* RelayCredentialKeychainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayCredentialKeychainTests.swift; sourceTree = "<group>"; };
@@ -1123,6 +1129,7 @@
 				7D7E71F4EF3B55D90C8BDB5F /* MessageMarkdownUITests.swift */,
 				B4DF74B50F6D1F70BD328B16 /* NotificationDeepLinkUITests.swift */,
 				E97684EBA46782E9B6622F93 /* OptionMediaUITests.swift */,
+				4EA813D7304C4BA0AD34FCE7 /* OrientationUITests.swift */,
 				7BA088E4BE58E8E661D87FAA /* ProgressMediaTapUITests.swift */,
 				F0E24DEA6DAFB71F9152D0FB /* ProjectIdentityUITests.swift */,
 				2515F3E626642BE9BE8A97AA /* PushModeUITests.swift */,
@@ -1489,6 +1496,7 @@
 				7885D31E535B87C2C2331FF0 /* MessageMetaTests.swift */,
 				488A2A9A408BE0ABBBFA91CD /* MessageThreadingTests.swift */,
 				0450AC74550F90E899B5C209 /* NativeClientLoginTests.swift */,
+				98E1004B6CBAF7D9185FF4F7 /* OrientationPolicyTests.swift */,
 				B39DD65024AAE269CBA2BF9C /* PairDeviceTests.swift */,
 				767DEDA24BC6525C0D43696B /* PanelMetricRenderTests.swift */,
 				160F3EA7E5D00C7110631D11 /* PanelRetryTests.swift */,
@@ -1546,6 +1554,7 @@
 				6FE62ABDE04F54AE003C1D74 /* AppRouter.swift */,
 				C8CAE40FA6311B1E6C280A9E /* ConnectedPanelsStore.swift */,
 				120DA06C370F0FA252F2E927 /* DemoLaunchRoute.swift */,
+				CE2EE7B992EA93B6B4C9584E /* OrientationPolicy.swift */,
 				3CD3C6F4D7A53E6E2A4D8D23 /* RootTabView.swift */,
 			);
 			path = Shell;
@@ -1888,6 +1897,7 @@
 				1A90CA63E5F60222225B57A9 /* MessageMetaTests.swift in Sources */,
 				5837D6D0FB3FB056057CDFE7 /* MessageThreadingTests.swift in Sources */,
 				886CB81BE454B04D5062622F /* NativeClientLoginTests.swift in Sources */,
+				AD2943275C167B8EF3C35C87 /* OrientationPolicyTests.swift in Sources */,
 				374FE94EC77FB62AC2D4427C /* PairDeviceTests.swift in Sources */,
 				2FF001CF9BAE1951C8BC215C /* PanelMetricRenderTests.swift in Sources */,
 				90DD77723A79081BB1B0851E /* PanelRetryTests.swift in Sources */,
@@ -2011,6 +2021,7 @@
 				25EED14D165F2FABFB9920C9 /* MessageMarkdownUITests.swift in Sources */,
 				378F3465844A2E1089A6C2EA /* NotificationDeepLinkUITests.swift in Sources */,
 				DE54FA72BA5D9F13FE81ECB4 /* OptionMediaUITests.swift in Sources */,
+				EEB03EF258A34EFBD66500F5 /* OrientationUITests.swift in Sources */,
 				DDC345411AD51AF290865A6F /* ProgressMediaTapUITests.swift in Sources */,
 				C18260A7AFBCB81BE950B0CF /* ProjectIdentityUITests.swift in Sources */,
 				82CA9B303AB7BE745C4F93C8 /* PushModeUITests.swift in Sources */,
@@ -2161,6 +2172,7 @@
 				29D236E95099C4C6376ACFF4 /* MessageThreading.swift in Sources */,
 				F2A955D7979A57ED705CFB78 /* MessagesView.swift in Sources */,
 				93B2A5A71633327C3A580D38 /* OptionMediaComparison.swift in Sources */,
+				0A548EC3CF2C9D5A59D55487 /* OrientationPolicy.swift in Sources */,
 				44A890C687C70BF2FF431AFB /* PairDeviceView.swift in Sources */,
 				5A6F8BF4C6236E007980F6BB /* PairingCodeEntryView.swift in Sources */,
 				B9A610E458C2BB78AB2A0B3E /* PairingLinkInbox.swift in Sources */,

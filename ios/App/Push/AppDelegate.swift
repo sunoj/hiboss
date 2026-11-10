@@ -1,6 +1,6 @@
-// UIApplication delegate bridging APNs registration callbacks and silent pushes.
+// UIApplication delegate bridging APNs registration callbacks, silent pushes and orientations.
 // Exports: AppDelegate, attached via @UIApplicationDelegateAdaptor.
-// Dependencies: UIKit, PushManager, ResolutionPush, KeychainRelayCredentialStore.
+// Dependencies: UIKit, PushManager, ResolutionPush, KeychainRelayCredentialStore, OrientationPolicy.
 
 import UIKit
 import os
@@ -14,6 +14,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         PushManager.shared.configure()
         return true
+    }
+
+    /// Landscape only on a wide iPhone screen; see OrientationPolicy.
+    func application(
+        _ application: UIApplication,
+        supportedInterfaceOrientationsFor window: UIWindow?
+    ) -> UIInterfaceOrientationMask {
+        OrientationPolicy.mask(for: window?.windowScene)
     }
 
     func application(
