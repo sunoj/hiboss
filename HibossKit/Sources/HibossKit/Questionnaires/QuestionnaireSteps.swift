@@ -1,6 +1,7 @@
 // Derives one-question-per-step pages from an existing questionnaire formSpec, client-side only.
 // Exports QuestionnaireSteps, QuestionnaireStep, QuestionnaireField and QuestionnaireReviewRow.
-// Completion follows the answer-schema subset the server enforces. Dependencies: panel spec/value types.
+// The step gate checks only that required keys are present; the server validates values.
+// Dependencies: panel spec/value types.
 
 import Foundation
 
@@ -9,24 +10,24 @@ struct QuestionnaireField: Equatable {
     let label: String
     /// Per `/form` path segment: whether that key is in its parent object's `required`.
     let requiredChain: [Bool]
-    /// The bound value's own schema (`$ref` resolved), or nil when the answer schema does not describe it.
-    let schema: PanelValue?
     let options: [PanelValue]
 
-    /// In its parent's `required`, and every ancestor object on the path is required or present.
+    /// In its parent's `required`; each present ancestor is an object, each absent one is itself required.
     func isRequired(in state: PanelValue) -> Bool {
         guard requiredChain.last == true else { return false }
         let segments = path.split(separator: "/", omittingEmptySubsequences: false).dropFirst(2)
-        for depth in requiredChain.indices.dropLast() where !requiredChain[depth] {
-            if panelValue(at: "/form/" + segments.prefix(depth + 1).joined(separator: "/"), in: state) == nil { return false }
+        for depth in requiredChain.indices.dropLast() {
+            switch panelValue(at: "/form/" + segments.prefix(depth + 1).joined(separator: "/"), in: state) {
+            case .object?: continue
+            case nil where requiredChain[depth]: continue
+            default: return false
+            }
         }
         return true
     }
 
-    /// Present, and accepted by the field's own schema constraints.
-    func isAnswered(in state: PanelValue) -> Bool {
-        panelValue(at: path, in: state).map { questionnaireValueSatisfies($0, schema: schema) } ?? false
-    }
+    /// Present with any value; the server validates the value itself.
+    func isAnswered(in state: PanelValue) -> Bool { panelValue(at: path, in: state) != nil }
 }
 
 struct QuestionnaireStep: Equatable {
@@ -113,10 +114,9 @@ struct QuestionnaireSteps: Equatable {
         func visit(_ id: String) {
             guard visited.insert(id).inserted, let element = spec.elements[id] else { return }
             if inputTypes.contains(element.type), let path = element.props["value"]?.object?["$bindState"]?.string {
-                let (chain, schema) = requirement(of: path, in: answerSchema)
                 fields.append(QuestionnaireField(
-                    path: path, label: element.props["label"]?.string ?? path, requiredChain: chain,
-                    schema: schema, options: element.props["options"]?.array ?? []))
+                    path: path, label: element.props["label"]?.string ?? path,
+                    requiredChain: requiredChain(of: path, in: answerSchema), options: element.props["options"]?.array ?? []))
             }
             element.children.forEach(visit)
         }
@@ -125,8 +125,8 @@ struct QuestionnaireSteps: Equatable {
     }
 
     /// Walks a `/form/...` binding through nested `properties`, noting each key's `required` membership.
-    private static func requirement(of path: String, in answerSchema: PanelValue) -> ([Bool], PanelValue?) {
-        guard path.hasPrefix("/form/") else { return ([], nil) }
+    private static func requiredChain(of path: String, in answerSchema: PanelValue) -> [Bool] {
+        guard path.hasPrefix("/form/") else { return [] }
         var node: PanelValue? = resolved(answerSchema, root: answerSchema)
         var chain: [Bool] = []
         for raw in path.dropFirst("/form/".count).split(separator: "/", omittingEmptySubsequences: false) {
@@ -135,7 +135,7 @@ struct QuestionnaireSteps: Equatable {
             chain.append(object?["required"]?.array?.contains(.string(key)) ?? false)
             node = object?["properties"]?.object?[key].map { resolved($0, root: answerSchema) }
         }
-        return (chain, node)
+        return chain
     }
 
     /// One local `#/$defs/<name>` hop, as the server resolves a schema node.
@@ -148,36 +148,4 @@ struct QuestionnaireSteps: Equatable {
 extension QuestionnaireModel {
     /// Step pages for the form being edited, or nil for the single-page layout.
     var steps: QuestionnaireSteps? { QuestionnaireSteps(spec: formSpec, answerSchema: editing.definition.answerSchema) }
-}
-
-/// The server's per-value checks (`answer-schema.ts`): type, enum, string length, item count, numeric bounds.
-/// Conditional (`if`/`allOf`) and per-item schemas are left to the server, which stays authoritative.
-func questionnaireValueSatisfies(_ value: PanelValue, schema: PanelValue?) -> Bool {
-    guard let schema = schema?.object else { return true }
-    if let allowed = schema["enum"]?.array, !allowed.contains(value) { return false }
-    if let type = schema["type"], !questionnaireTypeMatches(type, value) { return false }
-    func atLeast(_ key: String, _ count: Int) -> Bool { schema[key]?.number.map { Double(count) >= $0 } ?? true }
-    func atMost(_ key: String, _ count: Int) -> Bool { schema[key]?.number.map { Double(count) <= $0 } ?? true }
-    switch value {
-    case let .string(text):
-        return atLeast("minLength", text.utf16.count) && atMost("maxLength", text.utf16.count)
-    case let .array(items):
-        return atLeast("minItems", items.count) && atMost("maxItems", items.count)
-    case let .number(number):
-        return (schema["minimum"]?.number.map { number >= $0 } ?? true)
-            && (schema["maximum"]?.number.map { number <= $0 } ?? true)
-            && (schema["exclusiveMinimum"]?.number.map { number > $0 } ?? true)
-            && (schema["exclusiveMaximum"]?.number.map { number < $0 } ?? true)
-    default: return true
-    }
-}
-
-private func questionnaireTypeMatches(_ type: PanelValue, _ value: PanelValue) -> Bool {
-    if let types = type.array { return types.contains { questionnaireTypeMatches($0, value) } }
-    switch (type.string, value) {
-    case ("string", .string), ("boolean", .bool), ("null", .null), ("array", .array), ("object", .object),
-         ("number", .number): return true
-    case let ("integer", .number(number)): return number.rounded() == number
-    default: return type.string == nil
-    }
 }

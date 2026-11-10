@@ -17,7 +17,7 @@ final class QuestionnaireStepsTests: XCTestCase {
         XCTAssertEqual(steps.steps.count, 11)
         XCTAssertEqual(steps.steps[0].elementIDs, ["q1"])
         XCTAssertEqual(steps.steps[0].fields, [QuestionnaireField(path: "/form/q1", label: "Question q1", requiredChain: [true],
-                                                                  schema: nil, options: options)])
+                                                                  options: options)])
         XCTAssertEqual(steps.steps[10].fields.map { $0.isRequired(in: .object([:])) }, [false])
     }
 

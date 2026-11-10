@@ -124,12 +124,23 @@ private func panelSetValue(_ value: PanelValue, segments: ArraySlice<String>, in
 }
 
 private func panelRemovingValue(segments: ArraySlice<String>, in root: PanelValue) -> PanelValue? {
-    guard let segment = segments.first, var object = root.object, let child = object[segment] else { return nil }
-    if segments.count == 1 {
-        object.removeValue(forKey: segment)
-    } else {
-        guard let updated = panelRemovingValue(segments: segments.dropFirst(), in: child) else { return nil }
-        object[segment] = updated
+    guard let segment = segments.first else { return nil }
+    let rest = segments.dropFirst()
+    switch root {
+    case var .object(object):
+        guard let child = object[segment] else { return nil }
+        if rest.isEmpty {
+            object.removeValue(forKey: segment)
+        } else {
+            guard let updated = panelRemovingValue(segments: rest, in: child) else { return nil }
+            object[segment] = updated
+        }
+        return .object(object)
+    case var .array(array):
+        guard !rest.isEmpty, let index = Int(segment), array.indices.contains(index),
+              let updated = panelRemovingValue(segments: rest, in: array[index]) else { return nil }
+        array[index] = updated
+        return .array(array)
+    default: return nil
     }
-    return .object(object)
 }
