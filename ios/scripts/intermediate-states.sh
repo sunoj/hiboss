@@ -1,6 +1,8 @@
 #!/bin/bash
 # Captures held and escalated states in eight appearance/language/text-size combinations.
 # Usage: scripts/intermediate-states.sh <results-dir> <simulator-uuid> <derived-data> [--supplement] [variants...]
+# Caller owns the device: `simbox lease --type "iPhone 18 Pro"` prints LEASE_ID UDID.
+# Pass UDID here, then run `simbox release LEASE_ID` on every caller exit path.
 # Dependencies: a built test bundle, xcrun, Python 3 and export-intermediate-shots.py.
 set -euo pipefail
 RESULTS=$1
