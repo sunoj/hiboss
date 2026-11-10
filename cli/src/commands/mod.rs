@@ -12,6 +12,7 @@ pub struct SubcommandArgs<C: clap::Subcommand> {
 pub mod agent;
 pub mod ask;
 pub(crate) mod ask_media;
+pub(crate) mod attachment_thumbnail;
 pub(crate) mod ask_descriptions;
 mod ask_support;
 mod ask_result;

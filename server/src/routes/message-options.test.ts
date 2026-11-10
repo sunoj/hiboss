@@ -101,6 +101,14 @@ describe('parseOptionMedia', () => {
     });
   });
 
+  it('keeps a stored option thumbnail and checks its origin only at ingestion', () => {
+    const media = [{ label: 'A', url: 'https://w.test/a.png', thumbnail_url: 'https://w.test/api/attachments/t.jpg' }];
+    expect(parseOptionMedia(media, ['A'])).toEqual({ ok: true, value: media });
+    expect(parseOptionMedia(media, ['A'], new URL('https://w.test/api/messages'))).toEqual({ ok: true, value: media });
+    expect(parseOptionMedia(media, ['A'], new URL('https://other.test/api/messages')))
+      .toMatchObject({ ok: false, error: expect.stringContaining('thumbnail_url') });
+  });
+
   it('names malformed labels, URLs, and captions in 400-ready errors', () => {
     expect(parseOptionMedia([{ label: 'C', url: 'https://files.test/c.png' }], ['A'])).toMatchObject({ ok: false, error: expect.stringContaining('not an option') });
     expect(parseOptionMedia([{ label: 'A', url: 'ftp://files.test/a.png' }], ['A'])).toMatchObject({ ok: false, error: expect.stringContaining('http(s) URL') });

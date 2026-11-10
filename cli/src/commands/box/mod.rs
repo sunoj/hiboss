@@ -9,12 +9,12 @@ mod http_tests;
 mod input;
 mod media;
 #[cfg(test)]
-mod mock;
+pub(crate) mod mock;
 mod output;
 pub(crate) mod share;
 #[cfg(test)]
 mod tests;
-mod thumbnail;
+pub(crate) mod thumbnail;
 
 use crate::commands::SubcommandArgs;
 use crate::{

@@ -6,6 +6,7 @@ use super::ask_media::{resolve_option_media, upload_attachment};
 use super::ask_result::{AskResult, print_result};
 use super::ask_support::{action_metadata, validate_default_option, warn_unread_messages};
 use super::ask_wait::wait_for_reply;
+use super::box_cmd::thumbnail::Tools;
 use crate::{client::HiBossClient, config::Config, session, types::SendRequest};
 use clap::{ArgAction, Args};
 use serde_json::Value;
@@ -71,8 +72,10 @@ pub struct AskArgs {
     #[arg(long = "option-description", action = ArgAction::Append, value_name = "LABEL=TEXT",
         help = "Plain-text choice description (1–200 characters); repeat per --option/--action label")]
     pub option_descriptions: Vec<String>,
-    #[arg(long, help = "Local file to upload and attach")]
+    #[arg(long, help = "Local file to upload and attach (images also get a 1280 px display copy)")]
     pub file: Option<String>,
+    #[arg(long, help = "Explain why an attached image went without a thumbnail")]
+    pub verbose: bool,
     #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
     pub to: Option<String>,
     #[arg(
@@ -217,7 +220,7 @@ pub async fn run(
 ) -> Result<(), Box<dyn Error>> {
     let choices = args.choice_payload()?;
     super::claude_profiles::warn_missing_session(session::read_session_id().as_deref());
-    let mut request = prepare_request(args, client, &choices).await?;
+    let mut request = prepare_request(args, client, &choices, &Tools::system()).await?;
     if args.to.is_none() && !args.json {
         warn_unread_messages(client).await;
     }
@@ -235,32 +238,38 @@ pub async fn run(
     print_result(&result, args.json)
 }
 
-async fn prepare_request(
+pub(crate) async fn prepare_request(
     args: &AskArgs,
     client: &HiBossClient,
     choices: &ChoicePayload,
+    tools: &Tools,
 ) -> Result<SendRequest, Box<dyn Error>> {
     let title = super::message_text::title(&args.body, args.to.is_some())?;
     let content =
         super::message_text::content(args.content.as_deref(), args.content_file.as_deref())?;
     let descriptions =
         super::ask_descriptions::resolve_option_descriptions(&args.option_descriptions, choices)?;
-    let option_media = resolve_option_media(client, &args.option_images, choices).await?;
-    let file_url = upload_attachment(client, args.file.as_deref()).await?;
+    let uploads = (tools, args.verbose);
+    let option_media = resolve_option_media(client, &args.option_images, choices, uploads).await?;
+    let (file_url, thumbnail) = upload_attachment(client, args.file.as_deref(), uploads).await?.unzip();
+    let mut metadata = action_metadata(
+        &choices.actions,
+        choices.default_option.as_deref(),
+        args.summary.as_deref(),
+        content.as_deref(),
+        option_media,
+        descriptions,
+    )?;
+    if let Some(thumbnail) = thumbnail.flatten() {
+        metadata.get_or_insert_with(HashMap::new).insert("file_thumbnail_url".to_owned(), Value::String(thumbnail));
+    }
     Ok(SendRequest {
         body: title,
         mode: "blocking".to_owned(),
         timeout: Some(args.timeout),
         priority: args.priority.clone(),
         channel: args.channel.clone(),
-        metadata: action_metadata(
-            &choices.actions,
-            choices.default_option.as_deref(),
-            args.summary.as_deref(),
-            content.as_deref(),
-            option_media,
-            descriptions,
-        )?,
+        metadata,
         options: choices.options.clone(),
         file_url,
         message_type: None,
