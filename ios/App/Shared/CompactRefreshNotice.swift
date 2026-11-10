@@ -1,5 +1,5 @@
-// Compact refresh feedback with fixed geometry for cached native surfaces.
-// Exports CompactRefreshNotice; delayed progress and escalation stay inside one status row.
+// Compact refresh feedback for cached native surfaces: one reserved row that wraps when the text needs it.
+// Exports CompactRefreshNotice; delayed progress and escalation stay inside the status row.
 // Dependencies: SwiftUI, PendingTiming, RetryButton, and semantic Theme roles.
 
 import HibossKit
@@ -23,9 +23,12 @@ struct CompactRefreshNotice: View {
     private var active: Bool { error != nil || (isRefreshing && (revealsWhenSlow ? slow : visible)) }
 
     var body: some View {
-        Color.clear.frame(height: rowHeight)
-            .overlay { if active { notice } }
-            .allowsHitTesting(active)
+        // Reserves one row while hidden; a wrapped notice grows past it instead of truncating.
+        ZStack {
+            Color.clear.frame(height: rowHeight)
+            if active { notice }
+        }
+        .allowsHitTesting(active)
         .task(id: isRefreshing) {
             visible = false
             slow = false
@@ -45,7 +48,8 @@ struct CompactRefreshNotice: View {
                 .accessibilityHidden(!isRefreshing || !visible || error != nil || slow)
             Text(verbatim: error ?? (slow
                 ? (source?.slowTitle ?? title + " " + PendingNoticeSource.refresh.slowTitle) : title))
-                .font(.footnote).foregroundStyle(Theme.ink2).lineLimit(1)
+                .font(.footnote).foregroundStyle(Theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier(statusIdentifier)
             if let onRetry {
@@ -57,8 +61,10 @@ struct CompactRefreshNotice: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: rowHeight)
-        .background(.bar)
+        .padding(.vertical, Space.xxs)
+        .frame(minHeight: rowHeight)
+        // Sideways the slab stays in the content column, never under a side rail (the Duo's).
+        .background(.bar, ignoresSafeAreaEdges: .bottom)
     }
 
 }

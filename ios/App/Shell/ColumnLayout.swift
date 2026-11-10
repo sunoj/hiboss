@@ -1,8 +1,10 @@
 // The width rule for a two-column Today and Sessions: list on the left, the selected item's detail beside it.
-// Exports: ColumnLayout, TwoColumnSplit, RouteSelection, RouteLink, keepsTabBar, View.measuresListColumnWidth(_:).
-// Dependencies: SwiftUI; RootTabView measures the window and passes the list width down.
+// Exports: ColumnLayout, TwoColumnSplit, RouteSelection, RouteLink, keepsTabBar,
+// View.measuresListColumnWidth(_:), View.listColumnIgnoresRail().
+// Dependencies: SwiftUI, UIKit; RootTabView measures the window and passes the list width down.
 
 import SwiftUI
+import UIKit
 
 enum ColumnLayout {
     /// The narrowest window, in points, that shows two columns: an unfolded Duo in landscape (951)
@@ -10,9 +12,22 @@ enum ColumnLayout {
     static let twoColumnMinWidth: CGFloat = 900
     static let maxListWidth: CGFloat = 420
 
+    /// Demo-only `-HibossTwoColumnMinWidth <pt>` lowers the threshold so a folded Duo simulator, which
+    /// draws the side rail, shows two columns; no simulator can unfold a Duo.
+    static var minWidth: CGFloat {
+        let override = isDemoMode ? UserDefaults.standard.double(forKey: "HibossTwoColumnMinWidth") : 0
+        return override > 0 ? override : twoColumnMinWidth
+    }
+
+    /// The negative extra inset that brings a side inset a column received down to the part of the
+    /// window's safe area its frame really overlaps; zero when it received no more than that.
+    static func insetCorrection(received: CGFloat, overlap: CGFloat) -> CGFloat {
+        min(0, max(0, overlap) - received)
+    }
+
     /// The list column's width, or nil when the window shows one column.
-    static func listWidth(forAvailableWidth width: CGFloat) -> CGFloat? {
-        guard width >= twoColumnMinWidth else { return nil }
+    static func listWidth(forAvailableWidth width: CGFloat, minWidth: CGFloat = twoColumnMinWidth) -> CGFloat? {
+        guard width >= minWidth else { return nil }
         return min(maxListWidth, (width * 0.4).rounded())
     }
 }
@@ -83,11 +98,64 @@ struct RouteLink<Value: Hashable, Label: View>: View {
 }
 
 extension View {
+    /// Set on the root inside the list column's NavigationStack. The system hands that root the
+    /// window's side insets even where the column never reaches the window edge, so a side rail (the
+    /// Duo's) would narrow the list content by the rail's width. A column that does reach the edge
+    /// keeps its inset, so one column is unchanged. The navigation bar takes the rail inset on its
+    /// own and is not corrected here.
+    func listColumnIgnoresRail() -> some View {
+        background(ColumnInsetCorrector().accessibilityHidden(true))
+    }
+
     /// Reports the list column width for this window: its full width, safe-area insets included.
     func measuresListColumnWidth(_ width: Binding<CGFloat?>) -> some View {
         onGeometryChange(for: CGFloat?.self) { proxy in
             let insets = proxy.safeAreaInsets
-            return ColumnLayout.listWidth(forAvailableWidth: proxy.size.width + insets.leading + insets.trailing)
+            return ColumnLayout.listWidth(forAvailableWidth: proxy.size.width + insets.leading + insets.trailing,
+                                          minWidth: ColumnLayout.minWidth)
         } action: { width.wrappedValue = $0 }
+    }
+}
+
+/// Trims the hosting controller's side insets to what its frame really overlaps of the window's
+/// safe area, through `additionalSafeAreaInsets`, so only the column at the screen edge yields.
+private struct ColumnInsetCorrector: UIViewRepresentable {
+    /// Fills the root, so a size change (fold, unfold, rotation) lays it out again.
+    func makeUIView(context: Context) -> CorrectorView {
+        let view = CorrectorView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: CorrectorView, context: Context) { uiView.setNeedsLayout() }
+
+    final class CorrectorView: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            setNeedsLayout()
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            guard let window, let controller = hostingController else { return }
+            let frame = controller.view.convert(controller.view.bounds, to: window)
+            let safe = window.safeAreaInsets
+            var extra = controller.additionalSafeAreaInsets
+            let inset = controller.view.safeAreaInsets
+            let left = ColumnLayout.insetCorrection(received: inset.left - extra.left,
+                                                    overlap: safe.left - frame.minX)
+            let right = ColumnLayout.insetCorrection(received: inset.right - extra.right,
+                                                     overlap: frame.maxX - (window.bounds.width - safe.right))
+            guard extra.left != left || extra.right != right else { return }
+            extra.left = left
+            extra.right = right
+            controller.additionalSafeAreaInsets = extra
+        }
+
+        private var hostingController: UIViewController? {
+            var responder: UIResponder? = next
+            while let current = responder, !(current is UIViewController) { responder = current.next }
+            return responder as? UIViewController
+        }
     }
 }

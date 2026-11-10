@@ -22,7 +22,8 @@ struct SessionsColumns: View {
         TwoColumnSplit(listWidth: listWidth) {
             // Split, the list never pushes: its rows select into the detail column's path.
             NavigationStack(path: isSplit ? .constant(NavigationPath()) : $path) {
-                destinations(ActivityView(store: inbox, section: $section, connection: connection))
+                destinations(ActivityView(store: inbox, section: $section, connection: connection)
+                    .listColumnIgnoresRail())
             }
             .environment(\.routeSelection, isSplit ? RouteSelection(selected: selected, select: select) : nil)
         } detail: {

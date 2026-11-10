@@ -53,7 +53,8 @@ struct SessionReplyComposer: View {
                     replyControls
                 }
             }
-            .padding(.horizontal, Space.m).padding(.vertical, Space.xxs).background(.bar)
+            .padding(.horizontal, Space.m).padding(.vertical, Space.xxs)
+            .background(.bar, ignoresSafeAreaEdges: .bottom)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("session-reply-composer")
             .sheet(isPresented: $picking) {
