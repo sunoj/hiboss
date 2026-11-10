@@ -16,8 +16,9 @@ final class QuestionnaireStepsTests: XCTestCase {
         XCTAssertEqual(steps.intro, ["intro"])
         XCTAssertEqual(steps.steps.count, 11)
         XCTAssertEqual(steps.steps[0].elementIDs, ["q1"])
-        XCTAssertEqual(steps.steps[0].fields, [QuestionnaireField(path: "/form/q1", label: "Question q1", required: true, options: options)])
-        XCTAssertEqual(steps.steps[10].fields.map(\.required), [false])
+        XCTAssertEqual(steps.steps[0].fields, [QuestionnaireField(path: "/form/q1", label: "Question q1", requiredChain: [true],
+                                                                  schema: nil, options: options)])
+        XCTAssertEqual(steps.steps[10].fields.map { $0.isRequired(in: .object([:])) }, [false])
     }
 
     func testSectionKeepsInputsTogetherAndDisplayItemsAttachToTheFollowingStep() throws {
@@ -48,10 +49,9 @@ final class QuestionnaireStepsTests: XCTestCase {
         let steps = try tenQuestionSteps()
         var state = formState([:])
         XCTAssertEqual(steps.missingRequired(inStep: 0, state: state).map(\.path), ["/form/q1"])
-        state = formState(["q1": .string(""), "q2": .array([]), "q3": .null])
-        XCTAssertFalse(steps.isComplete(inStep: 0, state: state))
-        XCTAssertFalse(steps.isComplete(inStep: 1, state: state))
-        XCTAssertFalse(steps.isComplete(inStep: 2, state: state))
+        state = formState(["q1": .string("a")])
+        XCTAssertTrue(steps.isComplete(inStep: 0, state: state))
+        XCTAssertFalse(steps.isComplete(inStep: 1, state: state), "an absent required key is unanswered")
         state = formState(["q1": .string("a"), "q2": .array([.string("b")]), "q3": .bool(false)])
         XCTAssertTrue(steps.isComplete(inStep: 0, state: state))
         XCTAssertTrue(steps.isComplete(inStep: 1, state: state))

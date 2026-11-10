@@ -147,7 +147,7 @@ public struct PanelRenderer: View {
             hint: current == nil || current == "" ? element.props["placeholder"]?.string : nil,
             options: panelOptions(element), style: .single,
             isSelected: { $0 == current },
-            select: { id in if id != current { store.setString(id, at: path) } }))
+            select: { id in id == current ? store.removeValue(at: path) : store.setString(id, at: path) }))
     }
 
     private func renderMultiSelect(_ element: PanelElement) -> AnyView {

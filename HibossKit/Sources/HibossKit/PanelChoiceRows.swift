@@ -79,6 +79,7 @@ private struct PanelChoiceRow: View {
         .buttonStyle(.plain)
         .accessibilityLabel(Text(verbatim: [option.label, option.description].compactMap { $0 }.joined(separator: ", ")))
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityHint(style == .single && selected ? kitL("Tap again to clear this answer.") : "")
     }
 
     /// Selected rows use the prominent action ink: a filled shape with a check in the label color.

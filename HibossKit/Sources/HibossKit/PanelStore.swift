@@ -39,6 +39,16 @@ public final class PanelStore: ObservableObject {
 
     public func setBool(_ value: Bool, at path: String) { write(.bool(value), at: path) }
 
+    /// Deletes the object key at `path`, the same as never answered; an absent path changes nothing.
+    public func removeValue(at path: String) {
+        guard path.first == "/" else { return }
+        let segments = path.split(separator: "/", omittingEmptySubsequences: false).dropFirst().map {
+            $0.replacingOccurrences(of: "~1", with: "/").replacingOccurrences(of: "~0", with: "~")
+        }
+        guard let updated = panelRemovingValue(segments: segments[...], in: state) else { return }
+        state = updated
+    }
+
     public func advanceDemoData(seed: Int) {
         state = advancedValue(state, seed: seed)
     }
@@ -111,4 +121,15 @@ private func panelSetValue(_ value: PanelValue, segments: ArraySlice<String>, in
         return .array(copy)
     default: return nil
     }
+}
+
+private func panelRemovingValue(segments: ArraySlice<String>, in root: PanelValue) -> PanelValue? {
+    guard let segment = segments.first, var object = root.object, let child = object[segment] else { return nil }
+    if segments.count == 1 {
+        object.removeValue(forKey: segment)
+    } else {
+        guard let updated = panelRemovingValue(segments: segments.dropFirst(), in: child) else { return nil }
+        object[segment] = updated
+    }
+    return .object(object)
 }
