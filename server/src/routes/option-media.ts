@@ -1,8 +1,9 @@
 // Validates option image metadata and returns it in answer-option order.
 // Exports parseOptionMedia and its result type for message ingestion/delivery.
-// Depends on the shared OptionMedia domain type.
+// Depends on the shared OptionMedia domain type and the attachment URL check.
 
 import type { OptionMedia } from '../types';
+import { getAttachmentKey } from './progress-helpers';
 
 const MAX_OPTION_MEDIA = 5;
 
@@ -10,7 +11,8 @@ export type OptionMediaParseResult =
   | { ok: true; value: OptionMedia[] | undefined }
   | { ok: false; error: string };
 
-export function parseOptionMedia(value: unknown, options: string[] | undefined): OptionMediaParseResult {
+/** With `requestUrl` (ingestion), a thumbnail must be this worker's attachment; stored data is re-read without it. */
+export function parseOptionMedia(value: unknown, options: string[] | undefined, requestUrl?: URL): OptionMediaParseResult {
   if (value === undefined) return { ok: true, value: undefined };
   if (!options) return { ok: false, error: 'option_media requires options' };
   if (!Array.isArray(value) || value.length === 0 || value.length > MAX_OPTION_MEDIA) {
@@ -35,9 +37,22 @@ export function parseOptionMedia(value: unknown, options: string[] | undefined):
     if (caption !== undefined && (typeof caption !== 'string' || caption.length > 200)) {
       return { ok: false, error: `option_media[${index}].caption must be at most 200 characters` };
     }
-    media.push({ label, url, ...(caption === undefined ? {} : { caption }) });
+    const thumbnail = item['thumbnail_url'];
+    if (thumbnail !== undefined && !isThumbnailUrl(thumbnail, requestUrl)) {
+      return { ok: false, error: `option_media[${index}].thumbnail_url must point to this worker attachments path` };
+    }
+    media.push({
+      label, url,
+      ...(caption === undefined ? {} : { caption }),
+      ...(thumbnail === undefined ? {} : { thumbnail_url: thumbnail as string }),
+    });
   }
   return { ok: true, value: options.flatMap((option) => media.filter((item) => item.label === option)) };
+}
+
+function isThumbnailUrl(value: unknown, requestUrl: URL | undefined): boolean {
+  if (typeof value !== 'string') return false;
+  return requestUrl ? getAttachmentKey(value, requestUrl) !== null : isHttpUrl(value);
 }
 
 function isHttpUrl(value: string): boolean {

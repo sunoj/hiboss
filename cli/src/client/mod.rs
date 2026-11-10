@@ -189,9 +189,13 @@ impl HiBossClient {
             .to_string();
         let data = std::fs::read(file_path)?;
         let mime = mime_from_ext(&filename);
+        self.upload_bytes(filename, &mime, data).await
+    }
+    /// Upload in-memory bytes as one attachment (e.g. a rendered thumbnail).
+    pub async fn upload_bytes(&self, filename: String, mime: &str, data: Vec<u8>) -> Result<UploadResponse, Box<dyn Error>> {
         let part = reqwest::multipart::Part::bytes(data)
             .file_name(filename)
-            .mime_str(&mime)?;
+            .mime_str(mime)?;
         let form = reqwest::multipart::Form::new().part("file", part);
         Self::send_json(
             self.request(Method::POST, "/api/attachments/upload")

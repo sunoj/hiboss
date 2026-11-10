@@ -14,6 +14,7 @@ fn args_with_content(content: Option<&str>) -> SendArgs {
         channel: None,
         file_url: None,
         file: None,
+        verbose: false,
         message_type: None,
         to: None,
         wait_ack: false,

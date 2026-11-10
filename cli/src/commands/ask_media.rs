@@ -2,9 +2,11 @@
 // Exports: resolve_option_media, upload_attachment, OptionImage,
 //          OptionMediaError, parse_option_images, validate_option_image_labels,
 //          is_remote_url, option_media_entry.
-// Dependencies: crate::client, super::ask::ChoicePayload, serde_json.
+// Dependencies: crate::client, super::ask::ChoicePayload, attachment thumbnails, serde_json.
 
 use super::ask::ChoicePayload;
+use super::attachment_thumbnail::upload_with_thumbnail;
+use super::box_cmd::thumbnail::Tools;
 use crate::client::HiBossClient;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -76,8 +78,12 @@ pub(crate) fn is_remote_url(source: &str) -> bool {
     lower.starts_with("http://") || lower.starts_with("https://")
 }
 
-pub(crate) fn option_media_entry(label: &str, url: &str) -> Value {
-    serde_json::json!({ "label": label, "url": url })
+pub(crate) fn option_media_entry(label: &str, url: &str, thumbnail_url: Option<&str>) -> Value {
+    let mut entry = serde_json::json!({ "label": label, "url": url });
+    if let Some(thumbnail) = thumbnail_url {
+        entry["thumbnail_url"] = Value::from(thumbnail);
+    }
+    entry
 }
 
 /// Validate all labels before a single byte is uploaded, then resolve each image.
@@ -85,6 +91,7 @@ pub(crate) async fn resolve_option_media(
     client: &HiBossClient,
     raw: &[String],
     choices: &ChoicePayload,
+    (tools, verbose): (&Tools, bool),
 ) -> Result<Option<Vec<Value>>, Box<dyn Error>> {
     let images = parse_option_images(raw)?;
     validate_option_image_labels(&images, choices)?;
@@ -93,25 +100,28 @@ pub(crate) async fn resolve_option_media(
     }
     let mut media = Vec::with_capacity(images.len());
     for image in &images {
-        let url = if is_remote_url(&image.source) {
-            image.source.clone()
+        let (url, thumbnail) = if is_remote_url(&image.source) {
+            (image.source.clone(), None)
         } else {
-            client.upload_file(&image.source).await?.url
+            let upload = upload_with_thumbnail(client, &image.source, tools, verbose).await?;
+            (upload.url, upload.thumbnail_url)
         };
         eprintln!("attached: {} -> {}", image.label, url);
-        media.push(option_media_entry(&image.label, &url));
+        media.push(option_media_entry(&image.label, &url, thumbnail.as_deref()));
     }
     Ok(Some(media))
 }
 
+/// Upload `--file`; returns its URL and, for an image, the display copy's URL.
 pub(crate) async fn upload_attachment(
     client: &HiBossClient,
     path: Option<&str>,
-) -> Result<Option<String>, Box<dyn Error>> {
+    (tools, verbose): (&Tools, bool),
+) -> Result<Option<(String, Option<String>)>, Box<dyn Error>> {
     let Some(path) = path else { return Ok(None) };
-    let upload = client.upload_file(path).await?;
+    let upload = upload_with_thumbnail(client, path, tools, verbose).await?;
     eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
-    Ok(Some(upload.url))
+    Ok(Some((upload.url, upload.thumbnail_url)))
 }
 
 #[cfg(test)]
@@ -218,6 +228,7 @@ mod tests {
         let entry = option_media_entry(
             "压缩文案",
             "https://hiboss.example/api/attachments/abc.png",
+            None,
         );
         assert_eq!(
             entry,

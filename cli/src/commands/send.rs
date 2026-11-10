@@ -3,6 +3,8 @@
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
 use super::ask_support::warn_unread_messages;
+use super::attachment_thumbnail::upload_with_thumbnail;
+use super::box_cmd::thumbnail::Tools;
 use super::send_metadata::build_metadata;
 use super::session_register::send_with_session_heal;
 use crate::{
@@ -25,8 +27,10 @@ pub struct SendArgs {
     pub channel: Option<String>,
     #[arg(long, help = "URL of file/image to attach")]
     pub file_url: Option<String>,
-    #[arg(long, help = "Local file to upload and attach")]
+    #[arg(long, help = "Local file to upload and attach (images also get a 1280 px display copy)")]
     pub file: Option<String>,
+    #[arg(long, help = "Explain why an attached image went without a thumbnail")]
+    pub verbose: bool,
     #[arg(
         long = "type",
         help = "Message type (e.g. task_update, approval_request)"
@@ -94,7 +98,7 @@ pub async fn run(
         return run_broadcast(args, client).await;
     }
 
-    let mut request = send_request(args, client).await?;
+    let mut request = send_request(args, client, &Tools::system()).await?;
     let mut response = send_with_session_heal(client, &mut request).await?;
     if args.wait_ack {
         response.status = client
@@ -119,22 +123,26 @@ pub async fn run(
     Ok(())
 }
 
-async fn send_request(
+pub(crate) async fn send_request(
     args: &SendArgs,
     client: &HiBossClient,
+    tools: &Tools,
 ) -> Result<SendRequest, Box<dyn Error>> {
     // Only send channel when explicitly specified via --channel.
     // When omitted, server uses channel_routing (per-priority) to decide.
     let channel = args.channel.clone();
+    // Build task_context metadata from --task, --files, --branch flags
+    let mut metadata = build_metadata(args)?;
     let file_url = if let Some(ref path) = args.file {
-        let upload = client.upload_file(path).await?;
+        let upload = upload_with_thumbnail(client, path, tools, args.verbose).await?;
         eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
+        if let Some(thumbnail) = upload.thumbnail_url {
+            metadata.get_or_insert_with(HashMap::new).insert("file_thumbnail_url".to_owned(), Value::String(thumbnail));
+        }
         Some(upload.url)
     } else {
         args.file_url.clone()
     };
-    // Build task_context metadata from --task, --files, --branch flags
-    let metadata = build_metadata(args)?;
     Ok(SendRequest {
         body: super::message_text::title(&args.body, args.to.is_some())?,
         mode: "async".to_owned(),

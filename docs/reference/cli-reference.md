@@ -122,6 +122,13 @@ before any upload. A local path is uploaded; an `http(s)` URL is passed through
 untouched. It combines with `--file` (message-level context image). Each upload
 prints `attached: <label> -> <url>` to stderr.
 
+A local image given to `send --file`, `ask --file` or `--option-image` also gets a display
+copy: a JPEG whose longest side is at most 1280 px (never enlarged), quality 0.7 with one retry
+at 0.5, at most 400 KiB. It is rendered with `sips`, or `ffmpeg` when `sips` is unavailable,
+uploaded beside the original and sent as `metadata.file_thumbnail_url` or the option's
+`thumbnail_url`. When neither tool works or the copy is too large, the message is sent with the
+original only; `--verbose` says why. Non-image files and `http(s)` URLs get no thumbnail.
+
 `--option-description LABEL=TEXT` adds a plain-text description to an offered
 `--option` or `--action` label. Repeat it for each described option. The first `=`
 separates the label and text; both are trimmed. Text must contain 1–200 characters,

@@ -66,6 +66,19 @@ Request:
 `options` must be an array of one to five non-empty, unique strings. String values
 and comma-separated option lists are rejected.
 
+Image display copies are optional and live in `metadata`:
+
+- `metadata.file_thumbnail_url` is a smaller copy of the `file_url` image. It requires
+  `file_url`.
+- Each `metadata.option_media` entry `{ "label", "url", "caption"? }` may carry
+  `thumbnail_url`, a smaller copy of that option's `url`.
+
+Both must be URLs on this worker's attachments path (`<origin>/api/attachments/<key>`,
+uploaded through `POST /api/attachments/upload`); anything else is rejected with 400. They are
+stored with the message metadata and returned wherever `file_url` and `option_media` are
+(message history, session streams, boss message reads). Clients show the thumbnail first and
+fall back to the original when it is absent. Telegram and Discord delivery send the original.
+
 Response (201, or 200 if idempotency_key matches existing message):
 ```json
 {

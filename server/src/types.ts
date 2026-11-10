@@ -36,6 +36,8 @@ export interface OptionMedia {
   label: string;
   url: string;
   caption?: string;
+  /** Smaller display copy on this worker's attachments path; clients fall back to `url`. */
+  thumbnail_url?: string;
 }
 
 export interface MessageRow {

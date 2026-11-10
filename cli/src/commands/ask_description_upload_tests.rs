@@ -27,7 +27,7 @@ async fn invalid_descriptions_fail_before_option_or_file_uploads() {
     .args;
     let choices = args.choice_payload().expect("valid choices");
     let client = HiBossClient::new("http://127.0.0.1:1", "test-key");
-    let error = prepare_request(&args, &client, &choices)
+    let error = prepare_request(&args, &client, &choices, &Tools::system())
         .await
         .err()
         .expect("invalid description");

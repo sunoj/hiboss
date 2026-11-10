@@ -65,6 +65,43 @@ describe('POST /api/messages with metadata', () => {
     expect(msg.metadata?.['file_url']).toBe('https://example.com/img.png');
   });
 
+  it('stores a file thumbnail and option thumbnails on this worker and returns them to the boss', async () => {
+    const thumb = 'https://test.local/api/attachments/thumb.jpg';
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ body: 'Pick', file_url: 'https://test.local/api/attachments/full.png', options: ['A'],
+        metadata: { file_thumbnail_url: thumb,
+          option_media: [{ label: 'A', url: 'https://test.local/api/attachments/a.png', thumbnail_url: thumb }] } }),
+    });
+    expect(res.status).toBe(201);
+    const { id } = await res.json() as { id: string };
+    await seedBossToken('Thumbs', 'admin', 'thumb-boss-token', 'thumb-boss');
+    const response = await SELF.fetch(`https://test.local/api/boss/messages/${id}`, {
+      headers: { Authorization: 'Bearer thumb-boss-token' },
+    });
+    const message = await response.json() as { metadata: Record<string, unknown> };
+    expect(message.metadata.file_thumbnail_url).toBe(thumb);
+    expect(message.metadata.option_media).toEqual([
+      { label: 'A', url: 'https://test.local/api/attachments/a.png', thumbnail_url: thumb },
+    ]);
+  });
+
+  it.each([
+    [{ file_thumbnail_url: 'https://test.local/api/attachments/t.jpg' }, undefined, 'requires file_url'],
+    [{ file_thumbnail_url: 'https://elsewhere.test/api/attachments/t.jpg' }, 'https://x/f.png', 'attachments path'],
+    [{ file_thumbnail_url: 'https://test.local/other/t.jpg' }, 'https://x/f.png', 'attachments path'],
+    [{ file_thumbnail_url: 7 }, 'https://x/f.png', 'attachments path'],
+    [{ option_media: [{ label: 'A', url: 'https://x/a.png', thumbnail_url: 'https://x/api/attachments/t.jpg' }] },
+      'https://x/f.png', 'thumbnail_url must point'],
+  ])('rejects thumbnails outside this worker attachments (%#)', async (metadata, fileUrl, error) => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ body: 'Pick', options: ['A'], file_url: fileUrl, metadata }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain(error);
+  });
+
   it('stores custom metadata', async () => {
     const res = await SELF.fetch('https://test.local/api/messages', {
       method: 'POST',

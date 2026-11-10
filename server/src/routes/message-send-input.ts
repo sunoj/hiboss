@@ -7,6 +7,7 @@ import { stripServerOwnedMetadata } from '../message-security';
 import { destinationsMode } from '../delivery';
 import { checkRateLimit, validateOption, priorityOptions, validateChannel, resolveChannelRouting, parseOptions, normalizeMetadata, parseOptionMedia, fetchAllChannelConfigs, selectChannelConfig } from './message-helpers';
 import { parseOptionDescriptions } from './option-descriptions';
+import { getAttachmentKey } from './progress-helpers';
 const modeOptions: Mode[] = ['async', 'blocking'];
 export interface SendInput {
   agentId: string;
@@ -67,14 +68,27 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   const timeout = typeof payload.timeout === 'number' ? payload.timeout : null;
   // Only the send timeout can grant a blocking caller its own deadline.
   if (mode === 'blocking' && typeof payload.timeout === 'number') rawMetadata['ask_deadline'] = true;
-  const optionMediaResult = parseOptionMedia(rawMetadata['option_media'], options);
+  const requestUrl = new URL(c.req.url);
+  const optionMediaResult = parseOptionMedia(rawMetadata['option_media'], options, requestUrl);
   if (!optionMediaResult.ok) return c.text(optionMediaResult.error, 400);
+  const thumbnailError = fileThumbnailError(rawMetadata['file_thumbnail_url'], fileUrl, requestUrl);
+  if (thumbnailError) return c.text(thumbnailError, 400);
   if (fileUrl) (rawMetadata as Record<string, unknown>)['file_url'] = fileUrl;
   if (options) (rawMetadata as Record<string, unknown>)['options'] = options;
   if (optionMediaResult.value) (rawMetadata as Record<string, unknown>)['option_media'] = optionMediaResult.value;
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
   const channelConfigs = await selectLegacyConfigs(c.env, agentId, priority, requestedChannel);
   return { agentId, payload, body, idempotencyKey, agentConfig, mode, priority, requestedChannel, fileUrl, messageType, sessionId, toAgent, options, optionMediaResult, metadata, clientMetadata, timeout, channelConfigs };
+}
+
+/** An optional `file_thumbnail_url` sits beside `file_url` and must be this worker's attachment. */
+function fileThumbnailError(value: unknown, fileUrl: string | undefined, requestUrl: URL): string | null {
+  if (value === undefined) return null;
+  if (!fileUrl) return 'file_thumbnail_url requires file_url';
+  if (typeof value !== 'string' || !getAttachmentKey(value, requestUrl)) {
+    return 'file_thumbnail_url must point to this worker attachments path';
+  }
+  return null;
 }
 
 async function selectLegacyConfigs(env: Env, agentId: string, priority: Priority, requestedChannel: Channel | undefined): Promise<{ channel: Channel; config: Record<string, unknown> }[]> {

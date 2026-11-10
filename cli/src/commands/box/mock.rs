@@ -7,7 +7,7 @@ use tokio::{
     task::JoinHandle,
 };
 
-pub(super) struct Reply {
+pub(crate) struct Reply {
     pub method: &'static str,
     pub path: &'static str,
     pub status: u16,
@@ -25,12 +25,12 @@ impl Reply {
     }
 }
 
-pub(super) struct Captured {
+pub(crate) struct Captured {
     pub headers: String,
     pub body: String,
 }
 
-pub(super) struct Mock {
+pub(crate) struct Mock {
     pub server: String,
     pub directory: PathBuf,
     task: JoinHandle<Vec<Captured>>,

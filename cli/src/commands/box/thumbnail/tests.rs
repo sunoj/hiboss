@@ -11,6 +11,10 @@ use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf, sync::OnceLock};
 
 const SMALL_SIPS: &str = r"printf '\377\330\377sips' > $out";
 const SMALL_FFMPEG: &str = r"printf '\377\330\377ffmpeg' > $out";
+/// `sips -g` answers with the "WIDTH HEIGHT" written in the input file (none for "DATA").
+const SIZE_PROBE: &str = r#"[ "$1" = -g ] && { read w h < "$5"; echo "pixelWidth: $w"; echo "pixelHeight: $h"; exit 0; }"#;
+/// Echoes its arguments into the JPEG so tests can read the requested size.
+const ARGS: &str = r#"{ printf '\377\330\377'; echo "$*"; } > $out"#;
 const BIG: &str = r"{ printf '\377\330\377'; head -c 300000 /dev/zero; } > $out";
 
 /// Fake tools are written once, before any test spawns them, to avoid ETXTBSY races.
@@ -29,17 +33,18 @@ fn fakes() -> &'static PathBuf {
             ("big", BIG),
             ("shrink", shrink.as_str()),
             ("png", png),
+            ("args", ARGS),
             ("fail", "exit 1"),
         ] {
             let path = dir.join(name);
-            fs::write(&path, format!("#!/bin/sh\nfor out; do :; done\n{body}\n")).unwrap();
+            fs::write(&path, format!("#!/bin/sh\n{SIZE_PROBE}\nfor out; do :; done\n{body}\n")).unwrap();
             fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
         }
         dir
     })
 }
 
-fn tools(sips: &str, ffmpeg: &str) -> Tools {
+pub(crate) fn tools(sips: &str, ffmpeg: &str) -> Tools {
     Tools {
         sips: fakes().join(sips),
         ffmpeg: fakes().join(ffmpeg),
@@ -110,4 +115,21 @@ async fn upload_succeeds_without_thumbnail_part_when_tools_are_missing() {
     let body = upload(&tools("missing", "missing")).await;
     assert!(body.contains("name=\"file\"; filename=\"shot.png\""));
     assert!(!body.contains("name=\"thumbnail\""));
+}
+
+#[test]
+fn message_size_caps_at_1280_without_upscaling_and_allows_400_kib() {
+    use super::{generate, MESSAGE};
+    let wide = fakes().join("wide.png");
+    fs::write(&wide, "1536 1024").unwrap();
+    let small = fakes().join("small.png");
+    fs::write(&small, "800 600").unwrap();
+    let args = |path: &PathBuf, tools: &Tools| {
+        String::from_utf8_lossy(&generate(path, true, tools, MESSAGE).unwrap()).into_owned()
+    };
+    assert!(args(&wide, &tools("args", "missing")).contains("-Z 1280 "));
+    assert!(args(&small, &tools("args", "missing")).contains("-Z 800 "));
+    assert!(args(&small, &tools("missing", "args")).contains("scale='min(1280,iw)':'min(1280,ih)'"));
+    let within = generate(&wide, true, &tools("big", "missing"), MESSAGE).unwrap();
+    assert!(within.len() > MAX_BYTES && within.len() <= MESSAGE.max_bytes);
 }
