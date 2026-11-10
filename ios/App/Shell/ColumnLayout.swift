@@ -1,5 +1,5 @@
 // The width rule for a two-column Today and Sessions: list on the left, the selected item's detail beside it.
-// Exports: ColumnLayout, TwoColumnSplit, RouteSelection, RouteLink and View.measuresListColumnWidth(_:).
+// Exports: ColumnLayout, TwoColumnSplit, RouteSelection, RouteLink, keepsTabBar, View.measuresListColumnWidth(_:).
 // Dependencies: SwiftUI; RootTabView measures the window and passes the list width down.
 
 import SwiftUI
@@ -45,10 +45,20 @@ private struct RouteSelectionKey: EnvironmentKey {
     static var defaultValue: RouteSelection? { nil }
 }
 
+private struct KeepsTabBarKey: EnvironmentKey {
+    static var defaultValue: Bool { false }
+}
+
 extension EnvironmentValues {
     var routeSelection: RouteSelection? {
         get { self[RouteSelectionKey.self] }
         set { self[RouteSelectionKey.self] = newValue }
+    }
+
+    /// True in a detail column beside a list: its screens keep the tabs instead of hiding them.
+    var keepsTabBar: Bool {
+        get { self[KeepsTabBarKey.self] }
+        set { self[KeepsTabBarKey.self] = newValue }
     }
 }
 

@@ -32,6 +32,7 @@ struct SessionsColumns: View {
                     description: Text("Its feed opens here.")
                 ).accessibilityIdentifier("sessions-detail-placeholder"))
             }
+            .environment(\.keepsTabBar, isSplit)
         }
         .onChange(of: path.isEmpty) { _, empty in if empty { selected = nil } }
     }

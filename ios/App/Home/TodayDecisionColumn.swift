@@ -1,5 +1,6 @@
 // Today's detail column beside the decision cards when the window is wide.
-// Exports: TodayDecisionColumn (the selected decision or a prompt) and View.handsOffDecision(...).
+// Exports: TodayDecisionColumn (the selected decision or a prompt), View.handsOffDecision(...) and
+// EnvironmentValues.selectedDecision, which marks the open decision's card.
 // Dependencies: SwiftUI, HibossKit, MessageDetailView and SessionMessagesView.
 
 import HibossKit
@@ -27,6 +28,7 @@ struct TodayDecisionColumn: View {
                 SessionMessagesView(route: $0, api: sessionAPI, store: inbox, panels: panels)
             }
         }
+        .environment(\.keepsTabBar, true)
         // A new decision starts a fresh stack rather than inheriting the last one's pushed session.
         .id(decisionID)
     }
@@ -57,6 +59,18 @@ private struct DecisionHandoff: ViewModifier {
                 columnDecision = decisionID
                 showingDecision = false
             }
+    }
+}
+
+private struct SelectedDecisionKey: EnvironmentKey {
+    static var defaultValue: MessageID? { nil }
+}
+
+extension EnvironmentValues {
+    /// The decision open in the detail column; nil in one column, where a sheet covers the cards.
+    var selectedDecision: MessageID? {
+        get { self[SelectedDecisionKey.self] }
+        set { self[SelectedDecisionKey.self] = newValue }
     }
 }
 

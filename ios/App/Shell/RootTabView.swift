@@ -144,6 +144,7 @@ struct RootTabView: View {
                     }
                 }
             }
+            .environment(\.selectedDecision, listWidth != nil ? columnDecision : nil)
         } detail: {
             TodayDecisionColumn(inbox: inbox, decisionID: columnDecision, sessionAPI: sessionStreamAPI,
                                 panels: panels)

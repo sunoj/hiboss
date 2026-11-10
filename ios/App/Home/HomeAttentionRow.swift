@@ -136,11 +136,20 @@ struct HomeAttentionRow: View {
     let onChoose: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
     let onOpenDecision: (MessageID) -> Void
+    @Environment(\.selectedDecision) private var selectedDecision
+    private var isSelected: Bool { selectedDecision == item.id }
 
     var body: some View {
         DecisionCard(message: item.message, submitting: submitting, verifying: verifying,
                      verificationTimedOut: verificationTimedOut, header: header,
                      choices: choices(timing: DecisionTiming(message: item.message)))
+            // Two columns: the same tint Sessions gives its selected row marks the card shown beside it.
+            .overlay {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+                        .fill(Theme.surface2).allowsHitTesting(false).accessibilityHidden(true)
+                }
+            }
     }
 
     private var header: some View {
@@ -160,6 +169,7 @@ struct HomeAttentionRow: View {
         Button { onOpenDecision(item.id) } label: { DecisionCardInfo(message: item.message) }
             .buttonStyle(.plain)
             .accessibilityIdentifier("home-message-\(item.id.rawValue)")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
             .contextMenu {
                 if let sessionRoute {
                     Button("View session", systemImage: "text.alignleft") { onOpenSession(sessionRoute) }

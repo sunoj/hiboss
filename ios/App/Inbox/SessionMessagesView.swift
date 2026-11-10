@@ -10,11 +10,11 @@ struct SessionMessagesView: View {
     let route: SessionRoute
     let api: (any SessionStreamServing)?
     @ObservedObject var store: InboxStore
-
     let panels: PanelsModel?
     @StateObject private var facts = SessionFactsStore()
     @StateObject private var stream: SessionStreamStore
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.keepsTabBar) private var keepsTabBar
     private var hasLoaded: Bool { stream.didLoad || stream.usesHistory }
     @State private var actionNote: String?
     @State private var showsHistory = false
@@ -53,7 +53,7 @@ struct SessionMessagesView: View {
         .hbReadableWidth()
         .navigationTitle(Text(verbatim: facts.session?.namedLabel ?? route.label))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(showsHistory ? .visible : .hidden, for: .tabBar)
+        .toolbar(showsHistory || keepsTabBar ? .visible : .hidden, for: .tabBar)
         .toolbar { historyToolbar }
         .navigationDestination(isPresented: $showsHistory) {
             MessagesView(store: store, sessionID: route.id).navigationTitle("Messages")

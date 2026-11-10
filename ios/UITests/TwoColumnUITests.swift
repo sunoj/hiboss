@@ -43,6 +43,7 @@ final class TwoColumnUITests: XCTestCase {
         let question = app.staticTexts["message-question"]
         XCTAssertTrue(question.waitForExistence(timeout: 5), "the decision opens in the detail column")
         XCTAssertFalse(element("today-detail-placeholder").exists)
+        XCTAssertTrue(card.isSelected, "the cards mark the decision on the right")
         XCTAssertTrue(card.isHittable, "the cards stay beside the detail, not under a sheet")
 
         XCUIDevice.shared.orientation = .portrait
@@ -66,10 +67,23 @@ final class TwoColumnUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["prod-release"].waitForExistence(timeout: 5))
         XCTAssertTrue(deploy.isSelected, "the list marks the session on the right")
         XCTAssertTrue(payments.isHittable, "the list stays beside the feed")
-        XCTAssertTrue(app.buttons["Today"].firstMatch.isHittable, "the tabs stay reachable")
+        assertTabsSwitchToToday()
+        sessionsTab.tap()
+        XCTAssertTrue(app.navigationBars["prod-release"].waitForExistence(timeout: 5), "the tab keeps its feed")
         payments.tap()
         XCTAssertTrue(app.navigationBars["payments-hotfix"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.navigationBars["prod-release"].exists, "a new selection replaces the feed")
+    }
+
+    /// A hidden tab bar can still report a hittable button, so switch tabs and check what shows.
+    private func assertTabsSwitchToToday() {
+        let today = app.buttons["Today"].firstMatch
+        XCTAssertTrue(today.exists, "the tabs stay beside the feed")
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(today.frame), "the Today tab lies on screen")
+        today.tap()
+        XCTAssertTrue(element("today-detail-placeholder").waitForExistence(timeout: 5),
+                      "tapping Today switches tabs")
+        XCTAssertTrue(app.buttons["home-message-c5"].isHittable)
     }
 
     func testSessionDeepLinkLandsInTheDetailColumnAndSurvivesRotation() {
@@ -83,6 +97,18 @@ final class TwoColumnUITests: XCTestCase {
         XCTAssertTrue(back.waitForExistence(timeout: 5), "one column pushes the same feed")
         let row = app.buttons["activity-session-sess-deploy"]
         XCTAssertFalse(row.exists && row.isHittable, "the list is behind the pushed feed")
+    }
+
+    func testMessageNotificationLoadsTheMessageInTheDetailColumn() {
+        launch(["HIBOSS_DEMO_NOTIFICATION_OPEN": "c1", "HIBOSS_DEMO_MESSAGE_DELAY_MS": "3000"])
+        XCTAssertTrue(app.staticTexts["Loading message…"].waitForExistence(timeout: 10))
+        let question = app.staticTexts["message-question"]
+        XCTAssertTrue(question.waitForExistence(timeout: 15), "the held fetch renders in the detail column")
+        XCTAssertFalse(app.staticTexts["Loading message…"].exists)
+        XCTAssertTrue(sessionsTab.isSelected)
+        XCTAssertFalse(element("sessions-detail-placeholder").exists)
+        XCTAssertTrue(element("activity-section").isHittable, "the list stays beside the message")
+        shot("two-column-message-notification")
     }
 
     /// The screen, not the app: an app screenshot in landscape comes back turned and cropped.
