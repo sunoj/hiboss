@@ -136,6 +136,7 @@ struct RootTabView: View {
                     showsDecisionInline: listWidth != nil
                 )
                 .hbReadableWidth()
+                .listColumnIgnoresRail()
                 .safeAreaInset(edge: .bottom) {
                     if router.pendingPanel != nil {
                         PendingStateView(title: String(localized: "Opening panel…"),

@@ -100,16 +100,14 @@ struct SessionMessagesView: View {
         }
     }
 
-    private var historyToolbar: some ToolbarContent {
+    /// Separate items, so a vertical rail (the Duo) stacks them instead of squeezing one row.
+    @ToolbarContentBuilder private var historyToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            HStack {
-                Button {
-                    showsHistory = true
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                }.accessibilityLabel("Message history")
-                if !stream.usesHistory { ConnectionDot(state: stream.connectionState) }
-            }
+            Button { showsHistory = true } label: { Image(systemName: "clock.arrow.circlepath") }
+                .accessibilityLabel("Message history")
+        }
+        if !stream.usesHistory, stream.connectionState != .connected {
+            ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: stream.connectionState) }
         }
     }
 

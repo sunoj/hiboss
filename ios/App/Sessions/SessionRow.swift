@@ -31,19 +31,14 @@ struct SessionRow: View {
             ProjectAvatarView(project: identity?.avatarProject ?? .fallback(session.localizedLabel),
                               size: AvatarSize.row)
             VStack(alignment: .leading, spacing: Space.xxs) {
-                HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                    Text(verbatim: projectName).font(.headline)
-                        .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
-                        .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
-                    Spacer(minLength: Space.xxs)
-                    SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
-                    if !typeSize.isAccessibilitySize, let date = session.lastActivityDate {
-                        RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
-                            .fixedSize()
+                // The time sits beside the name only while the whole name fits; otherwise it moves below.
+                if typeSize.isAccessibilitySize {
+                    stackedTitle
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline, spacing: Space.xs) { nameLine; timeText }
+                        stackedTitle
                     }
-                }
-                if typeSize.isAccessibilitySize, let date = session.lastActivityDate {
-                    RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3).fixedSize()
                 }
                 Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
                     .lineLimit(2)
@@ -62,5 +57,25 @@ struct SessionRow: View {
         .padding(.vertical, Space.xs)
         .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+
+    private var stackedTitle: some View {
+        VStack(alignment: .leading, spacing: Space.xxs) { nameLine; timeText }
+    }
+
+    private var nameLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+            Text(verbatim: projectName).font(.headline)
+                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
+            Spacer(minLength: Space.xxs)
+            SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
+        }
+    }
+
+    @ViewBuilder private var timeText: some View {
+        if let date = session.lastActivityDate {
+            RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3).fixedSize()
+        }
     }
 }
