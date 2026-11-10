@@ -51,6 +51,6 @@ simulator_command() {
     simulator_acquire "$device_type"
     # Consumed by the sourcing test wrapper.
     # shellcheck disable=SC2034
-    SIMULATOR_COMMAND=()
+    SIMULATOR_COMMAND=(env)
   fi
 }

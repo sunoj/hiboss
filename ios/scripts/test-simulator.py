@@ -45,6 +45,14 @@ if [[ $1 == lease ]]; then echo 'test-lease test-device'; fi
             self.assertEqual(result.returncode, 7 if failure else 0)
             return log.read_text()
 
+    def test_command_prefix_is_safe_with_bash_nounset(self):
+        result = subprocess.run(
+            ['/bin/bash', '-c', 'set -euo pipefail; source "$1"; '
+             'simulator_acquire() { :; }; simulator_command "Test Phone"; '
+             '"${SIMULATOR_COMMAND[@]}" true', 'test', str(HELPER)],
+            env=dict(os.environ, PATH='/usr/bin:/bin'), check=False)
+        self.assertEqual(result.returncode, 0)
+
     def test_fallback_releases_device_after_success(self):
         commands = self.run_case()
         self.assertIn('simctl boot test-device\n', commands)
