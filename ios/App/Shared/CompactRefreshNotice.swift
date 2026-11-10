@@ -61,7 +61,6 @@ struct CompactRefreshNotice: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, Space.xxs)
         .frame(minHeight: rowHeight)
         // Sideways the slab stays in the content column, never under a side rail (the Duo's).
         .background(.bar, ignoresSafeAreaEdges: .bottom)
