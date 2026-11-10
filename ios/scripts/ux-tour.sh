@@ -6,15 +6,16 @@
 set -euo pipefail
 OUT=$(cd "$(dirname "$1")" && pwd)/$(basename "$1"); SIM=${2:-iPhone 17}
 mkdir -p "$OUT"; rm -rf "$OUT"/*.xcresult "$OUT/shots"
-if ! xcrun simctl list devices booted | grep -F "$SIM (" >/dev/null; then
-  xcrun simctl boot "$SIM"
-fi
+# shellcheck source=ios/scripts/simulator.sh
+source "$(dirname "$0")/simulator.sh"
+simulator_acquire "$SIM"
+SIM=$SIMULATOR_ID
 run() { # $1 appearance, $2 prefix, $3.. -only-testing filters
   local appearance=$1 prefix=$2; shift 2
   xcrun simctl ui "$SIM" appearance "$appearance"
   TEST_RUNNER_UX_TOUR_DELIVERY_ONLY="${SETTINGS_DELIVERY_ONLY:-0}" \
     TEST_RUNNER_UX_TOUR_PREFIX="$prefix" xcodebuild test -project HiBoss.xcodeproj -scheme HiBoss \
-    -destination "platform=iOS Simulator,name=$SIM" -derivedDataPath "$OUT/dd" \
+    -destination "platform=iOS Simulator,id=$SIM" -derivedDataPath "$OUT/dd" \
     -parallel-testing-enabled NO -collect-test-diagnostics never -resultBundlePath "$OUT/$appearance.xcresult" "$@" \
     >"$OUT/$appearance.log" 2>&1 || {
       tail -n 80 "$OUT/$appearance.log" >&2
@@ -53,4 +54,4 @@ PY
   rm -f "$OUT/shots/raw/manifest.json"
 done
 for f in "$OUT"/shots/*.png; do sips -Z 900 "$f" --out "$OUT/shots/small/$(basename "$f")" >/dev/null; done
-ls "$OUT/shots/small" | wc -l | xargs echo "screenshots:"
+find "$OUT/shots/small" -type f -name '*.png' | wc -l | xargs echo "screenshots:"

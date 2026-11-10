@@ -7,8 +7,11 @@ OUT=$1
 SIM=$2
 shift 2
 cd "$(dirname "$0")/.."
-COMMAND=(xcodebuild test -project HiBoss.xcodeproj -scheme HiBoss
-  -destination "platform=iOS Simulator,name=$SIM"
+# shellcheck source=ios/scripts/simulator.sh
+source scripts/simulator.sh
+simulator_command "$SIM"
+COMMAND=("${SIMULATOR_COMMAND[@]}" xcodebuild test -project HiBoss.xcodeproj -scheme HiBoss
+  -destination "platform=iOS Simulator,id=$SIMULATOR_ID"
   -derivedDataPath /private/tmp/hiboss-settings-v2-dd
   -parallel-testing-enabled NO -collect-test-diagnostics never
   -resultBundlePath "$OUT.xcresult" "$@")
