@@ -1,6 +1,66 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Select a decision": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Select a decision" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择一项决定" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "決定を選択" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "결정을 선택하세요" } },
+        "th": { "stringUnit": { "state": "translated", "value": "เลือกการตัดสินใจ" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Selecciona una decisión" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "कोई निर्णय चुनें" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "اختر قرارًا" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Selecione uma decisão" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Sélectionnez une décision" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выберите решение" } }
+      }
+    },
+    "Its details open here.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Its details open here." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "详情会在这里打开。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "詳細はここに表示されます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "세부 정보가 여기에 열립니다." } },
+        "th": { "stringUnit": { "state": "translated", "value": "รายละเอียดจะเปิดที่นี่" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Sus detalles se abren aquí." } },
+        "hi": { "stringUnit": { "state": "translated", "value": "इसका विवरण यहाँ खुलेगा।" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "تُفتح تفاصيله هنا." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Os detalhes abrem aqui." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Ses détails s’ouvrent ici." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Подробности откроются здесь." } }
+      }
+    },
+    "Select a session": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Select a session" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择一个会话" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "セッションを選択" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "세션을 선택하세요" } },
+        "th": { "stringUnit": { "state": "translated", "value": "เลือกเซสชัน" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Selecciona una sesión" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "कोई सत्र चुनें" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "اختر جلسة" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Selecione uma sessão" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Sélectionnez une session" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выберите сеанс" } }
+      }
+    },
+    "Its feed opens here.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Its feed opens here." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "会话动态会在这里打开。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "フィードはここに表示されます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "피드가 여기에 열립니다." } },
+        "th": { "stringUnit": { "state": "translated", "value": "ฟีดจะเปิดที่นี่" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Su actividad se abre aquí." } },
+        "hi": { "stringUnit": { "state": "translated", "value": "इसकी फ़ीड यहाँ खुलेगी।" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "تُفتح خلاصته هنا." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "O feed abre aqui." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Son fil s’ouvre ici." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Лента откроется здесь." } }
+      }
+    },
     "Choose reply target": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Choose reply target" } },

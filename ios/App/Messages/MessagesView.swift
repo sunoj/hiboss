@@ -25,7 +25,7 @@ struct MessagesView: View {
                 emptyState.listRowBackground(Theme.paper).listRowSeparator(.hidden)
             } else {
                 ForEach(MessageThreading.items(from: messages)) { item in
-                    NavigationLink(value: item.id) { row(item) }
+                    RouteLink(value: item.id) { row(item) }
                 }
             }
         }

@@ -65,7 +65,7 @@ struct ActivityView: View {
         if !matches.isEmpty {
             Section {
                 ForEach(matches) { session in
-                    NavigationLink(value: SessionRoute(id: session.id, label: session.localizedLabel)) {
+                    RouteLink(value: SessionRoute(id: session.id, label: session.localizedLabel)) {
                         SessionRow(session: session)
                     }
                     .accessibilityIdentifier("activity-session-\(session.id)")
@@ -96,7 +96,7 @@ struct ActivityView: View {
                 if !search.isEmpty {
                     Section("Messages") {
                         ForEach(matchingMessages) { message in
-                            NavigationLink(value: message.id) {
+                            RouteLink(value: message.id) {
                                 HistoryRow(message: message,
                                            answerability: store.answerability(for: message.id))
                             }

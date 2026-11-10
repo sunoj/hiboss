@@ -22,7 +22,8 @@ final class InboxStoreTests: XCTestCase {
         let window = UIWindow(windowScene: scene)
         let appeared = expectation(description: "Today appeared")
         window.rootViewController = UIHostingController(rootView:
-            HomeView(inbox: store, sessionAPI: nil, panels: panels)
+            HomeView(inbox: store, sessionAPI: nil, panels: panels, decisionID: .constant(nil),
+                     showingDecision: .constant(false), showsDecisionInline: false)
                 .onAppear { appeared.fulfill() }
         )
         window.makeKeyAndVisible()
