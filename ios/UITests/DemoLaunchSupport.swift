@@ -133,6 +133,10 @@ extension XCUIApplication {
     /// A simulator cold launch can omit its injected environment; retry only when
     /// the captured onboarding field proves that the demo never started.
     func launchConfiguredDemo() {
+        // `TEST_RUNNER_HIBOSS_UI_LANDSCAPE=1` runs a suite on a landscape device (the two-column layout).
+        if ProcessInfo.processInfo.environment["HIBOSS_UI_LANDSCAPE"] == "1" {
+            XCUIDevice.shared.orientation = .landscapeLeft
+        }
         launch()
         if textFields["server-url-field"].waitForExistence(timeout: 1) {
             XCTContext.runActivity(named: "relaunch: first launch lost its demo environment") { _ in }

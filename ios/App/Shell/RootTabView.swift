@@ -29,6 +29,11 @@ struct RootTabView: View {
     @State private var homePath = NavigationPath()
     @State private var activityPath = NavigationPath()
     @State private var activitySection = ActivitySection.sessions
+    @State private var decisionID: MessageID?
+    @State private var showingDecision = false
+    @State private var columnDecision: MessageID?
+    /// The list column's width when the window shows two columns; nil for one.
+    @State private var listWidth: CGFloat?
     @State private var panelRouteNote: String?
     @State private var showsSettings = false
 
@@ -101,6 +106,7 @@ struct RootTabView: View {
 
     var body: some View {
         routedTabs
+        .measuresListColumnWidth($listWidth)
         .onChange(of: scenePhase) { _, phase in
             // iOS drops the SSE while backgrounded; on return, reload history so
             // decisions that arrived (or resolved elsewhere) meanwhile show up.
@@ -119,34 +125,39 @@ struct RootTabView: View {
     }
 
     private var homeTabView: some View {
-        NavigationStack(path: $homePath) {
-            HomeView(
-                inbox: inbox,
-                sessionAPI: sessionStreamAPI,
-                panels: panels
-            )
-            .hbReadableWidth()
-            .safeAreaInset(edge: .bottom) {
-                if router.pendingPanel != nil {
-                    PendingStateView(title: String(localized: "Opening panel…"),
-                                     onRetry: { await openPendingPanel() })
-                        .padding(12).background(.bar)
+        TwoColumnSplit(listWidth: listWidth) {
+            NavigationStack(path: $homePath) {
+                HomeView(
+                    inbox: inbox,
+                    sessionAPI: sessionStreamAPI,
+                    panels: panels,
+                    decisionID: $decisionID,
+                    showingDecision: $showingDecision,
+                    showsDecisionInline: listWidth != nil
+                )
+                .hbReadableWidth()
+                .safeAreaInset(edge: .bottom) {
+                    if router.pendingPanel != nil {
+                        PendingStateView(title: String(localized: "Opening panel…"),
+                                         onRetry: { await openPendingPanel() })
+                            .padding(12).background(.bar)
+                    }
                 }
             }
+            .environment(\.selectedDecision, listWidth != nil ? columnDecision : nil)
+        } detail: {
+            TodayDecisionColumn(inbox: inbox, decisionID: columnDecision, sessionAPI: sessionStreamAPI,
+                                panels: panels)
         }
+        .handsOffDecision(isSplit: listWidth != nil, decisionID: $decisionID,
+                          showingDecision: $showingDecision, columnDecision: $columnDecision)
         .tabItem { Label("Today", systemImage: "house") }
         .tag(Self.homeTab)
     }
 
     private var activityTabView: some View {
-        NavigationStack(path: $activityPath) {
-            ActivityView(store: inbox, section: $activitySection, connection: connection)
-                .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-                .navigationDestination(for: SessionRoute.self) {
-                    SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox, panels: panels)
-                }
-                .navigationDestination(for: ResolvedRoute.self) { _ in ResolvedDecisionsView(store: inbox) }
-        }
+        SessionsColumns(inbox: inbox, connection: connection, panels: panels, sessionAPI: sessionStreamAPI,
+                        listWidth: listWidth, path: $activityPath, section: $activitySection)
         .tabItem { Label("Sessions", systemImage: "bubble.left.and.bubble.right") }
         .tag(Self.activityTab)
     }

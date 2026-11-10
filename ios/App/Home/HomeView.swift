@@ -13,15 +13,18 @@ struct HomeView: View {
     let panels: PanelsModel
     @Environment(\.openConnectionSettings) private var openSettings
     @Environment(\.scenePhase) private var scenePhase
+    /// The shell owns the selection, so it survives a switch between one and two columns.
+    @Binding var decisionID: MessageID?
+    @Binding var showingDecision: Bool
+    /// Two columns show the decision beside the cards instead of in a sheet.
+    let showsDecisionInline: Bool
     @State private var actionNote: String?
-    @State private var decisionID: MessageID?
-    @State private var showingDecision = false
     @State private var sessionRoute: SessionRoute?
 
     var body: some View {
         HomeContent(inbox: inbox, panels: panels, actionNote: $actionNote, decisionID: $decisionID,
                     showingDecision: $showingDecision, sessionRoute: $sessionRoute)
-            .accessibilityHidden(showingDecision)
+            .accessibilityHidden(presentsSheet.wrappedValue)
             .background(Theme.paper)
             .navigationTitle("Today")
             .toolbarTitleDisplayMode(.inlineLarge)
@@ -51,7 +54,7 @@ struct HomeView: View {
             .navigationDestination(item: $sessionRoute) {
                 SessionMessagesView(route: $0, api: sessionAPI, store: inbox, panels: panels)
             }
-            .sheet(isPresented: $showingDecision) { decisionSheet }
+            .sheet(isPresented: presentsSheet) { decisionSheet }
             .alert(
                 "Heads up",
                 isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),
@@ -61,6 +64,10 @@ struct HomeView: View {
             } message: { note in
                 Text(verbatim: note)
             }
+    }
+
+    private var presentsSheet: Binding<Bool> {
+        Binding(get: { showingDecision && !showsDecisionInline }, set: { showingDecision = $0 })
     }
 
     private var decisionSheet: some View {
