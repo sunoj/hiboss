@@ -23,7 +23,7 @@ struct MessageAttachmentView: View {
         }
         .fullScreenCover(isPresented: $viewingMedia) {
             if let url = URL(string: mediaResource), let mediaKind {
-                MediaViewer(items: [MediaItem(url: url, kind: mediaKind,
+                MediaViewer(items: [MediaItem(url: url, kind: mediaKind, previewURL: previewResource,
                                              title: info.filename)], startIndex: 0)
             }
         }
@@ -77,6 +77,10 @@ struct MessageAttachmentView: View {
         DemoMessageAttachments.mediaResource(for: attachment.url)
     }
 
+    private var previewResource: URL? {
+        attachment.thumbnailURL.flatMap { URL(string: DemoMessageAttachments.mediaResource(for: $0)) }
+    }
+
     private var thumbnail: some View {
         Rectangle().fill(Theme.surface2)
             .aspectRatio(1.5, contentMode: .fit)
@@ -89,7 +93,8 @@ struct MessageAttachmentView: View {
                 .accessibilityIdentifier("message-attachment-open")
             }
             .overlay {
-                RemoteImage(url: URL(string: mediaResource), compact: true,
+                RemoteImage(url: URL(string: DemoMessageAttachments.mediaResource(for: attachment.displayURL)),
+                            compact: true,
                             retryIdentifier: "message-attachment-retry") { image in
                     image.resizable().scaledToFit()
                         .allowsHitTesting(false)

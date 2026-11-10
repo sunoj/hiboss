@@ -8,13 +8,34 @@ public struct OptionMedia: Codable, Equatable, Identifiable, Sendable {
     public let label: String
     public let url: String
     public let caption: String?
+    /// A small display copy of the option image; absent on older messages.
+    public let thumbnailURL: String?
 
     public var id: String { label }
 
-    public init(label: String, url: String, caption: String? = nil) {
+    /// The image a tile shows: the valid display copy when present, otherwise the original.
+    public var displayURL: String {
+        thumbnailURL.flatMap(MessageAttachment.webURL)?.absoluteString ?? url
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case label, url, caption
+        case thumbnailURL = "thumbnail_url"
+    }
+
+    public init(label: String, url: String, caption: String? = nil, thumbnailURL: String? = nil) {
         self.label = label
         self.url = url
         self.caption = caption
+        self.thumbnailURL = thumbnailURL
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        label = try values.decode(String.self, forKey: .label)
+        url = try values.decode(String.self, forKey: .url)
+        caption = try values.decodeIfPresent(String.self, forKey: .caption)
+        thumbnailURL = try? values.decodeIfPresent(String.self, forKey: .thumbnailURL)
     }
 }
 
@@ -41,8 +62,12 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public let files: [String]
     /// Raw `file_url` an agent attached; `attachment` is the validated form.
     public let fileURL: String?
+    /// Raw `file_thumbnail_url`: a small display copy uploaded beside an image `file_url`.
+    public let fileThumbnailURL: String?
 
-    public var attachment: MessageAttachment? { fileURL.flatMap(MessageAttachment.init(urlString:)) }
+    public var attachment: MessageAttachment? {
+        fileURL.flatMap { MessageAttachment(urlString: $0, thumbnailURLString: fileThumbnailURL) }
+    }
 
     enum CodingKeys: String, CodingKey {
         case options
@@ -58,6 +83,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         case files
         case taskContext = "task_context"
         case fileURL = "file_url"
+        case fileThumbnailURL = "file_thumbnail_url"
     }
 
     public init(
@@ -72,6 +98,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         content: String? = nil,
         files: [String] = [],
         fileURL: String? = nil,
+        fileThumbnailURL: String? = nil,
         reactions: [MessageReaction] = []
     ) {
         self.reactions = MessageReaction.unique(reactions)
@@ -86,6 +113,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         self.content = content
         self.files = files
         self.fileURL = fileURL
+        self.fileThumbnailURL = fileThumbnailURL
     }
 
     public init(from decoder: Decoder) throws {
@@ -108,6 +136,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         let nested = try values.decodeIfPresent(TaskContext.self, forKey: .taskContext)
         files = direct.isEmpty ? (nested?.files ?? []) : direct
         fileURL = try? values.decodeIfPresent(String.self, forKey: .fileURL)
+        fileThumbnailURL = try? values.decodeIfPresent(String.self, forKey: .fileThumbnailURL)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -126,6 +155,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         try values.encodeIfPresent(content, forKey: .content)
         if !files.isEmpty { try values.encode(files, forKey: .files) }
         try values.encodeIfPresent(fileURL, forKey: .fileURL)
+        try values.encodeIfPresent(fileThumbnailURL, forKey: .fileThumbnailURL)
     }
 
     public func optionDescription(for label: String) -> String? {

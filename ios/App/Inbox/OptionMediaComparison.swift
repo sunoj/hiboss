@@ -40,7 +40,9 @@ struct OptionMediaComparison: View {
     private func open(_ tapped: OptionMedia) {
         let items = orderedMedia.compactMap { option -> MediaItem? in
             guard let url = URL(string: option.url) else { return nil }
-            return MediaItem(url: url, kind: .image, title: option.label, caption: option.caption)
+            let preview = option.displayURL == option.url ? nil : URL(string: option.displayURL)
+            return MediaItem(url: url, kind: .image, previewURL: preview, title: option.label,
+                             caption: option.caption)
         }
         guard let index = items.firstIndex(where: { $0.title == tapped.label }) else { return }
         selectedMedia = MediaSession(items: items, index: index)
@@ -107,7 +109,7 @@ private struct OptionMediaTile: View {
     }
 
     private var thumbnail: some View {
-        RemoteImage(url: URL(string: media.url), compact: true,
+        RemoteImage(url: URL(string: media.displayURL), compact: true,
                     retryIdentifier: "option-media-retry-\(media.label)") { image in
                 image.resizable().scaledToFill()
                     .allowsHitTesting(false)

@@ -110,7 +110,7 @@ struct MediaViewer: View {
     private func loadedContent(_ item: MediaItem) -> some View {
         switch item.kind {
         case .image:
-            RemoteImage(url: item.url, retryIdentifier: "media-viewer-image-retry") { image in
+            RemoteImage(url: item.url, previewURL: item.previewURL, retryIdentifier: "media-viewer-image-retry") { image in
                 image.resizable().scaledToFit()
                     .accessibilityLabel(Text(verbatim: item.title ?? String(localized: "Image")))
                     .accessibilityIdentifier("media-viewer-image")

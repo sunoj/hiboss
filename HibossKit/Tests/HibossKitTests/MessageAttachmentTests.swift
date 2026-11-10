@@ -1,4 +1,4 @@
-// Covers decoding `metadata.file_url` into a MessageAttachment.
+// Covers decoding `metadata.file_url` and `file_thumbnail_url` into a MessageAttachment.
 // The real payload shape is what `hiboss send --file` stores on the server.
 
 import XCTest
@@ -50,6 +50,43 @@ final class MessageAttachmentTests: XCTestCase {
 
     func testFileURLRoundTrips() throws {
         let decoded = try metadata(#"{"file_url":"https://example.com/a.png"}"#)
+        let again = try JSONDecoder().decode(MessageMetadata.self, from: JSONEncoder().encode(decoded))
+        XCTAssertEqual(again, decoded)
+    }
+
+    func testThumbnailIsPreferredForDisplayWhenPresent() throws {
+        let decoded = try metadata(#"""
+            {"file_url":"https://hiboss.example/api/attachments/a.png",
+             "file_thumbnail_url":"https://hiboss.example/api/attachments/a.thumb.jpg"}
+            """#)
+        let attachment = try XCTUnwrap(decoded.attachment)
+        XCTAssertEqual(attachment.url.absoluteString, "https://hiboss.example/api/attachments/a.png")
+        XCTAssertEqual(attachment.displayURL.absoluteString, "https://hiboss.example/api/attachments/a.thumb.jpg")
+        let again = try JSONDecoder().decode(MessageMetadata.self, from: JSONEncoder().encode(decoded))
+        XCTAssertEqual(again.fileThumbnailURL, decoded.fileThumbnailURL)
+    }
+
+    func testOriginalIsShownWithoutAValidThumbnail() throws {
+        let plain = try metadata(#"{"file_url":"https://example.com/a.png"}"#)
+        let absent = try XCTUnwrap(plain.attachment)
+        XCTAssertNil(absent.thumbnailURL)
+        XCTAssertEqual(absent.displayURL.absoluteString, "https://example.com/a.png")
+        let wrongType = try metadata(#"{"file_url":"https://example.com/a.png","file_thumbnail_url":7}"#)
+        XCTAssertEqual(wrongType.attachment?.displayURL.absoluteString, "https://example.com/a.png")
+        let unsafe = try metadata(#"{"file_url":"https://example.com/a.png","file_thumbnail_url":"file:///x"}"#)
+        XCTAssertNil(unsafe.attachment?.thumbnailURL)
+        let encoded = String(decoding: try JSONEncoder().encode(plain), as: UTF8.self)
+        XCTAssertFalse(encoded.contains("file_thumbnail_url"))
+    }
+
+    func testOptionMediaPrefersItsThumbnail() throws {
+        let decoded = try metadata(#"""
+            {"options":["A","B"],"option_media":[
+              {"label":"A","url":"https://example.com/a.png","thumbnail_url":"https://example.com/a.jpg"},
+              {"label":"B","url":"https://example.com/b.png"}]}
+            """#)
+        XCTAssertEqual(decoded.optionMedia.map(\.displayURL), ["https://example.com/a.jpg", "https://example.com/b.png"])
+        XCTAssertNil(decoded.optionMedia[1].thumbnailURL)
         let again = try JSONDecoder().decode(MessageMetadata.self, from: JSONEncoder().encode(decoded))
         XCTAssertEqual(again, decoded)
     }

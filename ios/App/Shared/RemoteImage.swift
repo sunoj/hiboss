@@ -1,37 +1,74 @@
-// AsyncImage presentation with stable geometry, delayed progress and explicit local retry.
+// Remote image presentation with stable geometry, delayed progress and explicit local retry.
 // Exports RemoteImage for decision images, feed images, posters and full-screen viewers.
-// Dependencies: SwiftUI, PendingStateView, DemoDelay and Theme semantic roles.
+// Dependencies: SwiftUI, HibossKit ImagePipeline, PendingStateView, DemoDelay and Theme roles.
 
+import HibossKit
 import SwiftUI
 
 struct RemoteImage<Content: View>: View {
     let url: URL?
+    /// A smaller copy shown until `url` arrives, as in the full-screen viewer.
+    var previewURL: URL? = nil
     var compact = false
     var retryIdentifier = "remote-image-retry"
     @ViewBuilder let content: (Image) -> Content
+    @Environment(\.displayScale) private var displayScale
     @State private var attempt = 0
-    @State private var released = false
+    @State private var pixels = 0
+    @State private var loaded: (url: URL, image: Image)?
+    @State private var preview: (url: URL, image: Image)?
+    @State private var failed = false
 
     var body: some View {
         Group {
             if url == nil || missingLocalFile {
                 unavailable
-            } else if released {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image): content(image)
-                    case .failure: unavailable
-                    case .empty: waiting
-                    @unknown default: unavailable
-                    }
-                }.id(attempt)
+            } else if let image = shown {
+                content(image)
+            } else if failed {
+                unavailable
             } else { waiting }
         }
-        .task(id: "\(url?.absoluteString ?? "")-\(attempt)") {
-            do { try await DemoDelay.wait("MEDIA") }
-            catch { return }
-            released = true
+        .onGeometryChange(for: Int.self) { proxy in
+            RemoteImagePixels.bucket(for: proxy.size, scale: displayScale)
+        } action: { bucket in
+            if bucket > pixels { pixels = bucket }
         }
+        .task(id: "\(url?.absoluteString ?? "")-\(attempt)-\(pixels)") { await load() }
+        .task(id: "\(previewURL?.absoluteString ?? "")-\(pixels)") { await loadPreview() }
+    }
+
+    /// The loaded image for this URL, a cached decode, or the preview while the original loads.
+    private var shown: Image? {
+        guard let url else { return nil }
+        if let loaded, loaded.url == url { return loaded.image }
+        if pixels > 0, !DemoDelay.isHeld("MEDIA"),
+           let hit = ImagePipeline.shared.cachedImage(for: url, maxPixelSize: pixels) {
+            return RemoteImagePixels.image(hit)
+        }
+        if let preview, preview.url == previewURL { return preview.image }
+        return nil
+    }
+
+    private func load() async {
+        guard let url, pixels > 0, !missingLocalFile else { return }
+        failed = false
+        do {
+            try await DemoDelay.wait("MEDIA")
+            let decoded = try await ImagePipeline.shared.image(
+                for: url, maxPixelSize: pixels, reload: attempt > 0)
+            guard !Task.isCancelled else { return }
+            loaded = (url, RemoteImagePixels.image(decoded))
+        } catch {
+            if !Task.isCancelled { failed = true }
+        }
+    }
+
+    private func loadPreview() async {
+        guard let previewURL, pixels > 0,
+              let decoded = try? await ImagePipeline.shared.image(for: previewURL, maxPixelSize: pixels),
+              !Task.isCancelled else { return }
+        preview = (previewURL, RemoteImagePixels.image(decoded))
     }
 
     private var missingLocalFile: Bool {
@@ -67,7 +104,8 @@ struct RemoteImage<Content: View>: View {
     }
 
     private func retry() {
-        released = false
+        loaded = nil
+        failed = false
         attempt += 1
     }
 }
