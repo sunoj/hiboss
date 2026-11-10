@@ -56,6 +56,22 @@ final class TwoColumnUITests: XCTestCase {
         XCTAssertTrue(card.isHittable)
     }
 
+    func testTodaySessionFeedKeepsTheTabs() {
+        launch()
+        let card = app.buttons["home-message-c5"]
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        card.tap()
+        let open = app.buttons["Open session"]
+        XCTAssertTrue(open.waitForExistence(timeout: 5))
+        open.tap()
+        XCTAssertTrue(app.buttons["Message history"].waitForExistence(timeout: 5), "the feed opens in the column")
+        shot("two-column-today-session")
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(sessionsTab.frame), "the Sessions tab lies on screen")
+        sessionsTab.tap()
+        XCTAssertTrue(element("sessions-detail-placeholder").waitForExistence(timeout: 5),
+                      "tapping Sessions switches tabs")
+    }
+
     func testSessionsShowTheSelectedFeedBesideTheList() {
         launch()
         sessionsTab.tap()

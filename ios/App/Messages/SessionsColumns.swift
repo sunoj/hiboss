@@ -32,7 +32,6 @@ struct SessionsColumns: View {
                     description: Text("Its feed opens here.")
                 ).accessibilityIdentifier("sessions-detail-placeholder"))
             }
-            .environment(\.keepsTabBar, isSplit)
         }
         .onChange(of: path.isEmpty) { _, empty in if empty { selected = nil } }
     }
@@ -58,10 +57,13 @@ struct SessionsColumns: View {
 
     /// The detail column's first screen has nothing to go back to, so it shows no back button.
     private func tracked(_ view: some View, value: some Hashable) -> some View {
-        view
-            .navigationBarBackButtonHidden(isSplit && path.count <= 1)
-            // A push hides an iPad's tab bar; beside the list that would leave no way to other tabs.
-            .toolbar(isSplit ? .visible : .automatic, for: .tabBar)
+        keepingTabs(view.navigationBarBackButtonHidden(isSplit && path.count <= 1))
             .onAppear { if path.count == 1 { selected = AnyHashable(value) } }
+    }
+
+    /// A push hides an iPad's tab bar; beside the list that would leave no way to other tabs.
+    /// One column applies nothing: even `.automatic` here overrides a feed that hides the tabs.
+    @ViewBuilder private func keepingTabs(_ view: some View) -> some View {
+        if isSplit { view.toolbar(.visible, for: .tabBar) } else { view }
     }
 }
