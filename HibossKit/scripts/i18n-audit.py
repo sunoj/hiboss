@@ -30,6 +30,8 @@ ALLOWLIST = [
     ("Domain.swift", 'return "API"', "technical acronym for the API channel"),
     ("PanelTypes.swift", 'return "', "demo fixture titles for the offline panel demo (see PanelFixtures)"),
     ("Panels/PanelDashboardContent.swift", '"TextInput", "TextArea"', "panel component type identifiers"),
+    ("Questionnaires/QuestionnaireSteps.swift", '"TextInput", "TextArea"', "panel component type identifiers"),
+    ("Questionnaires/QuestionnaireSteps.swift", '["Stack", "Grid"]', "panel component type identifiers"),
 ]
 
 # Text immediately before a literal that marks it as machine data or already localized.

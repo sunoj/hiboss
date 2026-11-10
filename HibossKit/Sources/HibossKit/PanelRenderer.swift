@@ -140,45 +140,27 @@ public struct PanelRenderer: View {
 
     private func renderSelect(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? kitL("Select")
-        let options = element.props["options"]?.array?.compactMap { option -> PanelOption? in
-                guard let object = option.object, let id = object["id"]?.string,
-                    let text = object["label"]?.string
-                else { return nil }
-            return PanelOption(id: id, label: text)
-        } ?? []
-        let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
-        return AnyView(
-            Picker(
-                label,
-                selection: Binding(
-                    get: { panelValue(at: path, in: store.state)?.string ?? "" },
-                    set: { store.setString($0, at: path) })
-            ) {
-            Text(kitL("Choose an option…")).tag("")
-            ForEach(options) { option in Text(verbatim: option.label).tag(option.id) }
-        }.accessibilityLabel(label))
+        let path = bindingPath(element)
+        let current = panelValue(at: path, in: store.state)?.string
+        return AnyView(PanelChoiceList(
+            label: element.props["label"]?.string ?? kitL("Select"), path: path,
+            hint: current == nil || current == "" ? element.props["placeholder"]?.string : nil,
+            options: panelOptions(element), style: .single,
+            isSelected: { $0 == current },
+            select: { id in if id != current { store.setString(id, at: path) } }))
     }
 
     private func renderMultiSelect(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? kitL("Select options")
         let options = panelOptions(element)
         let optionIDs = Set(options.map(\.id))
         let path = bindingPath(element)
         let selection = selectedOptionIDs(at: path, allowed: optionIDs)
-        return AnyView(VStack(alignment: .leading, spacing: 6) {
-            Text(verbatim: label).font(.headline)
-            ForEach(options) { option in
-                Toggle(option.label, isOn: Binding(
-                    get: { selection.contains(option.id) },
-                    set: { updateOption(option.id, selected: $0, at: path, allowed: optionIDs) }
-                ))
-#if os(macOS)
-                .toggleStyle(.checkbox)
-#endif
-            }
-        }.accessibilityElement(children: .contain).accessibilityLabel(label))
+        return AnyView(PanelChoiceList(
+            label: element.props["label"]?.string ?? kitL("Select options"), path: path, hint: nil,
+            options: options, style: .multiple,
+            isSelected: { selection.contains($0) },
+            select: { id in updateOption(id, selected: !selection.contains(id), at: path, allowed: optionIDs) }))
     }
 
     private func renderNumberInput(_ element: PanelElement) -> AnyView {
@@ -212,12 +194,17 @@ public struct PanelRenderer: View {
         guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? kitL("Toggle")
         let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
+        let description = element.props["description"]?.string
         return AnyView(
-            Toggle(
-                label,
-                isOn: Binding(
-                    get: { panelValue(at: path, in: store.state)?.bool ?? false },
-                    set: { store.setBool($0, at: path) })))
+            Toggle(isOn: Binding(
+                get: { panelValue(at: path, in: store.state)?.bool ?? false },
+                set: { store.setBool($0, at: path) })
+            ) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(verbatim: label)
+                    if let description { Text(verbatim: description).font(.callout).foregroundStyle(.secondary) }
+                }
+            })
     }
 
     private func renderButton(_ element: PanelElement) -> AnyView {
@@ -244,15 +231,6 @@ public struct PanelRenderer: View {
         element.props["value"]?.object?["$bindState"]?.string ?? ""
     }
 
-    private func panelOptions(_ element: PanelElement) -> [PanelOption] {
-        element.props["options"]?.array?.compactMap { option -> PanelOption? in
-            guard let object = option.object, let id = object["id"]?.string,
-                let label = object["label"]?.string
-            else { return nil }
-            return PanelOption(id: id, label: label)
-        } ?? []
-    }
-
     private func selectedOptionIDs(at path: String, allowed: Set<String>) -> Set<String> {
         Set(
             panelValue(at: path, in: store.state)?.array?.compactMap(\.string).filter { allowed.contains($0) }
@@ -264,11 +242,4 @@ public struct PanelRenderer: View {
         if selected { selectedIDs.insert(id) } else { selectedIDs.remove(id) }
         store.setStrings(selectedIDs.sorted(), at: path)
     }
-
-
-}
-
-private struct PanelOption: Identifiable {
-    let id: String
-    let label: String
 }

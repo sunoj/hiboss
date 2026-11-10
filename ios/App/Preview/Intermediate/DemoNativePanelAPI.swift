@@ -1,5 +1,6 @@
 // Server-shaped demo panel and durable questionnaire for held native loading/action states.
-// Exports DemoPanelServices and DemoNativePanelAPI, selected only by HIBOSS_DEMO_NATIVE_PANEL.
+// Exports DemoPanelServices and DemoNativePanelAPI, selected only by HIBOSS_DEMO_NATIVE_PANEL;
+// HIBOSS_DEMO_QUESTIONNAIRE_STEPS swaps in the ten-question stepped intake.
 // Dependencies: HibossKit, DemoDelay and small synthetic wire fixtures.
 
 import Foundation
@@ -63,7 +64,7 @@ actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
               ProcessInfo.processInfo.environment["HIBOSS_DEMO_REQUESTS_EMPTY"] != "1" else { return [] }
         return [try decode("""
         {"requestId":"demo-intake","panelId":"demo-panel","requestRevision":1,
-         "title":"Release checklist","blocking":true,"createdAt":"2026-10-07T00:00:00Z"}
+         "title":"\(questionnaireTitle)","blocking":true,"createdAt":"2026-10-07T00:00:00Z"}
         """)]
     }
 
@@ -76,7 +77,7 @@ actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
 
     func fetchQuestionnaire(_ id: String) async throws -> QuestionnaireRecord {
         guard
-            var object = try JSONSerialization.jsonObject(with: Data(Self.questionJSON.utf8))
+            var object = try JSONSerialization.jsonObject(with: Data(questionJSON.utf8))
                 as? [String: Any]
         else { throw HibossAPIError.invalidResponse }
         if let submission {
@@ -109,6 +110,12 @@ actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
                                                from: JSONSerialization.data(withJSONObject: object))
         return try decode(json)
     }
+
+    private var questionnaireTitle: String {
+        DemoStepQuestionnaire.isEnabled ? DemoStepQuestionnaire.title : "Release checklist"
+    }
+
+    private var questionJSON: String { DemoStepQuestionnaire.isEnabled ? DemoStepQuestionnaire.json : Self.questionJSON }
 
     private func decode<T: Decodable>(_ json: String) throws -> T {
         try JSONDecoder().decode(T.self, from: Data(json.utf8))

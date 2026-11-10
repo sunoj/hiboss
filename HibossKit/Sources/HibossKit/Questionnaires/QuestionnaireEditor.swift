@@ -10,6 +10,8 @@ struct QuestionnaireEditor: View {
     let currentTime: @MainActor () -> Date
     let changed: @MainActor () async -> Void
     @StateObject private var model: QuestionnaireModel
+    /// The visible step on iOS; owned here so ticks, refreshes and draft saves never move it.
+    @State private var stepIndex: Int?
 
     init(
         record: QuestionnaireRecord, bossID: String, answerer: BossIdentity, service: any QuestionnaireServing,
@@ -35,9 +37,7 @@ struct QuestionnaireEditor: View {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         let now = currentTime()
                         if !model.latest.isOpen(at: now) { closedStatus }
-                        QuestionnaireFields(model: model, store: model.store, webModel: webModel,
-                            enabled: model.canEdit && model.latest.isOpen(at: now))
-                        status(at: now)
+                        fields(at: now)
                     }
                 }
                 if let error = model.error {
@@ -48,6 +48,24 @@ struct QuestionnaireEditor: View {
         .onChange(of: record) { _, updated in model.update(updated) }
         .onChange(of: model.latest) { _, _ in Task { await changed() } }
         .task { await model.recover() }
+    }
+
+    @ViewBuilder private func fields(at now: Date) -> some View {
+        let enabled = model.canEdit && model.latest.isOpen(at: now)
+        #if os(iOS)
+        if let steps = model.steps {
+            QuestionnaireStepper(model: model, store: model.store, steps: steps, webModel: webModel,
+                                 enabled: enabled, index: $stepIndex) { onReview in
+                status(at: now, submit: onReview ? .review(ready: steps.allRequiredAnswered(state: model.store.state)) : .hidden)
+            }
+        } else {
+            QuestionnaireFields(model: model, store: model.store, webModel: webModel, enabled: enabled)
+            status(at: now, submit: .form)
+        }
+        #else
+        QuestionnaireFields(model: model, store: model.store, webModel: webModel, enabled: enabled)
+        status(at: now, submit: .form)
+        #endif
     }
 
     private var metadata: some View {
@@ -63,35 +81,45 @@ struct QuestionnaireEditor: View {
         }.font(.caption).foregroundStyle(.secondary)
     }
 
-    @ViewBuilder private func status(at now: Date) -> some View {
+    /// Where the editor's own Submit control goes: after the form, only on the review page, or nowhere.
+    private enum SubmitSlot { case form, hidden, review(ready: Bool) }
+
+    @ViewBuilder private func status(at now: Date, submit: SubmitSlot) -> some View {
         if model.isSending {
-            sendingState
+            sendingState(submit)
         } else if model.pendingID != nil {
             Text(kitL("Submission status is unconfirmed. Check before retrying.")).font(.callout)
             Button(kitL("Check submission")) { Task { await model.recover() } }
         } else if model.hasNewRevision && model.latest.isOpen(at: now) {
             Text(kitL("This questionnaire changed. Your previous draft is preserved.")).font(.callout)
-            Button(kitL("Start revised questionnaire")) { model.restart() }
+            Button(kitL("Start revised questionnaire")) {
+                model.restart()
+                stepIndex = model.steps?.initialIndex(state: model.store.state)
+            }
         } else if model.latest.isOpen(at: now), let reason = model.access.readOnlyReason {
             Label(reason, systemImage: "eye").font(.callout).foregroundStyle(.secondary)
         } else if model.latest.isOpen(at: now) {
-            if !model.editing.definition.formSpec.elements.values.contains(where: {
-                $0.on?["press"]?.action == "submitRequest"
-            }) {
-                Button(kitL("Submit answers")) { Task { await model.submit() } }
-                    #if os(iOS)
-                    .modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground)))
-                    #else
-                    .buttonStyle(.borderedProminent)
-                    #endif
-                    .disabled(!model.canEdit)
+            switch submit {
+            case .form where !hasSubmitControl: submitButton(ready: true)
+            case let .review(ready): submitButton(ready: ready)
+            default: EmptyView()
             }
         }
     }
 
-    @ViewBuilder private var sendingState: some View {
+    private func submitButton(ready: Bool) -> some View {
+        Button(kitL("Submit answers")) { Task { await model.submit() } }
             #if os(iOS)
-            if !hasSubmitControl || model.isRecovering {
+            .modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground)))
+            #else
+            .buttonStyle(.borderedProminent)
+            #endif
+            .disabled(!model.canEdit || !ready)
+    }
+
+    @ViewBuilder private func sendingState(_ submit: SubmitSlot) -> some View {
+            #if os(iOS)
+            if submitShowsProgress(submit) || model.isRecovering {
                 Button {} label: {
                     HStack {
                         Text(model.isRecovering ? kitL("Checking saved answer…") : kitL("Submit answers"))
@@ -107,8 +135,17 @@ struct QuestionnaireEditor: View {
                 retry: { await changed() }
             )
             #else
+            let _ = submit
             ProgressView(model.isRecovering ? kitL("Checking saved answer…") : kitL("Submitting answers…"))
             #endif
+    }
+
+    private func submitShowsProgress(_ submit: SubmitSlot) -> Bool {
+        switch submit {
+        case .form: return !hasSubmitControl
+        case .review: return true
+        case .hidden: return false
+        }
     }
 
     private var hasSubmitControl: Bool {
@@ -125,14 +162,21 @@ struct QuestionnaireEditor: View {
     }
 }
 
-private struct QuestionnaireFields: View {
+struct QuestionnaireFields: View {
     @ObservedObject var model: QuestionnaireModel
     @ObservedObject var store: PanelStore
     let webModel: PanelWebModel
     let enabled: Bool
+    var spec: PanelSpec?
+    var elementIDs: [String]?
 
     var body: some View {
-        PanelRenderer(spec: model.formSpec, store: store, webModel: webModel)
+        let spec = spec ?? model.formSpec
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(elementIDs ?? [spec.root], id: \.self) { id in
+                PanelRenderer(spec: spec, store: store, webModel: webModel, elementID: id)
+            }
+        }
             #if os(iOS)
             .environment(\.nativeSubmissionPending, model.isSending)
             #endif

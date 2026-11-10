@@ -153,3 +153,18 @@ A client saves the submission ID before sending. After an ambiguous failure it l
 the draft and offers a receipt check; if no receipt exists it refreshes the request and
 requires another explicit submission. It never resends automatically, and it keeps the
 submission ID until the accepted answer has been read back.
+
+Both clients render `Select` and `MultiSelect` as inline rows: the input's `label` is the
+question, each option's `label` is a short choice, and its optional `description` (the
+trade-off) appears beneath it. Put the explanation in `description`, not in parentheses
+inside the option label. `Toggle` shows its `description`, and a `Select` with no answer
+shows its `placeholder` as a hint.
+
+On iOS a long form is paged on the client; the definition and answers are unchanged. Each
+child of a root `Stack` or `Grid` that is or contains an input becomes a step, so wrap related
+inputs in a `Section` to keep them on one page. Display-only children before the first step
+are the intro on step 1; later ones join the following step, and trailing ones join the last.
+`submitRequest` buttons are left out: a final review page lists every answer, jumps back to a
+step when tapped, and owns Submit. Next waits for the step's `answerSchema.required` fields;
+optional ones may be skipped. A form with fewer than three steps, or a root that is not a
+`Stack`/`Grid`, stays on one page. macOS always shows one page.
