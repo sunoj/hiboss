@@ -40,6 +40,22 @@ final class ProjectIdentityUITests: XCTestCase {
         shot(app, "zh-large-peers")
     }
 
+    /// The peers card ends the session header; the conversation starts a section gap below it.
+    func testSessionHeaderLeavesASectionGapBeforeTheConversation() {
+        let app = XCUIApplication()
+        app.configureDemoLaunch(["HIBOSS_DEMO_PEERS": "1", "HIBOSS_DEMO_SESSION": "1"])
+        app.launchArguments += ["-AppleLanguages", "(en)"]
+        app.launchConfiguredDemo()
+        let peers = app.staticTexts["project-peers"]
+        let conversation = app.staticTexts["Conversation"]
+        for _ in 0..<8 where !peers.exists || !peers.isHittable { app.swipeDown() }
+        XCTAssertTrue(peers.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(conversation.exists)
+        // The label sits in a card with 16 pt padding; a 20 pt gap separates the card from the heading.
+        let gap = conversation.frame.minY - peers.frame.maxY
+        XCTAssertGreaterThanOrEqual(gap, 16 + 20 - 1, "the Conversation heading must not touch the card")
+    }
+
     private func verifySessionTitle(_ app: XCUIApplication, label: String) {
         let title = app.navigationBars[label].staticTexts[label]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
