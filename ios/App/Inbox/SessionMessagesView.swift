@@ -23,6 +23,7 @@ struct SessionMessagesView: View {
     @State private var notesError: String?
     @State private var jumpToLatestRequest = 0
     @State private var sentNoteID: String?
+    @State private var drawsRail = false
 
     init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore,
          panels: PanelsModel? = nil) {
@@ -36,13 +37,12 @@ struct SessionMessagesView: View {
     private var connectedTranscript: some View {
         VStack(spacing: 0) {
             content
-            if !stream.isFollowingLive, !stream.usesHistory {
-                jumpToLiveButton
-            }
+            if showsJumpToLive, !drawsRail { jumpToLiveButton }
         }
         .safeAreaInset(edge: .bottom) {
             SessionReplyComposer(targets: SessionReplyTarget.eligible(events: transcriptEvents, store: store),
                                  store: store, sessionID: route.id, canCreateNotes: canCreateNotes,
+                                 drawsRail: drawsRail,
                                  onNoteSent: { note in
                                      notes.removeAll { $0.id == note.id }
                                      notes.append(note)
@@ -51,6 +51,7 @@ struct SessionMessagesView: View {
                                  })
         }
         .hbReadableWidth()
+        .measuresSideRail($drawsRail)
         .navigationTitle(Text(verbatim: facts.session?.namedLabel ?? route.label))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(showsHistory || keepsTabBar ? .visible : .hidden, for: .tabBar)
@@ -109,7 +110,12 @@ struct SessionMessagesView: View {
         if !stream.usesHistory, stream.connectionState != .connected {
             ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: stream.connectionState) }
         }
+        if showsJumpToLive, drawsRail {
+            ToolbarItem(placement: .topBarTrailing) { jumpToLiveButton }
+        }
     }
+
+    private var showsJumpToLive: Bool { !stream.isFollowingLive && !stream.usesHistory }
 
     private func refreshNotes() async {
         guard let api = store.api as? any SessionNotesServing else { return }
@@ -268,23 +274,10 @@ struct SessionMessagesView: View {
     }
 
     private var jumpToLiveButton: some View {
-        Button {
+        JumpToLiveButton(pending: stream.pendingWhileLocked, onRail: drawsRail) {
             stream.jumpToLive()
             jumpToLatestRequest += 1
-        } label: {
-            Label(
-                stream.pendingWhileLocked > 0
-                    ? String(localized: "Jump to live (\(stream.pendingWhileLocked))")
-                    : String(localized: "Jump to live"),
-                systemImage: "arrow.up.to.line"
-            )
-            .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, Space.m)
-            .padding(.vertical, Space.xs)
         }
-        .prominentAction()
-        .padding(.bottom, Space.s)
-        .accessibilityIdentifier("jump-to-live")
     }
 
     private func scrollToLive(_ proxy: ScrollViewProxy) {
