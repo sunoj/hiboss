@@ -37,6 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_agent_expires;
 
 -- Timestamp range reads and automatic timestamps for message updates.
 CREATE INDEX idx_messages_agent_updated;
+CREATE INDEX idx_messages_target_updated;
 CREATE TRIGGER messages_updated_at BEGIN SELECT 1; END;
 
 -- Deferred channel deliveries blocked by boss quiet hours

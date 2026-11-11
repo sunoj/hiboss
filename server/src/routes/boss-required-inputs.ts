@@ -1,5 +1,5 @@
 // Complete, scoped pending-input discovery for the iOS Home surface.
-// Exports fetchRequiredInputPage; depends on D1 rows and message mapping.
+// Exports the paged full scan and the incremental stream refresh; depends on D1 rows and message mapping.
 // Keeps a stable created_at/id keyset across pages.
 
 import type { Env, MessageResponse, MessageRow } from '../types';
@@ -7,6 +7,17 @@ import { DECISION_MESSAGE_SQL, OPEN_DECISION_SQL } from '../decision-answerabili
 import { mapMessageRow } from './message-helpers';
 
 const PAGE_SIZE = 100;
+
+const REQUIRED_INPUT_SELECT = `SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label,
+            sessions.branch AS session_branch, sessions.status AS session_status
+     FROM messages
+     LEFT JOIN api_keys ON api_keys.id = messages.agent_id
+     LEFT JOIN sessions ON sessions.id = messages.session_id`;
+
+/** Pending-input predicate; binds one `now` for the deadline. Time alone can make it false. */
+const PENDING_SQL = `(${DECISION_MESSAGE_SQL})
+       AND (${OPEN_DECISION_SQL})
+       AND NOT (messages.expires_at IS NULL AND julianday(messages.created_at) < julianday('now') - 1)`;
 
 export interface RequiredInputPage {
   messages: MessageResponse[];
@@ -36,15 +47,9 @@ export async function fetchRequiredInputPage(
   const binds: (string | number)[] = [...agentIds, now];
   if (cursor) binds.push(cursor.createdAt, cursor.createdAt, cursor.id);
   const rows = await env.DB.prepare(
-    `SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label,
-            sessions.branch AS session_branch, sessions.status AS session_status
-     FROM messages
-     LEFT JOIN api_keys ON api_keys.id = messages.agent_id
-     LEFT JOIN sessions ON sessions.id = messages.session_id
+    `${REQUIRED_INPUT_SELECT}
      WHERE messages.agent_id IN (${placeholders})
-       AND (${DECISION_MESSAGE_SQL})
-       AND (${OPEN_DECISION_SQL})
-       AND NOT (messages.expires_at IS NULL AND julianday(messages.created_at) < julianday('now') - 1)
+       AND ${PENDING_SQL}
        ${keyset}
      ORDER BY messages.created_at DESC, messages.id DESC LIMIT ?`,
   ).bind(...binds, PAGE_SIZE + 1).all<MessageRow>();
@@ -69,4 +74,27 @@ export async function fetchAllRequiredInputs(env: Env, agentIds: string[]): Prom
     cursor = decodeRequiredInputCursor(page.next_cursor ?? undefined);
   } while (cursor);
   return messages;
+}
+
+/**
+ * The pending inputs among rows updated at or after `since` (UTC `YYYY-MM-DD HH:MM:SS`) and the
+ * tracked ids. Every way into the pending set updates the row, so after a full scan this returns
+ * the complete current set while visiting only changed and tracked rows; a tracked id that is
+ * absent has resolved, including by time alone (deadline passed, or the one-day abandonment).
+ */
+export async function fetchRequiredInputChanges(
+  env: Env, agentIds: string[], trackedIds: string[], since: string,
+): Promise<MessageResponse[]> {
+  if (agentIds.length === 0) return [];
+  const placeholders = agentIds.map(() => '?').join(', ');
+  const rows = await env.DB.prepare(
+    `${REQUIRED_INPUT_SELECT}
+     WHERE messages.rowid IN (
+         SELECT rowid FROM messages WHERE agent_id IN (${placeholders}) AND updated_at >= ?
+         UNION ALL SELECT rowid FROM messages WHERE id IN (SELECT value FROM json_each(?)))
+       AND ${PENDING_SQL}
+     ORDER BY messages.created_at DESC, messages.id DESC`,
+  ).bind(...agentIds, since, JSON.stringify(trackedIds), new Date().toISOString()).all<MessageRow>();
+  if (!rows.success || !rows.results) throw new Error('incomplete pending-input query');
+  return rows.results.map(mapMessageRow);
 }

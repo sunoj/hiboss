@@ -24,6 +24,7 @@ import agentKeyMinterMigration from '../migrations/0064_agent_key_minter.sql?raw
 import sessionIdentityMigration from '../migrations/0048_session_identity.sql?raw';
 import sessionNicknameMigration from '../migrations/0053_session_nickname.sql?raw';
 import messageUpdatesMigration from '../migrations/0054_message_updates.sql?raw';
+import pollReadsMigration from '../migrations/0068_poll_read_indexes.sql?raw';
 import agentSigningMigration from '../migrations/0055_agent_signing_keys.sql?raw';
 import signinMigration from '../migrations/0049_signin_requests.sql?raw';
 import projectsMigration from '../migrations/0043_projects.sql?raw';
@@ -135,6 +136,7 @@ export async function seedDatabase(): Promise<void> {
   for (const sql of messageUpdatesMigration.trim().split(/(?<=END;)\s*/)) {
     await env.DB.prepare(sql).run();
   }
+  await env.DB.prepare(pollReadsMigration.replace(/^--.*$/gm, '').trim()).run();
   const signingStatements = agentSigningMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
   await env.DB.batch(signingStatements.map(sql => env.DB.prepare(sql)));
   await env.DB.prepare(bootstrapAdminMigration).run();
