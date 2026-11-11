@@ -11,7 +11,9 @@ export async function repairPanelRooms(env: Env): Promise<void> {
   const namespace = env.PANEL_ROOM;
   let cursor = '';
   while (true) {
-    const page = await env.DB.prepare('SELECT DISTINCT target_boss_id FROM panels WHERE target_boss_id > ? ORDER BY target_boss_id LIMIT ?')
+    // Walks bosses with one index probe each; a DISTINCT over panels visits every panel row.
+    const page = await env.DB.prepare(`SELECT id AS target_boss_id FROM bosses WHERE id > ?
+        AND EXISTS (SELECT 1 FROM panels WHERE panels.target_boss_id = bosses.id) ORDER BY id LIMIT ?`)
       .bind(cursor, PAGE_SIZE).all<{ target_boss_id: string }>();
     const rows = page.results;
     for (let offset = 0; offset < rows.length; offset += PARALLEL_ROOMS) {

@@ -10,6 +10,7 @@ import { mapMessageRow } from './message-helpers';
 import { streamBossOptions } from './boss-option-stream';
 import { streamBossFeed } from './boss-feed-stream';
 import { streamBossRequiredInputs } from './boss-required-input-stream';
+import { DEFAULT_BOSS_STREAM_POLL_INTERVAL_MS, getStreamPollIntervalMs } from './stream-config';
 const routes = new Hono<{ Bindings: Env }>();
 
 /** GET /api/boss/stream — SSE stream of new agent messages for the boss */
@@ -38,7 +39,6 @@ routes.get('/stream', async (c) => {
   });
 });
 
-const BOSS_POLL_MS = 3000;
 const BOSS_KEEPALIVE_MS = 15000;
 const BOSS_MAX_DURATION_MS = 5 * 60 * 1000;
 
@@ -50,6 +50,7 @@ async function bossStreamLoop(
   let lastCheck = new Date().toISOString().replace('T', ' ').slice(0, 19);
   let lastKeepalive = Date.now();
   const seenIds = new Set<string>();
+  const pollMs = getStreamPollIntervalMs(env, DEFAULT_BOSS_STREAM_POLL_INTERVAL_MS);
   const placeholders = agentIds.map(() => '?').join(', ');
   const sql = `SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE agent_id IN (${placeholders}) AND direction = 'agent_to_boss' AND status = 'sent' AND messages.created_at >= ? ORDER BY messages.created_at ASC`;
 
@@ -68,7 +69,7 @@ async function bossStreamLoop(
         await writer.write(encoder.encode(': keepalive\n\n'));
         lastKeepalive = Date.now();
       }
-      await new Promise((r) => setTimeout(r, BOSS_POLL_MS));
+      await new Promise((r) => setTimeout(r, pollMs));
     }
   } catch { /* client disconnected */ } finally {
     try { await writer.close(); } catch { /* already closed */ }

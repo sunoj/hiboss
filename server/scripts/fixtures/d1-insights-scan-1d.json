@@ -1,0 +1,62 @@
+[
+ {
+  "query": "SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label,\n            sessions.branch AS session_branch, sessions.status AS session_status\n     FROM messages\n     LEFT JOIN api_keys ON api_keys.id = messages.agent_id\n     LEFT JOIN sessions ON sessions.id = messages.session_id\n     WHERE messages.agent_id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n       AND (messages.direction = 'agent_to_boss'\n  AND (CASE WHEN json_valid(messages.metadata)\n       THEN json_array_length(messages.metadata, '$.options') > 0\n       ELSE 0 END\n       OR messages.mode = 'blocking'))\n       AND (messages.status IN ('sent', 'delivered', 'read')\n  AND (messages.expires_at IS NULL OR messages.expires_at > ?)\n  AND (CASE WHEN json_valid(messages.metadata)\n       THEN json_extract(messages.metadata, '$.options_expired') IS NOT 1\n       ELSE 1 END))\n       AND NOT (messages.expires_at IS NULL AND julianday(messages.created_at) < julianday('now') - 1)\n       \n     ORDER BY messages.created_at DESC, messages.id DESC LIMIT ?",
+  "avgRowsRead": 13553,
+  "totalRowsRead": 803030013,
+  "numberOfTimesRun": 59248
+ },
+ {
+  "query": "SELECT messages.*, api_keys.name AS agent_name\n     FROM messages\n     LEFT JOIN api_keys ON api_keys.id = messages.agent_id\n     WHERE (messages.agent_id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) OR messages.target_agent_id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?))\n       AND messages.updated_at >= ?\n     ORDER BY messages.updated_at ASC, messages.id ASC",
+  "avgRowsRead": 8695,
+  "totalRowsRead": 451309153,
+  "numberOfTimesRun": 51901
+ },
+ {
+  "query": "SELECT s.* FROM sessions s WHERE s.agent_id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)  ORDER BY s.last_seen_at DESC",
+  "avgRowsRead": 11796,
+  "totalRowsRead": 15913570,
+  "numberOfTimesRun": 1349
+ },
+ {
+  "query": "SELECT COUNT(*) AS total FROM messages WHERE agent_id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "avgRowsRead": 32823,
+  "totalRowsRead": 10208152,
+  "numberOfTimesRun": 311
+ },
+ {
+  "query": "SELECT a.id, a.name, a.role, a.avatar_url, a.last_used_at, a.created_at,\n      (SELECT json_group_array(slug) FROM (SELECT DISTINCT p.slug FROM sessions s\n        JOIN projects p ON p.id = s.project_id WHERE s.agent_id = a.id ORDER BY p.slug)) AS project_slugs\n      FROM api_keys a WHERE a.id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "avgRowsRead": 17647,
+  "totalRowsRead": 7429409,
+  "numberOfTimesRun": 421
+ },
+ {
+  "query": "SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE 1 = 1 ORDER BY p.created_at DESC, p.panel_id DESC LIMIT ?",
+  "avgRowsRead": 420,
+  "totalRowsRead": 6896536,
+  "numberOfTimesRun": 16396
+ },
+ {
+  "query": "SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE 1 = 1 AND (p.created_at < ? OR (p.created_at = ? AND p.panel_id < ?)) ORDER BY p.created_at DESC, p.panel_id DESC LIMIT ?",
+  "avgRowsRead": 200,
+  "totalRowsRead": 5921330,
+  "numberOfTimesRun": 29542
+ },
+ {
+  "query": "SELECT * FROM messages WHERE expires_at IS NOT NULL AND expires_at < ?\n       AND status IN ('sent', 'delivered', 'read')\n       AND (json_extract(metadata, '$.options') IS NOT NULL OR mode = 'blocking')\n       ORDER BY expires_at ASC, id ASC LIMIT ?",
+  "avgRowsRead": 6063,
+  "totalRowsRead": 2686320,
+  "numberOfTimesRun": 443
+ },
+ {
+  "query": "SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label, sessions.branch AS session_branch\n     FROM messages\n     LEFT JOIN api_keys ON api_keys.id = messages.agent_id\n     LEFT JOIN sessions ON sessions.id = messages.session_id\n     WHERE messages.agent_id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n       AND messages.direction = 'agent_to_boss'\n       AND messages.status IN ('sent', 'delivered', 'read')\n       AND json_extract(messages.metadata, '$.options') IS NOT NULL\n       AND messages.expires_at > ?\n     ORDER BY messages.created_at ASC",
+  "avgRowsRead": 39,
+  "totalRowsRead": 2337953,
+  "numberOfTimesRun": 59810
+ },
+ {
+  "query": "SELECT r.request_id, r.panel_id, r.revision, r.blocking, r.expires_at, r.created_at,\n      json_extract(d.definition_json, '$.title') AS title\n    FROM interaction_requests r JOIN panels p ON p.panel_id = r.panel_id\n    JOIN interaction_revisions d ON d.request_id = r.request_id AND d.revision = r.revision\n    WHERE EXISTS (SELECT 1 FROM bosses b WHERE b.id = p.target_boss_id AND b.archived_at IS NULL AND\n    (b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access ba\n      WHERE ba.boss_id = b.id AND ba.agent_id = p.agent_id))) AND p.target_boss_id = ? AND r.state = 'open' AND (r.expires_at IS NULL OR r.expires_at > ?)\n      AND json_extract(p.lifecycle_json, '$.taskState') IN ('running', 'paused') \n    ORDER BY r.created_at, r.request_id LIMIT ?",
+  "avgRowsRead": 131,
+  "totalRowsRead": 2061358,
+  "numberOfTimesRun": 15710
+ }
+]

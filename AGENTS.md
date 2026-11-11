@@ -20,3 +20,9 @@ Before running macOS tests, read "macOS verification tiers" in `CLAUDE.md`. Run
 `macos/scripts/verify-tier.sh` to get the tier and the exact filtered command. Window tests
 open real windows on the desktop of the Mac that runs them, so never run the full `HibossIslandTests`
 outside M5, and keep to the per-task run limits.
+
+# Server D1 reads
+
+A new server poll loop, Durable Object alarm, cron step or hot polled endpoint, or a changed query
+inside one, is registered in `server/src/read-budget/` (`repeat-sites.ts` and `read-paths.ts`).
+See `docs/reference/d1-read-budget.md`.

@@ -38,6 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_agent_expires;
 -- Timestamp range reads and automatic timestamps for message updates.
 CREATE INDEX idx_messages_agent_updated;
 CREATE INDEX idx_messages_target_updated;
+CREATE INDEX idx_messages_open_expires;
 CREATE TRIGGER messages_updated_at BEGIN SELECT 1; END;
 
 -- Deferred channel deliveries blocked by boss quiet hours
@@ -172,6 +173,7 @@ CREATE TABLE panels;
 
 CREATE INDEX idx_panels_agent_created;
 CREATE INDEX idx_panels_boss_created;
+CREATE INDEX idx_panels_created;
 
 -- Immutable panel definition revisions and initial state
 CREATE TABLE panel_definitions;
@@ -190,6 +192,7 @@ CREATE TABLE panel_outbox;
 -- Durable questionnaire heads and submission state
 CREATE TABLE interaction_requests;
 CREATE INDEX idx_interaction_panel;
+CREATE INDEX idx_interaction_open;
 
 -- Immutable questionnaire definitions by revision
 CREATE TABLE interaction_revisions;

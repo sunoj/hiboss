@@ -6,8 +6,8 @@ import type { Channel, Env, MessageRow, ResolutionSource, Status } from '../type
 import { mapMessageRow } from './message-helpers';
 import { readAnsweredBy, type AnsweredBy } from '../answered-by';
 import { parseStoredJSON as safeParse } from '../stored-json';
+import { DEFAULT_BOSS_STREAM_POLL_INTERVAL_MS, getStreamPollIntervalMs } from './stream-config';
 
-const POLL_INTERVAL_MS = 3_000;
 const KEEPALIVE_INTERVAL_MS = 15_000;
 const MAX_DURATION_MS = 5 * 60 * 1_000;
 // On connect, replay resolutions from this window so a client that reconnected
@@ -41,6 +41,7 @@ export async function streamBossOptions(
   const startedAt = Date.now();
   let lastKeepalive = Date.now();
   const trackedOptions = new Map<string, TrackedOption>();
+  const pollMs = getStreamPollIntervalMs(env, DEFAULT_BOSS_STREAM_POLL_INTERVAL_MS);
 
   try {
     await replayRecentResolutions(writer, encoder, env, agentIds, new Date().toISOString());
@@ -53,7 +54,7 @@ export async function streamBossOptions(
         await writer.write(encoder.encode(': keepalive\n\n'));
         lastKeepalive = Date.now();
       }
-      await delay(POLL_INTERVAL_MS);
+      await delay(pollMs);
     }
   } catch {
     // The client disconnected; no shared delivery state needs cleanup.

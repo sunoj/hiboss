@@ -180,6 +180,12 @@ and [business logic](docs/business-logic.md) for each domain's entities, states 
 - TypeScript strict mode, ESM modules (type: "module")
 - Hono framework, use `c.json()` for responses
 - No `any` types at module boundaries
+- Every repeated D1 read path (a timed loop such as an SSE or long-poll stream, a Durable Object
+  alarm, a cron step, a hot client-polled endpoint) is registered in the read-budget gate
+  (`server/src/read-budget/`, [D1 read budget](docs/reference/d1-read-budget.md)). A new poll loop,
+  or a changed query inside one, updates `repeat-sites.ts` and `read-paths.ts` in the same change.
+  `scripts/poll-loops.check.ts` fails on an unregistered loop. `read-budget.test.ts` fails when a
+  path exceeds its budget or reads more when the history doubles
 
 ### CLI (Rust)
 - clap derive API for argument parsing

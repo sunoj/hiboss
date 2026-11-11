@@ -36,7 +36,8 @@ interface QueuedMessageRow extends MessageRow {
   avatar_url: string | null;
 }
 
-export async function handleScheduled(env: Env): Promise<void> {
+/** One cron run; `minute` (UTC) selects the hourly steps, which run in the first five minutes. */
+export async function handleScheduled(env: Env, minute = new Date().getUTCMinutes()): Promise<void> {
   const now = new Date().toISOString();
   await cleanupPairingCodes(env, now);
   // Resolutions go out last and capped, so their pushes never spend the transitions' budget.
@@ -45,7 +46,7 @@ export async function handleScheduled(env: Env): Promise<void> {
     await expireDueOptions(env, now, resolutions.announce);
     // Hourly is enough for a one-day rule (pending inputs already exclude stale asks), and
     // the sweep query scans messages; isolate it so a failure never blocks delivery.
-    if (new Date().getUTCMinutes() < 5) {
+    if (minute < 5) {
       try {
         await expireStaleAsks(env, resolutions.announce);
       } catch {
