@@ -63,7 +63,10 @@ final class MediaViewerUITests: XCTestCase {
             XCTAssertTrue(app.staticTexts["House update"].firstMatch.waitForExistence(timeout: 10)
                           || app.staticTexts["message-question"].waitForExistence(timeout: 10))
             if route["HIBOSS_DEMO_SESSION"] != nil { expandThreadDetails(until: image) }
-            for _ in 0..<8 where !image.isHittable { app.swipeUp() }
+            // isHittable ignores the session composer overlay, so also scroll the image clear of it.
+            let composer = app.buttons["session-composer-mode"]
+            for _ in 0..<8 where !image.isHittable
+                || (composer.exists && image.frame.midY > composer.frame.minY) { app.swipeUp() }
             XCTAssertTrue(image.exists)
             image.tap()
             XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
