@@ -226,12 +226,14 @@ struct SessionMessagesView: View {
             RetryButton { await facts.load(id: route.id, api: store.api as? any SessionsServing) }
         }
         if let current = facts.session, !stream.usesHistory {
-            SessionFactsHeader(session: current)
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                ProjectPeersView(peers: RecentProjectPeers.all(
-                    current: current, sessions: facts.sessions, messages: store.history,
-                    now: context.date))
+            VStack(alignment: .leading, spacing: Space.xs) {
+                SessionFactsHeader(session: current)
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    ProjectPeersView(peers: RecentProjectPeers.all(current: current, sessions: facts.sessions,
+                                                                   messages: store.history, now: context.date))
+                }
             }
+            .padding(.bottom, Space.l) // the gap between cards, so the conversation reads as its own section
         }
     }
 
