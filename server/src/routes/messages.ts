@@ -25,6 +25,7 @@ import {
 import { messageReplyRouter } from './message-reply';
 import { messageSendRouter } from './message-send';
 import { reactionsRouter } from './reactions';
+import { getStreamPollIntervalMs } from './stream-config';
 export { insertMessageWithRecovery } from './message-send';
 
 const MAX_LIMIT = 100;
@@ -201,7 +202,7 @@ routes.post('/:id/poll', async (c) => {
       }
       return c.json(finalCheck ?? { ...mapMessageRow(message), replies: [] });
     }
-    await delay(Math.min(WAIT_INTERVAL_MS, deadline - Date.now()));
+    await delay(Math.min(getStreamPollIntervalMs(c.env, WAIT_INTERVAL_MS), deadline - Date.now()));
   }
 });
 
