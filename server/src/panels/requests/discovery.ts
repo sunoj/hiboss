@@ -36,9 +36,11 @@ export async function pendingRequests(db: D1Database, identity: string, role: 'p
   const binds: Array<string | number> = [identity, new Date().toISOString()];
   if (cursor) binds.push(cursor.createdAt, cursor.createdAt, cursor.requestId);
   binds.push(limit + 1);
+  // CROSS JOIN keeps open requests (idx_interaction_open) as the outer loop; driving from the
+  // boss's panels would visit every historical panel and request.
   const result = await db.prepare(`SELECT r.request_id, r.panel_id, r.revision, r.blocking, r.expires_at, r.created_at,
       json_extract(d.definition_json, '$.title') AS title
-    FROM interaction_requests r JOIN panels p ON p.panel_id = r.panel_id
+    FROM interaction_requests r CROSS JOIN panels p ON p.panel_id = r.panel_id
     JOIN interaction_revisions d ON d.request_id = r.request_id AND d.revision = r.revision
     WHERE ${panelTargetAccessSql('p')} AND ${scope} AND r.state = 'open' AND (r.expires_at IS NULL OR r.expires_at > ?)
       AND json_extract(p.lifecycle_json, '$.taskState') IN ('running', 'paused') ${after}

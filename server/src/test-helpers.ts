@@ -25,6 +25,7 @@ import sessionIdentityMigration from '../migrations/0048_session_identity.sql?ra
 import sessionNicknameMigration from '../migrations/0053_session_nickname.sql?raw';
 import messageUpdatesMigration from '../migrations/0054_message_updates.sql?raw';
 import pollReadsMigration from '../migrations/0068_poll_read_indexes.sql?raw';
+import readBudgetMigration from '../migrations/0069_read_budget_indexes.sql?raw';
 import agentSigningMigration from '../migrations/0055_agent_signing_keys.sql?raw';
 import signinMigration from '../migrations/0049_signin_requests.sql?raw';
 import projectsMigration from '../migrations/0043_projects.sql?raw';
@@ -151,6 +152,8 @@ export async function seedDatabase(): Promise<void> {
   const noteStatements = `${notesMigration}\n${noteImagesMigration}\n${noteRepliesMigration}`.replace(/^--.*$/gm, '').split(';')
     .map(value => value.trim()).filter(Boolean);
   await env.DB.batch(noteStatements.map(sql => env.DB.prepare(sql)));
+  const readBudgetStatements = readBudgetMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
+  await env.DB.batch(readBudgetStatements.map(sql => env.DB.prepare(sql)));
   const keyHash = await hashApiKey(TEST_API_KEY);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind('test-agent-id', 'test-agent', keyHash)

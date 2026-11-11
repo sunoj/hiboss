@@ -44,11 +44,18 @@ export async function fetchRequiredInputPage(
   if (agentIds.length === 0) return { messages: [], next_cursor: null };
   const placeholders = agentIds.map(() => '?').join(', ');
   const keyset = cursor ? 'AND (messages.created_at < ? OR (messages.created_at = ? AND messages.id < ?))' : '';
-  const binds: (string | number)[] = [...agentIds, now];
+  // Pending rows have a future deadline or none and are under a day old; each branch seeks an
+  // index (agent_id, expires_at) / (agent_id, created_at). The date-prefix bound is two days back,
+  // so it holds for both stored timestamp formats and for clock skew between Worker and D1.
+  const recent = new Date(Date.parse(now) - 2 * 86_400_000).toISOString().slice(0, 10);
+  const binds: (string | number)[] = [...agentIds, now, ...agentIds, recent, now];
   if (cursor) binds.push(cursor.createdAt, cursor.createdAt, cursor.id);
   const rows = await env.DB.prepare(
     `${REQUIRED_INPUT_SELECT}
-     WHERE messages.agent_id IN (${placeholders})
+     WHERE messages.rowid IN (
+         SELECT rowid FROM messages WHERE agent_id IN (${placeholders}) AND expires_at > ?
+         UNION ALL
+         SELECT rowid FROM messages WHERE agent_id IN (${placeholders}) AND expires_at IS NULL AND created_at >= ?)
        AND ${PENDING_SQL}
        ${keyset}
      ORDER BY messages.created_at DESC, messages.id DESC LIMIT ?`,
