@@ -11,13 +11,15 @@ final class DuoRailActionsUITests: XCTestCase {
 
     override func setUpWithError() throws { continueAfterFailure = false }
 
-    /// The boss's layout: a note being written, scrolled up so "Jump to live" applies.
+    /// The boss's layout: a note being written, scrolled up so "Jump to live" applies. It captures
+    /// on any device (the comparison shots) and measures only on the Duo.
     func testScrolledUpTranscriptKeepsMostOfTheHeight() throws {
-        let app = try launch(["HIBOSS_DEMO_SESSION": "1"])
+        let app = launchDemo(["HIBOSS_DEMO_SESSION": "1"])
         chooseNoteMode(app)
         app.swipeDown()
         XCTAssertTrue(app.buttons["jump-to-live"].waitForExistence(timeout: 5))
         captureDemoScreenshot(app, name: "duo-rail-scrolled-up", test: self)
+        try XCTSkipUnless(app.frame.size == Self.foldedDuo, "needs the folded Duo's side rail")
         let composer = app.descendants(matching: .any)["session-reply-composer"].frame
         let transcript = visibleTranscript(app, composer: composer)
         let report = "transcript \(transcript.height) pt, composer \(composer.height) pt, "
@@ -73,12 +75,17 @@ final class DuoRailActionsUITests: XCTestCase {
     }
 
     private func launch(_ environment: [String: String]) throws -> XCUIApplication {
+        let app = launchDemo(environment)
+        try XCTSkipUnless(app.frame.size == Self.foldedDuo, "needs the folded Duo's side rail")
+        return app
+    }
+
+    private func launchDemo(_ environment: [String: String]) -> XCUIApplication {
         let app = XCUIApplication()
         app.configureDemoLaunch(environment)
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
         XCTAssertTrue(app.buttons["Message history"].waitForExistence(timeout: 15))
-        try XCTSkipUnless(app.frame.size == Self.foldedDuo, "needs the folded Duo's side rail")
         return app
     }
 
