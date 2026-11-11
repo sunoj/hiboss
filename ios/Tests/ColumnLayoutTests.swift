@@ -32,6 +32,13 @@ final class ColumnLayoutTests: XCTestCase {
                        "a column partly under the rail keeps the part it covers")
     }
 
+    func testOnlyAOneSidedInsetIsASideRail() {
+        XCTAssertTrue(ColumnLayout.drawsRail(leading: 0, trailing: 76), "folded Duo")
+        XCTAssertTrue(ColumnLayout.drawsRail(leading: 84, trailing: 0), "a rail on the leading edge")
+        XCTAssertFalse(ColumnLayout.drawsRail(leading: 0, trailing: 0), "portrait iPhone, iPad")
+        XCTAssertFalse(ColumnLayout.drawsRail(leading: 62, trailing: 62), "landscape iPhone")
+    }
+
     func testALowerThresholdSplitsANarrowerWindow() {
         XCTAssertEqual(ColumnLayout.listWidth(forAvailableWidth: 466, minWidth: 400), 186)
         XCTAssertNil(ColumnLayout.listWidth(forAvailableWidth: 466))

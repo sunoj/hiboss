@@ -1,5 +1,5 @@
-// Inline note drafts with photo selection and retry-safe submission.
-// Uses PhotosUI, HibossKit and image preparation before uploading.
+// Inline note drafts with photo selection and retry-safe submission. Beside a side rail the
+// character count shows only near the limit. Uses PhotosUI, HibossKit and image preparation.
 import HibossKit
 import PhotosUI
 import SwiftUI
@@ -7,6 +7,7 @@ import SwiftUI
 struct SessionNoteComposer: View {
     let sessionID: String
     let api: any SessionNotesServing
+    let drawsRail: Bool
     let onSent: (SessionNote) -> Void
     @State private var bodyText = ""
     @FocusState private var editing: Bool
@@ -16,6 +17,8 @@ struct SessionNoteComposer: View {
     @State private var selection: [PhotosPickerItem] = []
     @State private var images: [SessionNoteUpload] = []
     @State private var loading = false
+    /// Beside a rail, the count appears from 90% of the 4000-character limit.
+    static let countShownFrom = 3600
     private var trimmed: String { bodyText.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
@@ -40,8 +43,10 @@ struct SessionNoteComposer: View {
                     .disabled(sending || loading || (trimmed.isEmpty && images.isEmpty))
                     .accessibilityIdentifier("send-session-note")
             }.fixedSize(horizontal: false, vertical: true)
-            Text(verbatim: "\(bodyText.unicodeScalars.count) / 4000")
-                .font(.caption2).foregroundStyle(Theme.ink2)
+            if !drawsRail || bodyText.unicodeScalars.count >= Self.countShownFrom {
+                Text(verbatim: "\(bodyText.unicodeScalars.count) / 4000")
+                    .font(.caption2).foregroundStyle(Theme.ink2)
+            }
         }.padding(.vertical, Space.xs).background(.bar)
             .onChange(of: selection) { _, items in
                 if !items.isEmpty { Task { await loadImages(items) } }

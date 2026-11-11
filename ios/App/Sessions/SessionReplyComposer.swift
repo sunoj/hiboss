@@ -1,5 +1,6 @@
 // Bottom thread reply field with an explicit eligible target retained while drafting.
-// Exports SessionReplyComposer; Box references remain visible in the editable reply.
+// Exports SessionReplyComposer; Box references remain visible in the editable reply. Beside a
+// side rail (the Duo's) the target picker moves into the toolbar, which the rail holds.
 // Dependencies: InboxStore reply receipts, BoxListView picker, and native text controls.
 
 import HibossKit
@@ -10,6 +11,7 @@ struct SessionReplyComposer: View {
     @ObservedObject var store: InboxStore
     let sessionID: String
     let canCreateNotes: Bool
+    let drawsRail: Bool
     let onNoteSent: (SessionNote) -> Void
     @State private var selectedReply: SessionReplyTarget?
     @State private var choseNote = false
@@ -47,8 +49,8 @@ struct SessionReplyComposer: View {
         if canCreateNotes {
             VStack(alignment: .leading, spacing: Space.xxs) {
                 if noteMode, let api = store.api as? any SessionNotesServing {
-                    modePicker
-                    SessionNoteComposer(sessionID: sessionID, api: api, onSent: onNoteSent)
+                    if !drawsRail { modePicker }
+                    SessionNoteComposer(sessionID: sessionID, api: api, drawsRail: drawsRail, onSent: onNoteSent)
                 } else {
                     replyControls
                 }
@@ -57,6 +59,9 @@ struct SessionReplyComposer: View {
             .background(.bar, ignoresSafeAreaEdges: .bottom)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("session-reply-composer")
+            .toolbar {
+                if drawsRail { ToolbarItem(placement: .topBarTrailing) { modePicker } }
+            }
             .sheet(isPresented: $picking) {
                 NavigationStack {
                     BoxListView(api: boxAPI, onSelect: attach)
@@ -85,7 +90,7 @@ struct SessionReplyComposer: View {
             }
             if let note { Text(verbatim: note).font(.footnote).foregroundStyle(Theme.ink2) }
             HStack(alignment: .bottom, spacing: Space.xs) {
-                modePicker
+                if !drawsRail { modePicker }
                 Button { picking = true } label: {
                     Image(systemName: "plus")
                         .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
@@ -129,8 +134,9 @@ struct SessionReplyComposer: View {
             }
         } label: {
             HStack {
-                if noteMode { Text("Leave a note for session") }
-                Image(systemName: "chevron.up.chevron.down")
+                if noteMode, !drawsRail { Text("Leave a note for session") }
+                Image(systemName: drawsRail ? (noteMode ? "note.text" : "arrowshape.turn.up.left")
+                      : "chevron.up.chevron.down")
             }
             .font(.footnote).lineLimit(1)
             .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)

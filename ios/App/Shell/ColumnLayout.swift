@@ -1,6 +1,6 @@
 // The width rule for a two-column Today and Sessions: list on the left, the selected item's detail beside it.
 // Exports: ColumnLayout, TwoColumnSplit, RouteSelection, RouteLink, keepsTabBar,
-// View.measuresListColumnWidth(_:), View.listColumnIgnoresRail().
+// View.measuresListColumnWidth(_:), View.listColumnIgnoresRail(), View.measuresSideRail(_:).
 // Dependencies: SwiftUI, UIKit; RootTabView measures the window and passes the list width down.
 
 import SwiftUI
@@ -23,6 +23,12 @@ enum ColumnLayout {
     /// window's safe area its frame really overlaps; zero when it received no more than that.
     static func insetCorrection(received: CGFloat, overlap: CGFloat) -> CGFloat {
         min(0, max(0, overlap) - received)
+    }
+
+    /// True when a side rail (the Duo's) sits on one edge: the view is inset on that side only.
+    /// A landscape iPhone insets both sides alike; a portrait iPhone and an iPad inset neither.
+    static func drawsRail(leading: CGFloat, trailing: CGFloat) -> Bool {
+        min(leading, trailing) == 0 && max(leading, trailing) > 0
     }
 
     /// The list column's width, or nil when the window shows one column.
@@ -105,6 +111,13 @@ extension View {
     /// own and is not corrected here.
     func listColumnIgnoresRail() -> some View {
         background(ColumnInsetCorrector().accessibilityHidden(true))
+    }
+
+    /// Reports whether this view sits beside a side rail, which then holds its toolbar items.
+    func measuresSideRail(_ drawsRail: Binding<Bool>) -> some View {
+        onGeometryChange(for: Bool.self) { proxy in
+            ColumnLayout.drawsRail(leading: proxy.safeAreaInsets.leading, trailing: proxy.safeAreaInsets.trailing)
+        } action: { drawsRail.wrappedValue = $0 }
     }
 
     /// Reports the list column width for this window: its full width, safe-area insets included.
