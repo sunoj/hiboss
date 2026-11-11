@@ -87,10 +87,8 @@ struct ProgressFeedView: View {
                 Picker("Project", selection: projectFilter) {
                     Text("All projects").tag(nil as String?)
                     ForEach(store.projects) { item in
-                        HStack {
-                            ProjectAvatarView(project: item.projectIdentity, size: AvatarSize.compact)
-                            Text("\(item.slug) (\(item.count))")
-                        }.tag(item.slug as String?)
+                        Text("\(item.slug) (\(item.count))")
+                            .tag(item.slug as String?)
                     }
                 }
             } label: {
