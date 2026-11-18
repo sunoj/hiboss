@@ -269,5 +269,12 @@ final class TodayProjectionTests: XCTestCase {
 
         XCTAssertEqual(labeled.projectTitle, "payments/hotfix")
         XCTAssertEqual(branched.projectTitle, "feat/session")
+        XCTAssertEqual(branched.provenance(project: branched.project(in: []).displayName),
+                       "feat/session · " + branched.asker)
+        let project = ProjectIdentity(id: "payments", slug: "payments", displayName: "Payments")
+        let session = ProjectSession(id: SessionGrouping.sessionKey(for: labeled.message),
+                                     projectId: project.id, projectSlug: project.slug,
+                                     branch: nil, projectRef: project)
+        XCTAssertEqual(labeled.project(in: [session]).displayName, "Payments")
     }
 }

@@ -160,7 +160,7 @@ trade-off) appears beneath it. Put the explanation in `description`, not in pare
 inside the option label. `Toggle` shows its `description`, and a `Select` with no answer
 shows its `placeholder` as a hint.
 
-On iOS a long form is paged on the client; the definition and answers are unchanged. Each
+Both native clients page long questionnaires locally using the same definition and answer format. Each
 child of a root `Stack` or `Grid` that is or contains an input becomes a step, so wrap related
 inputs in a `Section` to keep them on one page. Display-only children before the first step
 are the intro on step 1; later ones join the following step, and trailing ones join the last.
@@ -168,4 +168,4 @@ are the intro on step 1; later ones join the following step, and trailing ones j
 step when tapped, and owns Submit. Next waits only until the step's `answerSchema.required`
 answers are present; optional ones may be skipped. Values are validated by the server, and a
 validation error keeps the request open with the draft intact. A form with fewer than three steps, or a root that is not a
-`Stack`/`Grid`, stays on one page. macOS always shows one page.
+`Stack`/`Grid`, stays on one page.

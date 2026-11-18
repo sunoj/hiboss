@@ -16,12 +16,15 @@ struct TodayDecisionCard: View {
     let onChoose: (String) -> Void
 
     var body: some View {
+        let project = item.project(in: inventory)
         VStack(alignment: .leading, spacing: 12) {
             Button(action: onSelect) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        ProjectAvatarView(project: avatarProject, size: 24)
-                        Text(item.provenance).font(.caption).foregroundStyle(TodayStyle.secondary)
+                        ProjectAvatarView(project: project, size: 24)
+                        Text(verbatim: item.provenance(project: project.displayName))
+                            .font(.caption).foregroundStyle(TodayStyle.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
                         DecisionDeadline(expiresAt: item.expiresAt, now: now)
                     }
@@ -46,12 +49,6 @@ struct TodayDecisionCard: View {
             .stroke(isSelected ? TodayStyle.signal : TodayStyle.hairline, lineWidth: 1))
         .accessibilityIdentifier("today.decision.\(item.id.rawValue)")
         .layoutProbe("today.decision.\(item.id.rawValue)")
-    }
-    private var avatarProject: ProjectIdentity {
-        let id = SessionGrouping.sessionKey(for: item.message)
-        return inventory.first { $0.id == id }?.avatarProject
-            ?? ProjectIdentity(id: id, slug: item.message.sessionLabel ?? id,
-                displayName: item.message.sessionLabel ?? id)
     }
 
 }

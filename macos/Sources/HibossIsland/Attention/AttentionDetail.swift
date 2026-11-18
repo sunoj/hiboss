@@ -6,6 +6,7 @@ import HibossKit
 import SwiftUI
 
 struct AttentionDetail: View {
+    @Environment(\.projectSessions) private var inventory
     let item: AttentionItem
     let now: Date
     var earlier: [HistoryMessage] = []
@@ -16,7 +17,9 @@ struct AttentionDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top) {
-                    Text(item.provenance).font(.caption).foregroundStyle(TodayStyle.secondary)
+                    Text(verbatim: item.provenance(project: projectName))
+                        .font(.caption).foregroundStyle(TodayStyle.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 4)
                     DecisionDeadline(expiresAt: item.expiresAt, now: now)
                 }
@@ -28,8 +31,9 @@ struct AttentionDetail: View {
                 metadata
                 if onOpenSession != nil { sessionContext }
             }
+            .frame(maxWidth: 900, alignment: .leading)
             .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -82,10 +86,16 @@ struct AttentionDetail: View {
         }
     }
 
+    private var projectName: String { item.project(in: inventory).displayName }
+
     private var metadata: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                metadataRow(L("Project"), value: item.projectTitle)
+                metadataRow(L("Project"), value: projectName)
+                if let session = item.message.sessionLabel?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !session.isEmpty, session != projectName {
+                    metadataRow(L("Session"), value: session)
+                }
                 metadataRow(L("From"), value: item.asker)
                 TimelineView(.periodic(from: now, by: 1)) { context in
                     timingMetadata(at: context.date)

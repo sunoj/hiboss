@@ -9,10 +9,18 @@ struct ProgressMediaLayout: Layout {
     let items: [ProgressMedia]
     private let spacing: CGFloat = 8
 
+    private func previewWidth(_ offered: CGFloat) -> CGFloat {
+        let limit: CGFloat = 480
+        if items.count == 1, let item = items.first {
+            return max(0, min(offered, limit, 240 * Self.aspectRatio(item)))
+        }
+        return max(0, min(offered, limit))
+    }
+
     func frames(width: CGFloat) -> [CGRect] {
         guard !items.isEmpty else { return [] }
         let columns = min(items.count, 2)
-        let tileWidth = max(0, (width - CGFloat(columns - 1) * spacing) / CGFloat(columns))
+        let tileWidth = max(0, (previewWidth(width) - CGFloat(columns - 1) * spacing) / CGFloat(columns))
         var frames: [CGRect] = []
         var y: CGFloat = 0
         for start in stride(from: 0, to: items.count, by: columns) {
@@ -37,7 +45,7 @@ struct ProgressMediaLayout: Layout {
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 600
+        let width = previewWidth(proposal.width ?? 480)
         return CGSize(width: width, height: frames(width: width).last?.maxY ?? 0)
     }
 

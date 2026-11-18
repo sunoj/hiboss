@@ -1,8 +1,7 @@
-// iOS one-question-per-page questionnaire flow with a final review page that owns submission.
+// Shared step-by-step questionnaire flow with a final review page that owns submission.
 // Exports QuestionnaireStepper; the step index lives in the caller so refreshes never move it.
 // Dependencies: SwiftUI, QuestionnaireSteps, QuestionnaireFields and the shared PanelRenderer.
 
-#if os(iOS)
 import SwiftUI
 
 struct QuestionnaireStepper<Action: View, Status: View>: View {
@@ -12,6 +11,7 @@ struct QuestionnaireStepper<Action: View, Status: View>: View {
     let webModel: PanelWebModel
     let enabled: Bool
     @Binding var index: Int?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The review page's trailing control (Submit, or what replaces it while sending or recovering).
     @ViewBuilder let reviewAction: () -> Action
     @ViewBuilder let status: (_ onReview: Bool) -> Status
@@ -37,7 +37,9 @@ struct QuestionnaireStepper<Action: View, Status: View>: View {
                 if previous == nil && next == 0 { return }
                 Task { @MainActor in
                     await Task.yield()
-                    withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(headerID, anchor: .top) }
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(headerID, anchor: .top)
+                    }
                 }
             }
         }
@@ -91,7 +93,7 @@ struct QuestionnaireStepper<Action: View, Status: View>: View {
             Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
         }
         .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: QuestionnaireEditor.actionHeight, alignment: .leading)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -99,7 +101,8 @@ struct QuestionnaireStepper<Action: View, Status: View>: View {
     private var navigation: some View {
         HStack {
             Button { index = current - 1 } label: {
-                Label(kitL("Back"), systemImage: "chevron.left").frame(minHeight: 44)
+                Label(kitL("Back"), systemImage: "chevron.left")
+                    .frame(minHeight: QuestionnaireEditor.actionHeight)
             }
             .buttonStyle(.bordered).disabled(current == 0)
             .accessibilityIdentifier("questionnaire-back")
@@ -108,9 +111,14 @@ struct QuestionnaireStepper<Action: View, Status: View>: View {
                 reviewAction()
             } else {
                 Button { index = current + 1 } label: {
-                    Text(current == count - 1 ? kitL("Review") : kitL("Next")).frame(minWidth: 72, minHeight: 44)
+                    Text(current == count - 1 ? kitL("Review") : kitL("Next"))
+                        .frame(minWidth: 72, minHeight: QuestionnaireEditor.actionHeight)
                 }
+                #if os(iOS)
                 .modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground)))
+                #else
+                .buttonStyle(.borderedProminent)
+                #endif
                 .disabled(enabled && !steps.isComplete(inStep: current, state: store.state))
                 .accessibilityIdentifier("questionnaire-next")
             }
@@ -120,4 +128,3 @@ struct QuestionnaireStepper<Action: View, Status: View>: View {
 
 /// Scroll target for one questionnaire's step header inside the host's scroll view.
 private struct QuestionnaireHeaderID: Hashable { let model: ObjectIdentifier }
-#endif

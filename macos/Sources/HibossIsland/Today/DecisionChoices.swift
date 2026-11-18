@@ -14,15 +14,25 @@ struct DecisionChoices: View {
     @State private var sendingOption: String?
 
     var body: some View {
-        DecisionChoiceLayout {
+        let described = !(item.message.metadata?.optionDescriptions.isEmpty ?? true)
+        let layout = described
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(DecisionChoiceLayout())
+        layout {
             ForEach(Array(item.options.enumerated()), id: \.offset) { index, option in
+                let description = item.message.metadata?.optionDescription(for: option)
                 VStack(alignment: .leading, spacing: 8) {
                     if let media = media(for: option) {
                         OptionMediaPreview(media: media, openMedia: { selectedMedia = media })
                     }
                     Button { send(option) } label: {
                         HStack(spacing: 6) {
-                            Text(option)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(verbatim: option)
+                                OptionDescriptionText(text: description)
+                            }
+                            .multilineTextAlignment(.leading)
+                            if described { Spacer(minLength: 0) }
                             if sendingOption == option {
                                 ProgressView().controlSize(.small)
                                 Text(L("Sending…")).font(.caption)
