@@ -47,6 +47,15 @@ final class ProgressPolishTests: XCTestCase {
         XCTAssertEqual(ProgressMediaLayout.aspectRatio(media(width: 400, height: 800)), 0.5)
     }
 
+    func testWideFeedKeepsPreviewGeometryWithinReadingWidth() throws {
+        let square = media(width: 400, height: 400)
+        let single = ProgressMediaLayout(items: [square])
+        XCTAssertEqual(try XCTUnwrap(single.frames(width: 900).first).size, CGSize(width: 240, height: 240))
+        let pair = ProgressMediaLayout(items: [square, square])
+        XCTAssertEqual(pair.frames(width: 900).last?.maxX, 480)
+        XCTAssertEqual(pair.frames(width: 300).last?.maxX, 300)
+    }
+
     func testSecondCachedViewHasItsImageOnFirstFrameAndMakesZeroRequests() async throws {
         let server = HistorySnapshotMediaServer()
         try await server.start()

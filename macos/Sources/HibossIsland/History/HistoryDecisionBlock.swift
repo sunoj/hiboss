@@ -27,7 +27,7 @@ struct HistoryDecisionBlock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HistoryOptionGrid(options: message.options, media: message.metadata?.optionMedia ?? [],
+            HistoryOptionGrid(options: message.options, metadata: message.metadata,
                 defaultOption: message.defaultOption, outcome: displayedOutcome,
                 isSubmitting: isSubmitting || answerState != .open,
                 sendingOption: sendingOption, choose: send)
@@ -59,7 +59,7 @@ struct HistoryDecisionBlock: View {
         if answerState != .closed {
             Button { send(option) } label: {
                 HStack(spacing: 6) {
-                    Text(option).fixedSize(horizontal: false, vertical: true)
+                    optionLabel(option)
                     if HistoryOptionSelection.matches(option, message.defaultOption) {
                         Text(L("default")).foregroundStyle(.secondary)
                     }
@@ -73,10 +73,19 @@ struct HistoryDecisionBlock: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: HistoryOptionSelection.symbol(option, outcome: displayedOutcome))
                     .foregroundStyle(selected ? Color.accentColor : .secondary)
-                Text(option).foregroundStyle(selected ? Color.primary : .secondary)
+                optionLabel(option).foregroundStyle(selected ? Color.primary : .secondary)
                     .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private func optionLabel(_ option: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(verbatim: option)
+            OptionDescriptionText(text: message.metadata?.optionDescription(for: option))
+        }
+        .multilineTextAlignment(.leading)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder

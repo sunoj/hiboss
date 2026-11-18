@@ -18,8 +18,15 @@ extension AttentionItem {
     }
 
     var body: String { message.body }
-    var provenance: String {
-        [projectTitle, message.sessionBranch, asker].compactMap { $0 }.joined(separator: " · ")
+    func project(in inventory: [ProjectSession]) -> ProjectIdentity {
+        let id = SessionGrouping.sessionKey(for: message)
+        return inventory.first { $0.id == id }?.avatarProject
+            ?? ProjectIdentity(id: id, slug: projectTitle, displayName: projectTitle)
+    }
+
+    func provenance(project: String) -> String {
+        let branch = nonEmpty(message.sessionBranch)
+        return [project, branch == project ? nil : branch, asker].compactMap { $0 }.joined(separator: " · ")
     }
     var content: String? { nonEmpty(message.content) }
     var attachment: MessageAttachment? { message.metadata?.attachment }

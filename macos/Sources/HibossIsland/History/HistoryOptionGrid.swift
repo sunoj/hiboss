@@ -43,7 +43,7 @@ struct HistoryChosenOptionImage: View {
 
 struct HistoryOptionGrid: View {
     let options: [String]
-    let media: [OptionMedia]
+    let metadata: MessageMetadata?
     let defaultOption: String?
     let outcome: ThreadOutcome
     let isSubmitting: Bool
@@ -78,6 +78,7 @@ struct HistoryOptionGrid: View {
                     }
                 }
             Text(option).font(.body).fixedSize(horizontal: false, vertical: true)
+            OptionDescriptionText(text: metadata?.optionDescription(for: option))
             if let caption = media.caption, !caption.isEmpty {
                 Text(caption).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
@@ -102,6 +103,6 @@ struct HistoryOptionGrid: View {
     }
 
     private func mediaFor(_ option: String) -> OptionMedia? {
-        media.first { HistoryOptionSelection.matches(option, $0.label) }
+        metadata?.optionMedia.first { HistoryOptionSelection.matches(option, $0.label) }
     }
 }

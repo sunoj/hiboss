@@ -27,6 +27,14 @@ struct ResolvedBanner: View {
         }
     }
 
+    private var selectedDescription: String? {
+        switch outcome {
+        case let .chosen(option, _), let .autoSelected(option?):
+            thread.message.metadata?.optionDescription(for: option)
+        default: nil
+        }
+    }
+
     private var recorded: Bool {
         switch outcome {
         case .chosen, .replied: true
@@ -53,6 +61,7 @@ struct ResolvedBanner: View {
                 if case let .replied(text, _) = outcome {
                     Text(text).font(.body).textSelection(.enabled)
                 }
+                OptionDescriptionText(text: selectedDescription)
                 if recorded, let source = thread.newestReply?.metadata?.answeredBy?.displayLabel
                     ?? AnswerSource.visibleLabel(thread.newestReply?.metadata?.source, hiding: "macos") {
                     Text(AnswerAttribution.answeredOn(source)).font(.caption)
