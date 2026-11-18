@@ -3,13 +3,13 @@
   <channel>
     <title>HiBoss Island</title>
     <item>
-      <title>Version 1.0.2</title>
-      <pubDate>Thu, 29 Oct 2026 12:55:34 +0000</pubDate>
-      <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
-      <sparkle:version>202610291954</sparkle:version>
+      <title>Version 1.0.3</title>
+      <pubDate>Wed, 18 Nov 2026 12:01:31 +0000</pubDate>
+      <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+      <sparkle:version>202611181854</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[ The Island question panel no longer keeps a CPU core busy while a question is shown. Today, Attention, History, Box and Live Panels stay responsive with large message, reply and item counts. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.2/HiBoss-Island-1.0.2.zip" sparkle:edSignature="53daq/KyZwo601zC+/NmzJab4e0+urqlo+mfGAuWBbZy0R7U/ZOaX1a0H7OxIf4+jyu0M9oV/e8gZA8lxrzNBw==" length="7887110" type="application/zip" />
+      <description><![CDATA[ Review long questionnaires one step at a time, resume saved answers, and see option descriptions in decisions and history. Progress media previews now fit the desktop reading column. ]]></description>
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.3/HiBoss-Island-1.0.3.zip" sparkle:edSignature="eXTNROyg/A1aI6ImLHj14rX+FC3hod1SBkpV+yGglWB0uCULeBJsig+mfI+BkV38+bo+cLnEuxPvipVgJCu/Ag==" length="8027648" type="application/zip" />
     </item>
   </channel>
 </rss>
