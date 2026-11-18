@@ -10,7 +10,7 @@ struct QuestionnaireEditor: View {
     let currentTime: @MainActor () -> Date
     let changed: @MainActor () async -> Void
     @StateObject private var model: QuestionnaireModel
-    /// The visible step on iOS; owned here so ticks, refreshes and draft saves never move it.
+    /// Keep the current step across clock ticks, refreshes and draft saves.
     @State private var stepIndex: Int?
 
     init(
@@ -34,10 +34,11 @@ struct QuestionnaireEditor: View {
                     QuestionnaireAnswerView(record: model.latest, submission: submission)
                 } else {
                     metadata
+                    let steps = model.steps
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         let now = currentTime()
                         if !model.latest.isOpen(at: now) { closedStatus }
-                        fields(at: now)
+                        fields(at: now, steps: steps)
                     }
                 }
                 if let error = model.error {
@@ -50,10 +51,9 @@ struct QuestionnaireEditor: View {
         .task { await model.recover() }
     }
 
-    @ViewBuilder private func fields(at now: Date) -> some View {
+    @ViewBuilder private func fields(at now: Date, steps: QuestionnaireSteps?) -> some View {
         let enabled = model.canEdit && model.latest.isOpen(at: now)
-        #if os(iOS)
-        if let steps = model.steps {
+        if let steps {
             QuestionnaireStepper(model: model, store: model.store, steps: steps, webModel: webModel,
                                  enabled: enabled, index: $stepIndex) {
                 primaryControl(at: now, submit: .review(ready: steps.allRequiredAnswered(state: model.store.state)))
@@ -64,10 +64,6 @@ struct QuestionnaireEditor: View {
             QuestionnaireFields(model: model, store: model.store, webModel: webModel, enabled: enabled)
             status(at: now, submit: .form)
         }
-        #else
-        QuestionnaireFields(model: model, store: model.store, webModel: webModel, enabled: enabled)
-        status(at: now, submit: .form)
-        #endif
     }
 
     private var metadata: some View {
@@ -112,7 +108,7 @@ struct QuestionnaireEditor: View {
             #endif
         } else if model.pendingID != nil {
             Button { Task { await model.recover() } } label: {
-                Text(kitL("Check submission")).frame(minHeight: actionHeight)
+                Text(kitL("Check submission")).frame(minHeight: Self.actionHeight)
             }.buttonStyle(.bordered)
         } else if model.latest.isOpen(at: now), !model.hasNewRevision, model.access.readOnlyReason == nil {
             switch submit {
@@ -151,7 +147,7 @@ struct QuestionnaireEditor: View {
 
     private func submitButton(ready: Bool) -> some View {
         Button { Task { await model.submit() } } label: {
-            Text(kitL("Submit answers")).frame(minWidth: 72, minHeight: actionHeight)
+            Text(kitL("Submit answers")).frame(minWidth: 72, minHeight: Self.actionHeight)
         }
             #if os(iOS)
             .modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground)))
@@ -163,7 +159,7 @@ struct QuestionnaireEditor: View {
     }
 
     /// iOS matches the stepper's 44-point Next; macOS keeps its native control height.
-    private var actionHeight: CGFloat? {
+    static var actionHeight: CGFloat? {
         #if os(iOS)
         44
         #else

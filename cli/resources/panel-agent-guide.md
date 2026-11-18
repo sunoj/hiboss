@@ -241,7 +241,7 @@ fields or a free-form value; a lone choice is `hiboss ask`. `blocking: true` pus
 on publication; `blocking: false` is silent and relies on the Needs input filter.
 Put the question in the input's `label`. An option `label` is a short choice; its
 trade-off goes in the option's `description`, never in parentheses inside the label.
-iOS shows three or more top-level inputs one per step, then a review page; wrap related
+iOS and macOS show three or more top-level input groups as steps followed by a review page. Wrap related
 inputs in a `Section` to keep them on one step. Adapt this `intake.json` schema:
 
 ```json
