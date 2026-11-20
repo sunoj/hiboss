@@ -111,3 +111,25 @@ pushes via APNs when the operator sets `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_AUTH
 (the p8 contents). Notification action buttons come from `aps.category`
 (`HIBOSS_OPTIONS` / `HIBOSS_MESSAGE`). Real delivery requires a device and a signing
 team; the simulator can exercise the UI via `xcrun simctl push`.
+
+## TestFlight build
+
+Raise `CURRENT_PROJECT_VERSION` in `project.yml`, run `xcodegen`, and run
+`scripts/release-tests.sh <out>` on that commit. Then, from `ios/`, with `$OUT` a new folder
+outside the repository:
+
+```bash
+xcodebuild archive -project HiBoss.xcodeproj -scheme HiBoss -configuration Release \
+  -destination generic/platform=iOS -archivePath "$OUT/HiBoss.xcarchive" \
+  -derivedDataPath "$OUT/dd" -allowProvisioningUpdates
+xcodebuild -exportArchive -archivePath "$OUT/HiBoss.xcarchive" \
+  -exportOptionsPlist "$OUT/ExportOptions.plist" -exportPath "$OUT/export" -allowProvisioningUpdates
+ditto -x -k "$OUT/export/HiBoss.ipa" "$OUT/ipa-x"
+security-guard publish "$OUT/ipa-x" --repo .. -- \
+  asc builds upload --app <app-id> --ipa "$OUT/export/HiBoss.ipa" --wait
+```
+
+`ExportOptions.plist` uses `method` `app-store-connect`, `destination` `export`, automatic
+signing and `manageAppVersionAndBuildNumber` false, so the build number stays the one in
+`project.yml`. `asc builds list --app <app-id>` shows `VALID` once App Store Connect has
+processed the build.

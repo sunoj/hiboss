@@ -69,6 +69,22 @@ required by notarization — whenever the identity starts with `Developer ID`.
 The local development identity keeps the fast, offline `--timestamp=none` path,
 so ordinary builds do not need the network.
 
+## Recreating a lost zip
+
+`.build/` is an ignored build directory, and cleaning it also deletes the zip. The
+appcast's `sparkle:edSignature` and `length` describe those exact bytes. `ditto` stores
+each file's own timestamps, so zipping the same stapled app again usually produces the
+same bytes. Check this before uploading (`swift package resolve` fetches Sparkle again
+if `.build/` is gone):
+```sh
+/usr/bin/ditto -c -k --keepParent "dist/HiBoss Island.app" .build/release-artifacts/HiBoss-Island-<version>.zip
+./.build/artifacts/sparkle/Sparkle/bin/sign_update --verify \
+  .build/release-artifacts/HiBoss-Island-<version>.zip "<sparkle:edSignature from the appcast>"
+```
+If the check fails, run `release.sh` again. It signs the new zip and rewrites the appcast.
+`security-guard artifact` scans directories only. To scan a zip, unpack it with
+`ditto -x -k` into an empty folder and scan that folder.
+
 ## Builds without an update key
 
 Anything not built through `release.sh` (or `build-app.sh` with
