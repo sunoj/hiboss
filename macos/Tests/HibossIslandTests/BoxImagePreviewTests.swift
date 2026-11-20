@@ -80,6 +80,10 @@ final class BoxImagePreviewTests: XCTestCase {
         // One for the row's thumbnail (then deleted) and one the viewer keeps and reuses.
         let downloads = await api.downloadsByID["image"]
         XCTAssertEqual(downloads, 2)
+        // Dismiss the reopened viewer, and the narrow detail sheet, before the window closes.
+        if let viewer = detail.attachedSheet { detail.endSheet(viewer) }
+        if detail !== window { window.endSheet(detail) }
+        try await waitForCondition { window.attachedSheet == nil }
     }
 
     private func show(store: BoxBrowserStore, media: BoxBrowserMedia,
