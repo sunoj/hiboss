@@ -19,18 +19,18 @@ final class MacSigninUITests: XCTestCase {
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
         let settings = app.buttons["today-settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 10))
+        XCTAssertTrue(settings.appears(timeout: 10))
         settings.tap()
         app.buttons["settings-devices"].tap()
         let row = app.buttons["Sign in a Mac"].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         row.tap()
     }
 
     func testApprovedRequestShowsTheCodeUntilDone() {
         launch(scanning: "https%3A%2F%2Fhiboss.example.com")
         // LabeledContent reads as one element: "Calls itself, Studio MacBook Pro".
-        XCTAssertTrue(app.staticTexts["Calls itself, Studio MacBook Pro"].waitForExistence(timeout: 5), "the review names the Mac")
+        XCTAssertTrue(app.staticTexts["Calls itself, Studio MacBook Pro"].appears(timeout: 5), "the review names the Mac")
         XCTAssertTrue(app.staticTexts["Location, NL · Amsterdam"].exists, "the review shows where the request came from")
         let bar = app.navigationBars["Sign in a Mac"]
         let back = bar.buttons.matching(NSPredicate(
@@ -39,7 +39,7 @@ final class MacSigninUITests: XCTestCase {
         app.buttons["mac-signin.approve"].tap()
 
         let code = app.staticTexts["mac-signin.code"]
-        XCTAssertTrue(code.waitForExistence(timeout: 5))
+        XCTAssertTrue(code.appears(timeout: 5))
         XCTAssertEqual(code.label, "Sign-in code 3 0 6 1 4 2", "VoiceOver reads the digits one by one")
         XCTAssertTrue(app.staticTexts["Type this code on your Mac"].exists)
         XCTAssertTrue(app.staticTexts["A Mac calling itself “Studio MacBook Pro”"].exists, "the label is quoted as a claim")
@@ -51,13 +51,13 @@ final class MacSigninUITests: XCTestCase {
         XCTAssertEqual(back.count, 0, "Back would drop the code; only Done leaves")
 
         app.buttons["mac-signin.done"].tap()
-        XCTAssertTrue(app.buttons["Sign in a Mac"].waitForExistence(timeout: 5), "Done returns to Settings")
+        XCTAssertTrue(app.buttons["Sign in a Mac"].appears(timeout: 5), "Done returns to Settings")
     }
 
     func testCodeForAnotherServerIsRefused() {
         launch(scanning: "https%3A%2F%2Fother.example")
         let rejection = app.staticTexts["This Mac is signing in to a different server: other.example"]
-        XCTAssertTrue(rejection.waitForExistence(timeout: 5))
+        XCTAssertTrue(rejection.appears(timeout: 5))
         XCTAssertFalse(app.buttons["mac-signin.approve"].exists)
     }
 }

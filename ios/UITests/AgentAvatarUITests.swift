@@ -15,7 +15,7 @@ final class AgentAvatarUITests: XCTestCase {
         app.tabBars.buttons["Sessions"].tap()
         app.buttons["Messages"].tap()
         let name = app.staticTexts["worker-design"].firstMatch
-        XCTAssertTrue(name.waitForExistence(timeout: 10))
+        XCTAssertTrue(name.appears(timeout: 10))
         let avatar = CGRect(x: name.frame.minX - 52, y: name.frame.minY, width: 40, height: 40)
         XCTAssertGreaterThan(try tealPixelCount(app.screenshot().image, in: avatar), 100,
                              "the registered patterned image must replace the neutral initials circle")

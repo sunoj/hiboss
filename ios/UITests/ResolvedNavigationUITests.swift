@@ -20,17 +20,17 @@ final class ResolvedNavigationUITests: XCTestCase {
 
     func testTappingAResolvedRowLeavesTheResolvedScreen() {
         let resolvedBar = app.navigationBars["Resolved"]
-        XCTAssertTrue(resolvedBar.waitForExistence(timeout: 10), "demo route should open Resolved")
+        XCTAssertTrue(resolvedBar.appears(timeout: 10), "demo route should open Resolved")
 
         let row = app.buttons.containing(.staticText, identifier: "Ship").firstMatch
         let target = row.exists ? row : app.cells.firstMatch
-        XCTAssertTrue(target.waitForExistence(timeout: 8), "Resolved should list handled decisions")
+        XCTAssertTrue(target.appears(timeout: 8), "Resolved should list handled decisions")
         target.tap()
 
         // The bug reproduced as "still on Resolved". Assert we left it, rather than
         // asserting a specific destination title — the point is not re-entering itself.
         XCTAssertTrue(
-            resolvedBar.waitForNonExistence(timeout: 8),
+            resolvedBar.disappears(timeout: 8),
             "tapping a handled decision must not re-open Resolved"
         )
     }
@@ -47,13 +47,13 @@ final class HomeAttentionUITests: XCTestCase {
     }
 
     func testPopulatedDemoShowsAttentionCount() {
-        XCTAssertTrue(app.staticTexts["4 need you"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 need you"].appears(timeout: 10))
     }
 
     func testTwoChoiceDecisionCanBeAnsweredInline() {
-        XCTAssertTrue(app.staticTexts["4 need you"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 need you"].appears(timeout: 10))
         let choice = app.buttons["Coarse grid"]
-        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        XCTAssertTrue(choice.appears(timeout: 5))
         let alternative = app.buttons["Fine grid"]
         XCTAssertEqual(choice.frame.minX, alternative.frame.minX, accuracy: 1)
         XCTAssertGreaterThanOrEqual(alternative.frame.minY, choice.frame.maxY)
@@ -62,7 +62,7 @@ final class HomeAttentionUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(choice.frame.height, 44)
         XCTAssertGreaterThanOrEqual(alternative.frame.height, 44)
         choice.tap()
-        XCTAssertTrue(app.staticTexts["3 need you"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["3 need you"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["home-message-c5"].exists)
     }
 
@@ -70,17 +70,17 @@ final class HomeAttentionUITests: XCTestCase {
         app.terminate()
         app.configureDemoLaunch(["HIBOSS_DEMO_TEXT_ASK": "1"])
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["1 need you"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["1 need you"].appears(timeout: 10))
         XCTAssertTrue(app.staticTexts["1 working"].exists)
         XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
         app.buttons["home-message-demo-text-ask"].tap()
         let reply = app.descendants(matching: .any)["message-reply-draft"].firstMatch
-        XCTAssertTrue(reply.waitForExistence(timeout: 5))
+        XCTAssertTrue(reply.appears(timeout: 5))
         reply.tap()
         reply.typeText("Use staging")
         app.buttons["Send"].tap()
         app.tabBars.buttons["Today"].tap()
-        XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Nothing needs you"].appears(timeout: 5))
     }
 
     func testManyOptionsRemainReachableAtAccessibilityTextSize() {
@@ -89,7 +89,7 @@ final class HomeAttentionUITests: XCTestCase {
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
         ]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["4 need you"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 need you"].appears(timeout: 10))
         let option = app.buttons["Fail over to Adyen"]
         for _ in 0..<12 where !option.isHittable { app.swipeUp() }
         // `isHittable` already holds for a sliver above the floating tab bar, and XCTest then
@@ -107,7 +107,7 @@ final class HomeAttentionUITests: XCTestCase {
         XCTAssertLessThanOrEqual(option.frame.maxY, tabBar.frame.minY,
                                  "the tap must reach the option, not the tab bar")
         option.tap()
-        XCTAssertTrue(option.waitForNonExistence(timeout: 5), "the answered decision leaves Home")
+        XCTAssertTrue(option.disappears(timeout: 5), "the answered decision leaves Home")
         for _ in 0..<12 where !app.staticTexts["3 need you"].isHittable { app.swipeDown() }
         XCTAssertTrue(app.staticTexts["3 need you"].exists)
     }
@@ -118,7 +118,7 @@ final class HomeAttentionUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_EMPTY": "1"])
         app.launchConfiguredDemo()
 
-        XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Nothing needs you"].appears(timeout: 10))
         XCTAssertTrue(app.staticTexts["3 working"].exists, "all-clear can coexist with working sessions")
         XCTAssertFalse(app.staticTexts["0 need you"].exists)
         XCTAssertFalse(app.buttons["home-message-c5"].exists)
@@ -129,7 +129,7 @@ final class HomeAttentionUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_HISTORY_DELAY_MS": "60000",
                                  "HIBOSS_DEMO_REQUESTS_DELAY_MS": "60000"])
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["Checking coverage"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Checking coverage"].appears(timeout: 10))
         XCTAssertFalse(app.staticTexts["0 need you"].exists)
         XCTAssertFalse(app.staticTexts["0 working"].exists)
         XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)

@@ -9,7 +9,7 @@ func mediaZoomScroll(_ app: XCUIApplication) -> XCUIElement {
     let query = app.scrollViews.matching(NSPredicate(
         format: "identifier BEGINSWITH %@", "media-zoom-scroll"
     ))
-    _ = query.firstMatch.waitForExistence(timeout: 5)
+    _ = query.firstMatch.appears(timeout: 5)
     return query.allElementsBoundByIndex.first { $0.isHittable } ?? query.firstMatch
 }
 
@@ -34,13 +34,13 @@ final class MediaViewerActionBarUITests: XCTestCase {
                                        "-UIPreferredContentSizeCategoryName", category]
                 app.launchConfiguredDemo()
                 let box = app.tabBars.buttons.element(boundBy: 2)
-                XCTAssertTrue(box.waitForExistence(timeout: 10))
+                XCTAssertTrue(box.appears(timeout: 10))
                 box.tap()
                 let image = app.buttons["box-item-demo-image"]
-                XCTAssertTrue(image.waitForExistence(timeout: 10))
+                XCTAssertTrue(image.appears(timeout: 10))
                 for _ in 0..<6 where !image.isHittable { app.swipeUp() }
                 image.tap()
-                XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 10))
+                XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 10))
                 let size = UIContentSizeCategory(rawValue: category)
                 let traits = UITraitCollection(preferredContentSizeCategory: size)
                 let lineHeight = UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).lineHeight

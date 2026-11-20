@@ -10,13 +10,13 @@ final class SessionUnreadUITests: XCTestCase {
         let app = launch()
         app.tabBars.buttons["Sessions"].tap()
         let row = app.buttons["activity-session-read-unread"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.appears(timeout: 10))
         XCTAssertTrue(row.label.contains("Unread"))
         let frame = row.frame
         row.tap()
-        XCTAssertTrue(app.buttons["Message history"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Message history"].appears(timeout: 10))
         app.navigationBars.buttons.firstMatch.tap()
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         XCTAssertFalse(row.label.contains("Unread"))
         XCTAssertEqual(row.frame, frame)
     }
@@ -29,7 +29,7 @@ final class SessionUnreadUITests: XCTestCase {
         app.tabBars.buttons["Sessions"].tap()
         let row = app.buttons["activity-session-read-unread"]
         for _ in 0..<5 where !row.isHittable { app.swipeUp() }
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.appears(timeout: 10))
         XCTAssertTrue(row.label.contains("Unread"))
         shot(app, "sessions-ax")
         app.tabBars.buttons["Today"].tap()
@@ -55,7 +55,7 @@ final class SessionUnreadUITests: XCTestCase {
         let app = launch(appearance)
         app.tabBars.buttons["Sessions"].tap()
         let unread = app.buttons["activity-session-read-unread"]
-        XCTAssertTrue(unread.waitForExistence(timeout: 10))
+        XCTAssertTrue(unread.appears(timeout: 10))
         XCTAssertTrue(unread.label.contains("Unread"))
         XCTAssertFalse(app.buttons["activity-session-read-needs"].label.contains("Unread"))
         XCTAssertTrue(app.buttons["activity-session-read-needs"].label.contains("Needs you"))

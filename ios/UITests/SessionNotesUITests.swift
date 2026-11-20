@@ -14,14 +14,14 @@ final class SessionNotesUITests: XCTestCase {
         revealNotes(app)
         captureDemoScreenshot(app, name: "session-notes-light", test: self)
         let field = app.textFields["session-note-body"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(field.appears(timeout: 5))
         XCTAssertFalse(app.buttons["send-session-note"].isEnabled)
         captureDemoScreenshot(app, name: "session-note-compose-light", test: self)
         field.tap()
         field.typeText("Please verify the changelog.")
         app.buttons["send-session-note"].tap()
         for _ in 0..<12 where !app.staticTexts["Please verify the changelog."].isHittable { app.swipeDown() }
-        XCTAssertTrue(app.staticTexts["Please verify the changelog."].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Please verify the changelog."].appears(timeout: 10))
         XCTAssertEqual(field.value as? String, "Write a note…")
     }
 
@@ -30,15 +30,15 @@ final class SessionNotesUITests: XCTestCase {
         for appearance in ["Light", "Dark"] {
             let app = launch([:], appearance: appearance)
             revealNotes(app)
-            XCTAssertTrue(app.buttons["session-note-image"].firstMatch.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["session-note-image"].firstMatch.appears(timeout: 10))
             captureDemoScreenshot(app, name: "notes-images-\(appearance)", test: self)
             app.buttons["Add images"].tap()
             let photo = app.images.matching(NSPredicate(format: "label CONTAINS 'Photo'")).firstMatch
-            XCTAssertTrue(photo.waitForExistence(timeout: 10))
+            XCTAssertTrue(photo.appears(timeout: 10))
             photo.tap()
             let add = app.buttons["Add"]
             if add.exists { add.tap() }
-            XCTAssertTrue(app.buttons["Remove image"].firstMatch.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["Remove image"].firstMatch.appears(timeout: 10))
             XCTAssertGreaterThanOrEqual(app.buttons["Remove image"].firstMatch.frame.width, 44)
             XCTAssertGreaterThanOrEqual(app.buttons["Remove image"].firstMatch.frame.height, 44)
             captureDemoScreenshot(app, name: "notes-thumbnails-\(appearance)", test: self)
@@ -52,8 +52,8 @@ final class SessionNotesUITests: XCTestCase {
             }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [sent], timeout: 10), .completed)
             for _ in 0..<12 where !app.staticTexts[body].isHittable { app.swipeDown() }
-            XCTAssertTrue(app.staticTexts[body].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.buttons["session-note-image"].firstMatch.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts[body].appears(timeout: 10))
+            XCTAssertTrue(app.buttons["session-note-image"].firstMatch.appears(timeout: 10))
             captureDemoScreenshot(app, name: "session-inline-sent-image-\(appearance)", test: self)
             app.terminate()
         }
@@ -86,21 +86,21 @@ final class SessionNotesUITests: XCTestCase {
     func testSessionWithoutReplyTargetStillAcceptsNote() {
         let app = launch(["HIBOSS_DEMO_NOTES_NO_MESSAGES": "1"])
         let field = app.textFields["session-note-body"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(field.appears(timeout: 5))
         field.tap()
         field.typeText("A note without a reply target")
         app.buttons["send-session-note"].tap()
-        XCTAssertTrue(app.staticTexts["A note without a reply target"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["A note without a reply target"].appears(timeout: 10))
     }
 
     func testFailedSendKeepsDraftAndShowsError() {
         let app = launch(["HIBOSS_DEMO_NOTE_FAILS": "1"])
         let field = app.textFields["session-note-body"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(field.appears(timeout: 5))
         field.tap()
         field.typeText("Keep this draft")
         app.buttons["send-session-note"].tap()
-        XCTAssertTrue(app.staticTexts["Unable to send note"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Unable to send note"].appears(timeout: 10))
         XCTAssertEqual(field.value as? String, "Keep this draft")
         XCTAssertTrue(app.buttons["send-session-note"].isEnabled)
     }
@@ -114,11 +114,11 @@ final class SessionNotesUITests: XCTestCase {
         app.launchConfiguredDemo()
         if extra["HIBOSS_DEMO_NOTE_VIEWER"] != "1" {
             let mode = app.buttons["session-composer-mode"]
-            XCTAssertTrue(mode.waitForExistence(timeout: 15))
+            XCTAssertTrue(mode.appears(timeout: 15))
             captureDemoScreenshot(app, name: "session-reply-mode-\(appearance)", test: self)
             mode.tap()
             app.buttons["Leave a note for session"].firstMatch.tap()
-            XCTAssertTrue(app.textFields["session-note-body"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.textFields["session-note-body"].appears(timeout: 5))
         }
         return app
     }
@@ -126,6 +126,6 @@ final class SessionNotesUITests: XCTestCase {
     private func revealNotes(_ app: XCUIApplication) {
         let unread = app.staticTexts["Unread"]
         for _ in 0..<12 where !unread.isHittable { app.swipeUp() }
-        XCTAssertTrue(unread.waitForExistence(timeout: 10))
+        XCTAssertTrue(unread.appears(timeout: 10))
     }
 }

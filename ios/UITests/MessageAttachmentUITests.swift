@@ -24,9 +24,9 @@ final class MessageAttachmentUITests: XCTestCase {
         launch(["HIBOSS_DEMO_OPEN": "attachment-file"], fixture: "markdown-multiline",
                appearance: appearance, sizeCategory: sizeCategory)
         let preview = app.buttons["message-attachment-markdown-preview"]
-        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+        XCTAssertTrue(preview.appears(timeout: 5))
         preview.tap()
-        XCTAssertTrue(app.staticTexts["Table layout report"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Table layout report"].appears(timeout: 5))
         let table = app.descendants(matching: .any)["message.attachment.markdown.table"]
         table.swipeLeft(velocity: .slow)
         let rows = ["Client response is interpreted", "Recorded refresh threshold",
@@ -46,12 +46,12 @@ final class MessageAttachmentUITests: XCTestCase {
     private func assertMarkdownPreview(_ appearance: String) {
         launch(["HIBOSS_DEMO_OPEN": "attachment-file"], fixture: "markdown", appearance: appearance)
         let file = app.descendants(matching: .any)["message-attachment-file"]
-        XCTAssertTrue(file.waitForExistence(timeout: 10))
+        XCTAssertTrue(file.appears(timeout: 10))
         let preview = app.buttons["message-attachment-markdown-preview"]
-        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+        XCTAssertTrue(preview.appears(timeout: 5))
         guard preview.exists else { return }
         preview.tap()
-        XCTAssertTrue(app.navigationBars["release-notes.md"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["release-notes.md"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Release notes"].exists)
         XCTAssertTrue(app.staticTexts["Alpha"].exists)
         XCTAssertTrue(app.staticTexts["345"].exists)
@@ -61,7 +61,7 @@ final class MessageAttachmentUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["message-attachment-file"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["message-attachment-file"].appears(timeout: 5))
     }
 
     private var app: XCUIApplication!
@@ -85,10 +85,10 @@ final class MessageAttachmentUITests: XCTestCase {
     func testDetailImageLoadsAndOpensFullScreen() {
         launch(["HIBOSS_DEMO_OPEN": "attachment-image"])
         let thumbnail = app.buttons["message-attachment-open"]
-        XCTAssertTrue(thumbnail.waitForExistence(timeout: 15))
+        XCTAssertTrue(thumbnail.appears(timeout: 15))
         let loading = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@", "Loading image…")).firstMatch
-        XCTAssertTrue(loading.waitForNonExistence(timeout: 15))
+        XCTAssertTrue(loading.disappears(timeout: 15))
         XCTAssertFalse(app.buttons["message-attachment-retry"].exists)
         XCTAssertGreaterThan(thumbnail.frame.height, 44)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
@@ -102,7 +102,7 @@ final class MessageAttachmentUITests: XCTestCase {
     func testFileDetailShowsFilenameAndURLLink() {
         launch(["HIBOSS_DEMO_OPEN": "attachment-file"])
         let file = app.descendants(matching: .any)["message-attachment-file"]
-        XCTAssertTrue(file.waitForExistence(timeout: 10))
+        XCTAssertTrue(file.appears(timeout: 10))
         XCTAssertEqual(file.label, "release-notes.pdf")
         XCTAssertTrue(file.isHittable)
         XCTAssertGreaterThanOrEqual(file.frame.height, 44)
@@ -114,7 +114,7 @@ final class MessageAttachmentUITests: XCTestCase {
     func testTranscriptOrdinaryAndDecisionAttachmentsOpenViewer() {
         launch(["HIBOSS_DEMO_SESSION": "1"])
         let ordinary = app.descendants(matching: .any)["thread-attachment-file"]
-        XCTAssertTrue(ordinary.waitForExistence(timeout: 10))
+        XCTAssertTrue(ordinary.appears(timeout: 10))
         for _ in 0..<4 where !ordinary.isHittable { app.swipeUp() }
         assertViewer(ordinary.buttons["message-attachment-open"])
         let decision = app.descendants(matching: .any)["transcript-decision-attachment-decision"]
@@ -126,50 +126,50 @@ final class MessageAttachmentUITests: XCTestCase {
     func testHomeFullBodyIncludesAttachment() {
         launch([:])
         let decision = app.buttons["home-message-attachment-decision"]
-        XCTAssertTrue(decision.waitForExistence(timeout: 10))
+        XCTAssertTrue(decision.appears(timeout: 10))
         XCTAssertTrue(decision.isHittable)
         decision.tap()
         let question = app.staticTexts["message-question"]
-        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        XCTAssertTrue(question.appears(timeout: 5))
         XCTAssertEqual(question.label, "Approve the release banner?")
         assertViewer(app.buttons["message-attachment-open"])
         XCTAssertTrue(question.isHittable)
         app.navigationBars.buttons["Done"].tap()
-        XCTAssertTrue(decision.waitForExistence(timeout: 5))
+        XCTAssertTrue(decision.appears(timeout: 5))
         XCTAssertTrue(decision.isHittable)
     }
 
     func testSlowImageOffersRetryAndViewerRemainsDismissible() {
         launch(["HIBOSS_DEMO_OPEN": "attachment-image"], delay: "60000")
         let retry = app.buttons["message-attachment-retry"]
-        XCTAssertTrue(retry.waitForExistence(timeout: 15))
+        XCTAssertTrue(retry.appears(timeout: 15))
         XCTAssertEqual(retry.value as? String, "Image is still loading")
         retry.tap()
-        XCTAssertTrue(retry.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(retry.disappears(timeout: 3))
         app.buttons["message-attachment-open"].tap()
-        XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Loading image…"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Close"].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Loading image…"].appears(timeout: 5))
         app.buttons["Close"].tap()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
     }
 
     func testFailedImageOffersLocalRetryAndDismissibleViewer() {
         launch(["HIBOSS_DEMO_OPEN": "attachment-image"], fixture: "failure")
         let retry = app.buttons["message-attachment-retry"]
-        XCTAssertTrue(retry.waitForExistence(timeout: 15))
+        XCTAssertTrue(retry.appears(timeout: 15))
         XCTAssertEqual(retry.value as? String, "Image unavailable")
         retry.tap()
-        XCTAssertTrue(retry.waitForExistence(timeout: 15))
+        XCTAssertTrue(retry.appears(timeout: 15))
         app.buttons["message-attachment-open"]
             .coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.15)).tap()
-        XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Image unavailable"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["Close"].appears(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Image unavailable"].appears(timeout: 15))
         app.buttons["Close"].tap()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
     }
 
     private func assertViewer(_ button: XCUIElement) {
-        XCTAssertTrue(button.waitForExistence(timeout: 15))
+        XCTAssertTrue(button.appears(timeout: 15))
         let navigation = app.navigationBars.firstMatch
         let composer = app.descendants(matching: .any)["session-reply-composer"].firstMatch
         for _ in 0..<8 {
@@ -182,11 +182,11 @@ final class MessageAttachmentUITests: XCTestCase {
         }
         XCTAssertTrue(button.isHittable)
         button.tap()
-        XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Close"].appears(timeout: 5))
         XCTAssertGreaterThanOrEqual(app.buttons["Close"].frame.height, 44)
-        XCTAssertTrue(app.images["release-banner.png"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.images["release-banner.png"].appears(timeout: 15))
         assertMediaPinchZoom(app)
         app.buttons["Close"].tap()
-        XCTAssertTrue(app.buttons["Close"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Close"].disappears(timeout: 5))
     }
 }

@@ -21,12 +21,12 @@ final class BoxV2CaptureUITests: XCTestCase {
                                     "UICTContentSizeCategoryAccessibilityL"]
         }
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.tabBars.buttons.element(boundBy: 2).waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.buttons.element(boundBy: 2).appears(timeout: 10))
         app.tabBars.buttons.element(boundBy: 2).tap()
         let locale = language == "en" ? "en" : "zh"
         let prefix = "\(locale)-box-v2-\(appearance.lowercased())\(large ? "-ax" : "")"
         setStyle(app, language == "en" ? "List" : "列表")
-        XCTAssertTrue(app.buttons["box-item-demo-image"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
         XCTAssertLessThanOrEqual(app.buttons["box-item-demo-agent-text"].frame.maxX, app.frame.maxX)
         if language == "zh-Hans" {
             XCTAssertFalse(app.buttons["box-item-demo-agent-text"].label.contains("秒钟"))
@@ -36,11 +36,11 @@ final class BoxV2CaptureUITests: XCTestCase {
         shot(app, "\(prefix)-cards")
         setStyle(app, language == "en" ? "List" : "列表")
         app.buttons["box-item-demo-agent-text"].tap()
-        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         shot(app, "\(prefix)-detail")
         if large { captureDetailActions(app, prefix: prefix, language: language) }
         detailDelete(app, language: language).tap()
-        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.alerts.firstMatch.appears(timeout: 5))
         shot(app, "\(prefix)-delete-confirmation")
         app.alerts.buttons[language == "en" ? "Cancel" : "取消"].tap()
         app.navigationBars.buttons.firstMatch.tap()
@@ -50,11 +50,11 @@ final class BoxV2CaptureUITests: XCTestCase {
 
     private func captureMediaAndMenus(_ app: XCUIApplication, prefix: String, language: String) {
         tapFilter(app, identifier: "box-filter-image")
-        XCTAssertTrue(app.buttons["box-item-demo-grid-2"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["box-item-demo-grid-2"].appears(timeout: 10))
         shot(app, "\(prefix)-grid")
         app.buttons["box-item-demo-image"].tap()
-        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.images["media-viewer-image"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 10))
+        XCTAssertTrue(app.images["media-viewer-image"].appears(timeout: 10))
         for id in ["media-viewer-copy", "media-viewer-info", "media-viewer-delete"] {
             XCTAssertTrue(app.buttons[id].isHittable)
             XCTAssertGreaterThanOrEqual(app.buttons[id].frame.height, 44)
@@ -69,7 +69,7 @@ final class BoxV2CaptureUITests: XCTestCase {
 
     private func tapFilter(_ app: XCUIApplication, identifier: String) {
         let chip = app.buttons[identifier]
-        XCTAssertTrue(chip.waitForExistence(timeout: 5))
+        XCTAssertTrue(chip.appears(timeout: 5))
         let row = app.scrollViews.containing(.button, identifier: "box-filter-all").firstMatch
         XCTAssertTrue(row.exists)
         for _ in 0..<5 {
@@ -107,7 +107,7 @@ final class BoxV2CaptureUITests: XCTestCase {
             XCTAssertTrue(overflow.isHittable)
             overflow.tap()
         }
-        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        XCTAssertTrue(delete.appears(timeout: 3))
         XCTAssertTrue(delete.isHittable)
         return delete
     }
@@ -121,7 +121,7 @@ final class BoxV2CaptureUITests: XCTestCase {
         let choice = app.buttons.matching(NSPredicate(
             format: "label == %@ AND identifier != %@", option, "box-filter-all")).firstMatch
         button.tap()
-        XCTAssertTrue(choice.waitForExistence(timeout: 3), identifier)
+        XCTAssertTrue(choice.appears(timeout: 3), identifier)
         shot(app, captureName)
         choice.tap()
     }
@@ -159,7 +159,7 @@ extension BoxV2UITests {
         let expectedWidth = (app.frame.width - 48) / 3
         let frames = tiles.map { tile in
             let button = grid.buttons["box-item-\(tile.0)"]
-            XCTAssertTrue(button.waitForExistence(timeout: 5))
+            XCTAssertTrue(button.appears(timeout: 5))
             XCTAssertEqual(button.frame.width, expectedWidth, accuracy: 2, tile.0)
             XCTAssertEqual(button.frame.height, expectedWidth, accuracy: 2, tile.0)
             return (button.frame, tile.1)
@@ -171,7 +171,7 @@ extension BoxV2UITests {
         }
         for (frame, title) in frames {
             tapInsideEdges(of: frame, size: expectedWidth, title: title)
-            XCTAssertTrue(grid.waitForExistence(timeout: 5))
+            XCTAssertTrue(grid.appears(timeout: 5))
         }
     }
 
@@ -186,8 +186,8 @@ extension BoxV2UITests {
         ] {
             app.coordinate(withNormalizedOffset: CGVector(
                 dx: point.x / app.frame.width, dy: point.y / app.frame.height)).tap()
-            XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
-            XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5), title)
+            XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 5))
+            XCTAssertTrue(app.staticTexts[title].appears(timeout: 5), title)
             app.buttons["media-viewer-close"].tap()
         }
     }
@@ -211,7 +211,7 @@ final class BoxCardSwipeUITests: XCTestCase {
         let neighbor = app.buttons["box-item-demo-image"]
         assertSwipesKeepGrid(card, neighbor: neighbor, gridID: "box-cards")
         card.tap()
-        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
         card.press(forDuration: 1)
         for title in ["Like", "Share", "Add to Collection…", "Delete"] {
@@ -224,20 +224,20 @@ final class BoxCardSwipeUITests: XCTestCase {
         app.buttons["box-filter-image"].tap()
         let card = app.buttons["box-item-demo-image"]
         let neighbor = app.buttons["box-item-demo-grid-1"]
-        XCTAssertTrue(neighbor.waitForExistence(timeout: 5))
+        XCTAssertTrue(neighbor.appears(timeout: 5))
         assertSwipesKeepGrid(card, neighbor: neighbor, gridID: "box-photo-grid")
         card.tap()
-        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 5))
     }
 
     func testListRetainsTrailingDeleteAndLeadingLikeShare() {
         openBox(style: "List")
         let row = app.buttons["box-item-demo-agent-text"]
         row.swipeLeft()
-        XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Delete"].appears(timeout: 3))
         row.swipeRight()
         row.swipeRight()
-        XCTAssertTrue(app.buttons["Share"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Share"].appears(timeout: 3))
         XCTAssertTrue(app.buttons["Like"].exists)
     }
 
@@ -246,9 +246,9 @@ final class BoxCardSwipeUITests: XCTestCase {
 
     private func openBox(style: String) {
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.tabBars.buttons["Box"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.buttons["Box"].appears(timeout: 10))
         app.tabBars.buttons["Box"].tap()
-        XCTAssertTrue(app.buttons["box-item-demo-image"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
         app.buttons["box-style-menu"].tap()
         app.buttons[style].tap()
         XCTAssertTrue(app.buttons["box-filter-all"].isSelected)

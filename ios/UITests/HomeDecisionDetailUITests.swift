@@ -36,11 +36,11 @@ final class HomeDecisionDetailUITests: XCTestCase {
 
     func testChineseHomeOpensDetailOnHomeStackAndBackReturnsHome() {
         launch()
-        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].appears(timeout: 10))
         XCTAssertTrue(app.staticTexts["4 项需要你"].exists, "count uses the localized plural")
         XCTAssertFalse(app.staticTexts["即将自动决定"].exists, "cards already describe their deadlines")
 
-        XCTAssertTrue(timing("c5").waitForExistence(timeout: 5))
+        XCTAssertTrue(timing("c5").appears(timeout: 5))
         XCTAssertTrue(timing("c5").label.contains(Self.autoSelectCopy), timing("c5").label)
         XCTAssertTrue(timing("c5").label.contains("内未回答"))
         XCTAssertEqual(app.buttons["Coarse grid"].value as? String, "默认", "Home marks the live default")
@@ -49,7 +49,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
 
         app.buttons["home-message-c5"].tap()
         let question = app.staticTexts["message-question"]
-        XCTAssertTrue(question.waitForExistence(timeout: 5), "detail opens from Home")
+        XCTAssertTrue(question.appears(timeout: 5), "detail opens from Home")
         XCTAssertEqual(question.label, Self.c5Question)
         XCTAssertTrue(app.navigationBars["prod-release"].exists, "detail title is the session")
         XCTAssertFalse(app.tabBars.firstMatch.isHittable, "the decision sheet covers the tab shell")
@@ -62,16 +62,16 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["方向"].exists, "routing facts stay collapsed")
 
         app.navigationBars.buttons["完成"].tap()
-        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 5), "back returns to Home")
+        XCTAssertTrue(app.staticTexts["由你决定"].appears(timeout: 5), "back returns to Home")
         XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
         XCTAssertFalse(question.exists)
     }
 
     func testDetailLabelsAreLocalized() {
         launch()
-        XCTAssertTrue(app.buttons["home-message-c5"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["home-message-c5"].appears(timeout: 10))
         app.buttons["home-message-c5"].tap()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         for _ in 0..<6 where !app.staticTexts["优先级"].exists { app.swipeUp() }
         for label in ["详情", "智能体", "会话", "分支", "提问时间", "优先级"] {
             XCTAssertTrue(app.staticTexts[label].exists, "missing localized label \(label)")
@@ -85,7 +85,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
     func testFullQuestionAtAccessibilitySizeOnHomeAndDetail() {
         launch(arguments: Self.accessibilityXXXL)
         let row = app.buttons["home-message-c1"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.appears(timeout: 10))
         XCTAssertTrue(row.label.contains(Self.c1Question))
         let reply = app.buttons["Approve"]
         assertSideBySide("Approve", "Reject", allowsWrapping: true)
@@ -95,7 +95,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         row.tap()
         let detailQuestion = app.staticTexts["message-question"]
-        XCTAssertTrue(detailQuestion.waitForExistence(timeout: 5))
+        XCTAssertTrue(detailQuestion.appears(timeout: 5))
         XCTAssertEqual(detailQuestion.label, Self.c1Question)
         keepScreenshot("accessibility-detail-question")
         XCTAssertGreaterThan(
@@ -111,7 +111,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
     func testTwoChoicesShareTheRowHeightAtAccessibilitySize() {
         launch(arguments: Self.accessibilityXXXL)
         let coarse = app.buttons["Coarse grid"].firstMatch
-        XCTAssertTrue(coarse.waitForExistence(timeout: 10))
+        XCTAssertTrue(coarse.appears(timeout: 10))
         for _ in 0..<8 where !coarse.isHittable { app.swipeUp() }
         keepScreenshot("accessibility-two-choices")
         assertSideBySide("Coarse grid", "Fine grid", allowsWrapping: true)
@@ -119,28 +119,28 @@ final class HomeDecisionDetailUITests: XCTestCase {
 
     func testNoPanelControlsWithoutPanels() {
         launch()
-        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].appears(timeout: 10))
         assertNoPanelControls()
 
         app.terminate()
         launch(["HIBOSS_DEMO_EMPTY": "1"])
-        XCTAssertTrue(app.staticTexts["没有需要你处理的事"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["没有需要你处理的事"].appears(timeout: 10))
         assertNoPanelControls()
     }
 
     func testBackRestoresScrolledHomeLocation() {
         launch()
         let row = app.buttons["home-message-c2"]
-        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].appears(timeout: 10))
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.appears(timeout: 10))
         XCTAssertTrue(row.isHittable)
         let originalY = row.frame.minY
         row.tap()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
         app.navigationBars.buttons["完成"].tap()
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         XCTAssertEqual(row.frame.minY, originalY, accuracy: 3, "back preserves Home scroll position")
         XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
     }
@@ -148,14 +148,14 @@ final class HomeDecisionDetailUITests: XCTestCase {
     func testWaitingTimingWithoutDeadlineAgreesOnHomeAndDetail() {
         launch()
         let row = app.buttons["home-message-c3"]
-        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].appears(timeout: 10))
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.appears(timeout: 10))
         XCTAssertTrue(timing("c3").label.contains("已等待"))
         XCTAssertFalse(timing("c3").label.contains("自动选择"))
         XCTAssertNotEqual(app.buttons["Provide"].value as? String, "默认")
         row.tap()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         XCTAssertTrue(timing("c3").label.contains("已等待"))
         XCTAssertFalse(timing("c3").label.contains("自动选择"))
         XCTAssertNotEqual(app.buttons["Provide"].value as? String, "默认")
@@ -173,12 +173,12 @@ final class HomeDecisionDetailUITests: XCTestCase {
         launch(["HIBOSS_DEMO_STABLE_DEADLINES": "1"],
                arguments: arguments + ["-AppleInterfaceStyle", style])
         let choice = app.buttons["Coarse grid"]
-        XCTAssertTrue(choice.waitForExistence(timeout: 10))
+        XCTAssertTrue(choice.appears(timeout: 10))
         XCTAssertTrue(choice.label.contains("Larger blocks emphasize each announcement."))
         XCTAssertTrue(app.staticTexts["Larger blocks emphasize each announcement."].firstMatch.exists)
         keepScreenshot("descriptions-home-\(style)-\(arguments.isEmpty ? "default" : "large")")
         app.buttons["home-message-c5"].tap()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         XCTAssertTrue(choice.label.contains("Larger blocks emphasize each announcement."))
         XCTAssertTrue(app.staticTexts["Smaller tiles fit more announcements at once."].firstMatch.exists)
         keepScreenshot("descriptions-detail-\(style)-\(arguments.isEmpty ? "default" : "large")")
@@ -200,7 +200,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
     private func verifyMetadataAndDetailRhythm(style: String, large: Bool = false) {
         launch(arguments: ["-AppleInterfaceStyle", style] + (large ? Self.accessibilityXXXL : []))
         let row = app.buttons["home-message-c5"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.appears(timeout: 10))
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         let project = row.staticTexts["prod-release"]
         XCTAssertTrue(project.exists, "Project must have its own untruncated text view")
@@ -209,7 +209,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(row.staticTexts[branchAndAgent].exists)
         keepScreenshot("round2-today-\(style)-\(large ? "AX" : "standard")")
         row.tap()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         let facts = app.descendants(matching: .any)["decision-facts"].firstMatch
         let notice = timing("c5")
         if !large {
@@ -254,7 +254,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
 
     private func assertNoPanelControls() {
         // Give the panel load a moment to finish so an empty wall would have rendered.
-        _ = app.staticTexts["实时面板"].waitForExistence(timeout: 2)
+        _ = app.staticTexts["实时面板"].appears(timeout: 2)
         XCTAssertFalse(app.staticTexts["实时面板"].exists, "no panels header without tiles")
         XCTAssertEqual(app.segmentedControls.count, 0, "no panel filter without tiles")
         XCTAssertFalse(app.buttons["刷新"].exists)

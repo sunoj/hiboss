@@ -13,7 +13,7 @@ final class SessionThreadsUITests: XCTestCase {
     func testAnswerLeavesNeedsYouAndAppearsInConversation() {
         let app = launch("Light", empty: false)
         let decision = app.descendants(matching: .any)["transcript-decision-c5"]
-        XCTAssertTrue(decision.waitForExistence(timeout: 10))
+        XCTAssertTrue(decision.appears(timeout: 10))
         XCTAssertTrue(decision.buttons["Coarse grid"].isHittable)
         let pinned = app.descendants(matching: .any)["needs-thread-c5"]
         XCTAssertTrue(pinned.staticTexts["I can keep the previous batch ready while you decide."].exists)
@@ -21,7 +21,7 @@ final class SessionThreadsUITests: XCTestCase {
         decision.buttons["Coarse grid"].tap()
         let answer = app.descendants(matching: .any)["transcript-answer-c5"]
         for _ in 0..<8 where !answer.isHittable { app.swipeUp() }
-        XCTAssertTrue(answer.waitForExistence(timeout: 10))
+        XCTAssertTrue(answer.appears(timeout: 10))
         XCTAssertFalse(decision.buttons["Coarse grid"].exists)
         XCTAssertTrue(app.textFields["session-reply-draft"].isEnabled)
         keep(app, "answered-light")
@@ -32,7 +32,7 @@ final class SessionThreadsUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_THREADS": "1", "HIBOSS_DEMO_OPEN": "thread-followup"])
         app.launchConfiguredDemo()
         let reaction = app.staticTexts["reaction-thread-followup-👍"]
-        XCTAssertTrue(reaction.waitForExistence(timeout: 10))
+        XCTAssertTrue(reaction.appears(timeout: 10))
         XCTAssertEqual(reaction.label, "👍, 2 reactions")
         keep(app, "detail-reactions")
     }
@@ -44,19 +44,19 @@ final class SessionThreadsUITests: XCTestCase {
                                  "HIBOSS_DEMO_TRANSCRIPT_REFRESH_DELAY_MS": "10000"])
         app.launchConfiguredDemo()
         let choice = app.buttons["Coarse grid"]
-        XCTAssertTrue(choice.waitForExistence(timeout: 10))
+        XCTAssertTrue(choice.appears(timeout: 10))
         pullToRefresh(app)
         let frame = choice.frame
         let notice = app.alerts["Transcript reloaded"]
-        XCTAssertTrue(notice.waitForExistence(timeout: 25), "the stream must request a reload")
+        XCTAssertTrue(notice.appears(timeout: 25), "the stream must request a reload")
         notice.buttons["OK"].tap()
         let refreshing = app.staticTexts["list-stale-banner"]
-        XCTAssertTrue(refreshing.waitForExistence(timeout: 5), "the reload must fetch cached content")
+        XCTAssertTrue(refreshing.appears(timeout: 5), "the reload must fetch cached content")
         XCTAssertTrue(choice.isEnabled)
         XCTAssertEqual(choice.frame, frame)
         XCTAssertFalse(app.descendants(matching: .any)["pending-rows"].exists)
         keep(app, "session-mid-refresh")
-        XCTAssertTrue(refreshing.waitForNonExistence(timeout: 15))
+        XCTAssertTrue(refreshing.disappears(timeout: 15))
         XCTAssertEqual(choice.frame, frame)
     }
 
@@ -66,27 +66,27 @@ final class SessionThreadsUITests: XCTestCase {
                                  "HIBOSS_DEMO_THREADS": "1",
                                  "HIBOSS_DEMO_TRANSCRIPT_NEWER_DELAY_MS": "15000"])
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["Release notes are ready."].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Release notes are ready."].appears(timeout: 10))
         app.swipeUp()
         let incoming = app.staticTexts["A newer release update.\nMore context follows."]
-        XCTAssertTrue(incoming.waitForExistence(timeout: 25))
+        XCTAssertTrue(incoming.appears(timeout: 25))
         XCTAssertTrue(incoming.isHittable, "a new message stays visible while following live")
         app.swipeDown()
         let jump = app.buttons["jump-to-live"]
-        XCTAssertTrue(jump.waitForExistence(timeout: 5))
+        XCTAssertTrue(jump.appears(timeout: 5))
         jump.tap()
-        XCTAssertTrue(jump.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(jump.disappears(timeout: 5))
         XCTAssertTrue(incoming.isHittable)
     }
 
     private func captureConversation(_ appearance: String, largeText: Bool = false) {
         let pending = launch(appearance, largeText: largeText, empty: false)
-        XCTAssertTrue(pending.staticTexts["Needs you"].waitForExistence(timeout: 10))
+        XCTAssertTrue(pending.staticTexts["Needs you"].appears(timeout: 10))
         keep(pending, "\(appearance)-needs-you")
         pending.terminate()
         let app = launch(appearance, largeText: largeText)
         let root = app.descendants(matching: .any)["transcript-decision-thread-question"]
-        XCTAssertTrue(root.waitForExistence(timeout: 10))
+        XCTAssertTrue(root.appears(timeout: 10))
         XCTAssertTrue(root.staticTexts["Use the smaller release batch?"].exists)
         XCTAssertTrue(root.descendants(matching: .any)["transcript-answer-thread-question"].exists)
         let followup = root.descendants(matching: .any)["followup-thread-followup"]

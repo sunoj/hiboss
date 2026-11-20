@@ -55,7 +55,7 @@ final class IntermediateStateUITests: IntermediateCaptureCase {
         launch(["HIBOSS_DEMO_TEXT_ASK": "1", "HIBOSS_DEMO_OPEN": "demo-text-ask",
                 "HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
         let field = app.textFields["message-reply-draft"].firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 8))
+        XCTAssertTrue(field.appears(timeout: 8))
         field.tap()
         field.typeText("Use the latest export")
         app.buttons[variant.contains("zh") ? "发送" : "Send"].firstMatch.tap()
@@ -69,13 +69,13 @@ final class IntermediateStateUITests: IntermediateCaptureCase {
         choice.tap()
         holdAndCapture("home-reply")
         launch(["HIBOSS_DEMO_OPEN": "c1", "HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
-        XCTAssertTrue(app.buttons["Reject"].firstMatch.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["Reject"].firstMatch.appears(timeout: 8))
         app.buttons["Reject"].firstMatch.tap()
         holdAndCapture("detail-reply")
         launch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
         let transcriptChoice = app.buttons["Reject"].firstMatch
         for _ in 0..<5 where !transcriptChoice.isHittable { app.swipeDown() }
-        XCTAssertTrue(transcriptChoice.waitForExistence(timeout: 8))
+        XCTAssertTrue(transcriptChoice.appears(timeout: 8))
         transcriptChoice.tap()
         holdAndCapture("transcript-reply")
     }

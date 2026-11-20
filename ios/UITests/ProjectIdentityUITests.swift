@@ -21,7 +21,7 @@ final class ProjectIdentityUITests: XCTestCase {
         app.buttons["activity-session-sess-deploy"].tap()
         let peers = app.descendants(matching: .any).matching(identifier: "project-peers").firstMatch
         for _ in 0..<8 where !peers.exists || !peers.isHittable { app.swipeDown() }
-        XCTAssertTrue(peers.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(peers.appears(timeout: 10), app.debugDescription)
         peers.tap()
         let all = app.buttons["project-peers-show-all"]
         let transcript = app.scrollViews["session-transcript"]
@@ -35,7 +35,7 @@ final class ProjectIdentityUITests: XCTestCase {
         }
         XCTAssertTrue(all.isHittable)
         all.tap()
-        XCTAssertTrue(app.navigationBars["最近活跃的会话"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["最近活跃的会话"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["prod-release · palm"].exists)
         shot(app, "zh-large-peers")
     }
@@ -49,7 +49,7 @@ final class ProjectIdentityUITests: XCTestCase {
         let peers = app.staticTexts["project-peers"]
         let conversation = app.staticTexts["Conversation"]
         for _ in 0..<8 where !peers.exists || !peers.isHittable { app.swipeDown() }
-        XCTAssertTrue(peers.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(peers.appears(timeout: 10), app.debugDescription)
         XCTAssertTrue(conversation.exists)
         // The label sits in a card with 16 pt padding; a 20 pt gap separates the card from the heading.
         let gap = conversation.frame.minY - peers.frame.maxY
@@ -58,7 +58,7 @@ final class ProjectIdentityUITests: XCTestCase {
 
     private func verifySessionTitle(_ app: XCUIApplication, label: String) {
         let title = app.navigationBars[label].staticTexts[label]
-        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertTrue(title.appears(timeout: 5))
         XCTAssertGreaterThanOrEqual(title.frame.height, 35, "Cold open retains the native large title")
         let duplicate = app.staticTexts.matching(NSPredicate(format: "label == %@", label))
             .allElementsBoundByIndex.filter {
@@ -73,7 +73,7 @@ final class ProjectIdentityUITests: XCTestCase {
         var app = launch(appearance, peers: false)
         app.tabBars.buttons["Sessions"].tap()
         let session = app.buttons["activity-session-sess-deploy"]
-        XCTAssertTrue(session.waitForExistence(timeout: 10))
+        XCTAssertTrue(session.appears(timeout: 10))
         verifySessionTitle(app, label: "Sessions")
         XCTAssertTrue(session.label.contains("prod-release"))
         XCTAssertFalse(session.label.contains("prod-release /"))
@@ -89,20 +89,20 @@ final class ProjectIdentityUITests: XCTestCase {
         app = launch(appearance)
         app.tabBars.buttons["Sessions"].tap()
         app.buttons["activity-session-sess-deploy"].tap()
-        XCTAssertTrue(app.staticTexts["prod-release · otter"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["prod-release · otter"].appears(timeout: 10))
         let peers = app.descendants(matching: .any).matching(identifier: "project-peers").firstMatch
         for _ in 0..<8 where !peers.exists || !peers.isHittable { app.swipeDown() }
-        XCTAssertTrue(peers.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(peers.appears(timeout: 10), app.debugDescription)
         peers.tap()
         XCTAssertTrue(app.descendants(matching: .any)["project-peer-peer-1"]
-            .waitForExistence(timeout: 5), app.debugDescription)
+            .appears(timeout: 5), app.debugDescription)
         XCTAssertFalse(app.descendants(matching: .any)["project-peer-peer-6"].exists)
         shot(app, "\(appearance)-session-peers")
         let all = app.buttons["project-peers-show-all"]
         for _ in 0..<8 where !all.isHittable { app.swipeUp() }
         XCTAssertTrue(all.isHittable)
         all.tap()
-        XCTAssertTrue(app.navigationBars["Recent peers"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Recent peers"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["prod-release · fern"].exists)
         XCTAssertEqual(app.cells.count, 7)
         XCTAssertFalse(app.cells.staticTexts["prod-release · otter"].exists)
@@ -120,7 +120,7 @@ final class ProjectIdentityUITests: XCTestCase {
                                     "UICTContentSizeCategoryAccessibilityXXXL"]
         }
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.firstMatch.appears(timeout: 10))
         return app
     }
 

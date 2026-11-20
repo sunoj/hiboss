@@ -24,7 +24,7 @@ final class OptionMediaUITests: XCTestCase {
 
     func testResolvedDetailPreservesImagesAndZoom() {
         launch(state: "resolved", route: ["HIBOSS_DEMO_OPEN": "media-decision"])
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 10))
         assertImages()
         XCTAssertTrue(app.staticTexts["A calm opening beside the sea."].firstMatch.exists)
         assertSelection(option: "Coastal view", automatic: false)
@@ -35,12 +35,12 @@ final class OptionMediaUITests: XCTestCase {
     func testOptionImagePinchReportsZoomed() {
         launch(state: "pending", route: ["HIBOSS_DEMO_OPEN": "media-decision"])
         let thumbnail = app.buttons["Open image for Coastal view"]
-        XCTAssertTrue(thumbnail.waitForExistence(timeout: 10))
+        XCTAssertTrue(thumbnail.appears(timeout: 10))
         thumbnail.tap()
         let image = app.images.matching(NSPredicate(
             format: "identifier IN %@", ["media-viewer-image"]
         )).firstMatch
-        XCTAssertTrue(image.waitForExistence(timeout: 20))
+        XCTAssertTrue(image.appears(timeout: 20))
         image.pinch(withScale: 2, velocity: 1)
         let zoom = app.scrollViews.matching(NSPredicate(
             format: "identifier BEGINSWITH %@", "media-zoom-scroll"
@@ -70,7 +70,7 @@ final class OptionMediaUITests: XCTestCase {
 
     func testResolvedListPreservesImagesAndZoomWithoutOpeningDetail() {
         launch(state: "resolved", route: ["HIBOSS_DEMO_RESOLVED": "1"])
-        XCTAssertTrue(app.navigationBars["Resolved"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Resolved"].appears(timeout: 10))
         assertImages()
         assertSelection(option: "Coastal view", automatic: false)
         assertZoom(option: "Coastal view")
@@ -94,7 +94,7 @@ final class OptionMediaUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Selected"].exists)
         app.buttons["Mountain view"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["transcript-answer-media-decision"]
-            .waitForExistence(timeout: 8))
+            .appears(timeout: 8))
         assertImages()
         assertSelection(option: "Mountain view", automatic: false)
         assertZoom(option: "Mountain view")
@@ -105,14 +105,14 @@ final class OptionMediaUITests: XCTestCase {
         assertImages()
         assertZoom(option: "Coastal view")
         app.buttons["home-message-media-decision"].tap()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 8))
         assertImages()
         assertZoom(option: "Mountain view")
     }
 
     private func assertImages() {
         for option in ["Coastal view", "Mountain view"] {
-            XCTAssertTrue(app.buttons["Open image for \(option)"].waitForExistence(timeout: 10),
+            XCTAssertTrue(app.buttons["Open image for \(option)"].appears(timeout: 10),
                           "option media must remain visible")
         }
     }
@@ -127,11 +127,11 @@ final class OptionMediaUITests: XCTestCase {
 
     private func assertZoom(option: String) {
         app.buttons["Open image for \(option)"].tap()
-        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.images["media-viewer-image"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 5))
+        XCTAssertTrue(app.images["media-viewer-image"].appears(timeout: 20))
         assertMediaPinchZoom(app)
         app.buttons["media-viewer-close"].tap()
-        XCTAssertTrue(app.images["media-viewer-image"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.images["media-viewer-image"].disappears(timeout: 5))
     }
 
     /// Waits until each tile has settled on a loaded image: its open button exists and
@@ -140,12 +140,12 @@ final class OptionMediaUITests: XCTestCase {
     /// exposed as a separate image element.
     private func shot(_ name: String) {
         for option in ["Coastal view", "Mountain view"] {
-            XCTAssertTrue(app.buttons["Open image for \(option)"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["Open image for \(option)"].appears(timeout: 10))
             XCTAssertFalse(app.buttons["option-media-retry-\(option)"].exists, "image failed or stalled")
         }
         let loading = app.descendants(matching: .any).matching(
             NSPredicate(format: "label == %@", "Loading image…"))
-        XCTAssertTrue(loading.firstMatch.waitForNonExistence(timeout: 20), "an image never finished loading")
+        XCTAssertTrue(loading.firstMatch.disappears(timeout: 20), "an image never finished loading")
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways

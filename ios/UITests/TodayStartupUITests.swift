@@ -13,7 +13,7 @@ final class TodayStartupUITests: XCTestCase {
         ])
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["Checking coverage"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Checking coverage"].appears(timeout: 5))
         XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
         XCTAssertFalse(app.staticTexts.matching(
             NSPredicate(format: "label BEGINSWITH 'Live'")).firstMatch.exists)
@@ -32,7 +32,7 @@ final class TodayStartupUITests: XCTestCase {
         ])
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Nothing needs you"].appears(timeout: 8))
         XCTAssertFalse(app.staticTexts["Checking coverage"].exists)
         app.terminate()
     }

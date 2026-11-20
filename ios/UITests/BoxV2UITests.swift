@@ -13,9 +13,9 @@ final class BoxV2UITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_BOX_V2": "1"])
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.tabBars.buttons["Box"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.buttons["Box"].appears(timeout: 10))
         app.tabBars.buttons["Box"].tap()
-        XCTAssertTrue(app.buttons["box-item-demo-image"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
         setStyle("List")
     }
 
@@ -23,7 +23,7 @@ final class BoxV2UITests: XCTestCase {
         setStyle("Cards")
         let agent = app.buttons["box-item-demo-agent-text"]
         let image = app.buttons["box-item-demo-image"]
-        XCTAssertTrue(image.waitForExistence(timeout: 5))
+        XCTAssertTrue(image.appears(timeout: 5))
         XCTAssertTrue(agent.label.contains("Agent research notes"))
         XCTAssertEqual(agent.frame.width, image.frame.width, accuracy: 2)
         XCTAssertEqual(agent.frame.height, image.frame.height, accuracy: 2)
@@ -41,7 +41,7 @@ final class BoxV2UITests: XCTestCase {
 
     func testTextDetailShowsContentOnceOmitsEmptyFieldsAndKeepsActionsInToolbar() {
         app.buttons["box-item-demo-agent-text"].tap()
-        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts.matching(identifier: "Agent research notes").count, 1)
         XCTAssertFalse(app.staticTexts["Tags"].exists)
         XCTAssertFalse(app.staticTexts["None"].exists)
@@ -53,7 +53,7 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertEqual(copy.frame.midY, edit.frame.midY, accuracy: 2)
         XCTAssertEqual(edit.frame.midY, delete.frame.midY, accuracy: 2)
         delete.tap()
-        XCTAssertTrue(app.alerts["Delete Agent research notes?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.alerts["Delete Agent research notes?"].appears(timeout: 5))
         app.alerts.buttons["Cancel"].tap()
     }
 
@@ -61,7 +61,7 @@ final class BoxV2UITests: XCTestCase {
         let agent = app.buttons["box-item-demo-agent-text"]
         let image = app.buttons["box-item-demo-image"]
         let text = app.buttons["box-item-demo-text"]
-        XCTAssertTrue(image.waitForExistence(timeout: 5))
+        XCTAssertTrue(image.appears(timeout: 5))
         XCTAssertEqual(agent.frame.height, image.frame.height, accuracy: 2)
         XCTAssertEqual(image.frame.height, text.frame.height, accuracy: 2)
         XCTAssertEqual(agent.frame.minX, image.frame.minX, accuracy: 2)
@@ -74,13 +74,13 @@ final class BoxV2UITests: XCTestCase {
         setStyle("Cards")
         assertThreeColumns()
         setAuthor("Agents")
-        XCTAssertTrue(app.buttons["box-item-demo-grid-3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["box-item-demo-grid-3"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-image"].exists)
         setFilter("text")
-        XCTAssertTrue(app.buttons["box-item-demo-agent-text"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["box-item-demo-agent-text"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-text"].exists)
         setAuthor("Me")
-        XCTAssertTrue(app.buttons["box-item-demo-text"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["box-item-demo-text"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
         XCTAssertTrue(app.buttons["box-filter-text"].isSelected)
         setStyle("List")
@@ -90,12 +90,12 @@ final class BoxV2UITests: XCTestCase {
         setFilter("image")
         setAuthor("Me")
         app.buttons["box-item-demo-grid-1"].tap()
-        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 10))
         XCTAssertEqual(app.staticTexts["media-viewer-counter"].label, "2 / 3")
         XCTAssertTrue(app.staticTexts["Visual reference 1"].exists)
         app.buttons["media-viewer-copy"].tap()
         app.buttons["media-viewer-info"].tap()
-        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         assertDetailValue("Format and size, image/png · 1 KB")
         app.buttons["Done"].tap()
         mediaZoomScroll(app).swipeRight()
@@ -104,13 +104,13 @@ final class BoxV2UITests: XCTestCase {
         mediaZoomScroll(app).doubleTap()
         app.buttons["media-viewer-delete"].tap()
         let alert = app.alerts["Delete Layout reference?"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        XCTAssertTrue(alert.appears(timeout: 5))
         XCTAssertTrue(alert.staticTexts["Agents will no longer be able to read this item."].exists)
         alert.buttons["Cancel"].tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].exists)
         app.buttons["media-viewer-delete"].tap()
         app.alerts.buttons["Delete"].tap()
-        XCTAssertTrue(app.buttons["media-viewer-close"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["media-viewer-close"].disappears(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-image"].exists)
     }
 
@@ -119,14 +119,14 @@ final class BoxV2UITests: XCTestCase {
         setStyle("Cards")
         let first = app.buttons["box-item-demo-video"]
         let second = app.buttons["box-item-demo-grid-4"]
-        XCTAssertTrue(second.waitForExistence(timeout: 5))
+        XCTAssertTrue(second.appears(timeout: 5))
         let tile = first.frame.height
         XCTAssertEqual(tile, 118, accuracy: 2)
         XCTAssertEqual(second.frame.height, tile, accuracy: 2)
         XCTAssertEqual(second.frame.minY, first.frame.minY, accuracy: 2)
         XCTAssertGreaterThan(second.frame.midX, first.frame.midX)
         first.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["media-viewer-video"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["media-viewer-video"].appears(timeout: 10))
         XCTAssertEqual(app.staticTexts["media-viewer-counter"].label, "1 / 2")
         app.buttons["media-viewer-close"].tap()
         setStyle("List")
@@ -134,15 +134,15 @@ final class BoxV2UITests: XCTestCase {
 
     func testSwipeDeleteConfirmsAndLeadingShareUsesNativeSheet() {
         let row = app.buttons["box-item-demo-agent-text"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         row.swipeLeft()
         app.buttons["Delete"].tap()
-        XCTAssertTrue(app.alerts["Delete Agent research notes?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.alerts["Delete Agent research notes?"].appears(timeout: 5))
         app.alerts.buttons["Cancel"].tap()
         XCTAssertTrue(row.exists)
         row.swipeRight()
         app.buttons["Share"].tap()
-        XCTAssertTrue(app.cells["Copy"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.cells["Copy"].appears(timeout: 5))
     }
 
     func testFailedMediaKeepsItsPageAndCanRetryWithActionsStillReachable() {
@@ -152,17 +152,17 @@ final class BoxV2UITests: XCTestCase {
         app.launchConfiguredDemo()
         app.tabBars.buttons["Box"].tap()
         setFilter("image")
-        XCTAssertTrue(app.buttons["box-item-demo-grid-1"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["box-item-demo-grid-1"].appears(timeout: 10))
         app.buttons["box-item-demo-grid-1"].tap()
-        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 10))
         XCTAssertEqual(app.staticTexts["media-viewer-counter"].label, "2 / 4")
         let retry = app.buttons["Retry"].firstMatch
-        XCTAssertTrue(retry.waitForExistence(timeout: 5))
+        XCTAssertTrue(retry.appears(timeout: 5))
         XCTAssertFalse(app.buttons["media-viewer-copy"].isEnabled)
         XCTAssertFalse(app.buttons["media-viewer-share"].isEnabled)
         XCTAssertTrue(app.buttons["media-viewer-info"].isHittable)
         retry.tap()
-        XCTAssertTrue(retry.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(retry.disappears(timeout: 5))
         XCTAssertTrue(app.buttons["media-viewer-copy"].isEnabled)
         XCTAssertEqual(app.staticTexts["media-viewer-counter"].label, "2 / 4")
         assertMediaPinchZoom(app)
@@ -179,14 +179,14 @@ final class BoxV2UITests: XCTestCase {
         let open = app.buttons["Open file"]
         for _ in 0..<5 where !open.isHittable { app.swipeUp() }
         open.tap()
-        XCTAssertTrue(app.buttons["media-viewer-delete"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["media-viewer-delete"].appears(timeout: 10))
         app.buttons["media-viewer-delete"].tap()
-        XCTAssertTrue(app.alerts["Delete Reference.png?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.alerts["Delete Reference.png?"].appears(timeout: 5))
         app.alerts.buttons["Cancel"].tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].exists)
         app.buttons["media-viewer-delete"].tap()
         app.alerts.buttons["Delete"].tap()
-        XCTAssertTrue(app.buttons["box-style-menu"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["box-style-menu"].appears(timeout: 5))
         XCTAssertFalse(file.exists)
     }
 
@@ -194,7 +194,7 @@ final class BoxV2UITests: XCTestCase {
         let link = app.buttons["box-item-demo-link"]
         for _ in 0..<5 where !link.isHittable { app.swipeUp() }
         link.tap()
-        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         for field in ["Author", "Project", "Tags", "Format and size", "Added"] {
             XCTAssertTrue(app.staticTexts[field].exists, field)
         }
@@ -205,43 +205,43 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertTrue(app.buttons["Open"].exists)
         edit.tap()
         let draft = app.textViews["box-note-draft"]
-        XCTAssertTrue(draft.waitForExistence(timeout: 5))
+        XCTAssertTrue(draft.appears(timeout: 5))
         draft.tap()
         draft.typeText("Saved link context")
         app.buttons["Save"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["Saved link context"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["Saved link context"].appears(timeout: 5))
         let delete = app.buttons["Delete"]
         for _ in 0..<5 where !delete.isHittable { app.swipeUp() }
         delete.tap()
-        XCTAssertTrue(app.alerts["Delete Apple Developer?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.alerts["Delete Apple Developer?"].appears(timeout: 5))
         app.alerts.buttons["Cancel"].tap()
         app.navigationBars.buttons.firstMatch.tap()
         let text = app.buttons["box-item-demo-text"]
         for _ in 0..<5 where !text.isHittable { app.swipeDown() }
         text.tap()
-        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Author"].exists)
         XCTAssertFalse(app.buttons["Open"].exists)
     }
 
     private func setStyle(_ title: String) {
         let menu = app.buttons["box-style-menu"]
-        XCTAssertTrue(menu.waitForExistence(timeout: 5))
+        XCTAssertTrue(menu.appears(timeout: 5))
         menu.tap()
         let choice = app.buttons[title]
-        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        XCTAssertTrue(choice.appears(timeout: 5))
         choice.tap()
         XCTAssertEqual(menu.value as? String, title)
     }
 
     func setFilter(_ rawValue: String) {
         if rawValue == "video" {
-            XCTAssertTrue(app.buttons["box-item-demo-video"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["box-item-demo-video"].appears(timeout: 10))
         } else if rawValue == "image" {
-            XCTAssertTrue(app.buttons["box-item-demo-image"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
         }
         let filter = app.buttons["box-filter-\(rawValue)"]
-        XCTAssertTrue(filter.waitForExistence(timeout: 5))
+        XCTAssertTrue(filter.appears(timeout: 5))
         let chips = app.scrollViews.containing(.button, identifier: "box-filter-liked").firstMatch
         for _ in 0..<3 where !filter.isHittable {
             if rawValue == "all" { chips.swipeRight() } else { chips.swipeLeft() }
@@ -250,7 +250,7 @@ final class BoxV2UITests: XCTestCase {
         filter.tap()
         XCTAssertTrue(filter.isSelected)
         if rawValue == "image" || rawValue == "video" {
-            XCTAssertTrue(app.descendants(matching: .any)["box-photo-grid"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.descendants(matching: .any)["box-photo-grid"].appears(timeout: 5))
         }
     }
 
@@ -275,11 +275,11 @@ final class BoxV2UITests: XCTestCase {
 
     private func assertThreeColumns() {
         let grid = app.descendants(matching: .any)["box-photo-grid"]
-        XCTAssertTrue(grid.waitForExistence(timeout: 5))
+        XCTAssertTrue(grid.appears(timeout: 5))
         let first = grid.buttons["box-item-demo-image"]
         let second = grid.buttons["box-item-demo-grid-1"]
         let third = grid.buttons["box-item-demo-grid-2"]
-        XCTAssertTrue(third.waitForExistence(timeout: 5))
+        XCTAssertTrue(third.appears(timeout: 5))
         let tile = first.frame.height
         XCTAssertEqual(tile, 118, accuracy: 2)
         XCTAssertEqual(second.frame.height, tile, accuracy: 2)

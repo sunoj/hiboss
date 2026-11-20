@@ -16,16 +16,16 @@ final class PushModeUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_PUSH_MODE": mode])
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.buttons["today-settings"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["today-settings"].appears(timeout: 8))
         app.buttons["today-settings"].tap()
-        XCTAssertTrue(app.buttons["settings-notifications"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings-notifications"].appears(timeout: 5))
         app.buttons["settings-notifications"].tap()
     }
 
     func testNoneModeExplainsAndOffersNoPermissionPrompt() {
         openNotifications(mode: "none")
         let notice = app.descendants(matching: .any)["settings-push-unavailable"]
-        XCTAssertTrue(notice.waitForExistence(timeout: 5))
+        XCTAssertTrue(notice.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(
             format: "label CONTAINS %@", "turned off the HiBoss push relay")).firstMatch.exists)
         XCTAssertFalse(app.buttons["Enable Notifications"].exists)
@@ -41,7 +41,7 @@ final class PushModeUITests: XCTestCase {
         openNotifications(mode: "relay")
         let help = app.staticTexts.containing(NSPredicate(
             format: "label CONTAINS %@", "Live Activities update only while HiBoss is open")).firstMatch
-        XCTAssertTrue(help.waitForExistence(timeout: 5))
+        XCTAssertTrue(help.appears(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["settings-push-unavailable"].exists)
     }
 }

@@ -10,14 +10,14 @@ final class QuestionnaireStepsUITests: IntermediateCaptureCase {
     func testStepThroughReviewAndSubmit() {
         launch(["HIBOSS_DEMO_NATIVE_PANEL": "1", "HIBOSS_DEMO_PANEL_OPEN": "demo-panel",
                 "HIBOSS_DEMO_QUESTIONNAIRE_STEPS": "1"])
-        XCTAssertTrue(app.navigationBars["Release checklist"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Release checklist"].appears(timeout: 10))
         let counter = app.staticTexts["questionnaire-step-counter"]
-        XCTAssertTrue(counter.waitForExistence(timeout: 10))
+        XCTAssertTrue(counter.appears(timeout: 10))
         XCTAssertEqual(counter.label, "Question 1 of 11")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '下面十个问题'")).firstMatch.exists,
                       "the intro shows on step 1")
         let next = app.buttons["questionnaire-next"]
-        XCTAssertTrue(next.waitForExistence(timeout: 3))
+        XCTAssertTrue(next.appears(timeout: 3))
         XCTAssertFalse(next.isEnabled, "a required question gates Next")
         capture("questionnaire-step-1")
 
@@ -75,7 +75,7 @@ final class QuestionnaireStepsUITests: IntermediateCaptureCase {
         XCTAssertEqual(counter.label, "Review your answers")
         show(submit)
         submit.tap()
-        XCTAssertTrue(app.staticTexts["Answer saved"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Answer saved"].appears(timeout: 10))
         capture("questionnaire-submitted")
     }
 
@@ -102,7 +102,7 @@ final class QuestionnaireStepsUITests: IntermediateCaptureCase {
 
     /// Swipes, unlike a press-and-drag, never lands as a tap on a choice or review row.
     private func show(_ element: XCUIElement, upward: Bool = true) {
-        XCTAssertTrue(element.waitForExistence(timeout: 5))
+        XCTAssertTrue(element.appears(timeout: 5))
         for _ in 0..<10 where !element.isHittable { upward ? app.swipeUp() : app.swipeDown() }
         XCTAssertTrue(element.isHittable)
     }

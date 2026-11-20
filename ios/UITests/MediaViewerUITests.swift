@@ -129,7 +129,10 @@ final class MediaViewerUITests: XCTestCase {
         XCTAssertTrue(delivered.waitForExistence(timeout: 10))
         for _ in 0..<8 where !delivered.isHittable { app.swipeUp() }
         let images = app.buttons.matching(identifier: "message-attachment-open")
-        let thumbnail = images.allElementsBoundByIndex.first { $0.isHittable }
+        // The decision card above also holds an image, and it can sit half under the navigation bar.
+        let thumbnail = images.allElementsBoundByIndex.first {
+            $0.isHittable && $0.frame.minY > delivered.frame.maxY
+        }
         XCTAssertNotNil(thumbnail)
         thumbnail?.tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))

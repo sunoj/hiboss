@@ -17,7 +17,7 @@ final class DuoRailActionsUITests: XCTestCase {
         let app = launchDemo(["HIBOSS_DEMO_SESSION": "1"])
         chooseNoteMode(app)
         app.swipeDown()
-        XCTAssertTrue(app.buttons["jump-to-live"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["jump-to-live"].appears(timeout: 5))
         captureDemoScreenshot(app, name: "duo-rail-scrolled-up", test: self)
         try XCTSkipUnless(app.frame.size == Self.foldedDuo, "needs the folded Duo's side rail")
         let composer = app.descendants(matching: .any)["session-reply-composer"].frame
@@ -39,17 +39,17 @@ final class DuoRailActionsUITests: XCTestCase {
         let app = try launch(["HIBOSS_DEMO_SESSION": "1"])
         let facts = app.descendants(matching: .any)["session-facts"]
         let start = app.staticTexts["Needs you"]
-        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        XCTAssertTrue(start.appears(timeout: 10))
         for _ in 0..<8 { app.swipeDown() }
         let before = "facts \(facts.frame), start \(start.frame)"
         let startY = start.frame.minY
         XCTAssertTrue(facts.isHittable, before)
         let jump = app.buttons["jump-to-live"]
-        XCTAssertTrue(jump.waitForExistence(timeout: 5))
+        XCTAssertTrue(jump.appears(timeout: 5))
         assertOnRail(jump, app)
         XCTAssertTrue(jump.label.hasPrefix("Jump to live"), jump.label)
         jump.tap()
-        XCTAssertTrue(jump.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(jump.disappears(timeout: 5))
         let after = "\(before) → facts \(facts.frame), start \(start.frame)"
         XCTAssertTrue(start.isHittable, after)
         XCTAssertLessThan(start.frame.minY, startY - 60, after)
@@ -59,7 +59,7 @@ final class DuoRailActionsUITests: XCTestCase {
     func testNoteTargetPickerOnTheRailSwitchesTheTarget() throws {
         let app = try launch(["HIBOSS_DEMO_SESSION": "1"])
         let mode = app.buttons["session-composer-mode"]
-        XCTAssertTrue(mode.waitForExistence(timeout: 15))
+        XCTAssertTrue(mode.appears(timeout: 15))
         assertOnRail(mode, app)
         XCTAssertEqual(mode.label, "Choose reply target")
         chooseNoteMode(app)
@@ -68,9 +68,9 @@ final class DuoRailActionsUITests: XCTestCase {
         mode.tap()
         let reply = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Custom answer to:'"
             + " OR label BEGINSWITH 'Replying to:'")).firstMatch
-        XCTAssertTrue(reply.waitForExistence(timeout: 5))
+        XCTAssertTrue(reply.appears(timeout: 5))
         reply.tap()
-        XCTAssertTrue(app.textFields["session-reply-draft"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["session-reply-draft"].appears(timeout: 5))
         XCTAssertFalse(app.textFields["session-note-body"].exists)
     }
 
@@ -85,16 +85,16 @@ final class DuoRailActionsUITests: XCTestCase {
         app.configureDemoLaunch(environment)
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.buttons["Message history"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["Message history"].appears(timeout: 15))
         return app
     }
 
     private func chooseNoteMode(_ app: XCUIApplication) {
         let mode = app.buttons["session-composer-mode"]
-        XCTAssertTrue(mode.waitForExistence(timeout: 15))
+        XCTAssertTrue(mode.appears(timeout: 15))
         mode.tap()
         app.buttons["Leave a note for session"].firstMatch.tap()
-        XCTAssertTrue(app.textFields["session-note-body"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["session-note-body"].appears(timeout: 5))
     }
 
     /// The rail is the strip right of the content column, where the history button stacks too.

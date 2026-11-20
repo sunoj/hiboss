@@ -21,8 +21,8 @@ final class UXSurfaceUITests: XCTestCase {
 
     func testPanelNotificationOpensSampleIntakeForm() {
         launch(["HIBOSS_PANELS_DEMO": "1", "HIBOSS_DEMO_PANEL_OPEN": "research-intake.json"])
-        XCTAssertTrue(app.navigationBars["Research intake"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Research question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Research intake"].appears(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Research question"].appears(timeout: 5))
         shot("en-20-panel-form")
         app.swipeUp()
         shot("en-21-panel-form-bottom")
@@ -35,8 +35,8 @@ final class UXSurfaceUITests: XCTestCase {
 
     func testDeviceNotificationOpensTheMatchingReview() {
         launch(["HIBOSS_DEMO_JOIN_REQUEST": "jr-build"])
-        XCTAssertTrue(app.navigationBars["Device Request"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Name, build-box-2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Device Request"].appears(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Name, build-box-2"].appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["join-request.code"].label, "Verification code 4 8 2 9 1 3")
         XCTAssertTrue(app.buttons["Approve"].exists)
         shot("en-23-device-notification")
@@ -45,19 +45,19 @@ final class UXSurfaceUITests: XCTestCase {
     func testOptionImagesOpenFromHomeAndRemainInDetail() {
         launch(["HIBOSS_DEMO_OPTION_MEDIA": "1"])
         let image = app.buttons["Open image for Coarse grid"]
-        XCTAssertTrue(image.waitForExistence(timeout: 10))
+        XCTAssertTrue(image.appears(timeout: 10))
         for label in ["Coarse grid", "Fine grid"] {
             XCTAssertTrue(app.images["option-media-image-\(label)"].exists)
         }
         shot("en-24-home-option-images")
         image.tap()
-        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 5))
         XCTAssertTrue(app.images["media-viewer-image"].exists)
         assertMediaPinchZoom(app)
         shot("en-25-option-image-zoom")
         app.buttons["media-viewer-close"].tap()
         app.buttons["home-message-c5"].tap()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         XCTAssertTrue(image.exists)
         XCTAssertLessThanOrEqual(image.frame.maxX, app.frame.maxX)
         shot("en-26-detail-option-images")
