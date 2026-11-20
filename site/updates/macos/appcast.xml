@@ -4,12 +4,12 @@
     <title>HiBoss Island</title>
     <item>
       <title>Version 1.0.3</title>
-      <pubDate>Wed, 18 Nov 2026 12:01:31 +0000</pubDate>
+      <pubDate>Fri, 20 Nov 2026 10:02:46 +0000</pubDate>
       <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
-      <sparkle:version>202611181854</sparkle:version>
+      <sparkle:version>202611201701</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[ Review long questionnaires one step at a time, resume saved answers, and see option descriptions in decisions and history. Progress media previews now fit the desktop reading column. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.3/HiBoss-Island-1.0.3.zip" sparkle:edSignature="eXTNROyg/A1aI6ImLHj14rX+FC3hod1SBkpV+yGglWB0uCULeBJsig+mfI+BkV38+bo+cLnEuxPvipVgJCu/Ag==" length="8027648" type="application/zip" />
+      <description><![CDATA[ Box: the window shares one column edge with the sidebar, and the preview opens as a sheet below 640 pt. Session text is selectable. Long questionnaires page through their questions with a review of draft answers. Decisions show their tradeoffs. Toolbar items that a narrow window moves into the overflow menu keep their titles. Code blocks in messages wrap long lines. ]]></description>
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.3/HiBoss-Island-1.0.3.zip" sparkle:edSignature="hQvWRILZw6YqDZc/BItuH9c/P/QpiZwUylWFcE0lxK32ryqKck/bJdi2bPgI/YLg1HoOf1QnUtGl4yPxk+6jCw==" length="8047944" type="application/zip" />
     </item>
   </channel>
 </rss>
