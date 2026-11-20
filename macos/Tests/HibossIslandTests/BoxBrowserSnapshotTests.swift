@@ -71,12 +71,17 @@ final class BoxBrowserSnapshotTests: XCTestCase {
         var mounted = false
         let probe = LayoutProbe()
         let snapshot = OverviewSnapshot(history: [], live: nil, now: .now)
+        // Hosted the way MainView hosts Box: the window split owns the sidebar.
         let host = NSHostingView(rootView:
-            BoxBrowserView(store: store, media: media, sidebar: AnyView(
+            NavigationSplitView {
                 OverviewSidebar(snapshot: snapshot, selection: .box, historyState: .loaded,
                     connectionState: .connected, onSelect: { _ in }, onSettings: {}, onRefresh: {},
                     boxScope: store.scope, boxScopes: AnyView(BoxCollectionsSidebar(store: store)),
-                    onSelectBoxScope: { store.scope = $0 })))
+                    onSelectBoxScope: { store.scope = $0 })
+                    .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 280)
+            } detail: {
+                BoxBrowserView(store: store, media: media)
+            }
                 .environment(\.colorScheme, scheme)
                 .environment(\.layoutProbe, probe)
                 .onAppear { mounted = true })

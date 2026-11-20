@@ -10,7 +10,6 @@ import SwiftUI
 struct BoxBrowserView: View {
     @ObservedObject var store: BoxBrowserStore
     @ObservedObject var media: BoxBrowserMedia
-    var sidebar: AnyView? = nil
     @State var opening: Set<String> = []
     @State var copied: String?
     @State var previewImage: BoxItem?
@@ -62,10 +61,8 @@ struct BoxBrowserView: View {
     private var browser: some View {
         GeometryReader { geometry in
             // The window sidebar is outside this view, so the list and preview fit at their minimums.
-            if geometry.size.width >= (sidebar == nil ? 640 : 900) {
-                BoxBrowserColumns(
-                    sidebar: sidebar,
-                    content: listColumn, detail: detailColumn)
+            if geometry.size.width >= 640 {
+                BoxBrowserColumns(content: listColumn, detail: detailColumn)
                     .toolbar { filters }
                     .searchable(text: $store.query, placement: .toolbar, prompt: L("Search Box"))
             } else {
