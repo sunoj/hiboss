@@ -21,11 +21,20 @@ struct RootTabView: View {
     /// autoplay once, by leaving it pointed at whichever tab had inherited the index.
     private static let homeTab = 0
     private static let activityTab = 1
+    private static let boxTab = 2
     private static let progressTab = 3
 
-    @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress"
-        ? Self.progressTab
-        : Self.homeTab
+    /// Demo and UI tests open one tab. Anything else, including an absent value, stays on Today.
+    private static var launchTab: Int {
+        switch ProcessInfo.processInfo.environment["HIBOSS_TAB"] {
+        case "sessions": activityTab
+        case "box": boxTab
+        case "progress": progressTab
+        default: homeTab
+        }
+    }
+
+    @State private var tab = Self.launchTab
     @State private var homePath = NavigationPath()
     @State private var activityPath = NavigationPath()
     @State private var activitySection = ActivitySection.sessions
@@ -196,7 +205,7 @@ struct RootTabView: View {
                 .navigationTitle("Box")
         }
         .tabItem { Label("Box", systemImage: "shippingbox") }
-        .tag(2)
+        .tag(Self.boxTab)
     }
 
     /// A tapped join-request push opens its sheet over whichever tab is showing.

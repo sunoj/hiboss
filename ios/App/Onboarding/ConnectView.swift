@@ -27,26 +27,26 @@ struct ConnectView: View {
                 Text("Connect to HiBoss")
                     .font(.hbH2)
                     .foregroundStyle(Theme.ink)
-                    .padding(.top, 22)
+                    .padding(.top, Space.xl)
                 Text("Use a pairing code from your Mac, or enter a server URL and Boss Token.")
                     .font(.hbSmall)
                     .foregroundStyle(Theme.ink2)
-                    .padding(.top, 4)
+                    .padding(.top, Space.xxs)
 
                 credentialFields
 
-                scanButton.padding(.top, 16)
-                enterCodeButton.padding(.top, 10)
+                scanButton.padding(.top, Space.m)
+                enterCodeButton.padding(.top, Space.s)
 
                 if let error {
                     Text(verbatim: error)
                         .font(.hbCaption)
                         .foregroundStyle(Theme.negative)
                         .accessibilityIdentifier("connect-error")
-                        .padding(.top, 12)
+                        .padding(.top, Space.s)
                 }
 
-                connectButton.padding(.top, 22)
+                connectButton.padding(.top, Space.xl)
                 if connecting {
                     PendingStateView(
                         title: pendingTitle,
@@ -54,15 +54,15 @@ struct ConnectView: View {
             "Still waiting for the server. Your credentials are kept here. Check your connection."
                         ),
                         onSettings: openNetworkSettings
-                    ).padding(.top, 12)
+                    ).padding(.top, Space.s)
                 }
                 ConnectAlternatives(onExploreDemo: DemoSession.shared.enter)
                     .disabled(connecting)
-                    .padding(.top, 20)
+                    .padding(.top, Space.l)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 24)
+            .padding(.horizontal, Space.xl)
+            .padding(.vertical, Space.xl)
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -92,7 +92,7 @@ struct ConnectView: View {
     }
 
     private var credentialFields: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: Space.m) {
             field(title: String(localized: "SERVER URL"), text: $connection.serverAddress,
                   placeholder: "https://hiboss.you.workers.dev", field: .server, secure: false)
             field(title: String(localized: "BOSS TOKEN"), text: $connection.bossToken,
@@ -100,14 +100,14 @@ struct ConnectView: View {
             field(title: String(localized: "Device label"), text: $connection.deviceLabel,
                   placeholder: UIDevice.current.name, field: .deviceLabel, secure: false)
         }
-        .padding(.top, 26)
+        .padding(.top, Space.xl)
     }
 
     private func field(
         title: String, text: Binding<String>, placeholder: String,
         field: Field, secure: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             Text(verbatim: title).hbLabel().foregroundStyle(Theme.ink4)
             Group {
                 if secure {
@@ -122,12 +122,13 @@ struct ConnectView: View {
             .font(.hbBody)
             .focused($focus, equals: field)
             .accessibilityIdentifier(fieldIdentifier(field))
-            .padding(.horizontal, 14)
-            .frame(height: 48)
+            .padding(.horizontal, Space.m)
+            .padding(.vertical, Space.s)
+            .frame(minHeight: ControlMetric.fullWidth)
             .background(Theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
                     .strokeBorder(focus == field ? Theme.ink3 : Theme.line2, lineWidth: 1)
             )
         }
@@ -135,13 +136,13 @@ struct ConnectView: View {
 
     private var connectButton: some View {
         Button(action: connect) {
-            HStack(spacing: 8) {
+            HStack(spacing: Space.xs) {
                 if connecting { DelayedProgressView(tint: Theme.onAccent) }
                 Text(verbatim: connecting ? pendingTitle : String(localized: "Connect"))
                     .font(.hbBodyStrong)
             }
             .frame(maxWidth: .infinity)
-            .frame(minHeight: 44)
+            .frame(minHeight: ControlMetric.fullWidth)
         }
         .prominentAction()
         .disabled(connecting)
@@ -183,17 +184,10 @@ struct ConnectView: View {
         } label: {
             label()
                 .font(.hbBodyStrong)
-                .foregroundStyle(Theme.ink)
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(Theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(Theme.line2, lineWidth: 1)
-                )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
         .disabled(connecting)
     }
 

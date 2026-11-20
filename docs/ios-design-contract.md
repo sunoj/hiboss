@@ -68,10 +68,14 @@ values, 13 stack spacings and six corner radii, so no two screens lined up.
 - **Avatars and leading tiles come from `AvatarSize`**: `inline` 20 beside caption text,
   `compact` 28 beside a card's meta line, `row` 40 as a list row's or post's leading tile.
 - **One button shape.** Full-width actions and decision options use `.hbButton(.primary)` /
-  `.hbButton(.secondary)`: a 12 pt rounded rectangle at least 48 pt tall that wraps. Options in
-  one group all have the same width. Toolbar and inline text buttons stay system buttons.
+  `.hbButton(.secondary)`: a 12 pt rounded rectangle at least 48 pt tall that wraps. The primary
+  is filled; the others are bordered, so a screen has one filled button. Options in one group
+  all have the same width. A single-line system action (Connect) uses the system capsule.
+  A capsule around two lines of text reads as a blob. Toolbar and inline text buttons stay
+  system buttons.
 - **One list surface.** Lists are inset grouped cards (`.insetGrouped`, or `hbCard()` for a
-  custom stack); section headers align with the card's content edge, not the screen edge.
+  custom stack). A section header under a navigation title uses the grouped-list header
+  (footnote, secondary) and aligns with the card's content edge, not the screen edge.
 - **One title per screen.** A navigation title and a first row that repeat the same name keep
   only one of them.
 
