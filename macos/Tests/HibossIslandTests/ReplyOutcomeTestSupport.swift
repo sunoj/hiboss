@@ -4,6 +4,7 @@
 
 import Foundation
 import HibossKit
+import XCTest
 @testable import HibossIsland
 
 /// One scripted server response to a reply attempt.
@@ -97,15 +98,21 @@ actor OutcomeScriptAPI: BossServing {
     }
 }
 
+/// Records the caller's line on timeout: XCTest can report a thrown error as one a system
+/// framework threw and caught earlier on the same thread, which hides which wait failed.
 @MainActor
 func waitForCondition(
     timeout: Duration = .seconds(2),
+    file: StaticString = #filePath, line: UInt = #line,
     _ condition: @escaping @MainActor () -> Bool
 ) async throws {
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: timeout)
     while !condition() {
-        if clock.now >= deadline { throw TestError.timeout }
+        if clock.now >= deadline {
+            XCTFail("Condition still false after \(timeout)", file: file, line: line)
+            throw TestError.timeout
+        }
         try await clock.sleep(for: .milliseconds(10))
     }
 }
