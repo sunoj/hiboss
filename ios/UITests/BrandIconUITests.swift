@@ -10,7 +10,7 @@ final class BrandIconUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_ONBOARDING": "1"])
         app.launchConfiguredDemo()
 
-        XCTAssertTrue(app.images["hiboss-brand-icon"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.images["hiboss-brand-icon"].appears(timeout: 5))
         XCTAssertFalse(app.staticTexts["h"].exists)
     }
 
@@ -22,7 +22,7 @@ final class BrandIconUITests: XCTestCase {
         app.launchConfiguredDemo()
 
         let serverField = app.textFields["server-url-field"]
-        XCTAssertTrue(serverField.waitForExistence(timeout: 5))
+        XCTAssertTrue(serverField.appears(timeout: 5))
         XCTAssertEqual(serverField.value as? String, "https://hiboss.example")
     }
 

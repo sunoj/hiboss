@@ -17,7 +17,7 @@ final class NotificationDeepLinkUITests: XCTestCase {
 
         assertDetailLoading(app, name: "notification-from-home-loading")
         XCTAssertTrue(
-            app.staticTexts["message-question"].waitForExistence(timeout: 15),
+            app.staticTexts["message-question"].appears(timeout: 15),
             "the detail fetch must render without waiting for history or required inputs"
         )
         XCTAssertEqual(app.staticTexts["message-question"].label,
@@ -39,7 +39,7 @@ final class NotificationDeepLinkUITests: XCTestCase {
 
         assertDetailLoading(app, name: "notification-from-progress-loading")
         XCTAssertTrue(
-            app.staticTexts["message-question"].waitForExistence(timeout: 15),
+            app.staticTexts["message-question"].appears(timeout: 15),
             "the detail fetch must render without waiting for history or required inputs"
         )
         XCTAssertEqual(app.staticTexts["message-question"].label,
@@ -49,9 +49,9 @@ final class NotificationDeepLinkUITests: XCTestCase {
     }
 
     private func assertDetailLoading(_ app: XCUIApplication, name: String) {
-        XCTAssertTrue(app.navigationBars["Loading…"].waitForExistence(timeout: 2),
+        XCTAssertTrue(app.navigationBars["Loading…"].appears(timeout: 2),
             "notification navigation must precede the held message fetch")
-        XCTAssertTrue(app.staticTexts["Loading message…"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Loading message…"].appears(timeout: 2))
         XCTAssertTrue(app.tabBars.buttons.element(boundBy: 1).isSelected)
         XCTAssertFalse(app.staticTexts["message-question"].exists,
             "content must still come from the current API")

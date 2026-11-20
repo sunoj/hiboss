@@ -1,5 +1,5 @@
 // Shared XCUIApplication launch helpers for demo-mode UI tests.
-// Exports: demo launch, screenshot capture and pullToRefresh helpers.
+// Exports: demo launch, fast element waits, screenshot capture and pullToRefresh helpers.
 // Dependencies: XCTest.
 
 import XCTest
@@ -138,11 +138,28 @@ extension XCUIApplication {
             XCUIDevice.shared.orientation = .landscapeLeft
         }
         launch()
-        if textFields["server-url-field"].waitForExistence(timeout: 1) {
+        // `launch()` has already waited for the app to idle, so a lost environment shows at once.
+        if textFields["server-url-field"].appears(timeout: 0.3) {
             XCTContext.runActivity(named: "relaunch: first launch lost its demo environment") { _ in }
             terminate()
             launch()
         }
+    }
+}
+
+extension XCUIElement {
+    /// `waitForExistence` first checks about a second after it is called, so every call costs at
+    /// least that long. These check at once, then every 0.1 s, with the same timeout semantics.
+    func appears(timeout: TimeInterval) -> Bool { poll(timeout) { exists } }
+    func disappears(timeout: TimeInterval) -> Bool { poll(timeout) { !exists } }
+
+    private func poll(_ timeout: TimeInterval, _ done: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !done() {
+            if Date() >= deadline { return false }
+            RunLoop.current.run(until: min(deadline, Date().addingTimeInterval(0.1)))
+        }
+        return true
     }
 }
 

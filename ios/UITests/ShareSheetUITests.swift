@@ -8,7 +8,7 @@ import XCTest
 final class ShareSheetUITests: XCTestCase {
     func testSheetRetainsNoteAfterFailureAndRetryCompletes() {
         let app = launch("failure")
-        XCTAssertTrue(app.staticTexts["https://example.com/design-reference"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["https://example.com/design-reference"].appears(timeout: 10))
         let note = app.textFields["share-note"]
         let editor = note.exists ? note : app.textViews["share-note"]
         editor.tap()
@@ -17,16 +17,16 @@ final class ShareSheetUITests: XCTestCase {
         attach(app, name: "hiboss-share-sheet")
         let save = app.buttons["share-save"]
         save.tap()
-        XCTAssertTrue(app.staticTexts["share-error"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["share-error"].appears(timeout: 10))
         XCTAssertEqual(editor.value as? String, "Use this reference")
         attach(app, name: "hiboss-share-retry")
         save.tap()
-        XCTAssertTrue(app.staticTexts["Saved to Box"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Saved to Box"].appears(timeout: 10))
     }
 
     func testMissingTokenAsksToOpenAppAndCancels() {
         let app = launch("disconnected")
-        XCTAssertTrue(app.alerts["Open HiBoss to connect"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.alerts["Open HiBoss to connect"].appears(timeout: 10))
         app.alerts.buttons["OK"].tap()
         XCTAssertFalse(app.buttons["share-save"].exists)
     }

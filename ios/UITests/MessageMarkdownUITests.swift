@@ -8,7 +8,7 @@ final class MessageMarkdownUITests: XCTestCase {
     func testMarkdownBodyRendersBelowTheShortTitleInBothAppearances() {
         for appearance in ["Light", "Dark"] {
             let app = launch(appearance: appearance)
-            XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 10))
             XCTAssertEqual(app.staticTexts["message-question"].label, "House update")
             XCTAssertTrue(app.staticTexts["Result"].exists)
             XCTAssertTrue(app.staticTexts["First item"].exists)
@@ -26,7 +26,7 @@ final class MessageMarkdownUITests: XCTestCase {
 
     func testHistoricalLongTitleKeepsItsFullTextInTheBodyAtLargeText() {
         let app = launch(appearance: "Light", longTitle: true)
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 10))
         XCTAssertEqual(app.staticTexts["message-question"].label.unicodeScalars.count, 144)
         let fullText = String(repeating: "Historical title ", count: 12)
             .trimmingCharacters(in: .whitespacesAndNewlines)

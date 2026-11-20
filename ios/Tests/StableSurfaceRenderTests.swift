@@ -84,7 +84,7 @@ final class StableSurfaceRenderTests: XCTestCase {
         let message = HistoryMessage(id: "old", body: "Loaded detail", direction: "agent_to_boss",
                                      status: "delivered", priority: "normal", createdAt: "")
         store.history = [message]
-        let window = window(width: 390)
+        let window = await window(width: 390)
         window.rootViewController = UIHostingController(rootView: NavigationStack {
             MessageDetailView(store: store, messageID: message.id)
         })
@@ -130,7 +130,7 @@ final class StableSurfaceRenderTests: XCTestCase {
         defer { store.stop() }
         await api.waitForStream(0)
         let probe = ReplacementFrames()
-        let window = window(width: 390)
+        let window = await window(width: 390)
         window.rootViewController = UIHostingController(rootView:
             RequiredInputFrameProbe(store: store, frames: probe))
         window.isHidden = false
@@ -151,7 +151,7 @@ final class StableSurfaceRenderTests: XCTestCase {
 
     private func height<V: View>(_ view: V, width: CGFloat = 390) async -> CGFloat {
         let host = UIHostingController(rootView: view)
-        let window = window(width: width)
+        let window = await window(width: width)
         window.rootViewController = host
         window.isHidden = false
         await settle()
@@ -172,7 +172,7 @@ final class StableSurfaceRenderTests: XCTestCase {
             }.onPreferenceChange(SurfaceFrameKey.self) { recorder.frame = $0 }
         }
         let host = UIHostingController(rootView: view)
-        let window = window(width: 390)
+        let window = await window(width: 390)
         window.rootViewController = host
         window.isHidden = false
         await settle()
@@ -180,8 +180,8 @@ final class StableSurfaceRenderTests: XCTestCase {
         return recorder.frame
     }
 
-    private func window(width: CGFloat) -> UIWindow {
-        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first!
+    private func window(width: CGFloat) async -> UIWindow {
+        let scene = try! await hostWindowScene()
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: width, height: 844)
         return window

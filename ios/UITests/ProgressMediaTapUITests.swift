@@ -13,14 +13,14 @@ final class ProgressMediaTapUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_TAB": "progress"])
         app.launchConfiguredDemo()
         XCTAssertTrue(
-            app.navigationBars["Progress"].waitForExistence(timeout: 10),
+            app.navigationBars["Progress"].appears(timeout: 10),
             "demo Progress tab should appear"
         )
     }
 
     func testTappingFeedImageOpensFullScreenViewer() {
         let image = app.images["wide landscape screenshot"].firstMatch
-        XCTAssertTrue(image.waitForExistence(timeout: 8), "demo feed image should appear")
+        XCTAssertTrue(image.appears(timeout: 8), "demo feed image should appear")
         image.tap()
         assertViewerOpened(after: "single-image accessibility tap")
         assertMediaPinchZoom(app)
@@ -39,7 +39,7 @@ final class ProgressMediaTapUITests: XCTestCase {
         openViewer(label: "wide landscape screenshot")
         swipeDownOnViewerImage()
         XCTAssertTrue(
-            app.buttons["Close"].firstMatch.waitForNonExistence(timeout: 3),
+            app.buttons["Close"].firstMatch.disappears(timeout: 3),
             "swipe down on the image should dismiss the full-screen viewer"
         )
     }
@@ -51,7 +51,7 @@ final class ProgressMediaTapUITests: XCTestCase {
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
         swipeDownOnViewerImage()
         XCTAssertTrue(
-            app.buttons["Close"].firstMatch.waitForExistence(timeout: 2),
+            app.buttons["Close"].firstMatch.appears(timeout: 2),
             "downward pan while zoomed must not dismiss"
         )
     }
@@ -81,7 +81,7 @@ final class ProgressMediaTapUITests: XCTestCase {
     func testTappingVideoFrameOpensViewer() {
         continueAfterFailure = true
         let speaker = reveal(app.buttons["speaker.slash.fill"].firstMatch)
-        XCTAssertTrue(speaker.waitForExistence(timeout: 8), "demo video speaker control should appear")
+        XCTAssertTrue(speaker.appears(timeout: 8), "demo video speaker control should appear")
 
         speaker.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .withOffset(CGVector(dx: 90, dy: -80))
@@ -90,7 +90,7 @@ final class ProgressMediaTapUITests: XCTestCase {
         dismissViewer()
 
         let clip = media("looping demo clip")
-        XCTAssertTrue(clip.waitForExistence(timeout: 3),
+        XCTAssertTrue(clip.appears(timeout: 3),
                       "video cell labeled 'looping demo clip' should appear")
         clip.tap()
         assertViewerOpened(after: "video accessibility tap")
@@ -100,7 +100,7 @@ final class ProgressMediaTapUITests: XCTestCase {
 private extension ProgressMediaTapUITests {
     func assertCellOpensViewer(_ label: String, corner: CGVector) {
         let cell = reveal(media(label))
-        XCTAssertTrue(cell.waitForExistence(timeout: 8), "\(label) should appear")
+        XCTAssertTrue(cell.appears(timeout: 8), "\(label) should appear")
 
         cell.tap()
         assertViewerOpened(after: "\(label) accessibility tap")
@@ -144,7 +144,7 @@ private extension ProgressMediaTapUITests {
     }
 
     func reveal(_ element: XCUIElement) -> XCUIElement {
-        if element.waitForExistence(timeout: 1), element.isHittable { return element }
+        if element.appears(timeout: 1), element.isHittable { return element }
         var seen = false
         for _ in 0..<12 {
             if element.exists {
@@ -157,20 +157,20 @@ private extension ProgressMediaTapUITests {
                 app.swipeUp(velocity: XCUIGestureVelocity(180))
             }
         }
-        _ = element.waitForExistence(timeout: 3)
+        _ = element.appears(timeout: 3)
         return element
     }
 
     func assertViewerOpened(after reason: String) {
         XCTAssertTrue(
-            app.buttons["Close"].firstMatch.waitForExistence(timeout: 3),
+            app.buttons["Close"].firstMatch.appears(timeout: 3),
             "full-screen viewer should present after \(reason)"
         )
     }
 
     func openViewer(label: String) {
         let cell = ensureFullyOnScreen(reveal(media(label)))
-        XCTAssertTrue(cell.waitForExistence(timeout: 8), "\(label) should appear in feed")
+        XCTAssertTrue(cell.appears(timeout: 8), "\(label) should appear in feed")
         cell.tap()
         assertViewerOpened(after: "\(label) open for geometry")
     }
@@ -183,7 +183,7 @@ private extension ProgressMediaTapUITests {
 
     func swipeDownOnViewerImage() {
         let scroll = viewerZoomScroll()
-        XCTAssertTrue(scroll.waitForExistence(timeout: 5), "zoom scroll should exist")
+        XCTAssertTrue(scroll.appears(timeout: 5), "zoom scroll should exist")
         let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
         start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 450)))
     }
@@ -203,7 +203,7 @@ private extension ProgressMediaTapUITests {
             NSPredicate(format: "identifier BEGINSWITH %@", "media-zoom-scroll")
         ).firstMatch
         XCTAssertTrue(
-            scroll.waitForExistence(timeout: 5),
+            scroll.appears(timeout: 5),
             "media-zoom-scroll should exist"
         )
 
@@ -234,7 +234,7 @@ private extension ProgressMediaTapUITests {
 
     func assertViewerImageCentered(label: String, window: CGRect) {
         let query = app.images.matching(NSPredicate(format: "label == %@", label))
-        XCTAssertTrue(query.firstMatch.waitForExistence(timeout: 8), "\(label) in viewer")
+        XCTAssertTrue(query.firstMatch.appears(timeout: 8), "\(label) in viewer")
 
         var best = CGRect.zero
         for i in 0..<query.count {
@@ -273,6 +273,6 @@ private extension ProgressMediaTapUITests {
         let close = app.buttons["Close"].firstMatch
         guard close.exists else { return }
         close.tap()
-        XCTAssertTrue(close.waitForNonExistence(timeout: 2), "viewer should dismiss")
+        XCTAssertTrue(close.disappears(timeout: 2), "viewer should dismiss")
     }
 }

@@ -16,7 +16,7 @@ final class OrientationUITests: XCTestCase {
         app.configureDemoLaunch()
         app.launchConfiguredDemo()
         let window = app.windows.firstMatch
-        XCTAssertTrue(window.waitForExistence(timeout: 10))
+        XCTAssertTrue(window.appears(timeout: 10))
 
         XCUIDevice.shared.orientation = .landscapeLeft
         let isPad = UIDevice.current.userInterfaceIdiom == .pad

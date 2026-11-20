@@ -8,7 +8,7 @@ import XCTest
 final class HomeSimplificationUITests: XCTestCase {
     func testDisconnectedHomeOffersSettingsWithoutAnInertRetry() {
         let app = launchRecoveryState("disconnected")
-        XCTAssertTrue(app.staticTexts["Not connected"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Not connected"].firstMatch.appears(timeout: 5))
         XCTAssertEqual(app.staticTexts["home-connection-status"].label, "Not connected")
         XCTAssertFalse(app.staticTexts["Checking coverage"].exists)
         XCTAssertFalse(app.buttons["pending-retry"].exists)
@@ -18,12 +18,12 @@ final class HomeSimplificationUITests: XCTestCase {
         XCTAssertTrue(settings.isHittable)
         XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
         settings.tap()
-        XCTAssertTrue(app.buttons["settings-connection"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings-connection"].appears(timeout: 5))
     }
 
     func testFailedHomeNamesTheCauseAndKeepsLoadedResultsAboveTheFold() {
         let app = launchRecoveryState("failed")
-        XCTAssertTrue(app.staticTexts["Not connected"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Not connected"].appears(timeout: 5))
         let status = app.staticTexts["home-connection-status"]
         XCTAssertTrue(status.label.contains("Couldn't reach the server."))
         XCTAssertFalse(app.staticTexts["Checking coverage"].exists)
@@ -32,7 +32,7 @@ final class HomeSimplificationUITests: XCTestCase {
         XCTAssertTrue(retry.isHittable)
         XCTAssertGreaterThanOrEqual(retry.frame.height, 44)
         let delivered = app.staticTexts["Delivered"]
-        XCTAssertTrue(delivered.waitForExistence(timeout: 5))
+        XCTAssertTrue(delivered.appears(timeout: 5))
         XCTAssertTrue(delivered.isHittable,
                       "a terminal error must not displace real results with placeholders")
         XCTAssertLessThan(delivered.frame.maxY, app.tabBars.firstMatch.frame.minY)
@@ -41,7 +41,7 @@ final class HomeSimplificationUITests: XCTestCase {
 
     func testConnectingHomeNamesTheConnectionWait() {
         let app = launchRecoveryState("connecting")
-        XCTAssertTrue(app.staticTexts["Connecting…"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Connecting…"].firstMatch.appears(timeout: 5))
         XCTAssertFalse(app.staticTexts["Checking coverage"].exists)
         XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
         keepRecoveryScreenshot(app, "en-home-connecting")
@@ -66,7 +66,7 @@ final class HomeSimplificationUITests: XCTestCase {
                 XCTAssertFalse(app.staticTexts[chinese ? "没有需要你处理的事" : "Nothing needs you"].exists)
                 keepRecoveryScreenshot(app, "\(chinese ? "zh" : "en")-home-failed-ax-\(appearance)")
                 settings.tap()
-                XCTAssertTrue(app.buttons["settings-connection"].waitForExistence(timeout: 5))
+                XCTAssertTrue(app.buttons["settings-connection"].appears(timeout: 5))
                 app.terminate()
             }
         }
@@ -85,7 +85,7 @@ final class HomeSimplificationUITests: XCTestCase {
             ]
         }
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["home-connection-status"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["home-connection-status"].appears(timeout: 5))
         return app
     }
 
@@ -109,7 +109,7 @@ final class HomeSimplificationUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         app.launchConfiguredDemo()
         let message = app.staticTexts["没有需要你处理的事"]
-        XCTAssertTrue(message.waitForExistence(timeout: 10))
+        XCTAssertTrue(message.appears(timeout: 10))
         XCTAssertTrue(message.isHittable)
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = (ProcessInfo.processInfo.environment["UX_TOUR_PREFIX"] ?? "") + "zh-empty-home"
@@ -127,7 +127,7 @@ final class HomeSimplificationUITests: XCTestCase {
             ]
             app.launchConfiguredDemo()
             let first = app.buttons["home-message-c5"]
-            XCTAssertTrue(first.waitForExistence(timeout: 10))
+            XCTAssertTrue(first.appears(timeout: 10))
             XCTAssertTrue(app.buttons["Coarse grid"].isHittable)
             XCTAssertTrue(app.buttons["Fine grid"].isHittable)
             let timing = app.descendants(matching: .any)["decision-timing-c5"].firstMatch

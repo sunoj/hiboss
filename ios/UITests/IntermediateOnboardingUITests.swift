@@ -15,7 +15,7 @@ final class IntermediateOnboardingUITests: IntermediateCaptureCase {
         holdAndCapture("restore")
         launch(["HIBOSS_DEMO_ONBOARDING": "1", "HIBOSS_DEMO_CONNECT_DELAY_MS": "60000"])
         let connect = app.buttons[variant.contains("zh") ? "连接" : "Connect"].firstMatch
-        XCTAssertTrue(connect.waitForExistence(timeout: 8))
+        XCTAssertTrue(connect.appears(timeout: 8))
         connect.tap()
         holdAndCapture("onboarding-connect")
     }
@@ -80,7 +80,7 @@ final class IntermediateOnboardingUITests: IntermediateCaptureCase {
     func testOwnedNotificationRegistration() {
         launch(["HIBOSS_DEMO_PUSH_DELAY_MS": "60000"])
         let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
-        if permission.waitForExistence(timeout: 2) {
+        if permission.appears(timeout: 2) {
             let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             shot.name = "\(variant)-owned-notification-permission"
             shot.lifetime = .keepAlways
@@ -101,7 +101,7 @@ final class IntermediateOnboardingUITests: IntermediateCaptureCase {
     private func openSettings(page: String) {
         app.buttons["today-settings"].tap()
         let link = app.buttons[page].firstMatch
-        XCTAssertTrue(link.waitForExistence(timeout: 8))
+        XCTAssertTrue(link.appears(timeout: 8))
         link.tap()
     }
 
@@ -109,7 +109,7 @@ final class IntermediateOnboardingUITests: IntermediateCaptureCase {
         openSettings(page: "settings-devices")
         let row = app.buttons[label].firstMatch
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
-        XCTAssertTrue(row.waitForExistence(timeout: 8))
+        XCTAssertTrue(row.appears(timeout: 8))
         row.tap()
     }
 }

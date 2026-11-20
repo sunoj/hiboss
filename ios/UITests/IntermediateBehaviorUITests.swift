@@ -8,7 +8,7 @@ final class IntermediateBehaviorUITests: IntermediateCaptureCase {
     func testMissingReadyEscalatesAndSettingsIsReachable() {
         launch(["HIBOSS_DEMO_EMPTY": "1", "HIBOSS_DEMO_REQUESTS_STREAM": "silent"])
         let retry = app.buttons["pending-retry"].firstMatch
-        XCTAssertTrue(retry.waitForExistence(timeout: 12))
+        XCTAssertTrue(retry.appears(timeout: 12))
         XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
         let status = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Requests connection'"))
             .firstMatch
@@ -16,13 +16,13 @@ final class IntermediateBehaviorUITests: IntermediateCaptureCase {
         capture("missing-ready-action")
         app.buttons[variant.contains("zh") ? "设置" : "Settings"].firstMatch.tap()
         XCTAssertTrue(
-            app.navigationBars[variant.contains("zh") ? "设置" : "Settings"].waitForExistence(timeout: 5))
+            app.navigationBars[variant.contains("zh") ? "设置" : "Settings"].appears(timeout: 5))
     }
 
     func testReplyOnlyDisablesItsOwnDecision() {
         launch(["HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
         let reject = app.buttons["Reject"].firstMatch
-        XCTAssertTrue(reject.waitForExistence(timeout: 8))
+        XCTAssertTrue(reject.appears(timeout: 8))
         reject.tap()
         XCTAssertFalse(reject.isEnabled)
         XCTAssertFalse(app.buttons["Approve"].firstMatch.isEnabled)
@@ -34,7 +34,7 @@ final class IntermediateBehaviorUITests: IntermediateCaptureCase {
         launch(["HIBOSS_DEMO_TEXT_ASK": "1", "HIBOSS_DEMO_OPEN": "demo-text-ask",
                 "HIBOSS_DEMO_REPLY_DELAY_MS": "2000", "HIBOSS_DEMO_REPLY_FAILS": "1"])
         let draft = app.textFields["message-reply-draft"].firstMatch
-        XCTAssertTrue(draft.waitForExistence(timeout: 8))
+        XCTAssertTrue(draft.appears(timeout: 8))
         draft.tap()
         draft.typeText("Use the latest export")
         let send = app.buttons[variant.contains("zh") ? "发送" : "Send"].firstMatch
@@ -49,7 +49,7 @@ final class IntermediateBehaviorUITests: IntermediateCaptureCase {
 
     func testRefreshKeepsHomeAndListContent() {
         launch(["HIBOSS_DEMO_REFRESH_DELAY_MS": "60000"])
-        XCTAssertTrue(app.buttons["home-message-c1"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["home-message-c1"].appears(timeout: 8))
         pause(6)
         pullToRefresh(app)
         XCTAssertTrue(app.buttons["home-message-c1"].exists)
@@ -67,12 +67,12 @@ final class IntermediateBehaviorUITests: IntermediateCaptureCase {
     func testImageRetryRestartsProgressAndKeepsZoomReachable() {
         launch(["HIBOSS_DEMO_OPTION_MEDIA": "pending", "HIBOSS_DEMO_MEDIA_DELAY_MS": "60000"])
         let retry = app.buttons["option-media-retry-Coastal view"].firstMatch
-        XCTAssertTrue(retry.waitForExistence(timeout: 12))
+        XCTAssertTrue(retry.appears(timeout: 12))
         retry.tap()
-        XCTAssertTrue(retry.waitForNonExistence(timeout: 2))
+        XCTAssertTrue(retry.disappears(timeout: 2))
         let zoom = app.buttons["Open image for Coastal view"].firstMatch
         XCTAssertTrue(zoom.isEnabled)
         zoom.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.1)).tap()
-        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 3))
     }
 }

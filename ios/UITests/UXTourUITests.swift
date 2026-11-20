@@ -49,7 +49,7 @@ final class UXTourUITests: XCTestCase {
         for state in ["failed", "connecting"] {
             launchFresh(["HIBOSS_DEMO_CONNECTION": state], arguments: Self.chinese)
             let messages = app.tabBars.buttons.element(boundBy: 1)
-            guard messages.waitForExistence(timeout: 8) else { continue }
+            guard messages.appears(timeout: 8) else { continue }
             settle()
             shot("\(appearancePrefix)conn-\(state)-01-home")
             messages.tap()
@@ -64,7 +64,7 @@ final class UXTourUITests: XCTestCase {
     func testTourStaleRefresh() {
         launchFresh(["HIBOSS_DEMO_REFRESH_FAILS": "1"])
         let messages = app.tabBars.buttons.element(boundBy: 1)
-        XCTAssertTrue(messages.waitForExistence(timeout: 8))
+        XCTAssertTrue(messages.appears(timeout: 8))
         messages.tap()
         selectMessages()
         Thread.sleep(forTimeInterval: 5)
@@ -78,7 +78,7 @@ final class UXTourUITests: XCTestCase {
     func testTourOnboarding() {
         for (name, arguments) in [("en", [String]()), ("xxl", Self.largeText)] {
             launchFresh(["HIBOSS_DEMO_ONBOARDING": "1"], arguments: arguments)
-            XCTAssertTrue(app.textFields["server-url-field"].waitForExistence(timeout: 8))
+            XCTAssertTrue(app.textFields["server-url-field"].appears(timeout: 8))
             settle()
             shot("\(appearancePrefix)\(name)-00-onboarding")
             app.terminate()
@@ -94,7 +94,7 @@ final class UXTourUITests: XCTestCase {
         openSettingsRow("Device Requests")
         shot("\(appearancePrefix)en-17-device-requests")
         let request = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'build-box-2'")).firstMatch
-        if request.waitForExistence(timeout: 4) {
+        if request.appears(timeout: 4) {
             request.tap()
             settle()
             shot("\(appearancePrefix)en-18-device-review")
@@ -120,7 +120,7 @@ final class UXTourUITests: XCTestCase {
     /// A decision the server settled with its timeout default, in detail and in Resolved.
     func testTourAutoDecided() {
         launchFresh(["HIBOSS_DEMO_OPEN": "a1"])
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 8))
         settle()
         shot("\(appearancePrefix)en-18-auto-decided-detail")
         app.terminate()
@@ -154,11 +154,11 @@ final class UXTourUITests: XCTestCase {
 
     private func openSettingsRow(_ title: String) {
         let settings = app.buttons["today-settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 8))
+        XCTAssertTrue(settings.appears(timeout: 8))
         settings.tap()
         if app.buttons["settings-devices"].exists { app.buttons["settings-devices"].tap() }
         let row = app.buttons[title].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "missing Settings row \(title)")
+        XCTAssertTrue(row.appears(timeout: 5), "missing Settings row \(title)")
         row.tap()
         settle()
     }
@@ -177,7 +177,7 @@ final class UXTourUITests: XCTestCase {
         tourActivity(prefix: prefix)
         for (index, name) in ["box", "progress"].enumerated() {
             let tab = app.tabBars.buttons.element(boundBy: index + 2)
-            XCTAssertTrue(tab.waitForExistence(timeout: 5), "missing tour tab \(name)")
+            XCTAssertTrue(tab.appears(timeout: 5), "missing tour tab \(name)")
             tab.tap()
             settle()
             shot("\(prefix)-\(name)")
@@ -192,7 +192,7 @@ final class UXTourUITests: XCTestCase {
 
     private func tourActivity(prefix: String) {
         let activity = app.tabBars.buttons.element(boundBy: 1)
-        XCTAssertTrue(activity.waitForExistence(timeout: 5))
+        XCTAssertTrue(activity.appears(timeout: 5))
         activity.tap()
         settle()
         shot("\(prefix)-08-sessions")
@@ -215,10 +215,10 @@ final class UXTourUITests: XCTestCase {
 
     private func openFirstHomeItem(prefix: String) {
         let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'home-message-'")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "populated Home requires a decision row")
+        XCTAssertTrue(row.appears(timeout: 5), "populated Home requires a decision row")
         row.tap()
         settle()
-        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         shot("\(prefix)-03-home-detail")
         app.navigationBars.buttons.firstMatch.tap()
         settle()
@@ -226,7 +226,7 @@ final class UXTourUITests: XCTestCase {
 
     private func openFirstRow(prefix: String, name: String, index: Int) {
         let row = app.cells.firstMatch.exists ? app.cells.firstMatch : app.collectionViews.buttons.firstMatch
-        guard row.waitForExistence(timeout: 4), row.isHittable else { return }
+        guard row.appears(timeout: 4), row.isHittable else { return }
         row.tap()
         settle()
         shot("\(prefix)-\(String(format: "%02d", index * 2 + 5))-\(name.lowercased())-detail")
@@ -241,7 +241,7 @@ final class UXTourUITests: XCTestCase {
     private func openFirstImage(prefix: String) {
         // The first feed image by its alt text: `app.images.firstMatch` can be a tab-bar glyph.
         let image = app.images["wide landscape screenshot"].firstMatch
-        guard image.waitForExistence(timeout: 4), image.isHittable else { return }
+        guard image.appears(timeout: 4), image.isHittable else { return }
         image.tap()
         settle()
         shot("\(prefix)-07-progress-media")

@@ -22,8 +22,7 @@ final class StableSettingsRenderTests: XCTestCase {
             ("delivery", AnyView(SettingsDeliveryView(store: store, api: nil))),
         ]
         for (name, screen) in screens {
-            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            let scene = try XCTUnwrap(scenes.first)
+            let scene = try await hostWindowScene()
             let window = UIWindow(windowScene: scene)
             window.frame = scene.coordinateSpace.bounds
             window.overrideUserInterfaceStyle = .light

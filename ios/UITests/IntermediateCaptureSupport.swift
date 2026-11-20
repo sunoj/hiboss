@@ -27,11 +27,11 @@ class IntermediateCaptureCase: XCTestCase {
         app.launchConfiguredDemo()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 8))
         if extra["HIBOSS_DEMO_SESSION"] == "1" {
-            XCTAssertTrue(app.navigationBars["prod-release"].waitForExistence(timeout: 8))
+            XCTAssertTrue(app.navigationBars["prod-release"].appears(timeout: 8))
         }
         if extra["HIBOSS_TAB"] == "progress" {
             let title = variant.contains("zh") ? "进展" : "Progress"
-            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 8))
+            XCTAssertTrue(app.navigationBars[title].appears(timeout: 8))
         }
     }
 
@@ -57,7 +57,7 @@ class IntermediateCaptureCase: XCTestCase {
             let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: moveUp ? 0.4 : 0.6))
             start.press(forDuration: 0.1, thenDragTo: end)
         }
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
+        XCTAssertTrue(element.appears(timeout: 3))
         XCTAssertTrue(element.isHittable)
     }
 

@@ -8,7 +8,7 @@ final class HomePanelLayoutUITests: IntermediateCaptureCase {
     private func launchFailedHome() {
         launch(["HIBOSS_DEMO_EMPTY": "1", "HIBOSS_DEMO_CONNECTION": "failed",
                 "HIBOSS_DEMO_METRIC_PANEL": "1"])
-        XCTAssertTrue(app.staticTexts["home-connection-status"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["home-connection-status"].appears(timeout: 10))
     }
 
     func testFailureSuppressesSlowWaitCopy() {
@@ -22,11 +22,11 @@ final class HomePanelLayoutUITests: IntermediateCaptureCase {
     func testRecoveryButtonsUseTheSameNativeHeight() {
         launchFailedHome()
         let retry = app.buttons["pending-retry"].firstMatch
-        XCTAssertTrue(retry.waitForExistence(timeout: 12))
+        XCTAssertTrue(retry.appears(timeout: 12))
         let settings = app.scrollViews.buttons.matching(
             NSPredicate(format: "label == %@ AND identifier != %@", "Settings", "today-settings")
         ).firstMatch
-        XCTAssertTrue(settings.waitForExistence(timeout: 5))
+        XCTAssertTrue(settings.appears(timeout: 5))
         XCTAssertEqual(retry.frame.height, settings.frame.height, accuracy: 1)
         XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
     }

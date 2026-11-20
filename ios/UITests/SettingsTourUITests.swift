@@ -30,7 +30,7 @@ final class SettingsTourUITests: XCTestCase {
             ]
         }
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.buttons["today-settings"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["today-settings"].appears(timeout: 8))
         app.buttons["today-settings"].tap()
         if ProcessInfo.processInfo.environment["UX_TOUR_DELIVERY_ONLY"] == "1" {
             deliveryScreens()
@@ -51,12 +51,12 @@ final class SettingsTourUITests: XCTestCase {
         app.buttons["today-settings"].tap()
         open("settings-devices")
         open(language == "en" ? "Sign in a Mac" : "登录 Mac")
-        XCTAssertTrue(app.buttons["mac-signin.scan"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["mac-signin.scan"].appears(timeout: 5))
         shot("20-mac-intro")
         back()
         open(language == "en" ? "Pair another device" : "配对其他设备")
         let fresh = app.buttons[language == "en" ? "Request a fresh code" : "获取新配对码"]
-        XCTAssertTrue(fresh.waitForExistence(timeout: 8))
+        XCTAssertTrue(fresh.appears(timeout: 8))
         shot("21-pair-expired")
         app.terminate()
     }
@@ -92,14 +92,14 @@ final class SettingsTourUITests: XCTestCase {
 
     private func deviceScreens(language: String) {
         open(language == "en" ? "Pair another device" : "配对其他设备")
-        XCTAssertTrue(app.buttons[language == "en" ? "Copy Link" : "复制链接"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons[language == "en" ? "Copy Link" : "复制链接"].appears(timeout: 8))
         shot("14-pair-device")
         back()
         open(language == "en" ? "Sign in a Mac" : "登录 Mac")
-        XCTAssertTrue(app.buttons["mac-signin.approve"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["mac-signin.approve"].appears(timeout: 8))
         shot("15-mac-review")
         open("mac-signin.approve")
-        XCTAssertTrue(app.staticTexts["mac-signin.code"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["mac-signin.code"].appears(timeout: 8))
         shot("16-mac-code")
         app.swipeUp()
         shot("16-mac-code-bottom")
@@ -107,9 +107,9 @@ final class SettingsTourUITests: XCTestCase {
         open(language == "en" ? "Device Requests" : "设备请求")
         shot("17-device-requests")
         let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'build-box-2'")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 8))
+        XCTAssertTrue(row.appears(timeout: 8))
         row.tap()
-        XCTAssertTrue(app.staticTexts["join-request.code"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["join-request.code"].appears(timeout: 8))
         shot("18-device-review")
         app.swipeUp()
         shot("18-device-review-bottom")
@@ -124,7 +124,7 @@ final class SettingsTourUITests: XCTestCase {
     private func open(_ identifier: String) {
         let button = app.buttons[identifier].firstMatch
         for _ in 0..<8 where !button.isHittable { app.swipeUp() }
-        XCTAssertTrue(button.waitForExistence(timeout: 8), identifier)
+        XCTAssertTrue(button.appears(timeout: 8), identifier)
         button.tap()
     }
 

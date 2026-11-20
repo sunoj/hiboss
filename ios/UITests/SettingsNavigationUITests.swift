@@ -16,7 +16,7 @@ final class SettingsNavigationUITests: XCTestCase {
         app.configureDemoLaunch(extra)
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.buttons["today-settings"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["today-settings"].appears(timeout: 8))
         app.buttons["today-settings"].tap()
     }
 
@@ -37,21 +37,21 @@ final class SettingsNavigationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["settings-sign-out"].isHittable)
         XCTAssertFalse(app.buttons["Pair another device"].exists)
         app.buttons["settings-connection"].tap()
-        XCTAssertTrue(app.staticTexts["This phone is connected to your server."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["This phone is connected to your server."].appears(timeout: 5))
     }
 
     func testFailedSaveKeepsInputAndNavigationKeepsTheDraft() {
         launch(["HIBOSS_DEMO_PREFERENCES_FAIL": "1"])
         app.buttons["settings-notifications"].tap()
         let mute = app.switches["settings-quiet-hours"]
-        XCTAssertTrue(mute.waitForExistence(timeout: 5))
+        XCTAssertTrue(mute.appears(timeout: 5))
         for _ in 0..<3 where !mute.isHittable { app.swipeUp() }
         toggle(mute)
-        XCTAssertTrue(app.buttons["settings-preferences-save"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings-preferences-save"].appears(timeout: 5))
         app.buttons["settings-preferences-save"].tap()
         let retry = app.buttons["settings-preferences-retry"]
         for _ in 0..<4 where !retry.isHittable { app.swipeUp() }
-        XCTAssertTrue(retry.waitForExistence(timeout: 5))
+        XCTAssertTrue(retry.appears(timeout: 5))
         shot("en-state-save-failed")
         app.navigationBars.buttons.firstMatch.tap()
         app.buttons["settings-notifications"].tap()
@@ -63,19 +63,19 @@ final class SettingsNavigationUITests: XCTestCase {
         launch(["HIBOSS_DEMO_PREFERENCES_SAVE_DELAY_MS": "12000"])
         app.buttons["settings-notifications"].tap()
         let mute = app.switches["settings-quiet-hours"]
-        XCTAssertTrue(mute.waitForExistence(timeout: 5))
+        XCTAssertTrue(mute.appears(timeout: 5))
         for _ in 0..<3 where !mute.isHittable { app.swipeUp() }
         toggle(mute)
-        XCTAssertTrue(app.buttons["settings-preferences-save"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings-preferences-save"].appears(timeout: 5))
         app.buttons["settings-preferences-save"].tap()
         XCTAssertFalse(app.buttons["settings-preferences-save"].isEnabled)
         XCTAssertTrue(mute.isEnabled)
         toggle(mute)
         let wait = app.staticTexts["Taking longer than usual. Check your connection."]
         for _ in 0..<3 where !wait.exists { app.swipeUp() }
-        XCTAssertTrue(wait.waitForExistence(timeout: 12))
+        XCTAssertTrue(wait.appears(timeout: 12))
         shot("en-state-save-long")
-        XCTAssertTrue(app.buttons["settings-preferences-save"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["settings-preferences-save"].appears(timeout: 8))
         let enabled = NSPredicate(format: "enabled == true")
         XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: enabled,
             evaluatedWith: app.buttons["settings-preferences-save"])], timeout: 8), .completed)
@@ -84,19 +84,19 @@ final class SettingsNavigationUITests: XCTestCase {
     func testPairingLongWaitExplainsAndOffersClose() {
         launch(["HIBOSS_DEMO_SETTINGS_DELAY_MS": "16000", "HIBOSS_DEMO_SETTINGS_DELAY_OPERATION": "pairing"])
         openDevices("Pair another device")
-        XCTAssertTrue(app.staticTexts["Requesting a pairing code…"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Requesting a pairing code…"].appears(timeout: 5))
         let longWait = app.staticTexts["Taking longer than usual. Check your connection."]
-        XCTAssertTrue(longWait.waitForExistence(timeout: 12))
+        XCTAssertTrue(longWait.appears(timeout: 12))
         XCTAssertTrue(app.buttons["Close"].isEnabled)
         shot("en-state-pair-long")
         app.buttons["Close"].tap()
-        XCTAssertTrue(app.buttons["Sign in a Mac"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Sign in a Mac"].appears(timeout: 5))
     }
 
     func testPairingPermissionDenialKeepsItsExactRoleMessage() {
         launch(["HIBOSS_DEMO_SETTINGS_FAILURE": "pairing-denied"])
         openDevices("Pair another device")
-        XCTAssertTrue(app.staticTexts["Your role cannot pair devices"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Your role cannot pair devices"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["Copy Link"].exists)
         shot("en-state-pair-denied")
     }
@@ -104,19 +104,19 @@ final class SettingsNavigationUITests: XCTestCase {
     func testPushedJoinRequestStillOpensItsVerificationReview() {
         app.configureDemoLaunch(["HIBOSS_DEMO_JOIN_REQUEST": "jr-build"])
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.staticTexts["join-request.code"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["join-request.code"].appears(timeout: 8))
         XCTAssertTrue(app.staticTexts["Name, build-box-2"].exists)
         XCTAssertTrue(app.staticTexts["Host, build-box-2.local"].exists)
         XCTAssertTrue(app.buttons["join-request.approve"].isEnabled)
         app.buttons["join-request.approve"].tap()
-        XCTAssertTrue(app.staticTexts["build-box-2 can now join"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["build-box-2 can now join"].appears(timeout: 5))
     }
 
     func testFailedApprovalKeepsTheCodeAndCloseEnabled() {
         launch(["HIBOSS_DEMO_SETTINGS_FAILURE": "approval"])
         openDevices("Device Requests")
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'build-box-2'")).firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["join-request.code"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["join-request.code"].appears(timeout: 5))
         app.buttons["join-request.approve"].tap()
         XCTAssertTrue(app.staticTexts["join-request.code"].exists)
         XCTAssertTrue(app.buttons["Close"].isEnabled)
@@ -127,7 +127,7 @@ final class SettingsNavigationUITests: XCTestCase {
     func testDeviceRequestLoadFailureOffersRetry() {
         launch(["HIBOSS_DEMO_SETTINGS_FAILURE": "requests"])
         openDevices("Device Requests")
-        XCTAssertTrue(app.staticTexts["Device requests unavailable"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Device requests unavailable"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["Try again"].isEnabled)
         shot("en-state-requests-failed")
     }
@@ -135,7 +135,7 @@ final class SettingsNavigationUITests: XCTestCase {
     func testEmptyDeviceRequestsExplainWhatWillAppear() {
         launch(["HIBOSS_DEMO_REQUESTS_EMPTY": "1"])
         openDevices("Device Requests")
-        XCTAssertTrue(app.staticTexts["No device requests"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No device requests"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["New machines appear here when they ask to join."].exists)
         shot("en-state-requests-empty")
     }
@@ -159,9 +159,9 @@ final class SettingsNavigationUITests: XCTestCase {
                 "hiboss://signin?server=https%3A%2F%2Fhiboss.example.com&request=\(request)",
         ])
         openDevices("Sign in a Mac")
-        XCTAssertTrue(app.buttons["mac-signin.approve"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["mac-signin.approve"].appears(timeout: 5))
         app.buttons["mac-signin.approve"].tap()
-        XCTAssertTrue(app.buttons["mac-signin.scan-again"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["mac-signin.scan-again"].appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Calls itself, Studio MacBook Pro"].exists)
         XCTAssertTrue(app.staticTexts["Location, NL · Amsterdam"].exists)
         shot("en-state-mac-approval-failed")
@@ -174,23 +174,23 @@ final class SettingsNavigationUITests: XCTestCase {
         for _ in 0..<5 where !details.isHittable { app.swipeUp() }
         details.tap()
         app.buttons["settings-push-critical"].tap()
-        XCTAssertTrue(app.buttons["Off"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Off"].appears(timeout: 5))
         app.buttons["Off"].tap()
         let channels = app.buttons["settings-channel-low"]
         for _ in 0..<5 where !channels.isHittable { app.swipeUp() }
         XCTAssertTrue(channels.label.contains("None"))
         channels.tap()
-        XCTAssertTrue(app.buttons["Telegram"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Telegram"].appears(timeout: 5))
         app.buttons["Telegram"].tap()
         XCTAssertTrue(channels.label.contains("Telegram"))
-        XCTAssertTrue(app.buttons["settings-preferences-save"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings-preferences-save"].appears(timeout: 5))
         app.buttons["settings-preferences-save"].tap()
-        XCTAssertTrue(app.buttons["settings-preferences-save"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings-preferences-save"].disappears(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
         app.swipeDown()
         app.swipeDown()
         let summary = app.staticTexts["Phone alerts, High and Normal"]
-        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertTrue(summary.appears(timeout: 5))
         for _ in 0..<5 where !details.isHittable { app.swipeUp() }
         details.tap()
         XCTAssertTrue(app.buttons["settings-push-critical"].label.contains("Off"))

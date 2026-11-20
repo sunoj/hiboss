@@ -10,7 +10,7 @@ final class IntermediatePanelUITests: IntermediateCaptureCase {
         holdAndCapture("panel-questions")
         launchPanel(["HIBOSS_DEMO_SUBMISSION_DELAY_MS": "60000"])
         let submit = app.buttons["Submit checklist"].firstMatch
-        XCTAssertTrue(submit.waitForExistence(timeout: 8))
+        XCTAssertTrue(submit.appears(timeout: 8))
         for _ in 0..<8 where !submit.isHittable { app.swipeUp() }
         submit.tap()
         holdAndCapture("questionnaire-submit")
@@ -19,7 +19,7 @@ final class IntermediatePanelUITests: IntermediateCaptureCase {
     func testPanelActionsAndRoute() {
         launchPanel(["HIBOSS_DEMO_PREFERENCE_DELAY_MS": "60000"])
         let actions = app.buttons[variant.contains("zh") ? "面板操作" : "Panel actions"].firstMatch
-        XCTAssertTrue(actions.waitForExistence(timeout: 8))
+        XCTAssertTrue(actions.appears(timeout: 8))
         for _ in 0..<8 where !actions.isHittable { app.swipeUp() }
         actions.tap()
         app.buttons[variant.contains("zh") ? "置顶" : "Pin"].firstMatch.tap()
@@ -33,7 +33,7 @@ final class IntermediatePanelUITests: IntermediateCaptureCase {
         launchPanel(["HIBOSS_DEMO_RECOVERY_DELAY_MS": "60000"])
         let checking = app.buttons[variant.contains("zh") ? "正在核对已保存的回答…" : "Checking saved answer…"]
             .firstMatch
-        XCTAssertTrue(checking.waitForExistence(timeout: 8))
+        XCTAssertTrue(checking.appears(timeout: 8))
         for _ in 0..<8 where !checking.isHittable { app.swipeUp() }
         holdAndCapture("questionnaire-recovery")
     }
@@ -58,6 +58,6 @@ final class IntermediatePanelUITests: IntermediateCaptureCase {
         var environment = ["HIBOSS_DEMO_NATIVE_PANEL": "1", "HIBOSS_DEMO_PANEL_OPEN": "demo-panel"]
         environment.merge(extra) { _, new in new }
         launch(environment)
-        XCTAssertTrue(app.navigationBars["Release checklist"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Release checklist"].appears(timeout: 10))
     }
 }
