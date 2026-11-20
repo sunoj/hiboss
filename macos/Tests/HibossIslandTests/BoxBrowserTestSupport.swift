@@ -56,6 +56,7 @@ actor ScriptedBoxBrowser: BoxBrowsing {
     var pages: [BoxPage]
     var failRead = false
     var failDelete = false
+    var collectionsError: (any Error)?
     var heldRead: CheckedContinuation<BoxPage, any Error>?
     var readObserver: CheckedContinuation<Void, Never>?
     var holdsNextRead = false
@@ -87,6 +88,7 @@ actor ScriptedBoxBrowser: BoxBrowsing {
 
     func setReadFailure(_ fails: Bool) { failRead = fails }
     func setDeleteFailure(_ fails: Bool) { failDelete = fails }
+    func setCollectionsError(_ error: (any Error)?) { collectionsError = error }
     func setPages(_ pages: [BoxPage]) { self.pages = pages }
     func holdNextRead(cursor: String? = nil) {
         holdsNextRead = true

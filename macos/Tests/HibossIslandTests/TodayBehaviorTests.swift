@@ -86,6 +86,30 @@ final class TodayBehaviorTests: XCTestCase {
             onChoose: { _, _ in nil }, onSession: { _ in })
         // Nothing to inspect: the "Select a question" pane must not take a column.
         XCTAssertFalse(view.hasInspectorContent)
+        XCTAssertFalse(view.showsPanelWall)
+    }
+
+    @MainActor
+    func testTodayKeepsThePanelWallMountedOnceTheListHasLoaded() {
+        let loaded = PanelsModel(demoMode: true, autoload: false)
+        let wall = today(panels: loaded)
+        XCTAssertTrue(loaded.didLoadPanels)
+        XCTAssertTrue(wall.showsPanelWall)
+        loaded.section = .needsInput
+        XCTAssertTrue(wall.showsPanelWall, "An empty filter must keep the wall, or its controls disappear")
+
+        let waiting = PanelsModel(demoMode: false, autoload: false)
+        XCTAssertFalse(waiting.didLoadPanels)
+        XCTAssertTrue(waiting.visibleTiles.isEmpty)
+        XCTAssertNil(waiting.failureMessage)
+        XCTAssertFalse(today(panels: waiting).showsPanelWall)
+    }
+
+    private func today(panels: PanelsModel) -> TodayView {
+        let store = OverviewStore()
+        store.update(history: [], live: nil, now: now, health: .live(checkedAt: now), coverageComplete: true)
+        return TodayView(snapshot: store.snapshot, reply: AttentionReplyState(), panels: panels,
+            isPreview: false, onChoose: { _, _ in nil }, onSession: { _ in })
     }
 
     func testDefaultCopyExplicitlyDeniesApprovalWithAndWithoutDeadline() {

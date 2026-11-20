@@ -61,7 +61,8 @@ struct BoxBrowserView: View {
 
     private var browser: some View {
         GeometryReader { geometry in
-            if geometry.size.width >= 900 {
+            // The window sidebar is outside this view, so the list and preview fit at their minimums.
+            if geometry.size.width >= (sidebar == nil ? 640 : 900) {
                 BoxBrowserColumns(
                     sidebar: sidebar,
                     content: listColumn, detail: detailColumn)

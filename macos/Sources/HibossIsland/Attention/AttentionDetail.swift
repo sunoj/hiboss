@@ -40,7 +40,6 @@ struct AttentionDetail: View {
 
     private var question: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(L("Your call")).font(.headline).foregroundStyle(TodayStyle.signal)
             Text(item.body)
                 .font(.title2.bold())
                 .textSelection(.enabled)

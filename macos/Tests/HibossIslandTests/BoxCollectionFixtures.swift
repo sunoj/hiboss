@@ -14,7 +14,10 @@ enum BoxCollectionFixtures {
 }
 
 extension ScriptedBoxBrowser {
-    func boxCollections() async throws -> [BoxCollection] { collections }
+    func boxCollections() async throws -> [BoxCollection] {
+        if let collectionsError { throw collectionsError }
+        return collections
+    }
 
     func createBoxCollection(name: String) async throws -> BoxCollection {
         if failMutation { throw TestError.rejected }

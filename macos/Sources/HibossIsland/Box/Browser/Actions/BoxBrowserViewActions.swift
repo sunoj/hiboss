@@ -17,7 +17,7 @@ extension BoxBrowserView {
         defer { opening.remove(item.id) }
         do {
             if let text = try await BoxBrowserActions.open(item, media: media) { copy(text, id: item.id) }
-        } catch { store.actionError = error.localizedDescription }
+        } catch { store.reportActionFailure(error) }
     }
 
     func perform(_ action: BoxPaneAction, item: BoxItem) {
@@ -47,7 +47,7 @@ extension BoxBrowserView {
                 case .share: try await BoxBrowserActions.share(item, media: media)
                 default: break
                 }
-            } catch { store.actionError = error.localizedDescription }
+            } catch { store.reportActionFailure(error) }
         }
     }
 

@@ -119,7 +119,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        guard ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] == nil else { return }
+        guard ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] == nil else {
+            // Screenshot runs pin one appearance. A normal launch follows the system.
+            switch ProcessInfo.processInfo.environment["HIBOSS_APPEARANCE"] {
+            case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+            case "light": NSApp.appearance = NSAppearance(named: .aqua)
+            default: break
+            }
+            return
+        }
         notificationCenter.onOpen = { [weak self] id in self?.notificationNavigation.open(id) }
         notificationCenter.onOpenJoinRequest = { [weak self] id in
             self?.notificationNavigation.openDeviceRequests(requestID: id)

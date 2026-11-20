@@ -193,6 +193,13 @@ final class BoxBrowserStore: ObservableObject {
         }
     }
 
+    /// A superseded or dismissed request is not a failed action.
+    func reportActionFailure(_ error: Error) {
+        if error is CancellationError { return }
+        if let url = error as? URLError, url.code == .cancelled { return }
+        actionError = error.localizedDescription
+    }
+
     func delete(_ item: BoxItem) async -> Bool {
         guard let api = apiProvider(), !deleting.contains(item.id) else { return false }
         let current = connectionGeneration
@@ -207,7 +214,7 @@ final class BoxBrowserStore: ObservableObject {
             await refreshCollections()
             return true
         } catch {
-            if current == connectionGeneration { actionError = error.localizedDescription }
+            if current == connectionGeneration { reportActionFailure(error) }
             return false
         }
     }

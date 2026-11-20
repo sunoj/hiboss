@@ -73,7 +73,7 @@ Palm #6CA83A) appear only inside the scenes, never as UI state.
 |---|---|---|
 | Large title (Today, Sessions, Box) | `.largeTitle` bold | window title |
 | Title (decision detail) | `.title2` bold | `.title2` bold |
-| Section (Your call) | `.title3` bold | `.headline` |
+| Section (Your call, Watching) | `.footnote` secondary | `.headline` |
 | Question | `.headline` | `.headline` |
 | Body | `.subheadline` / `.body` | `.body` |
 | Meta | `.footnote` | `.callout` / `.caption` |

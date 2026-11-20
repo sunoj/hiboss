@@ -12,6 +12,7 @@ ios/build/
 
 # Scratch artifacts from agent/audit runs — never commit
 .aic/
+.asc/
 result-t-*.md
 *.db
 test_migration*.sql

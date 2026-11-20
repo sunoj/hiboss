@@ -33,9 +33,7 @@ struct BoxBrowserRow: View {
             }
         }
         .padding(.vertical, 6)
-        .alignmentGuide(.listRowSeparatorLeading) { dimensions in
-            dimensions[.leading] + (typeSize.isAccessibilitySize ? 0 : 56)
-        }
+        .boxColumnSeparator()
         .accessibilityIdentifier("box.item.\(item.id)")
         .layoutProbe("box.item.\(item.id)")
     }
@@ -68,6 +66,17 @@ struct BoxBrowserRow: View {
         .task(id: media.thumbnailTaskID(item.id)) { await media.show(item) }
     }
 
+}
+
+extension View {
+    /// Guides use this view's own bounds. Fill the column first: a shrink-wrapped
+    /// row ends at the text, so the rule would stop there. The list then keeps a
+    /// 16pt margin, and the rule steps back across it to both column edges.
+    func boxColumnSeparator() -> some View {
+        frame(maxWidth: .infinity, alignment: .leading)
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] - 16 }
+            .alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] + 16 }
+    }
 }
 
 extension BoxItem {

@@ -17,6 +17,18 @@ final class BoxCollectionTests: XCTestCase {
             .workspace(.session("session")))
     }
 
+    func testCancelledCollectionRefreshIsNotAnActionFailure() async {
+        let api = ScriptedBoxBrowser()
+        let store = BoxBrowserStore { api }
+        await api.setCollectionsError(URLError(.cancelled))
+        await store.refresh()
+        XCTAssertNil(store.actionError)
+        XCTAssertTrue(store.didLoad)
+        await api.setCollectionsError(TestError.rejected)
+        await store.refreshCollections()
+        XCTAssertEqual(store.actionError, TestError.rejected.localizedDescription)
+    }
+
     func testRefreshCollectionsAndScopeIdentity() async {
         let api = ScriptedBoxBrowser()
         let store = BoxBrowserStore { api }
