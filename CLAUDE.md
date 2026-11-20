@@ -220,8 +220,9 @@ exception, not the default.
 
 ### iOS verification tiers
 
-Run the checks the change can break. A full iOS unit and UI run takes 15–85 minutes on a
-simulator and mostly surfaces simulator faults, so it is reserved for T5. Pick the tier from
+Run the checks the change can break. A full iOS unit and UI run takes about two hours on one
+simulator, so no tier runs it by default; T5 runs every unit test and one UI test per UI test
+class. Pick the tier from
 the changed paths:
 
 | Tier | Change | Checks |
@@ -231,7 +232,8 @@ the changed paths:
 | T2 | One screen's views | Build, `HiBossTests`, the UI test classes for that screen, and a simulator screenshot of the screen |
 | T3 | Shared components, navigation, deep links, demo routing, `project.yml`, or `HibossKit/` | Build, `HiBossTests`, and the UI test classes that exercise the changed component (find them by searching the UI tests for its screens and accessibility identifiers); `cd macos && swift build` when `HibossKit/` changed |
 | T4 | A merge into `main` | No full run. Build and `HiBossTests` on `main` when the merge resolved conflicts in shared or generated files (`Localizable.xcstrings`, `project.pbxproj`); otherwise nothing beyond the branches' own evidence |
-| T5 | A release (TestFlight/App Store), or a full run is requested | One full unit and UI run, skipping only `UXTourUITests`, at most once per batch of merges |
+| T5 | A release (TestFlight/App Store) | `ios/scripts/release-tests.sh <out>`: every unit test and the UI tests in `ios/scripts/release-ui-tests.txt`, at most once per batch of merges. A new UI test class needs a line there or the script refuses to run |
+| — | A full run is requested | `ios/scripts/today-tests.sh <out> -skip-testing:HiBossUITests/UXTourUITests` |
 | — | A device install of a commit that was already tested | Build only |
 
 - Iterate on the focused tests and run the tier's suites once, on the final commit.
