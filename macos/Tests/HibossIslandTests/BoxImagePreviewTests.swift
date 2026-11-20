@@ -111,7 +111,7 @@ final class BoxImagePreviewTests: XCTestCase {
     }
 
     private func detailWindow(in window: NSWindow) async throws -> NSWindow {
-        if window.contentLayoutRect.width >= 900 { return window }
+        if window.contentLayoutRect.width >= BoxBrowserView.columnsMinWidth { return window }
         try await waitForCondition { window.attachedSheet != nil }
         return try XCTUnwrap(window.attachedSheet)
     }

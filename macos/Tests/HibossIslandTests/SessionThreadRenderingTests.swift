@@ -19,12 +19,19 @@ final class SessionThreadRenderingTests: XCTestCase {
         let host = NSHostingView(rootView: SessionThreadView(
             context: SessionContext(id: "thread-demo", snapshot: snapshot, inventory: []),
             flow: OptionFlowStore(), reply: AttentionReplyState(), connection: .connected,
-            onChoose: { _, _ in nil }).frame(width: 900, height: 1800))
+            onChoose: { _, _ in nil })
+            // SessionView paints the ground behind this surface in the app.
+            .background(TodayStyle.ground)
+            .frame(width: 900, height: 1800))
         host.frame = NSRect(x: 0, y: 0, width: 900, height: 1800)
         host.layoutSubtreeIfNeeded()
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
         let pixels = try XCTUnwrap(bitmap.cgImage)
+        if let directory = ProcessInfo.processInfo.environment["HIBOSS_SNAPSHOT_DIR"] {
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                .write(to: URL(fileURLWithPath: directory).appendingPathComponent("session-thread-render.png"))
+        }
         let request = VNRecognizeTextRequest()
         request.recognitionLanguages = ["en-US"]
         try VNImageRequestHandler(cgImage: pixels).perform([request])

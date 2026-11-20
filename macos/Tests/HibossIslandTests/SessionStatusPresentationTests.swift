@@ -17,7 +17,9 @@ final class SessionStatusPresentationTests: XCTestCase {
             lastSeenAt: AttentionTestSupport.iso(.now.addingTimeInterval(-379)))
         let context = SessionContext(id: session.id,
             snapshot: OverviewSnapshot(history: [], live: nil, now: .now), inventory: [session])
-        let host = NSHostingView(rootView: SessionHeader(context: context, connection: .connected))
+        // The header has no fill of its own; in the app it sits on the session's ground.
+        let host = NSHostingView(rootView: SessionHeader(context: context, connection: .connected)
+            .background(TodayStyle.ground))
         let window = try await StableWindowSupport.show(host)
         defer { window.close() }
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))

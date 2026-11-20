@@ -8,6 +8,9 @@ import QuickLook
 import SwiftUI
 
 struct BoxBrowserView: View {
+    /// Narrower than this, the preview opens as a sheet over the list.
+    static let columnsMinWidth: CGFloat = 640
+
     @ObservedObject var store: BoxBrowserStore
     @ObservedObject var media: BoxBrowserMedia
     @State var opening: Set<String> = []
@@ -61,7 +64,7 @@ struct BoxBrowserView: View {
     private var browser: some View {
         GeometryReader { geometry in
             // The window sidebar is outside this view, so the list and preview fit at their minimums.
-            if geometry.size.width >= 640 {
+            if geometry.size.width >= Self.columnsMinWidth {
                 BoxBrowserColumns(content: listColumn, detail: detailColumn)
                     .toolbar { filters }
                     .searchable(text: $store.query, placement: .toolbar, prompt: L("Search Box"))
