@@ -217,6 +217,10 @@ describe('concurrent open asks', () => {
     await env.DB.prepare('INSERT INTO sessions (id, agent_id, label) VALUES (?, ?, ?)')
       .bind(sessionId, getTestAgentId(), sessionId).run();
     const first = await send({ session_id: sessionId, metadata: { default_option: 'A' } });
+    // created_at has one-second resolution. Move the first ask back, or both share a
+    // second and the later send has no earlier ask it could close.
+    await env.DB.prepare("UPDATE messages SET created_at = datetime(created_at, '-5 seconds') WHERE id = ?")
+      .bind(first.id).run();
     const second = await send({ session_id: sessionId, metadata: { default_option: 'B' } });
     for (const ask of [first, second]) {
       const stored = await env.DB.prepare('SELECT status, metadata FROM messages WHERE id = ?')
