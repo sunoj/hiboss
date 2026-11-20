@@ -95,9 +95,14 @@ final class BoxPolishLayoutTests: XCTestCase {
             let overflow = try XCTUnwrap(BoxWindowCaptureSupport.descendants(root).first {
                 String(describing: type(of: $0)).contains("ClippedItems")
             }, "Native toolbar overflow must be reachable")
+            // Which window actions overflow depends on the width; each one must still name itself.
             let menu = try await BoxWindowCaptureSupport.captureMenu(overflow, window: window,
-                directory: directory, name: name + "-overflow", expectedTitles: [L("Filter")])
-            let filters = try XCTUnwrap(menu.items.first?.submenu, "Overflow preserves the filter menu")
+                directory: directory, name: name + "-overflow", checksTitles: false)
+            let titles = menu.items.filter { !$0.isSeparatorItem }.map(\.title)
+            XCTAssertFalse(titles.contains { $0.trimmingCharacters(in: .whitespaces).isEmpty },
+                "Every overflowed toolbar item needs a title: \(titles)")
+            let filters = try XCTUnwrap(menu.items.first { $0.title == L("Filter") }?.submenu,
+                "Overflow preserves the filter menu")
             XCTAssertEqual(filters.items.filter { !$0.isSeparatorItem }.map(\.title),
                 [L("Kind"), L("Source:")])
             try BoxWindowCaptureSupport.capturePopupMenu(filters, window: window,

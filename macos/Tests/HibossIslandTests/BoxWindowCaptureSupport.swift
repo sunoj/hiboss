@@ -80,7 +80,7 @@ enum BoxWindowCaptureSupport {
     @discardableResult
     static func captureMenu(_ anchor: NSView, window: NSWindow,
                             directory: String?, name: String,
-                            expectedTitles: [String]? = nil) async throws -> NSMenu {
+                            expectedTitles: [String]? = nil, checksTitles: Bool = true) async throws -> NSMenu {
         try await settle(window)
         let session = MenuCapture(window: window, directory: directory, name: name)
         NotificationCenter.default.addObserver(session, selector: #selector(MenuCapture.didBeginTracking),
@@ -104,8 +104,10 @@ enum BoxWindowCaptureSupport {
         let menu = try XCTUnwrap(session.menu, "\(name): no native menu opened")
         print("\(name) menu: \(menu.items.filter { !$0.isSeparatorItem }.map(\.title))")
         print("\(name) submenus: \(menu.items.compactMap { $0.submenu?.items.map(\.title) })")
-        XCTAssertEqual(menu.items.filter { !$0.isSeparatorItem }.map(\.title),
-            expectedTitles ?? BoxAuthorFilter.allCases.map { L("Source:") + " " + $0.title })
+        if checksTitles {
+            XCTAssertEqual(menu.items.filter { !$0.isSeparatorItem }.map(\.title),
+                expectedTitles ?? BoxAuthorFilter.allCases.map { L("Source:") + " " + $0.title })
+        }
         if let directory {
             XCTAssertTrue(FileManager.default.fileExists(atPath:
                 URL(fileURLWithPath: directory).appendingPathComponent("\(name).png").path))

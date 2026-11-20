@@ -25,7 +25,8 @@ struct WorkspaceToolbar: ViewModifier {
             ToolbarItem(placement: .primaryAction) { connectionStatus }
                 .quietStatusBackground()
             ToolbarItem(placement: .primaryAction) {
-                Button(action: onRefresh) { Image(systemName: "arrow.clockwise") }
+                // The title names the row when a narrow window moves this item into the overflow menu.
+                Button(action: onRefresh) { Label(refreshHelp, systemImage: "arrow.clockwise") }
                     .help(refreshHelp)
                     .keyboardShortcut("r", modifiers: .command)
                     .layoutProbe("workspace.refresh")
@@ -33,13 +34,16 @@ struct WorkspaceToolbar: ViewModifier {
         }
     }
 
-    /// A caption, not a second toolbar button. The mark carries the live tint.
+    /// A caption, not a second toolbar button. The mark carries the live tint; a label, not a
+    /// bare stack, so the overflow menu of a narrow window has a title for it.
     private var connectionStatus: some View {
-        HStack(spacing: 4) {
+        Label {
+            Text(connectionTitle)
+        } icon: {
             Image(systemName: connectionSymbol)
                 .foregroundStyle(connection == .connected ? DesignTokens.live : .secondary)
-            Text(connectionTitle)
         }
+        .labelStyle(.titleAndIcon)
         .font(.caption)
         .foregroundStyle(.secondary)
         .accessibilityElement(children: .combine)
