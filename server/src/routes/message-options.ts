@@ -1,6 +1,6 @@
 /**
  * Helper functions for message options and expiry.
- * Handles parsing options, building keyboards, and expiring old message options.
+ * Handles parsing options, building keyboards, and expiring asks at their deadline.
  */
 
 import { fetchAgentName, resolveDiscordConfig } from '../message-context';
@@ -231,30 +231,6 @@ async function removeDiscordOptions(
   const channel = await selectChannelConfig(env, agentId, 'discord');
   const effectiveConfig = await resolveDiscordConfig(env, message, channel.config);
   await editDiscordMessage(_requireDiscordConfig(effectiveConfig), messageId, undefined, []);
-}
-
-export async function expirePreviousOptions(
-  env: Env,
-  agentId: string,
-  sessionId: string | null,
-  excludeMessageId: string
-): Promise<void> {
-  const sessionClause = sessionId
-    ? 'AND session_id = ?'
-    : 'AND session_id IS NULL';
-  const binds = sessionId
-    ? [agentId, excludeMessageId, sessionId, excludeMessageId]
-    : [agentId, excludeMessageId, excludeMessageId];
-  const rows = await env.DB
-    .prepare(
-      `SELECT * FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND id != ? ${sessionClause} AND status IN ('sent', 'delivered', 'read') AND json_extract(metadata, '$.options') IS NOT NULL AND created_at < (SELECT created_at FROM messages WHERE id = ?) ORDER BY created_at DESC`
-    )
-    .bind(...binds)
-    .all<MessageRow>();
-  // A superseded ask is closed unanswered: its default is a timeout outcome, not a replacement.
-  for (const row of rows.results ?? []) {
-    await expireWithoutDefault(env, agentId, row);
-  }
 }
 
 export function resolveChannelRouting(routingJson: string, priority: string): Channel | undefined {

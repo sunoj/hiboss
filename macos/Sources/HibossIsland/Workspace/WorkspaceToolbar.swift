@@ -8,6 +8,9 @@ import SwiftUI
 struct WorkspaceToolbar: ViewModifier {
     @ObservedObject var flow: OptionFlowStore
     let destination: OverviewDestination
+    /// The connection the window is showing. Preview passes connected so the
+    /// toolbar matches the sidebar instead of the idle flow.
+    var connection: ConnectionState
     let onRefresh: () -> Void
 
     func body(content: Content) -> some View {
@@ -19,17 +22,40 @@ struct WorkspaceToolbar: ViewModifier {
                 }
             }
             .quietStatusBackground()
-            ToolbarItemGroup(placement: .primaryAction) {
-                Image(systemName: flow.connectionState == .connected
-                    ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
-                    .foregroundStyle(flow.connectionState == .connected ? DesignTokens.live : .secondary)
-                    .help(flow.connectionState.label)
-                    .layoutProbe("workspace.live")
+            ToolbarItem(placement: .primaryAction) { connectionStatus }
+                .quietStatusBackground()
+            ToolbarItem(placement: .primaryAction) {
                 Button(action: onRefresh) { Image(systemName: "arrow.clockwise") }
                     .help(refreshHelp)
                     .keyboardShortcut("r", modifiers: .command)
                     .layoutProbe("workspace.refresh")
             }
+        }
+    }
+
+    /// A caption, not a second toolbar button. The mark carries the live tint.
+    private var connectionStatus: some View {
+        HStack(spacing: 4) {
+            Image(systemName: connectionSymbol)
+                .foregroundStyle(connection == .connected ? DesignTokens.live : .secondary)
+            Text(connectionTitle)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .accessibilityElement(children: .combine)
+        .help(connection.detail ?? connection.label)
+        .layoutProbe("workspace.live")
+    }
+
+    private var connectionTitle: String {
+        connection == .connected ? L("Live") : connection.label
+    }
+
+    private var connectionSymbol: String {
+        switch connection {
+        case .connected: "checkmark.circle.fill"
+        case .connecting: "antenna.radiowaves.left.and.right"
+        case .disconnected, .failed: "antenna.radiowaves.left.and.right.slash"
         }
     }
 

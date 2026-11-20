@@ -74,12 +74,13 @@ struct HBCard: ViewModifier {
     }
 }
 
-/// A section header outside a card: headline weight, aligned with the card's content edge.
+/// Grouped-list section header: footnote, secondary, so it does not compete with the
+/// navigation title. Callers align it with the card's content edge.
 struct HBSectionHeader: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .font(.hbH3)
-            .foregroundStyle(Theme.ink)
+            .font(.hbFootnote)
+            .foregroundStyle(Theme.ink2)
             .accessibilityAddTraits(.isHeader)
     }
 }

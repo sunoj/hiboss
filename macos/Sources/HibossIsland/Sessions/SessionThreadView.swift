@@ -22,10 +22,12 @@ struct SessionThreadView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     SessionHeader(context: context, connection: connection)
-                    Divider()
                     rows(threads: threads, presentation: presentation, reader: reader)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: 900, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+                .frame(maxWidth: .infinity)
             }
             .id(context.id)
             .accessibilityIdentifier("session.thread")
@@ -44,18 +46,15 @@ struct SessionThreadView: View {
         } else {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if !presentation.needsYou.isEmpty {
-                    Text(L("Needs you")).font(.headline).padding(.top, 20)
+                    Text(L("Needs you")).font(.headline).padding(.top, 10)
                     ForEach(presentation.needsYou) { thread in
                         row(thread, reader: reader)
                         Divider()
                     }
                 }
-                Text(L("Conversation")).font(.headline).padding(.vertical, 20)
+                Text(L("Conversation")).font(.headline).padding(.top, 10).padding(.bottom, 8)
                 conversation(presentation: presentation, reader: reader)
             }
-            .frame(maxWidth: 900, alignment: .leading)
-            .padding(.horizontal, 24).padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
         }
     }
 

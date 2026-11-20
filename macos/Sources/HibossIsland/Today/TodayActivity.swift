@@ -14,39 +14,52 @@ struct TodayActivity: View {
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 24) {
             if !snapshot.working.isEmpty {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    Text(L("Working now")).font(.headline)
-                    ForEach(snapshot.working) { session in
+                group(Text(L("Working now"))) {
+                    ForEach(Array(snapshot.working.enumerated()), id: \.element.id) { index, session in
+                        if index > 0 { Divider().padding(.leading, 12) }
                         Button { onSession(session.id) } label: { sessionRow(session) }
                             .buttonStyle(.plain)
-                        Divider()
                     }
                 }
             }
             if !snapshot.delivered.isEmpty {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    Text(L("Delivered")).font(.headline)
-                    ForEach(snapshot.delivered) { message in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Button { onSession(SessionGrouping.sessionKey(for: message)) } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(message.body).font(.body).foregroundStyle(.primary)
-                                    Text([message.sessionLabel, message.agentName].compactMap { $0 }
-                                        .joined(separator: " · "))
-                                        .font(.caption).foregroundStyle(TodayStyle.secondary)
-                                    Text(HistoryTimestamp.localDateTime(from: message.createdAt))
-                                        .font(.caption).foregroundStyle(TodayStyle.tertiary)
-                                }.frame(maxWidth: .infinity, alignment: .leading)
-                            }.buttonStyle(.plain)
-                            if let attachment = message.metadata?.attachment {
-                                MessageAttachmentView(attachment: attachment)
-                            }
-                        }
-                        Divider()
+                group(Text(L("Delivered"))) {
+                    ForEach(Array(snapshot.delivered.enumerated()), id: \.element.id) { index, message in
+                        if index > 0 { Divider().padding(.leading, 12) }
+                        deliveredRow(message)
                     }
                 }
             }
         }
+    }
+
+    /// One surface per section. The headline stays outside the card, matching the Mac type scale.
+    private func group<Content: View>(_ title: Text, @ViewBuilder rows: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            title.font(.headline).accessibilityAddTraits(.isHeader)
+            VStack(spacing: 0) { rows() }
+                .background(TodayStyle.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+
+    private func deliveredRow(_ message: HistoryMessage) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button { onSession(SessionGrouping.sessionKey(for: message)) } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(message.body).font(.body).foregroundStyle(.primary)
+                    Text([message.sessionLabel, message.agentName].compactMap { $0 }
+                        .joined(separator: " · "))
+                        .font(.caption).foregroundStyle(TodayStyle.secondary)
+                    Text(HistoryTimestamp.localDateTime(from: message.createdAt))
+                        .font(.caption).foregroundStyle(TodayStyle.tertiary)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.plain)
+            if let attachment = message.metadata?.attachment {
+                MessageAttachmentView(attachment: attachment)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     private func sessionRow(_ session: TodaySession) -> some View {
@@ -72,7 +85,13 @@ struct TodayActivity: View {
                 }
             }
             Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(TodayStyle.tertiary)
+                .accessibilityHidden(true)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
     }
 }

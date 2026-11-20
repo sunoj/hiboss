@@ -5,9 +5,8 @@
 import SwiftUI
 
 /// A full-width action or decision option: rounded rectangle, ≥ 48 pt tall, wraps freely.
-/// Primary is the filled ink action (the first option, the screen's main action); secondary is
-/// a quiet fill that reads on both the grouped ground and a card surface. Never a capsule:
-/// a capsule around two lines of text reads as a blob.
+/// Primary is the filled ink action. Every other option is bordered, so one screen has one
+/// filled button. Never a capsule: a capsule around two lines of text reads as a blob.
 struct HBButtonStyle: ButtonStyle {
     enum Role { case primary, secondary }
 
@@ -24,14 +23,26 @@ struct HBButtonStyle: ButtonStyle {
             .padding(.horizontal, Space.m)
             .padding(.vertical, Space.xs)
             .foregroundStyle(label)
-            .background(fill, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .background(fill(pressed: configuration.isPressed), in: shape)
+            .overlay { shape.strokeBorder(border, lineWidth: showsBorder ? 1 : 0) }
+            .contentShape(shape)
+            .opacity(configuration.isPressed && role == .primary ? 0.7 : 1)
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
     }
 
     /// A disabled button drops its fill, not its legibility: the label keeps readable contrast
     /// while another option is submitting (`ProminentActionAppearanceTests` checks > 3:1).
-    private var fill: Color { role == .primary && isEnabled ? Theme.primaryAction : Theme.surface2 }
+    private func fill(pressed: Bool) -> Color {
+        if role == .primary && isEnabled { return Theme.primaryAction }
+        if !isEnabled || pressed { return Theme.surface2 }
+        return .clear
+    }
+
+    private var showsBorder: Bool { role == .secondary && isEnabled }
+    private var border: Color { showsBorder ? Theme.ink3 : .clear }
     private var label: Color {
         guard isEnabled else { return Theme.ink2 }
         return role == .primary ? Theme.onAccent : Theme.ink

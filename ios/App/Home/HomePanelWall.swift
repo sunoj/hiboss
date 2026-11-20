@@ -10,17 +10,18 @@ struct HomePanelWall: View {
     @ObservedObject var model: PanelsModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Space.m) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Watching").font(.title3.bold())
+                Text("Watching").hbSectionHeader()
                 Spacer()
                 if model.isDemoMode {
-                    Text("Sample data").font(.caption).foregroundStyle(Theme.ink2)
+                    Text("Sample data").font(.hbCaption).foregroundStyle(Theme.ink2)
                 } else {
-                    Text(model.visibleTiles.count, format: .number).font(.headline).foregroundStyle(
-                        Theme.ink2)
+                    Text(model.visibleTiles.count, format: .number)
+                        .font(.hbFootnote.weight(.semibold)).foregroundStyle(Theme.ink2)
                 }
             }
+            .padding(.horizontal, Space.m)
             PanelWallFilter(model: model)
             if !model.visibleTiles.isEmpty {
                 wall
@@ -31,7 +32,7 @@ struct HomePanelWall: View {
                 emptyState
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, Space.m)
     }
 
     private var emptyState: some View {

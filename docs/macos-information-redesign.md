@@ -37,7 +37,9 @@ controls also stop accepting input when the question deadline passes.
 
 ## Layout and Interaction
 
-The sidebar is 220–280 points wide, with a 244-point preferred width. Below a
+The sidebar is 220–280 points wide, with a 244-point preferred width. The main window
+has one split: that sidebar, and the current page in the detail. Box's list and preview
+are a split inside the detail. Below a
 760-point window width, the Overview toolbar button switches navigation and content.
 The minimum window remains 480 × 400. Dashboard details use the full content area
 below 900 points of content width; larger workspaces show a side inspector. Closing
@@ -48,6 +50,10 @@ Motion. Native focus and selection remain visible. Replies keep the existing
 persistent composer and Command-Return shortcut. Command-R refreshes the current
 surface; returning to the app refreshes recent history and dashboard panels.
 
+A cancelled Box request is not an action failure. Leaving the page or starting
+another read can cancel an in-flight request; that does not open the action alert.
+A rejected save, delete, or open still does.
+
 Disconnected, failed, loading, and empty states remain distinct. Cached questions
 remain available during connection failures. Panel errors appear once with a retry
 action; a failed fetch must not imply there are zero panels.
@@ -55,8 +61,11 @@ action; a failed fetch must not imply there are zero panels.
 ## Inline Session Reading
 
 Session and history destinations use a single scrolling message stream with a
-900-point maximum reading width. Sender, date, and time precede selectable body
-text; message rows do not open modal details. Ordinary messages are fully visible.
+900-point maximum reading width. The session header's headline is the session's
+activity text, and its caption is only the status. Sender, date, and time precede
+selectable body text. An open decision keeps that body selectable; its choice
+buttons stay buttons. Today still opens a decision from the summary button.
+Message rows do not open modal details. Ordinary messages are fully visible.
 Long messages (over 1,200 characters or 14 explicit lines) have a preview bounded
 by 600 characters and eight explicit lines. Unicode grapheme boundaries are preserved.
 Full text remains available with Show full message; Collapse message returns the

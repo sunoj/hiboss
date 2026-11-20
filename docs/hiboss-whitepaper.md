@@ -179,8 +179,8 @@ spoofed by the sender (F-M5).
 
 1. Agent: `hiboss ask --option A --option B [--default A] [--timeout N]` → blocking message with
    `metadata.options` (+ validated `default_option`, `ask_support.rs:40-56`); server sets
-   `expires_at`; a new ask expires older open asks in the same session without applying their
-   defaults (`expirePreviousOptions`, `message-options.ts`).
+   `expires_at`. Earlier open asks stay open until each one is answered or its own deadline
+   passes.
 2. Delivery renders Telegram inline keyboards / Discord buttons; `callback_data` =
    12-char message-id prefix + option label (`message-options.ts:40-42`).
 3. Any resolution path — Discord button, Telegram button, boss API, macOS/iOS/web — funnels into

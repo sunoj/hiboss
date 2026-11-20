@@ -24,6 +24,11 @@ struct TodayView: View {
     /// question" pane would take space and say nothing, so Today uses the full width.
     var hasInspectorContent: Bool { selected != nil || panels.selectedTile != nil }
 
+    /// Mounted once. A second copy below the activity list repeats Live tasks.
+    var showsPanelWall: Bool {
+        !isPreview && (panels.didLoadPanels || panels.failureMessage != nil || !panels.visibleTiles.isEmpty)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             if geometry.size.width >= 760, hasInspectorContent {
@@ -61,17 +66,13 @@ struct TodayView: View {
                 TodaySummary(snapshot: snapshot.today, now: snapshot.now, isRefreshing: isRefreshing)
                 if snapshot.today.isAllClear { TodayScene() }
                 if !snapshot.today.decisions.isEmpty { decisions }
-                if !isPreview && (!panels.visibleTiles.isEmpty
-                    || (!panels.didLoadPanels && panels.failureMessage != nil)) {
+                if showsPanelWall {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(L("Watching")).font(.headline)
                         DashboardPanelsSection(model: panels)
                     }
                 }
                 TodayActivity(snapshot: snapshot.today, now: snapshot.now, onSession: onSession)
-                if !isPreview {
-                    DisclosureGroup(L("Panels")) { DashboardPanelsSection(model: panels) }
-                }
             }
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)

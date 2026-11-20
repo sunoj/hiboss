@@ -39,7 +39,7 @@ extension BoxBrowserStore {
             guard current == connectionGeneration else { return }
             collections = result
         } catch {
-            if current == connectionGeneration { actionError = error.localizedDescription }
+            if current == connectionGeneration { reportActionFailure(error) }
         }
     }
 
@@ -56,7 +56,7 @@ extension BoxBrowserStore {
             if let item { await setMembership(item, collection: collection.id, member: true) }
             return true
         } catch {
-            if current == connectionGeneration { actionError = error.localizedDescription }
+            if current == connectionGeneration { reportActionFailure(error) }
             return false
         }
     }
@@ -70,7 +70,7 @@ extension BoxBrowserStore {
             if scope == .collection(collection.id) { scope = .all }
             await refreshCollections()
         } catch {
-            if current == connectionGeneration { actionError = error.localizedDescription }
+            if current == connectionGeneration { reportActionFailure(error) }
         }
     }
 
@@ -102,7 +102,7 @@ extension BoxBrowserStore {
             }
             reconcileSelection()
         } catch {
-            if current == connectionGeneration { actionError = error.localizedDescription }
+            if current == connectionGeneration { reportActionFailure(error) }
         }
     }
 }

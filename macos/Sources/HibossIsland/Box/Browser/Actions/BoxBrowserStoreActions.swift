@@ -33,7 +33,7 @@ extension BoxBrowserStore {
             items[index] = updated
             return true
         } catch {
-            if current == connectionGeneration { actionError = error.localizedDescription }
+            if current == connectionGeneration { reportActionFailure(error) }
             return false
         }
     }

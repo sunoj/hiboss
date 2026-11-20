@@ -1,5 +1,5 @@
 // Round-two decision regressions: who may answer an ask and how timeouts close it.
-// Covers decision-only reconcile reads, boss-agent self-answers, a2a timeouts and superseded asks.
+// Covers decision-only reconcile reads, boss-agent self-answers and a2a timeouts.
 // Depends on SELF, seeded D1 fixtures, the scheduled sweep and option expiry helpers.
 
 import { testRequest } from '../test-request';
@@ -9,7 +9,6 @@ import { createAgent } from '../agent-keys';
 import { handleScheduled } from '../scheduled';
 import { seedBossToken, seedDatabase } from '../test-helpers';
 import type { Env, MessageRow } from '../types';
-import { expirePreviousOptions } from './message-options';
 
 const api = 'https://test.local/api';
 const unique = (name: string): string => `d2-${name}-${crypto.randomUUID().slice(0, 8)}`;
@@ -135,23 +134,6 @@ describe('MA3 a timed-out agent-to-agent ask closes once without a boss default'
     const due = await ask({ agentId: late, expiresAt: '2000-01-01T00:00:00.000Z' });
     await handleScheduled(env as Env);
     expect((await row(due)).status).toBe('expired');
-  });
-});
-
-describe('MA6 a superseded ask expires without its default', () => {
-  it('expires the older ask and records no answer', async () => {
-    const asker = await agent('ma6');
-    const sessionId = unique('session');
-    await env.DB.prepare('INSERT INTO sessions (id, agent_id, label) VALUES (?, ?, ?)').bind(sessionId, asker.id, sessionId).run();
-    const older = await ask({ agentId: asker.id, sessionId, createdAt: '2026-01-01 00:00:00',
-      metadata: { options: ['Approve', 'Reject'], default_option: 'Approve' } });
-    // CONTROL: an ask in another session is not superseded.
-    const otherSession = await ask({ agentId: asker.id, createdAt: '2026-01-01 00:00:00',
-      metadata: { options: ['Approve', 'Reject'], default_option: 'Approve' } });
-    const newer = await ask({ agentId: asker.id, sessionId, createdAt: '2026-01-01 00:00:05' });
-    await expirePreviousOptions(env as Env, asker.id, sessionId, newer);
-    expect((await row(otherSession)).status).toBe('sent');
-    expect({ status: (await row(older)).status, answers: await answers(older) }).toEqual({ status: 'expired', answers: 0 });
   });
 });
 

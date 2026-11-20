@@ -138,6 +138,7 @@ struct MainView: View {
             }
         }
         .task { if flow.historyState == .idle { await flow.refreshHistory() } }
+        .columnChrome()
     }
     private var observedContent: some View {
         navigationContent
@@ -165,25 +166,21 @@ struct MainView: View {
         messageShell(snapshot: snapshot, compact: compact)
             .modifier(FirstRunGate(settings: settings, isPreview: previewHistory != nil, onPaired: onPaired,
                 onSettings: { openWindow(id: "settings") }))
-            .modifier(WorkspaceToolbar(flow: flow, destination: destination, onRefresh: refresh))
+            .modifier(WorkspaceToolbar(flow: flow, destination: destination,
+                connection: previewHistory == nil ? flow.connectionState : .connected,
+                onRefresh: refresh))
     }
 
     private func messageShell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
-        Group {
-            if destination == .box && !(compact && showsCompactOverview) {
-                BoxBrowserView(store: box, media: boxMedia, sidebar: AnyView(overview(snapshot)))
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            overview(snapshot)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 280)
+        } detail: {
+            if compact && showsCompactOverview {
+                overview(snapshot).navigationTitle(L("Overview"))
             } else {
-                NavigationSplitView(columnVisibility: $columnVisibility) {
-                    overview(snapshot)
-                        .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 280)
-                } detail: {
-                    if compact && showsCompactOverview {
-                        overview(snapshot).navigationTitle(L("Overview"))
-                    } else {
-                        destinationContent(snapshot)
-                            .navigationTitle(snapshot.title(for: destination))
-                    }
-                }
+                destinationContent(snapshot)
+                    .navigationTitle(snapshot.title(for: destination))
             }
         }
         .toolbar(removing: .sidebarToggle)
@@ -226,7 +223,10 @@ struct MainView: View {
 
     private func destinationContent(_ snapshot: OverviewSnapshot) -> some View {
         GeometryReader { geometry in
-            if destination == .today {
+            if destination == .box {
+                BoxBrowserView(store: box, media: boxMedia)
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+            } else if destination == .today {
                 TodayView(snapshot: snapshot, reply: reply, panels: panels, isPreview: previewHistory != nil,
                     isRefreshing: flow.isRefreshingHistory || panels.isRefreshing
                         || requiredInputs.state.refreshing,

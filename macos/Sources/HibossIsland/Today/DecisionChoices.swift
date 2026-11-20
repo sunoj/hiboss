@@ -25,22 +25,8 @@ struct DecisionChoices: View {
                     if let media = media(for: option) {
                         OptionMediaPreview(media: media, openMedia: { selectedMedia = media })
                     }
-                    Button { send(option) } label: {
-                        HStack(spacing: 6) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(verbatim: option)
-                                OptionDescriptionText(text: description)
-                            }
-                            .multilineTextAlignment(.leading)
-                            if described { Spacer(minLength: 0) }
-                            if sendingOption == option {
-                                ProgressView().controlSize(.small)
-                                Text(L("Sending…")).font(.caption)
-                            }
-                        }
-                    }
-                    .buttonStyle(DecisionChoiceStyle(isPrimary: index == 0))
-                    .disabled(isSubmitting || sendingOption != nil)
+                    choice(option, description: description, described: described,
+                        primary: index == 0)
                 }
             }
         }
@@ -51,6 +37,29 @@ struct DecisionChoices: View {
         .onChange(of: isEnabled) { _, enabled in
             if enabled && !isSubmitting { sendingOption = nil }
         }
+    }
+
+    /// The first option is the Ink primary. A system prominent button on this OS
+    /// draws the same unfilled bezel as a bordered one, so the fill stays here.
+    @ViewBuilder
+    private func choice(_ option: String, description: String?, described: Bool, primary: Bool) -> some View {
+        Button { send(option) } label: {
+            HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(verbatim: option)
+                    OptionDescriptionText(text: description)
+                }
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                if described { Spacer(minLength: 0) }
+                if sendingOption == option {
+                    ProgressView().controlSize(.small)
+                    Text(L("Sending…")).font(.caption)
+                }
+            }
+        }
+        .buttonStyle(DecisionChoiceStyle(isPrimary: primary, described: described))
+        .disabled(isSubmitting || sendingOption != nil)
     }
 
     private func send(_ option: String) {
@@ -67,22 +76,31 @@ struct DecisionChoices: View {
     }
 }
 
+/// Ink capsule for a one-line choice. A described choice uses a continuous
+/// rectangle so two lines do not become a tall pill.
 private struct DecisionChoiceStyle: ButtonStyle {
     let isPrimary: Bool
+    var described = false
 
     func makeBody(configuration: Configuration) -> some View {
+        if described {
+            label(configuration, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        } else {
+            label(configuration, in: Capsule())
+        }
+    }
+
+    private func label<S: InsettableShape>(_ configuration: Configuration, in shape: S) -> some View {
         configuration.label
-            .font(.body.weight(.medium))
+            .font(.body)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
             .foregroundStyle(isPrimary ? TodayStyle.ground : Color.primary)
-            .background(isPrimary ? TodayStyle.ink : TodayStyle.surface,
-                in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(isPrimary ? Color.clear : TodayStyle.hairline, lineWidth: 1))
+            .background(isPrimary ? TodayStyle.ink : Color(nsColor: .controlBackgroundColor), in: shape)
+            .overlay { shape.strokeBorder(isPrimary ? Color.clear : Color(nsColor: .separatorColor), lineWidth: 1) }
             .opacity(configuration.isPressed ? 0.75 : 1)
-            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(shape)
     }
 }
 

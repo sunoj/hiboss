@@ -1,9 +1,8 @@
-// Message delivery formatting, option parsing, retries and expiry selection.
+// Message delivery formatting, option parsing and retries.
 // Preserves the named message-helper regression scenarios.
 // Depends on Vitest and message helpers.
 
 import { describe, expect, it } from 'vitest';
-import type { Env } from '../../types';
 import {
   formatAgentMessage,
   requireDiscordConfig,
@@ -12,7 +11,6 @@ import {
   buildInlineKeyboard,
   extractTelegramMessageId,
   deliverWithRetry,
-  expirePreviousOptions,
   resolveChannelRouting,
 } from '../message-helpers';
 
@@ -148,33 +146,6 @@ describe('deliverWithRetry', () => {
       )
     ).rejects.toThrow('permanent');
     expect(attempts).toBe(2);
-  });
-});
-
-describe('expirePreviousOptions', () => {
-  it('limits expiration to messages created before the current message', async () => {
-    let capturedSql = '';
-    let capturedBinds: unknown[] = [];
-    const fakeEnv = {
-      DB: {
-        prepare(sql: string) {
-          capturedSql = sql;
-          return {
-            bind(...binds: unknown[]) {
-              capturedBinds = binds;
-              return {
-                all: async () => ({ results: [] }),
-              };
-            },
-          };
-        },
-      },
-    };
-
-    await expirePreviousOptions(fakeEnv as unknown as Env, 'agent-1', 'sess-1', 'msg-9');
-
-    expect(capturedSql).toContain('created_at < (SELECT created_at FROM messages WHERE id = ?)');
-    expect(capturedBinds).toEqual(['agent-1', 'msg-9', 'sess-1', 'msg-9']);
   });
 });
 

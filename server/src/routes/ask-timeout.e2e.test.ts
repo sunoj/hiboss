@@ -211,6 +211,26 @@ describe('explicit text deadline', () => {
   });
 });
 
+describe('concurrent open asks', () => {
+  it('keeps an earlier option ask open when a later ask arrives in the same session', async () => {
+    const sessionId = `open-asks-${crypto.randomUUID()}`;
+    await env.DB.prepare('INSERT INTO sessions (id, agent_id, label) VALUES (?, ?, ?)')
+      .bind(sessionId, getTestAgentId(), sessionId).run();
+    const first = await send({ session_id: sessionId, metadata: { default_option: 'A' } });
+    const second = await send({ session_id: sessionId, metadata: { default_option: 'B' } });
+    for (const ask of [first, second]) {
+      const stored = await env.DB.prepare('SELECT status, metadata FROM messages WHERE id = ?')
+        .bind(ask.id).first<MessageRow>();
+      const replies = await env.DB.prepare(
+        "SELECT COUNT(*) AS total FROM messages WHERE reply_to = ? AND direction = 'boss_to_agent'")
+        .bind(ask.id).first<{ total: number }>();
+      const metadata = JSON.parse(stored?.metadata ?? '{}') as { options_expired?: boolean };
+      expect({ status: stored?.status, expired: metadata.options_expired ?? false, answers: replies?.total ?? 0 })
+        .toEqual({ status: 'sent', expired: false, answers: 0 });
+    }
+  });
+});
+
 describe('partial expiry writes', () => {
   it('expires an ask when its expiry write fails after insert', async () => {
     let failed = false;

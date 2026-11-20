@@ -35,7 +35,7 @@ struct HomeAttentionSection: View {
                 allClear.hidden().accessibilityHidden(true)
             } else {
                 ForEach(snapshot.groups, id: \.group) { group in
-                    VStack(alignment: .leading, spacing: Space.xs) {
+                    VStack(alignment: .leading, spacing: Space.m) {
                         ForEach(group.items) { item in
                             HomeAttentionRow(
                                 item: item, submitting: replying[item.id],
@@ -80,12 +80,15 @@ struct HomeAttentionSection: View {
                         .font(.hbCaption).foregroundStyle(Theme.ink2)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").foregroundStyle(Theme.ink3)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.ink3)
+                    .accessibilityHidden(true)
             }
             .fixedSize(horizontal: false, vertical: true)
             .frame(minHeight: ControlMetric.minTap)
             .padding(Space.s)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.large))
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("home-questionnaire-\(request.requestId)")

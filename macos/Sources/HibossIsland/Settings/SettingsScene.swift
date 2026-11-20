@@ -60,6 +60,7 @@ struct SettingsScene: View {
         .sheet(item: $pairingLinks.request) { request in
             PairWithCodeSheet(settings: settings, initialLink: request.link, onPaired: didPair)
         }
+        .columnChrome()
     }
 
     private var sidebar: some View {

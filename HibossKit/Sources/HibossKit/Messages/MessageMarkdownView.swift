@@ -37,11 +37,12 @@ public struct MessageMarkdownView: View {
                 inline(block.text).foregroundStyle(.secondary)
             }.fixedSize(horizontal: false, vertical: true)
         case .code:
-            ScrollView(.horizontal) {
-                Text(verbatim: block.text).font(.callout.monospaced())
-                    .padding(10).textSelection(.enabled)
-            }
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+            Text(verbatim: block.text).font(.callout.monospaced())
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
         }
     }
 
