@@ -13,7 +13,9 @@ if [[ -n $missing ]]; then
   echo "release-ui-tests.txt has no line for: ${missing//$'\n'/ }" >&2
   exit 2
 fi
-args=(-only-testing:HiBossTests)
+# The keychain tests need the shared access-group entitlement, which an unsigned simulator
+# build (CODE_SIGNING_ALLOWED=NO in today-tests.sh) does not have: they fail there with -34018.
+args=(-only-testing:HiBossTests -skip-testing:HiBossTests/RelayCredentialKeychainTests)
 while read -r id; do
   args+=("-only-testing:HiBossUITests/$id")
 done < <(grep -vE '^\s*(#|$|skip )' "$LIST" | awk '{print $1}')
