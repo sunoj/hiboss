@@ -139,9 +139,9 @@ Owner docs: [message format](message-format.md), [ask outcomes](ask-outcomes.md)
   times out. A boss-linked agent cannot answer its own ask, and the boss inbox answers only
   asks to a boss.
 - On timeout with a default, the server writes a system reply marked `auto_default` for
-  an ask to a boss; a peer ask expires without one. Without a default, no answer is created. A new ask with options from the same session
-  expires the older one without choosing its default; ending a session, by any route,
-  expires its asks without choosing defaults.
+  an ask to a boss; a peer ask expires without one. Without a default, no answer is created.
+  A later ask leaves earlier open asks waiting for their own answer or deadline. Ending a
+  session, by any route, expires its asks without choosing defaults.
 - A forwarded copy of an ask is not a decision: it is not an open ask, and neither the
   copy nor a reply to it is the ask's answer or outcome.
 - `--action` commands are shown to the asking agent and never executed by HiBoss.

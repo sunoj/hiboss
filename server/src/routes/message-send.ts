@@ -9,7 +9,6 @@ import { notifyBossAgents, notifyTargetAgent } from '../notify';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 import type { Channel, Direction, Env, MessageRow, Mode, Priority } from '../types';
 import {
-  expirePreviousOptions,
   findByIdempotencyKey,
   inferSessionStatus,
 } from './message-helpers';
@@ -174,9 +173,6 @@ async function finishSend(c: Context<{ Bindings: Env }>, input: SendInput, targe
   // Notify target agent for agent-to-agent messages via callback
   if (targetAgentId) {
     c.executionCtx.waitUntil(notifyTargetAgent(c.env, targetAgentId, inserted));
-  }
-  if (options && direction === 'agent_to_boss') {
-    c.executionCtx.waitUntil(expirePreviousOptions(c.env, agentId, sessionId, inserted.id).catch(() => {}));
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.send', 'message', inserted.id, JSON.stringify({ direction, priority, mode })));
   const response: Record<string, unknown> = { id: inserted.id, status: inserted.status, created_at: inserted.created_at };

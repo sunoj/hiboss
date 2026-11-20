@@ -43,8 +43,8 @@ answers only `agent_to_boss` messages and returns 404 for any other parent.
 
 The server writes an automatic default only when an ask to the boss times out. An `--to` ask
 that times out expires once without an answer, so its outcome is `local_default` or `timeout`.
-An ask superseded by a newer ask with options from the same session expires immediately without
-its default; its waiting CLI reports `local_default` or `timeout`, never `auto_default`.
+A later ask does not close an earlier open ask. Each ask waits until it is answered or its own
+deadline passes. A waiting CLI reports `local_default` or `timeout` only for that ask.
 
 `reply` deliberately does not mean human approval. An Agent can be a Boss, and
 provenance and authorization must be checked in the actual execution context.
