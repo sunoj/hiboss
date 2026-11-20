@@ -10,7 +10,7 @@ import XCTest
 
 @MainActor
 final class InboxStoreTests: XCTestCase {
-    func testTodayFirstAppearanceDoesNotRepeatCompletedStartupHistory() async {
+    func testTodayFirstAppearanceDoesNotRepeatCompletedStartupHistory() async throws {
         let api = MutableBossAPI(messages: [Self.older])
         let store = InboxStore(decisionAlertsEnabled: false)
         store.start(api: api)
@@ -18,7 +18,7 @@ final class InboxStoreTests: XCTestCase {
         await store.historyTask?.value
         XCTAssertEqual(api.historyReads, 1)
         let panels = PanelsModel(api: DemoHomePanelsAPI(), demoMode: false, autoload: false)
-        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first!
+        let scene = try await hostWindowScene()
         let window = UIWindow(windowScene: scene)
         let appeared = expectation(description: "Today appeared")
         window.rootViewController = UIHostingController(rootView:

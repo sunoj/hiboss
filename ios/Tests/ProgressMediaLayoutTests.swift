@@ -91,8 +91,7 @@ final class ProgressMediaLayoutTests: XCTestCase {
             let media = ProgressMedia(url: "https://stability.invalid/portrait.png", kind: .image,
                                       contentType: "image/png", size: 100,
                                       width: dimensioned ? 16 : nil, height: dimensioned ? 9 : nil)
-            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            let scene = try XCTUnwrap(scenes.first)
+            let scene = try await hostWindowScene()
             let host = UIHostingController(rootView: ProgressMediaView(items: [media], onOpen: { _ in }))
             let window = UIWindow(windowScene: scene)
             window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
