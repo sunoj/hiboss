@@ -23,7 +23,8 @@ enum Space {
     static let xxl: CGFloat = 32
 }
 
-/// Corner radii. Capsules are reserved for chips and badges, never for buttons that can wrap.
+/// Corner radii. Capsules are for chips, badges and single-line system actions, never for
+/// buttons that can wrap.
 enum Radius {
     /// Thumbnails, tags, small media.
     static let small: CGFloat = 8

@@ -64,14 +64,14 @@ values, 13 stack spacings and six corner radii, so no two screens lined up.
   The screen's side margin and a card's inner padding are both `Space.m`. A number outside the
   scale is added to `Space` with a name first, or it is not used.
 - **Radii come from `Radius`**: `small` 8 for thumbnails and tags, `medium` 12 for buttons,
-  fields and inline media, `large` 16 for cards. Capsules are for chips and badges only.
+  fields and inline media, `large` 16 for cards. Capsules are for chips, badges and single-line system actions.
 - **Avatars and leading tiles come from `AvatarSize`**: `inline` 20 beside caption text,
   `compact` 28 beside a card's meta line, `row` 40 as a list row's or post's leading tile.
 - **One button shape.** Full-width actions and decision options use `.hbButton(.primary)` /
   `.hbButton(.secondary)`: a 12 pt rounded rectangle at least 48 pt tall that wraps. The primary
   is filled; the others are bordered, so a screen has one filled button. Options in one group
-  all have the same width. A single-line system action (Connect) uses the system capsule.
-  A capsule around two lines of text reads as a blob. Toolbar and inline text buttons stay
+  all have the same width. Single-line system actions, such as Connect, Scan pairing code and
+  Enter pairing code, use the system capsule. A capsule around two lines of text reads as a blob. Toolbar and inline text buttons stay
   system buttons.
 - **One list surface.** Lists are inset grouped cards (`.insetGrouped`, or `hbCard()` for a
   custom stack). A section header under a navigation title uses the grouped-list header
