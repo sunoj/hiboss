@@ -56,7 +56,12 @@ private struct LayoutProbeAnchor: NSViewRepresentable {
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            if window != nil { probe.anchors[id] = self }
+            if window != nil {
+                probe.anchors[id] = self
+            } else if probe.anchors[id] === self {
+                // A branch that left the window (a narrow first layout, say) is no longer on screen.
+                probe.anchors[id] = nil
+            }
         }
     }
 }
