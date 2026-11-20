@@ -22,8 +22,9 @@ final class SessionThreadRenderingTests: XCTestCase {
             onChoose: { _, _ in nil })
             // SessionView paints the ground behind this surface in the app.
             .background(TodayStyle.ground)
-            .frame(width: 900, height: 1800))
-        host.frame = NSRect(x: 0, y: 0, width: 900, height: 1800)
+            // Vision drops a line from a page that is mostly empty, so the canvas stays near the content.
+            .frame(width: 900, height: 1200))
+        host.frame = NSRect(x: 0, y: 0, width: 900, height: 1200)
         host.layoutSubtreeIfNeeded()
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
