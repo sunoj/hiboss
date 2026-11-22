@@ -17,7 +17,7 @@ import { logAudit } from '../audit';
 import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
 import { deferredAnnounce, type Announce } from '../push/resolution';
 import { getAccessibleAgentIds } from './boss-api';
-import { escapeLike } from './bosses';
+import { findMessageByIdPrefix } from './id-prefix';
 import { mapMessageRow, replyTargetSession } from './message-helpers';
 import { withdrawResolvedOptions } from './message-options';
 
@@ -55,9 +55,7 @@ async function findParent(c: BossContext): Promise<MessageRow | null> {
   const bossId = getBossId(c);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
   const id = c.req.param('id') ?? '';
-  const row = await c.env.DB.prepare(
-    "SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'",
-  ).bind(id, `${escapeLike(id)}%`).first<MessageRow>();
+  const row = await findMessageByIdPrefix(c.env.DB, id);
   return row && agentIds.includes(row.agent_id) ? row : null;
 }
 

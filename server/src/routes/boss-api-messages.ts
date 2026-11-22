@@ -6,7 +6,7 @@ import { OPEN_MESSAGE_STATUS, RECEIPT_STATUS_SET_SQL } from '../message-status';
 import { getBossId, getBossRole } from '../middleware/auth';
 import { getAccessibleAgentIds } from './boss-api-access';
 import { mapMessageRow, clampNumber, parsePriorityFilter } from './message-helpers';
-import { escapeLike } from './bosses';
+import { findMessageByIdPrefix } from './id-prefix';
 import { forwardMessage, validateForwardChannel } from './message-forward';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
@@ -102,10 +102,7 @@ routes.get('/messages/:id', async (c) => {
   const bossId = getBossId(c);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
   const messageId = c.req.param('id');
-  const row = await c.env.DB
-    .prepare("SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? OR messages.id LIKE ? ESCAPE '\\'")
-    .bind(messageId, `${escapeLike(messageId)}%`)
-    .first<MessageRow>();
+  const row = await findMessageByIdPrefix(c.env.DB, messageId, true);
   if (!row || !agentIds.includes(row.agent_id)) return c.text('not found', 404);
   const placeholders = agentIds.map(() => '?').join(', ');
   const replies = await c.env.DB
@@ -128,10 +125,7 @@ routes.post('/messages/:id/forward', async (c) => {
   if (role === 'viewer') return c.text('viewer cannot send messages', 403);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
   const messageId = c.req.param('id');
-  const original = await c.env.DB
-    .prepare("SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? OR messages.id LIKE ? ESCAPE '\\'")
-    .bind(messageId, `${escapeLike(messageId)}%`)
-    .first<MessageRow>();
+  const original = await findMessageByIdPrefix(c.env.DB, messageId, true);
   if (!original || !agentIds.includes(original.agent_id)) return c.text('not found', 404);
   const payload = await c.req.json<Record<string, unknown>>();
   const targetChannel = validateForwardChannel(payload.channel);
@@ -157,10 +151,7 @@ routes.patch('/messages/:id', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();
   const status = typeof payload.status === 'string' ? payload.status.trim() : '';
   if (!['read', 'delivered'].includes(status)) return c.text('status must be read or delivered', 400);
-  const row = await c.env.DB
-    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
-    .bind(messageId, `${escapeLike(messageId)}%`)
-    .first<MessageRow>();
+  const row = await findMessageByIdPrefix(c.env.DB, messageId);
   if (!row || !agentIds.includes(row.agent_id)) return c.text('not found', 404);
   const updated = await c.env.DB
     .prepare(`UPDATE messages SET ${RECEIPT_STATUS_SET_SQL}, updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING *`)
@@ -177,10 +168,7 @@ routes.post('/messages/:id/react', async (c) => {
   if (role === 'viewer') return c.text('viewer cannot react', 403);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
   const messageId = c.req.param('id');
-  const row = await c.env.DB
-    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
-    .bind(messageId, `${escapeLike(messageId)}%`)
-    .first<MessageRow>();
+  const row = await findMessageByIdPrefix(c.env.DB, messageId);
   if (!row || !agentIds.includes(row.agent_id)) return c.text('not found', 404);
   const payload = await c.req.json<Record<string, unknown>>();
   const emoji = typeof payload.emoji === 'string' ? payload.emoji.trim() : '';

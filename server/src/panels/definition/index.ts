@@ -3,7 +3,7 @@
 // Dependencies: Hono, D1, auth middleware, and panel-runtime helpers.
 
 import { bossCanAccessAgent, bossPanelScope, defaultBossId, resolvedBosses } from '../access';
-import { publicationLifecycle, readPreference } from '../lifecycle/repository';
+import { parsePreference, publicationLifecycle, readPreference } from '../lifecycle/repository';
 import { notifyWall } from '../relay/wall';
 import { DEFAULT_TTL_SECONDS, faultResponse, type Lifecycle } from '../lifecycle/types';
 import { Hono } from 'hono';
@@ -164,12 +164,12 @@ routes.get('/', async (c) => {
   const cursorClause = cursor.value.panelId ? ' AND (p.created_at < ? OR (p.created_at = ? AND p.panel_id < ?))' : '';
   if (cursor.value.panelId) binds.push(cursor.value.createdAt, cursor.value.createdAt, cursor.value.panelId);
   binds.push(limit + 1);
-  const rows = await c.env.DB.prepare(`SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE ${scope}${cursorClause} ORDER BY p.created_at DESC, p.panel_id DESC LIMIT ?`)
-    .bind(...binds).all<PanelMetadataRow>();
+  const rows = await c.env.DB.prepare(`SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id, pp.value_json AS preference_json FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id LEFT JOIN panel_preferences pp ON pp.panel_id = p.panel_id AND pp.boss_id = p.target_boss_id WHERE ${scope}${cursorClause} ORDER BY p.created_at DESC, p.panel_id DESC LIMIT ?`)
+    .bind(...binds).all<PanelMetadataRow & { preference_json: string | null }>();
   const results = rows.results ?? [];
   const page = results.slice(0, limit);
   const last = page.at(-1);
-  return c.json({ panels: await Promise.all(page.map(async row => ({ ...metadataFromRow(row), preference: await readPreference(c.env.DB, row.panel_id, row.target_boss_id) }))), nextCursor: results.length > limit && last ? encodeCursor({ createdAt: last.created_at, panelId: last.panel_id }) : null });
+  return c.json({ panels: page.map(row => ({ ...metadataFromRow(row), preference: parsePreference(row.preference_json) })), nextCursor: results.length > limit && last ? encodeCursor({ createdAt: last.created_at, panelId: last.panel_id }) : null });
 });
 
 async function visiblePanel(c: PanelContext, panelId: string): Promise<PanelMetadataRow | null> {

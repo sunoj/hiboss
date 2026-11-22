@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName, getBossTokenId } from '../middleware/auth';
 import { mapMessageRow, validateOption, priorityOptions } from './message-helpers';
-import { escapeLike } from './bosses';
+import { idPrefixRange } from './id-prefix';
 import { notifyAgentCallback } from '../notify';
 import { pushMode } from '../push/send';
 import { logAudit } from '../audit';
@@ -206,8 +206,8 @@ routes.post('/sessions/:id/message', async (c) => {
   const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
   const sessionId = c.req.param('id');
   const session = await c.env.DB
-    .prepare("SELECT id, agent_id FROM sessions WHERE id = ? OR id LIKE ? ESCAPE '\\'")
-    .bind(sessionId, `${escapeLike(sessionId)}%`)
+    .prepare('SELECT id, agent_id FROM sessions WHERE id >= ? AND id < ? ORDER BY id LIMIT 1')
+    .bind(...idPrefixRange(sessionId))
     .first<{ id: string; agent_id: string }>();
   if (!session || !agentIds.includes(session.agent_id)) return c.text('not found', 404);
 

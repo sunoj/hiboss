@@ -8,7 +8,7 @@ import { OPEN_MESSAGE_STATUS, RECEIPT_STATUS_SET_SQL } from '../message-status';
 import { apiAuth, getAgentId, getAgentKeyId } from '../middleware/auth';
 import { actionContent, authenticateAgentMessage, bearerApiMetadata } from '../message-security';
 import { mapMessageRow, parsePriorityFilter, priorityOptions, clampNumber, validateOption, replyTargetSession } from './message-helpers';
-import { escapeLike } from './bosses';
+import { findMessageByIdPrefix } from './id-prefix';
 import { notifyAgentCallback } from '../notify';
 import { createMessageId } from '../session-events';
 import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
@@ -106,10 +106,7 @@ routes.get('/:id', async (c) => {
     return c.text('not a boss agent', 403);
   }
   const messageId = c.req.param('id');
-  const row = await c.env.DB
-    .prepare("SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? OR messages.id LIKE ? ESCAPE '\\'")
-    .bind(messageId, `${escapeLike(messageId)}%`)
-    .first<MessageRow>();
+  const row = await findMessageByIdPrefix(c.env.DB, messageId, true);
   if (!row) {
     return c.text('not found', 404);
   }
@@ -137,10 +134,7 @@ routes.post('/:id/reply', async (c) => {
     return c.text('viewer cannot send messages', 403);
   }
   const messageId = c.req.param('id');
-  const parent = await c.env.DB
-    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
-    .bind(messageId, `${escapeLike(messageId)}%`)
-    .first<MessageRow>();
+  const parent = await findMessageByIdPrefix(c.env.DB, messageId);
   // The inbox lists only agent_to_boss messages, so it answers nothing else.
   if (!parent || parent.direction !== 'agent_to_boss') {
     return c.text('not found', 404);

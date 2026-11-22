@@ -49,9 +49,12 @@ export function publicationLifecycle(value: unknown): Lifecycle {
     || typeof ttlSeconds !== 'number' || !Number.isInteger(ttlSeconds) || ttlSeconds < MIN_TTL_SECONDS || ttlSeconds > MAX_TTL_SECONDS) throw new PanelFault('invalid_lifecycle', 422);
   return { ...defaultLifecycle(), mode: mode as Lifecycle['mode'], expectedUpdateIntervalSeconds: interval, ttlSeconds };
 }
+export function parsePreference(valueJson: string | null | undefined): Preference {
+  return valueJson ? JSON.parse(valueJson) as Preference : defaultPreference();
+}
 export async function readPreference(db: D1Database, panelId: string, bossId: string): Promise<Preference> {
   const row = await db.prepare('SELECT value_json FROM panel_preferences WHERE panel_id = ? AND boss_id = ?').bind(panelId, bossId).first<{ value_json: string }>();
-  return row ? JSON.parse(row.value_json) as Preference : defaultPreference();
+  return parsePreference(row?.value_json);
 }
 export async function operationReceipt(db: D1Database, panelId: string, agentId: string, key: string, hash: string): Promise<unknown | null> {
   const row = await db.prepare('SELECT request_hash, receipt_json FROM panel_operations WHERE panel_id = ? AND agent_id = ? AND idempotency_key = ?').bind(panelId, agentId, key).first<{ request_hash: string; receipt_json: string }>();

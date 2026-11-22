@@ -116,15 +116,16 @@ export function isBossAuth(c: Context<{ Bindings: Env }>): boolean {
   return !!(c as AuthContext).bossId;
 }
 
-type AgentAuthRow = { id: string; key_id: AgentKeyId | null; last_used_at: string | null };
+type AgentAuthRow = { id: string; key_id: AgentKeyId | null; last_used_at: string | null; agent_last_used_at: string | null };
 let warnedMissingAgentKeys = false;
 
 async function findAgent(db: D1Database, keyHash: string): Promise<AgentAuthRow | null> {
   try {
     // A revoked row must block the legacy fallback. Keep this bridge for the deploy only.
-    return await db.prepare(`SELECT a.id, k.id AS key_id, k.last_used_at FROM agent_keys k
-      JOIN api_keys a ON a.id = k.agent_id WHERE k.key_hash = ? AND k.revoked_at IS NULL
-      UNION ALL SELECT id, NULL AS key_id, NULL AS last_used_at FROM api_keys WHERE key_hash = ?
+    return await db.prepare(`SELECT a.id, k.id AS key_id, k.last_used_at, a.last_used_at AS agent_last_used_at
+      FROM agent_keys k JOIN api_keys a ON a.id = k.agent_id WHERE k.key_hash = ? AND k.revoked_at IS NULL
+      UNION ALL SELECT id, NULL AS key_id, NULL AS last_used_at, last_used_at AS agent_last_used_at
+      FROM api_keys WHERE key_hash = ?
       AND NOT EXISTS (SELECT 1 FROM agent_keys WHERE key_hash = ?) LIMIT 1`)
       .bind(keyHash, keyHash, keyHash).first<AgentAuthRow>();
   } catch (error: unknown) {
@@ -133,7 +134,8 @@ async function findAgent(db: D1Database, keyHash: string): Promise<AgentAuthRow 
       warnedMissingAgentKeys = true;
       console.warn('agent_keys table unavailable; using legacy agent authentication until migration 0045');
     }
-    return db.prepare('SELECT id, NULL AS key_id, NULL AS last_used_at FROM api_keys WHERE key_hash = ?')
+    return db.prepare(`SELECT id, NULL AS key_id, NULL AS last_used_at, last_used_at AS agent_last_used_at
+      FROM api_keys WHERE key_hash = ?`)
       .bind(keyHash).first<AgentAuthRow>();
   }
 }
@@ -143,25 +145,18 @@ async function resolveAgentAuth(c: AuthContext, keyHash: string): Promise<boolea
   if (!agent) return false;
   c.agentId = agent.id;
   c.agentKeyId = agent.key_id;
-  c.executionCtx.waitUntil(c.env.DB.prepare("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?")
-    .bind(agent.id).run());
-  const lastUsed = agent.last_used_at ? Date.parse(agent.last_used_at.replace(' ', 'T') + 'Z') : 0;
-  if (agent.key_id && Date.now() - lastUsed >= 60_000) {
-    c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE agent_keys SET last_used_at = datetime('now')
-      WHERE id = ? AND revoked_at IS NULL
-      AND (last_used_at IS NULL OR last_used_at <= datetime('now', '-1 minute'))`)
-      .bind(agent.key_id).run());
-  }
+  touchUsage(c, 'api_keys', 'last_used_at', agent.id, agent.agent_last_used_at);
+  if (agent.key_id) touchUsage(c, 'agent_keys', 'last_used_at', agent.key_id, agent.last_used_at, true);
   return true;
 }
 
 function findBoss(db: D1Database, keyHash: string) {
-  return db.prepare(`SELECT b.id, b.name, b.role, bt.id AS token_id,
+  return db.prepare(`SELECT b.id, b.name, b.role, bt.id AS token_id, bt.last_used_at,
     bt.client_id, bc.last_seen_at FROM boss_tokens bt JOIN bosses b ON b.id = bt.boss_id
     LEFT JOIN boss_clients bc ON bc.id = bt.client_id
     WHERE b.archived_at IS NULL AND bt.token_hash = ? AND bt.revoked_at IS NULL AND bc.revoked_at IS NULL`)
     .bind(keyHash).first<{ id: string; name: string; role: string; token_id: string;
-      client_id: ClientId | null; last_seen_at: string | null }>();
+      last_used_at: string | null; client_id: ClientId | null; last_seen_at: string | null }>();
 }
 
 /** Recheck the original credential without updating usage or mutating request identity. */
@@ -178,20 +173,26 @@ export function createAuthValidator(c: AuthContext): () => Promise<boolean> {
   };
 }
 
-// Read the client timestamp with authentication; conditional SQL also guards concurrent isolates.
+type UsageColumn = { table: 'api_keys' | 'agent_keys' | 'boss_tokens' | 'boss_clients'; column: 'last_used_at' | 'last_seen_at' };
+
+/**
+ * Moves a usage stamp read with authentication at most once a minute. The conditional SQL also
+ * guards concurrent isolates; an unthrottled stamp was a D1 write on every request.
+ */
+function touchUsage(c: AuthContext, table: UsageColumn['table'], column: UsageColumn['column'],
+  id: string, stamp: string | null, revocable = false): void {
+  const last = stamp ? Date.parse(stamp.replace(' ', 'T') + 'Z') : 0;
+  if (Date.now() - last < 60_000) return;
+  c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE ${table} SET ${column} = datetime('now')
+    WHERE id = ?${revocable ? ' AND revoked_at IS NULL' : ''}
+    AND (${column} IS NULL OR ${column} <= datetime('now', '-1 minute'))`).bind(id).run());
+}
+
 async function resolveBossAuth(c: AuthContext, keyHash: string): Promise<boolean> {
   const boss = await findBoss(c.env.DB, keyHash);
   if (!boss) return false;
-  c.executionCtx.waitUntil(c.env.DB.prepare(
-    "UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?",
-  ).bind(boss.token_id).run());
-  const lastSeen = boss.last_seen_at ? Date.parse(boss.last_seen_at.replace(' ', 'T') + 'Z') : 0;
-  if (boss.client_id && Date.now() - lastSeen >= 60_000) {
-    c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE boss_clients SET last_seen_at = datetime('now')
-      WHERE id = ? AND revoked_at IS NULL
-      AND (last_seen_at IS NULL OR last_seen_at <= datetime('now', '-1 minute'))`)
-      .bind(boss.client_id).run());
-  }
+  touchUsage(c, 'boss_tokens', 'last_used_at', boss.token_id, boss.last_used_at, true);
+  if (boss.client_id) touchUsage(c, 'boss_clients', 'last_seen_at', boss.client_id, boss.last_seen_at, true);
   c.bossId = boss.id;
   c.bossTokenId = boss.token_id;
   c.clientId = boss.client_id;
