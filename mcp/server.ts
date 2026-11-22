@@ -106,8 +106,14 @@ async function askTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const request = compact({ body: str(args.body, 'body'), mode: 'blocking', options: splitOptions(args.options), timeout, session_id: mustState().session.id });
   const created = await api('POST', '/api/messages', await signSend(mustState().config.server, mustState().config.key, request)) as Message;
   const pollPath = `/api/messages/${encodeURIComponent(created.id)}/poll`;
-  const polled = await waitForReply(async (window) => await api('POST', `${pollPath}?timeout=${window}`) as Message,
-    (message) => (message.replies?.length ?? 0) > 0, timeout);
+  let polled: Message;
+  try {
+    polled = await waitForReply(async (window) => await api('POST', `${pollPath}?timeout=${window}`) as Message,
+      (message) => (message.replies?.length ?? 0) > 0, timeout);
+  } catch (error) {
+    // The ask stays open on the server; the id lets the agent read the answer later.
+    return fail(`Waiting for a reply failed: ${errorMessage(error)}. Message id: ${created.id}`);
+  }
   await verifyMessage(polled);
   const reply = latestReply(polled);
   return formatAskResult(created.id, reply);
