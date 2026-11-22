@@ -110,9 +110,7 @@ struct SessionThreadCard: View {
                                       metadata: thread.message.metadata,
                                       settlement: store.settlement(for: thread.id))
                 if store.answerability(for: thread.id) != .open {
-                    ResolvedOptionList(options: ResolvedOptionList.textOptions(thread.message.options,
-                                                                               metadata: thread.message.metadata),
-                                       metadata: thread.message.metadata,
+                    ResolvedOptionList(options: thread.message.options, metadata: thread.message.metadata,
                                        settlement: recordedAnswer(thread))
                 }
                 ForEach(thread.entries) { entry in

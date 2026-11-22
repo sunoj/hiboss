@@ -13,9 +13,9 @@ struct ResolvedOptionList: View {
     var showsCustomAnswer = false
 
     /// Options without a media tile; OptionMediaComparison already shows and marks those.
-    static func textOptions(_ options: [String], metadata: MessageMetadata?) -> [String] {
-        let media = (metadata?.optionMedia ?? []).map { trimmed($0.label) }
-        return options.filter { !media.contains(trimmed($0)) }
+    private var textOptions: [String] {
+        let media = (metadata?.optionMedia ?? []).map { Self.trimmed($0.label) }
+        return options.filter { !media.contains(Self.trimmed($0)) }
     }
 
     private var answer: String? {
@@ -23,15 +23,20 @@ struct ResolvedOptionList: View {
         return value
     }
 
+    /// The recorded answer when it matches none of the options, image options included.
+    private var customAnswer: String? {
+        guard showsCustomAnswer, let answer,
+              !options.contains(where: { Self.trimmed($0) == answer }) else { return nil }
+        return answer
+    }
+
     var body: some View {
-        if !options.isEmpty || (showsCustomAnswer && answer != nil) {
+        if !textOptions.isEmpty || customAnswer != nil {
             VStack(alignment: .leading, spacing: Space.s) {
-                ForEach(options, id: \.self) { option in
+                ForEach(textOptions, id: \.self) { option in
                     row(option, chosen: Self.trimmed(option) == answer)
                 }
-                if showsCustomAnswer, let answer, !options.contains(where: { Self.trimmed($0) == answer }) {
-                    row(answer, chosen: true, custom: true)
-                }
+                if let customAnswer { row(customAnswer, chosen: true, custom: true) }
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("resolved-options")

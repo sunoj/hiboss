@@ -175,9 +175,7 @@ struct MessageDetailView: View {
                 media: message.metadata?.optionMedia ?? [], metadata: message.metadata,
                 settlement: settlement
             )
-            ResolvedOptionList(options: ResolvedOptionList.textOptions(message.options,
-                                                                       metadata: message.metadata),
-                               metadata: message.metadata, settlement: settlement,
+            ResolvedOptionList(options: message.options, metadata: message.metadata, settlement: settlement,
                                showsCustomAnswer: true)
             .hbCard()
             decisionFooter(for: message)?.font(.hbFootnote).foregroundStyle(Theme.ink2)

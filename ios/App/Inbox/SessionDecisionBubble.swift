@@ -33,9 +33,8 @@ struct SessionDecisionBubble: View {
                                       settlement: store.settlement(for: message.id))
                     .padding(.horizontal, 12)
                 // A closed decision keeps its choices on screen, read-only.
-                ResolvedOptionList(options: ResolvedOptionList.textOptions(message.options,
-                                                                           metadata: message.metadata),
-                                   metadata: message.metadata, settlement: store.settlement(for: message.id))
+                ResolvedOptionList(options: message.options, metadata: message.metadata,
+                                   settlement: store.settlement(for: message.id))
                     .padding(.horizontal, 12)
                 if let settlement = store.settlement(for: message.id) { answered(settlement) }
                 else if let label = store.answerability(for: message.id).label {
