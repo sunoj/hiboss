@@ -120,13 +120,16 @@ describe('caller cleanup', () => {
     expect(stored?.status).toBe('expired');
   });
 
-  it('keeps an option ask open for a minute when its waiter polls only 15s', async () => {
-    const ask = await send({});
+  it.each([
+    [1, {}], [15, {}], [15, { metadata: { default_option: 'A' } }],
+  ])('keeps an option ask open for a minute when its waiter polls only %ss', async (seconds, payload) => {
+    vi.useRealTimers();
+    const ask = await send(payload);
     const now = Date.now();
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(now + 15_001);
-    vi.spyOn(Date, 'now').mockReturnValueOnce(now).mockReturnValue(now + 15_001);
-    await request(`/${ask.id}/poll?timeout=15`);
+    vi.setSystemTime(now + seconds * 1000 + 1);
+    vi.spyOn(Date, 'now').mockReturnValueOnce(now).mockReturnValue(now + seconds * 1000 + 1);
+    await request(`/${ask.id}/poll?timeout=${seconds}`);
     vi.restoreAllMocks();
     const stored = await env.DB.prepare('SELECT status, metadata FROM messages WHERE id = ?')
       .bind(ask.id).first<{ status: string; metadata: string }>();
@@ -179,7 +182,8 @@ describe('ask default deadline', () => {
 });
 
 describe('legacy poll windows', () => {
-  it.each([0, 1, 60, 300])('cleans up text, options and defaults after a %ss window', async (seconds) => {
+  // A window shorter than a minute never closes an option ask; see 'caller cleanup'.
+  it.each([0, 60, 300])('cleans up text, options and defaults after a %ss window', async (seconds) => {
     for (const payload of [
       { options: undefined }, {}, { metadata: { default_option: 'A', ask_deadline: true } },
     ]) {
