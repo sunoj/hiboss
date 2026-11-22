@@ -26,6 +26,7 @@ import sessionNicknameMigration from '../migrations/0053_session_nickname.sql?ra
 import messageUpdatesMigration from '../migrations/0054_message_updates.sql?raw';
 import pollReadsMigration from '../migrations/0068_poll_read_indexes.sql?raw';
 import readBudgetMigration from '../migrations/0069_read_budget_indexes.sql?raw';
+import sessionUpdatesMigration from '../migrations/0070_session_updates.sql?raw';
 import agentSigningMigration from '../migrations/0055_agent_signing_keys.sql?raw';
 import signinMigration from '../migrations/0049_signin_requests.sql?raw';
 import projectsMigration from '../migrations/0043_projects.sql?raw';
@@ -154,6 +155,10 @@ export async function seedDatabase(): Promise<void> {
   await env.DB.batch(noteStatements.map(sql => env.DB.prepare(sql)));
   const readBudgetStatements = readBudgetMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
   await env.DB.batch(readBudgetStatements.map(sql => env.DB.prepare(sql)));
+  // Trigger bodies hold inner semicolons; this migration separates statements by blank lines.
+  const sessionUpdateStatements = sessionUpdatesMigration.replace(/^--.*$/gm, '').split(/;\s*\n\s*\n/)
+    .map(value => value.trim()).filter(Boolean);
+  await env.DB.batch(sessionUpdateStatements.map(sql => env.DB.prepare(sql)));
   const keyHash = await hashApiKey(TEST_API_KEY);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind('test-agent-id', 'test-agent', keyHash)

@@ -47,19 +47,31 @@ beforeAll(async () => {
 
 async function request(path: string, headers: Record<string, string> = { Authorization: `Bearer ${token}` }) {
   const queries: Query[] = [];
-  const wrap = (statement: D1PreparedStatement, sql: string, binds: unknown[]): D1PreparedStatement => new Proxy(statement, {
-    get(target, property) {
-      if (property === 'bind') return (...values: unknown[]) => wrap(target.bind(...values), sql, values);
-      if (property === 'all' || property === 'first') return (...args: []) => {
-        queries.push({ sql, binds });
-        return target[property](...args);
-      };
-      const value = Reflect.get(target, property);
-      return typeof value === 'function' ? value.bind(target) : value;
-    },
-  });
+  // batch() needs the real statements; the proxies map back to them and record each query.
+  const real = new WeakMap<D1PreparedStatement, { statement: D1PreparedStatement } & Query>();
+  const wrap = (statement: D1PreparedStatement, sql: string, binds: unknown[]): D1PreparedStatement => {
+    const proxy = new Proxy(statement, {
+      get(target, property) {
+        if (property === 'bind') return (...values: unknown[]) => wrap(target.bind(...values), sql, values);
+        if (property === 'all' || property === 'first') return (...args: []) => {
+          queries.push({ sql, binds });
+          return target[property](...args);
+        };
+        const value = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    real.set(proxy, { statement, sql, binds });
+    return proxy;
+  };
   const DB = new Proxy(env.DB, {
     get(target, property) {
+      if (property === 'batch') return (statements: D1PreparedStatement[]) => target.batch(statements.map((proxy) => {
+        const entry = real.get(proxy);
+        if (!entry) return proxy;
+        queries.push({ sql: entry.sql, binds: entry.binds });
+        return entry.statement;
+      }));
       if (property === 'prepare') return (sql: string) => wrap(target.prepare(sql), sql, []);
       const value = Reflect.get(target, property);
       return typeof value === 'function' ? value.bind(target) : value;
@@ -148,7 +160,8 @@ it.each([false, true])('keeps session rows and labels, include_inactive=%s', asy
     LEFT JOIN projects p ON p.id = s.project_id LEFT JOIN api_keys ON api_keys.id = s.agent_id
     WHERE s.agent_id IN (${placeholders}) ${inactive ? '' : "AND s.last_seen_at > datetime('now', '-15 minutes')"}
     ORDER BY s.last_seen_at DESC`).bind(...agents).all<SessionProjectRow>();
-  expect(await response.json()).toEqual({ sessions: legacy.results.map(mapSessionProject) });
+  expect(await response.json()).toEqual({ sessions: legacy.results.map(mapSessionProject),
+    cursor: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/) });
 });
 
 it('keeps inaccessible-agent filters empty', async () => {

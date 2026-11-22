@@ -2,7 +2,8 @@
 // Exports bossApiRouter mounted at /api/boss.
 // Depends on Hono, boss auth middleware, and D1 bindings.
 import { parseStoredJSON as safeParse } from '../stored-json';
-import { mapSessionList, type ListedSession } from './session-list';
+import { listSessions } from './session-list';
+import { currentMessageCursor, validMessageCursor } from './boss-message-history';
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName, getBossTokenId } from '../middleware/auth';
@@ -189,13 +190,16 @@ routes.get('/audit', async (c) => {
 routes.get('/sessions', async (c) => {
   const bossId = getBossId(c);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
-  if (agentIds.length === 0) return c.json({ sessions: [] });
-  const placeholders = agentIds.map(() => '?').join(', ');
-  const rows = await c.env.DB
-    .prepare(`SELECT s.* FROM sessions s WHERE s.agent_id IN (${placeholders}) ${c.req.query('include_inactive') === 'true' ? '' : "AND s.last_seen_at > datetime('now', '-15 minutes')"} ORDER BY s.last_seen_at DESC`)
-    .bind(...agentIds)
-    .all<ListedSession>();
-  return c.json({ sessions: await mapSessionList(c.env.DB, rows.results) });
+  const inactive = c.req.query('include_inactive') === 'true';
+  const updatedAfter = c.req.query('updated_after');
+  if (updatedAfter !== undefined && (!inactive || !validMessageCursor(updatedAfter))) {
+    return c.text('updated_after needs include_inactive=true and a cursor from an earlier answer', 400);
+  }
+  if (agentIds.length === 0) {
+    const cursor = await currentMessageCursor(c.env);
+    return c.json(updatedAfter === undefined ? { sessions: [], cursor } : { sessions: [], removed: [], cursor });
+  }
+  return c.json(await listSessions(c.env.DB, agentIds, inactive, updatedAfter));
 });
 
 /** POST /api/boss/sessions/:id/message — send a fresh command to a session's agent */

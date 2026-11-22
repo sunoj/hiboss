@@ -63,6 +63,8 @@ export async function handleScheduled(env: Env, minute = new Date().getUTCMinute
 async function cleanupPairingCodes(env: Env, now: string): Promise<void> {
   await env.DB.prepare('DELETE FROM boss_pairing_codes WHERE expires_at <= ?').bind(now).run();
   await env.DB.prepare('DELETE FROM signin_requests WHERE expires_at <= ?').bind(now).run();
+  // Delta-syncing clients resynchronize fully well within this window.
+  await env.DB.prepare("DELETE FROM session_removals WHERE removed_at < datetime('now', '-30 days')").run();
   await purgeLiveActivityTokens(env);
 }
 

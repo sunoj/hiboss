@@ -138,6 +138,14 @@ CREATE TABLE IF NOT EXISTS sessions;
 CREATE INDEX IF NOT EXISTS idx_sessions_agent;
 CREATE INDEX IF NOT EXISTS idx_sessions_discord_thread;
 CREATE INDEX IF NOT EXISTS idx_sessions_telegram_topic;
+CREATE INDEX idx_sessions_agent_updated;
+CREATE TRIGGER sessions_inserted_at BEGIN SELECT 1; END;
+CREATE TRIGGER sessions_updated_at BEGIN SELECT 1; END;
+CREATE TRIGGER sessions_removed BEGIN SELECT 1; END;
+
+-- Removed sessions, kept 30 days so delta-syncing clients drop them
+CREATE TABLE session_removals;
+CREATE INDEX idx_session_removals_removed;
 
 -- Join requests: device onboarding
 CREATE TABLE IF NOT EXISTS join_requests;
@@ -232,6 +240,8 @@ CREATE INDEX idx_sessions_project;
 -- A dispatched session points at the same-device session that dispatched it.
 CREATE INDEX idx_sessions_parent;
 CREATE INDEX idx_sessions_project_nickname;
+CREATE TRIGGER projects_identity_updated BEGIN SELECT 1; END;
+CREATE TRIGGER agents_name_updated BEGIN SELECT 1; END;
 CREATE INDEX idx_progress_project_id;
 CREATE INDEX idx_destination_routes_project;
 

@@ -67,6 +67,10 @@ export const READ_PATHS: ReadPath[] = [
   { id: 'message-detail-by-prefix', kind: 'endpoint', budget: 100,
     insight: 'GET /api/boss/messages/:id (messages.id range seek for a full id or a prefix)',
     measure: () => driveRequest(get('/api/boss/messages/rb-m-5', boss)) },
+  { id: 'sessions-delta', kind: 'endpoint', budget: 100, statementBudget: 8,
+    insight: 'GET /api/boss/sessions?include_inactive=true&updated_after= (idx_sessions_agent_updated + removals)',
+    measure: () => driveRequest(get(`/api/boss/sessions?include_inactive=true&updated_after=${
+      encodeURIComponent(new Date().toISOString().slice(0, 19).replace('T', ' '))}`, boss)) },
   { id: 'interaction-requests', kind: 'endpoint', budget: 100,
     insight: 'GET /api/interaction-requests (open questionnaires for the boss)',
     measure: () => driveRequest(get('/api/interaction-requests', boss)) },
