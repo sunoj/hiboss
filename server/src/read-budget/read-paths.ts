@@ -15,6 +15,8 @@ export interface ReadPath {
   budget: number;
   /** Loops only: max rows read while connecting, through the first poll. */
   connectBudget?: number;
+  /** Endpoints only: max D1 statements per request, so a per-row lookup (N+1) fails the gate. */
+  statementBudget?: number;
   /** Growth with history is allowed only up to `ceiling` rows per call at the 2N fixture. */
   exemption?: { ceiling: number; reason: string };
   /** The production `d1 insights` statement this path issues, for the watch script's report. */
@@ -59,9 +61,12 @@ export const READ_PATHS: ReadPath[] = [
   { id: 'session-event-stream', kind: 'loop', budget: 20, connectBudget: 60,
     insight: 'session_events MIN(sequence) + events after cursor',
     measure: stream(`/api/sessions/${STREAM_SESSION}/stream?after=999999999`, boss) },
-  { id: 'panels-list', kind: 'endpoint', budget: 300,
-    insight: 'GET /api/panels (panels JOIN api_keys LEFT JOIN sessions ORDER BY created_at DESC LIMIT)',
+  { id: 'panels-list', kind: 'endpoint', budget: 300, statementBudget: 6,
+    insight: 'GET /api/panels (panels JOIN api_keys LEFT JOIN sessions/panel_preferences ORDER BY created_at DESC)',
     measure: () => driveRequest(get('/api/panels?limit=50', boss)) },
+  { id: 'message-detail-by-prefix', kind: 'endpoint', budget: 100,
+    insight: 'GET /api/boss/messages/:id (messages.id range seek for a full id or a prefix)',
+    measure: () => driveRequest(get('/api/boss/messages/rb-m-5', boss)) },
   { id: 'interaction-requests', kind: 'endpoint', budget: 100,
     insight: 'GET /api/interaction-requests (open questionnaires for the boss)',
     measure: () => driveRequest(get('/api/interaction-requests', boss)) },

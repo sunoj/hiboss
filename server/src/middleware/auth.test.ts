@@ -5,11 +5,14 @@
 import { testRequest, returnsStatus, testJson } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { seedDatabase, authHeaders } from '../test-helpers';
+import { seedDatabase, seedBossToken, authHeaders } from '../test-helpers';
 import { apiAuth, bossAuth, dualAuth, hashApiKey } from './auth';
+
+const BOSS_TOKEN = 'hb_boss_auth_usage_stamp_token_0001';
 
 beforeAll(async () => {
   await seedDatabase();
+  await seedBossToken('Usage Stamp Boss', 'admin', BOSS_TOKEN, 'usage-stamp-boss');
 });
 
 describe('auth middleware integration', () => {
@@ -50,6 +53,24 @@ describe('auth middleware integration', () => {
       .first<{ last_used_at: string | null }>();
     expect(after).toBeDefined();
     expect(after?.last_used_at).toBeTruthy();
+  });
+
+  it.each([
+    ['api_keys', 'id', 'test-agent-id', () => authHeaders()],
+    ['boss_tokens', 'boss_id', 'usage-stamp-boss', () => ({ Authorization: `Bearer ${BOSS_TOKEN}` })],
+  ] as const)('writes %s.last_used_at at most once a minute', async (table, column, owner, headers) => {
+    const stamp = async () => (await env.DB.prepare(`SELECT last_used_at FROM ${table} WHERE ${column} = ?`)
+      .bind(owner).first<{ last_used_at: string | null }>())?.last_used_at;
+    const path = table === 'api_keys' ? '/api/messages' : '/api/boss/me';
+    const request = async () => expect((await SELF.fetch(`http://localhost${path}`, { headers: headers() })).status).toBe(200);
+    await env.DB.prepare(`UPDATE ${table} SET last_used_at = datetime('now', '-10 seconds') WHERE ${column} = ?`).bind(owner).run();
+    const recent = await stamp();
+    await request();
+    expect(await stamp()).toBe(recent);
+    await env.DB.prepare(`UPDATE ${table} SET last_used_at = datetime('now', '-2 minutes') WHERE ${column} = ?`).bind(owner).run();
+    const stale = await stamp();
+    await request();
+    expect(await stamp()).not.toBe(stale);
   });
 });
 

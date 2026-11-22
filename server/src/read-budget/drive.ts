@@ -11,6 +11,8 @@ import { MeterLog, meterDatabase, type Statement } from './meter';
 export interface Measurement {
   connect: number;
   calls: number[];
+  /** Endpoints only: D1 statements issued by each call, waitUntil work included. */
+  statements?: number[];
   heaviest: Statement | null;
   /** Loops only: `<rows> <statement head>` for each connect-phase statement, for the report. */
   connectStatements?: string[];
@@ -38,13 +40,16 @@ export async function driveStream(request: () => Request, polls: number): Promis
 export async function driveRequest(request: () => Request, times = 3): Promise<Measurement> {
   const log = new MeterLog(POLL_GAP_MS);
   const calls: number[] = [];
+  const statements: number[] = [];
   for (let index = 0; index < times; index += 1) {
     const before = log.total();
+    const issued = log.statements.length;
     const response = await fetchMetered(request(), log);
     if (response.status >= 400) throw new Error(`${request().url} answered ${response.status}`);
     calls.push(log.total() - before);
+    statements.push(log.statements.length - issued);
   }
-  return summarize(log, 0, calls);
+  return { ...summarize(log, 0, calls), statements };
 }
 
 /** Runs a scheduled step `times` times on a metered env; each call is one run's rows. */

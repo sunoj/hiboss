@@ -24,6 +24,7 @@ afterAll(() => {
   for (const path of READ_PATHS) {
     const [n, n2] = measured.get(path.id) ?? [];
     console.info(`READ_BUDGET ${JSON.stringify({ id: path.id, budget: path.budget, connectBudget: path.connectBudget,
+      statementBudget: path.statementBudget,
       n: n && summary(n), n2: n2 && summary(n2), heaviest: n2?.heaviest && compact(n2.heaviest.sql, n2.heaviest.rows),
       connectStatements: n?.connectStatements })}`);
   }
@@ -49,6 +50,10 @@ describe('read-budget gate', () => {
       expect(Math.max(...n.calls, ...n2.calls), 'rows per call').toBeLessThanOrEqual(path.budget);
       if (path.connectBudget !== undefined) {
         expect(Math.max(n.connect, n2.connect), 'connect rows').toBeLessThanOrEqual(path.connectBudget);
+      }
+      if (path.statementBudget !== undefined) {
+        expect(Math.max(...(n.statements ?? []), ...(n2.statements ?? [])), 'statements per call')
+          .toBeLessThanOrEqual(path.statementBudget);
       }
     });
 
@@ -82,8 +87,8 @@ function results(path: ReadPath): [Measurement, Measurement] {
   return [n, n2];
 }
 
-function summary(measurement: Measurement): { connect: number; calls: number[] } {
-  return { connect: measurement.connect, calls: measurement.calls };
+function summary(measurement: Measurement): { connect: number; calls: number[]; statements?: number[] } {
+  return { connect: measurement.connect, calls: measurement.calls, statements: measurement.statements };
 }
 
 function compact(sql: string, rows: number): string {
