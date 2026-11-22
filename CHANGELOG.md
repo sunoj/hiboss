@@ -29,6 +29,8 @@ and Mac apps, the web console and the Claude Code MCP server.
   and timeout defaults are reported as `auto_default`, never as a human choice.
 - Messages, replies, reactions, forwards, attachments and per-session inboxes.
 - Peer coordination between agent sessions with `send --to` and `send --broadcast`.
+- A ```` ```copy [label] ```` block in message details shows a copy button in the apps that
+  copies the text exactly as written.
 - Delivery to the apps, Telegram and Discord, with quiet hours, priorities and per-boss
   notification destinations.
 
