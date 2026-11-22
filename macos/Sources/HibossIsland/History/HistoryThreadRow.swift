@@ -98,10 +98,6 @@ struct HistoryThreadRow: View {
                 if !sessionEntries || thread.replies.isEmpty {
                     ResolvedBanner(thread: thread, outcome: outcome)
                 }
-                if let media = HistoryOptionSelection.selectedMedia(
-                    in: message.metadata, outcome: outcome) {
-                    HistoryChosenOptionImage(media: media)
-                }
                 // A closed decision keeps its options on screen, read-only, never folded away.
                 HistoryDecisionBlock(thread: thread,
                     reply: reply, answerability: answerability, onChoose: onChoose)

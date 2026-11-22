@@ -32,7 +32,7 @@ final class HistoryThreadSnapshotTests: XCTestCase {
         }
     }
 
-    func testChosenImageRemainsVisibleWithDecisionOptionsCollapsed() async throws {
+    func testClosedDecisionKeepsEveryOptionImageVisible() async throws {
         _ = NSApplication.shared
         let media = HistorySnapshotMediaServer()
         defer { media.stop() }
@@ -48,9 +48,8 @@ final class HistoryThreadSnapshotTests: XCTestCase {
                 try write(bitmap, name: "\(name)-\(scheme == .light ? "light" : "dark")")
             }
         }
-        XCTAssertFalse(media.requestedPaths.isEmpty)
-        XCTAssertTrue(media.requestedPaths.allSatisfy { $0 == "/ship.png" },
-            "Collapsed decision options must not load the unchosen image")
+        XCTAssertEqual(Set(media.requestedPaths), ["/ship.png", "/hold.png"],
+            "A closed decision keeps every option on screen, the unchosen one included")
     }
 
     private func renderNative(
