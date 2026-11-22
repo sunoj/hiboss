@@ -10,7 +10,9 @@ import XCTest
 
 @MainActor
 final class SessionUnreadWindowTests: XCTestCase {
-    private let now = Date.now
+    /// Read on first use inside the test: XCTest builds every instance at process start, and
+    /// `markRead` stamps the wall clock, so a start-time clock makes later arrivals look read.
+    private lazy var now = Date.now
     private let account = SessionReadAccount(config: ConnectionConfig(
         serverURL: URL(string: "https://unread.invalid")!, bossToken: "synthetic-unread-account"))
 
