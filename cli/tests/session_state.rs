@@ -216,7 +216,7 @@ fn bare_repository_worktree_is_named_by_the_repository() {
 }
 
 #[test]
-fn send_outside_the_checkout_keeps_this_runtimes_session_but_plain_shells_do_not() {
+fn send_outside_the_checkout_keeps_this_claude_runtimes_only_session() {
     let http = server(foreign_400());
     let fixture = Fixture::new("repo", &http.url);
     let start = claude(&fixture, &["hook", "session-start"], "claude");
@@ -237,4 +237,27 @@ fn send_outside_the_checkout_keeps_this_runtimes_session_but_plain_shells_do_not
     assert_eq!(sends.len(), 2);
     assert_eq!(sends[0]["session_id"], registered.trim(), "same runtime keeps its session");
     assert!(sends[1]["session_id"].is_null(), "another runtime borrows nothing");
+}
+
+#[test]
+fn shared_key_and_codex_runtimes_borrow_no_session_outside_the_checkout() {
+    let http = server(foreign_400());
+    let fixture = Fixture::new("repo", &http.url);
+    let outside = fixture.root.join("notes");
+    std::fs::create_dir(&outside).expect("folder outside the repository");
+    let shared = [("CLAUDECODE", "1"), ("HIBOSS_PROFILE", "claude")];
+    let codex = [("CODEX_THREAD_ID", "thread-1")];
+    let start = fixture.run(&fixture.repo, &["hook", "session-start"], &shared);
+    assert_eq!(start.code, 0, "{}", start.stderr);
+    for (dir, env) in [(&outside, &shared[..]), (&fixture.repo, &codex[..]), (&outside, &codex[..])] {
+        let send = fixture.run(dir, &["send", "hello"], env);
+        assert_eq!(send.code, 0, "{}", send.stderr);
+        assert_eq!(lines_with(&send.stderr, "has no session of its own"), 0, "{}", send.stderr);
+    }
+    let requests = http.requests();
+    let (sends, registered) = (posts(&requests, "/api/messages"), posts(&requests, "/api/sessions"));
+    assert!(sends[0]["session_id"].is_null(), "the shared default key borrows nothing");
+    assert_eq!(registered.len(), 3, "codex registers once in the repository and once outside it");
+    assert_eq!(sends[1]["session_id"], registered[1]["id"]);
+    assert_eq!(sends[2]["session_id"], registered[2]["id"]);
 }

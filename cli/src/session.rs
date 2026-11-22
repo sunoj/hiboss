@@ -100,8 +100,8 @@ pub fn drain_pending_messages() -> Vec<String> {
         .collect()
 }
 
-/// This directory's session id, or else the session this runtime registered from another
-/// checkout: a command run from a folder outside that repository still belongs to it.
+/// This directory's session id, or else the one session this Claude runtime registered from
+/// another checkout: a command run from a folder outside that repository still belongs to it.
 pub fn read_session_id() -> Option<String> {
     let own = read_state(SESSION)
         .map(|s| s.trim().to_owned())
@@ -109,7 +109,8 @@ pub fn read_session_id() -> Option<String> {
     own.or_else(|| {
         let id = elsewhere::session_from_other_checkout()?;
         if !BORROWED_NOTICE.swap(true, std::sync::atomic::Ordering::Relaxed) {
-            eprintln!("hiboss: {} has no session of its own; using this runtime's session {id}", project_dir());
+            let dir = project_dir();
+            eprintln!("hiboss: {dir} has no session of its own; using session {id}, registered by this runtime elsewhere");
         }
         Some(id)
     })
