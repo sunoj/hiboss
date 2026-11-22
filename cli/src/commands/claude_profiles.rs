@@ -122,9 +122,11 @@ fn session_warning(profile: &Path, warned: &AtomicBool) -> Option<String> {
     }
     Some(format!(
         concat!(
-            "Warning: no HiBoss session registered for Claude profile {}; ",
-            "messages will appear as direct messages. Fix: {}"
+            "Warning: no HiBoss session is registered for this runtime (directory {}, Claude ",
+            "profile {}); messages will appear as direct messages. Run from the project checkout ",
+            "where the session started, or install the hooks: {}"
         ),
+        crate::session::project_dir(),
         profile.display(),
         fix_command(profile)
     ))

@@ -3,6 +3,7 @@
 // parent_session_id.
 // Dependencies: std::fs, std::env, std::sync::OnceLock.
 
+mod elsewhere;
 mod markers;
 mod nickname;
 mod parent;
@@ -99,12 +100,22 @@ pub fn drain_pending_messages() -> Vec<String> {
         .collect()
 }
 
-/// Read session_id from the session file, if it exists.
+/// This directory's session id, or else the session this runtime registered from another
+/// checkout: a command run from a folder outside that repository still belongs to it.
 pub fn read_session_id() -> Option<String> {
-    read_state(SESSION)
+    let own = read_state(SESSION)
         .map(|s| s.trim().to_owned())
-        .filter(|s| !s.is_empty())
+        .filter(|s| !s.is_empty());
+    own.or_else(|| {
+        let id = elsewhere::session_from_other_checkout()?;
+        if !BORROWED_NOTICE.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            eprintln!("hiboss: {} has no session of its own; using this runtime's session {id}", project_dir());
+        }
+        Some(id)
+    })
 }
+
+static BORROWED_NOTICE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Write a new session_id to the session file.
 pub fn write_session_id(id: &str) -> Result<(), std::io::Error> {
