@@ -38,6 +38,10 @@ A new timed loop, alarm or interval, or a changed query inside one, updates both
 2. Add or update the read path in `read-paths.ts`. Set the budget from the measured N/2N numbers
    in the `READ_BUDGET` lines of the test output.
 
+An endpoint path may also set `statementBudget`, the most D1 statements one request may issue
+(waitUntil work included). It catches a per-row lookup (N + 1), which reads few rows per
+statement but costs one round trip each.
+
 A hot client-polled endpoint or a new cron step gets a read path the same way. Rank endpoints by
 `wrangler d1 insights hiboss-db --sort-by count`.
 
@@ -53,8 +57,10 @@ A hot client-polled endpoint or a new cron step gets a read path the same way. R
 | `boss-feed-stream` | loop | 241 / 99 | 98 / 70 | 150 (300) |
 | `boss-required-input-stream` | loop | 269 / 269 | 88 / 103 | 150 (400) |
 | `session-event-stream` | loop | 26 / 26 | 2 / 2 | 20 (60) |
-| `panels-list` | endpoint | — | 159 / 159 | 300 |
-| `interaction-requests` | endpoint | — | 15 / 15 | 100 |
+| `panels-list` | endpoint, ≤ 6 statements | — | 157 / 157 | 300 |
+| `message-detail-by-prefix` | endpoint | — | 31 / 31 | 100 |
+| `sessions-delta` | endpoint, ≤ 8 statements | — | 62 / 62 | 100 |
+| `interaction-requests` | endpoint | — | 14 / 14 | 100 |
 | `cron-every-5-min` | cron | — | 9 / 9 | 100 |
 | `cron-hourly` | cron, exempt | — | 8,038 / 16,043 | ceiling 25,000 |
 

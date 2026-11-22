@@ -484,7 +484,16 @@ and are left to the app's launch reconciliation.
 - The server never logs device tokens, activity tokens, handles or ciphertext.
 
 ### GET /api/boss/sessions
-Active sessions for accessible agents.
+Sessions of the boss's accessible agents, newest `last_seen_at` first: those seen in the last 15
+minutes, or all of them with `include_inactive=true`. The answer is `{ "sessions", "cursor" }`.
+
+With `include_inactive=true&updated_after=<cursor>`, it returns only the sessions changed at or
+after that cursor, and `removed`, the ids of sessions deregistered since then:
+`{ "sessions", "removed", "cursor" }`. Pass the returned cursor to the next call. A change is any
+update of the session row, or a rename of its project or agent. Removals are kept for 30 days.
+A delta does not show agents the boss gained access to after the cursor, so clients read the
+full list now and then. A malformed cursor, or `updated_after` without `include_inactive=true`,
+answers 400.
 
 ### GET/PUT /api/boss/me/preferences
 Boss preferences (preferred_channel, quiet_hours, timezone, notify_priorities).
