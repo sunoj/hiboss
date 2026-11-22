@@ -88,31 +88,32 @@ describe('hashApiKey helper', () => {
   });
 });
 
+// The lookups report a stale usage stamp, so each request owes exactly one deferred write.
 describe('auth activity writes', () => {
   it('does not wait for api key activity persistence before the handler', async () => {
-    await assertAuthWriteIsDeferred(apiAuth, { id: 'agent-id' });
+    await assertAuthWriteIsDeferred(apiAuth, { id: 'agent-id', agent_stale: 1 });
   });
 
   it('does not wait for boss token activity persistence before the handler', async () => {
     await assertAuthWriteIsDeferred(bossAuth, {
-      id: 'boss-id', name: 'Boss', role: 'admin', token_id: 'token-id',
+      id: 'boss-id', name: 'Boss', role: 'admin', token_id: 'token-id', token_stale: 1,
     });
   });
 
   it('does not wait for dual agent activity persistence before the handler', async () => {
-    await assertAuthWriteIsDeferred(dualAuth, { id: 'agent-id' });
+    await assertAuthWriteIsDeferred(dualAuth, { id: 'agent-id', agent_stale: 1 });
   });
 
   it('does not wait for dual boss activity persistence before the handler', async () => {
     await assertAuthWriteIsDeferred(dualAuth, null, {
-      id: 'boss-id', name: 'Boss', role: 'admin', token_id: 'token-id',
+      id: 'boss-id', name: 'Boss', role: 'admin', token_id: 'token-id', token_stale: 1,
     });
   });
 });
 
 async function assertAuthWriteIsDeferred(
   authenticate: typeof apiAuth,
-  ...records: (Record<string, string> | null)[]
+  ...records: (Record<string, string | number> | null)[]
 ): Promise<void> {
   let releaseUpdate: () => void = () => {};
   const update = new Promise<unknown>((resolve) => { releaseUpdate = () => resolve({}); });
