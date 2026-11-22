@@ -3,6 +3,7 @@
 // Depends on cloudflare:test SELF, the shared test schema and seeded boss tokens.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { handleScheduled } from '../scheduled';
 import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 
 const TOKEN = 'hb_boss_session_delta_admin_00001';
@@ -58,6 +59,16 @@ describe('GET /api/boss/sessions?updated_after', () => {
     const delta = await inventory(`&updated_after=${encodeURIComponent(cursor)}`);
     expect(ids(delta)).toContain('delta-c');
     expect(delta.removed).toEqual([]);
+  });
+
+  it('keeps removals for 30 days', async () => {
+    await run(`INSERT INTO session_removals (session_id, agent_id, removed_at) VALUES
+      ('delta-old', ?, datetime('now', '-31 days')), ('delta-recent', ?, datetime('now', '-29 days'))`,
+    getTestAgentId(), getTestAgentId());
+    await handleScheduled(env, 30);
+    const kept = await env.DB.prepare("SELECT session_id FROM session_removals WHERE session_id IN ('delta-old', 'delta-recent')")
+      .all<{ session_id: string }>();
+    expect(kept.results.map(row => row.session_id)).toEqual(['delta-recent']);
   });
 
   it.each([
