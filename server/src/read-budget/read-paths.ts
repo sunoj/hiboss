@@ -2,7 +2,9 @@
 // Exports READ_PATHS; a call is one idle poll (loops), one request (endpoints) or one run (cron).
 // Depends on the drivers, the production-shaped seed identities, and the scheduled entry points.
 
+import { env } from 'cloudflare:test';
 import { handleScheduled } from '../scheduled';
+import { accessDigest } from '../routes/session-list';
 import { repairPanelRooms } from '../panels/lifecycle/repair';
 import type { Env } from '../types';
 import { driveRequest, driveStream, driveTask, type Measurement } from './drive';
@@ -69,8 +71,12 @@ export const READ_PATHS: ReadPath[] = [
     measure: () => driveRequest(get('/api/boss/messages/rb-m-5', boss)) },
   { id: 'sessions-delta', kind: 'endpoint', budget: 100, statementBudget: 8,
     insight: 'GET /api/boss/sessions?include_inactive=true&updated_after= (idx_sessions_agent_updated + removals)',
-    measure: () => driveRequest(get(`/api/boss/sessions?include_inactive=true&updated_after=${
-      encodeURIComponent(new Date().toISOString().slice(0, 19).replace('T', ' '))}`, boss)) },
+    measure: async () => {
+      const agents = await env.DB.prepare('SELECT id FROM api_keys').all<{ id: string }>();
+      const cursor = `${new Date().toISOString().slice(0, 19).replace('T', ' ')}~${
+        await accessDigest(agents.results.map(row => row.id))}`;
+      return driveRequest(get(`/api/boss/sessions?include_inactive=true&updated_after=${encodeURIComponent(cursor)}`, boss));
+    } },
   { id: 'interaction-requests', kind: 'endpoint', budget: 100,
     insight: 'GET /api/interaction-requests (open questionnaires for the boss)',
     measure: () => driveRequest(get('/api/interaction-requests', boss)) },

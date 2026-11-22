@@ -20,16 +20,19 @@ public struct SessionInventoryPage: Decodable, Sendable {
 
 public actor SessionInventoryCache {
     public static let shared = SessionInventoryCache()
-    /// A full read now and then picks up access changes, which a delta cannot see.
+    /// A full read now and then bounds any drift; the server refuses deltas after access changes.
     public static let fullReadInterval: TimeInterval = 6 * 60 * 60
 
     private struct Entry {
         var sessions: [String: ProjectSession]
         var cursor: String
         var fullReadAt: Date
+        /// Bumped by every merge, so a delta that another read overtook is discarded.
+        var generation: Int
     }
 
     private var entries: [String: Entry] = [:]
+    private var generations = 0
 
     public init() {}
 
@@ -47,17 +50,25 @@ public actor SessionInventoryCache {
     ) async throws -> [ProjectSession] {
         if let entry = entries[key], now.timeIntervalSince(entry.fullReadAt) < Self.fullReadInterval,
            let delta = try? await fetch(entry.cursor), let next = delta.cursor {
-            var merged = entries[key] ?? entry
+            // The actor is re-entrant: a read that finished meanwhile already holds newer rows.
+            guard var merged = entries[key], merged.generation == entry.generation else {
+                return entries[key].map { Self.ordered($0.sessions.values) } ?? []
+            }
             for id in delta.removed ?? [] { merged.sessions[id] = nil }
             for session in delta.sessions { merged.sessions[session.id] = session }
-            merged.cursor = max(merged.cursor, next)
+            merged.cursor = next
+            merged.generation = nextGeneration()
             entries[key] = merged
             return Self.ordered(merged.sessions.values)
         }
+        let generation = entries[key]?.generation
         let page = try await fetch(nil)
+        guard entries[key]?.generation == generation else {
+            return entries[key].map { Self.ordered($0.sessions.values) } ?? page.sessions
+        }
         if let cursor = page.cursor {
             entries[key] = Entry(sessions: Dictionary(page.sessions.map { ($0.id, $0) }, uniquingKeysWith: { $1 }),
-                                 cursor: cursor, fullReadAt: now)
+                                 cursor: cursor, fullReadAt: now, generation: nextGeneration())
         } else {
             entries[key] = nil
         }
@@ -65,6 +76,11 @@ public actor SessionInventoryCache {
     }
 
     public func reset() { entries.removeAll() }
+
+    private func nextGeneration() -> Int {
+        generations += 1
+        return generations
+    }
 
     /// The server's full-list order: newest `last_seen_at` first ("yyyy-MM-dd HH:mm:ss" sorts as text).
     static func ordered(_ sessions: some Sequence<ProjectSession>) -> [ProjectSession] {

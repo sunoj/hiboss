@@ -19,7 +19,7 @@ CREATE TRIGGER sessions_inserted_at
 AFTER INSERT ON sessions
 BEGIN
   UPDATE sessions SET updated_at = datetime('now') WHERE id = NEW.id AND NEW.updated_at IS NULL;
-  DELETE FROM session_removals WHERE session_id = NEW.id;
+  DELETE FROM session_removals WHERE session_id = NEW.id AND agent_id = NEW.agent_id;
 END;
 
 -- Explicit timestamp changes are preserved; the inner guard prevents recursion.

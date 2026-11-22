@@ -489,11 +489,11 @@ minutes, or all of them with `include_inactive=true`. The answer is `{ "sessions
 
 With `include_inactive=true&updated_after=<cursor>`, it returns only the sessions changed at or
 after that cursor, and `removed`, the ids of sessions deregistered since then:
-`{ "sessions", "removed", "cursor" }`. Pass the returned cursor to the next call. A change is any
-update of the session row, or a rename of its project or agent. Removals are kept for 30 days.
-A delta does not show agents the boss gained access to after the cursor, so clients read the
-full list now and then. A malformed cursor, or `updated_after` without `include_inactive=true`,
-answers 400.
+`{ "sessions", "removed", "cursor" }`. The cursor is opaque; pass the returned one to the next
+call. A change is any update of the session row, or a rename of its project or agent. Removals
+are kept for 30 days. A cursor records the agents the boss could see; once that set changes, a
+delta answers 409 and the client reads the full list again. A malformed cursor, or
+`updated_after` without `include_inactive=true`, answers 400.
 
 ### GET/PUT /api/boss/me/preferences
 Boss preferences (preferred_channel, quiet_hours, timezone, notify_priorities).

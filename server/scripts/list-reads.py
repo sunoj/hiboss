@@ -62,10 +62,9 @@ def message_sql(root, where, index, limit, offset):
 
 
 def session_sql(root, ids, inactive):
-    sql = route_sql(root, 'boss-api.ts', 'SELECT s.*')
+    sql = route_sql(root, 'session-list.ts', 'SELECT s.* FROM sessions s WHERE')
     sql = sql.replace('${placeholders}', ids)
-    sql = re.sub(r'\$\{c.req.query\(.*?\}',
-                 '' if inactive else "AND s.last_seen_at > datetime('now', '-15 minutes')", sql)
+    sql = sql.replace('${live}', '' if inactive else "AND s.last_seen_at > datetime('now', '-15 minutes')")
     return sql.replace('${SESSION_LABEL_SQL}', label_sql(root))
 
 

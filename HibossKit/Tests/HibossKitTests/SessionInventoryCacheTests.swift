@@ -50,6 +50,23 @@ final class SessionInventoryCacheTests: XCTestCase {
         XCTAssertEqual(server.cursors, [nil, nil, "c1", nil])
     }
 
+    func testDiscardsADeltaThatAConcurrentReadOvertook() async throws {
+        let cache = SessionInventoryCache(), server = Server()
+        server.pages = [SessionInventoryPage(sessions: [session("a", seen: "2026-11-22 10:00:00")], cursor: "c0")]
+        _ = try await cache.sessions(key: "k") { try server.fetch($0) }
+        let stale = SessionInventoryPage(sessions: [session("a", seen: "2026-11-22 10:01:00")], removed: [], cursor: "c1")
+        let newer = SessionInventoryPage(sessions: [], removed: ["a"], cursor: "c2")
+        let overtaken = try await cache.sessions(key: "k") { _ in
+            // A second reader finishes while this delta is still in flight.
+            _ = try await cache.sessions(key: "k") { _ in newer }
+            return stale
+        }
+        XCTAssertEqual(overtaken.map(\.id), [])
+        server.pages = [SessionInventoryPage(sessions: [], removed: [], cursor: "c3")]
+        _ = try await cache.sessions(key: "k") { try server.fetch($0) }
+        XCTAssertEqual(server.cursors.last, "c2")
+    }
+
     func testServerWithoutCursorIsAlwaysReadInFull() async throws {
         let cache = SessionInventoryCache(), server = Server()
         let page = SessionInventoryPage(sessions: [session("a", seen: "2026-11-22 10:00:00")])

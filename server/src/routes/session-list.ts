@@ -1,6 +1,7 @@
 // Boss session inventory: full lists with a cursor, deltas since a cursor, and row hydration.
 // Exports listSessions and mapSessionList; depends on D1 and the shared project response mapping.
 import { mapSessionProject } from '../projects/session-label';
+import { validMessageCursor } from './boss-message-history';
 
 export interface ListedSession {
   agent_id: string;
@@ -40,32 +41,43 @@ export async function mapSessionList(db: D1Database, rows: ListedSession[]) {
 
 export type SessionInventory = { sessions: ReturnType<typeof mapSessionProject>[]; cursor: string; removed?: string[] };
 
+/** A delta cursor: the D1 time it was read, plus a digest of the agents the boss could see then. */
+export interface SessionCursor { at: string; access: string }
+
+export function parseSessionCursor(value: string): SessionCursor | null {
+  const [at, access, extra] = value.split('~');
+  return extra === undefined && access && /^[0-9a-f]{16}$/.test(access) && validMessageCursor(at) ? { at, access } : null;
+}
+
+/** Access changes are invisible to a delta, so a cursor issued for another agent set is refused. */
+export async function accessDigest(agentIds: string[]): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode([...agentIds].sort().join('\n')));
+  return [...new Uint8Array(digest).slice(0, 8)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
 /**
- * Lists the agents' sessions. With `updatedAfter` (a cursor from an earlier answer), only sessions
- * changed or removed at or after it; the cursor is read before the rows, so nothing is skipped.
+ * Lists the agents' sessions. With `since` (from an earlier cursor), only sessions changed or
+ * removed at or after it; the new cursor is read before the rows, so nothing is skipped.
  */
 export async function listSessions(db: D1Database, agentIds: string[], inactive: boolean,
-  updatedAfter?: string): Promise<SessionInventory> {
-  const placeholders = agentIds.map(() => '?').join(', ');
+  since?: string): Promise<SessionInventory> {
+  const access = await accessDigest(agentIds);
   const clock = db.prepare("SELECT datetime('now') AS cursor");
+  const placeholders = agentIds.map(() => '?').join(', ');
   const live = inactive ? '' : "AND s.last_seen_at > datetime('now', '-15 minutes')";
-  if (updatedAfter === undefined) {
-    const [now, rows] = await db.batch<unknown>([clock, db.prepare(
-      `SELECT s.* FROM sessions s WHERE s.agent_id IN (${placeholders}) ${live} ORDER BY s.last_seen_at DESC`,
-    ).bind(...agentIds)]);
-    return { sessions: await mapSessionList(db, rows.results as ListedSession[]), cursor: cursorOf(now) };
-  }
-  const [now, rows, removed] = await db.batch<unknown>([clock,
-    db.prepare(`SELECT s.* FROM sessions s INDEXED BY idx_sessions_agent_updated
-      WHERE s.agent_id IN (${placeholders}) AND s.updated_at >= ? ORDER BY s.updated_at, s.id`)
-      .bind(...agentIds, updatedAfter),
+  const reads = agentIds.length === 0 ? [] : since === undefined
+    ? [db.prepare(`SELECT s.* FROM sessions s WHERE s.agent_id IN (${placeholders}) ${live} ORDER BY s.last_seen_at DESC`)
+      .bind(...agentIds)]
+    : [db.prepare(`SELECT s.* FROM sessions s INDEXED BY idx_sessions_agent_updated
+        WHERE s.agent_id IN (${placeholders}) AND s.updated_at >= ? ORDER BY s.updated_at, s.id`)
+      .bind(...agentIds, since),
     db.prepare(`SELECT session_id FROM session_removals WHERE removed_at >= ?
-      AND agent_id IN (${placeholders}) ORDER BY removed_at, session_id`).bind(updatedAfter, ...agentIds)]);
-  return {
-    sessions: await mapSessionList(db, rows.results as ListedSession[]),
-    removed: (removed.results as { session_id: string }[]).map(row => row.session_id),
-    cursor: cursorOf(now),
-  };
+        AND agent_id IN (${placeholders}) ORDER BY removed_at, session_id`).bind(since, ...agentIds)];
+  const [now, rows, removed] = await db.batch<unknown>([clock, ...reads]);
+  const sessions = await mapSessionList(db, (rows?.results ?? []) as ListedSession[]);
+  const cursor = `${cursorOf(now)}~${access}`;
+  if (since === undefined) return { sessions, cursor };
+  return { sessions, removed: ((removed?.results ?? []) as { session_id: string }[]).map(row => row.session_id), cursor };
 }
 
 function cursorOf(result: D1Result<unknown>): string {

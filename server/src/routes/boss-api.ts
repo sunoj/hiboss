@@ -2,8 +2,7 @@
 // Exports bossApiRouter mounted at /api/boss.
 // Depends on Hono, boss auth middleware, and D1 bindings.
 import { parseStoredJSON as safeParse } from '../stored-json';
-import { listSessions } from './session-list';
-import { currentMessageCursor, validMessageCursor } from './boss-message-history';
+import { accessDigest, listSessions, parseSessionCursor } from './session-list';
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName, getBossTokenId } from '../middleware/auth';
@@ -192,14 +191,14 @@ routes.get('/sessions', async (c) => {
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
   const inactive = c.req.query('include_inactive') === 'true';
   const updatedAfter = c.req.query('updated_after');
-  if (updatedAfter !== undefined && (!inactive || !validMessageCursor(updatedAfter))) {
+  const cursor = updatedAfter === undefined ? undefined : parseSessionCursor(updatedAfter);
+  if (cursor === null || (cursor && !inactive)) {
     return c.text('updated_after needs include_inactive=true and a cursor from an earlier answer', 400);
   }
-  if (agentIds.length === 0) {
-    const cursor = await currentMessageCursor(c.env);
-    return c.json(updatedAfter === undefined ? { sessions: [], cursor } : { sessions: [], removed: [], cursor });
+  if (cursor && cursor.access !== await accessDigest(agentIds)) {
+    return c.text('agent access changed since this cursor; read the full list', 409);
   }
-  return c.json(await listSessions(c.env.DB, agentIds, inactive, updatedAfter));
+  return c.json(await listSessions(c.env.DB, agentIds, inactive, cursor?.at));
 });
 
 /** POST /api/boss/sessions/:id/message — send a fresh command to a session's agent */

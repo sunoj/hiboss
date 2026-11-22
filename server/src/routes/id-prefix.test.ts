@@ -24,7 +24,7 @@ describe('idPrefixRange', () => {
 describe('findMessageByIdPrefix', () => {
   it.each([
     ['pfx-a', 'pfx-a'], ['pfx-ab', 'pfx-ab'], ['pfx-', 'pfx-a'], ['pfx-b', 'pfx-b'],
-    ['pfx%', 'pfx%z'], ['pfx_', null], ['pfx-c', null], ['', null],
+    ['pfx%', 'pfx%z'], ['pfx_', null], ['pfx-c', null], ['', null], ['PFX-B', 'pfx-b'],
   ])('resolves %j to %j', async (input, expected) => {
     expect((await findMessageByIdPrefix(env.DB, input))?.id ?? null).toBe(expected);
   });

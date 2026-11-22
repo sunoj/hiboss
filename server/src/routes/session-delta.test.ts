@@ -71,9 +71,18 @@ describe('GET /api/boss/sessions?updated_after', () => {
     expect(kept.results.map(row => row.session_id)).toEqual(['delta-recent']);
   });
 
+  it('refuses a cursor issued before the boss's agent access changed', async () => {
+    const { cursor } = await inventory();
+    await run("INSERT INTO api_keys (id, name, key_hash) VALUES ('delta-new-agent', 'delta-new', 'delta-hash')");
+    const response = await SELF.fetch(`http://localhost/api/boss/sessions?include_inactive=true&updated_after=${
+      encodeURIComponent(cursor)}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+    expect(response.status).toBe(409);
+  });
+
   it.each([
-    ['?updated_after=2026-01-01%2000:00:00'],
-    ['?include_inactive=true&updated_after=yesterday'],
+    ['?updated_after=2026-01-01%2000:00:00~0123456789abcdef'],
+    ['?include_inactive=true&updated_after=2026-01-01%2000:00:00'],
+    ['?include_inactive=true&updated_after=yesterday~0123456789abcdef'],
   ])('rejects %s', async (query) => {
     const response = await SELF.fetch(`http://localhost/api/boss/sessions${query}`,
       { headers: { Authorization: `Bearer ${TOKEN}` } });

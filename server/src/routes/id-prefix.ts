@@ -13,9 +13,12 @@ export function idPrefixRange(prefix: string): [string, string] {
 const WITH_AGENT_NAME = 'SELECT messages.*, api_keys.name AS agent_name FROM messages '
   + 'LEFT JOIN api_keys ON api_keys.id = messages.agent_id';
 
-/** The message whose id is `id`, else the lowest id starting with `id`. Callers check access. */
+/**
+ * The message whose id is `id`, else the lowest id starting with `id`. Callers check access.
+ * Message ids are lowercase hex, so input is lowercased like the case-insensitive LIKE it replaced.
+ */
 export function findMessageByIdPrefix(db: D1Database, id: string, withAgentName = false): Promise<MessageRow | null> {
-  const [low, high] = idPrefixRange(id);
+  const [low, high] = idPrefixRange(id.toLowerCase());
   const select = withAgentName ? WITH_AGENT_NAME : 'SELECT messages.* FROM messages';
   return db.prepare(`${select} WHERE messages.id >= ? AND messages.id < ? ORDER BY messages.id LIMIT 1`)
     .bind(low, high).first<MessageRow>();
