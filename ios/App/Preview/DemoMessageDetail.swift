@@ -48,6 +48,10 @@ enum DemoMarkdown {
             let ready = true
             ```
 
+            ```copy Staging server
+            hiboss setup --server https://staging.example.com
+            ```
+
             \(imageMarkdown)
             """),
             createdAt: Date().ISO8601Format(), sessionId: withImages ? "sess-deploy" : "sess-markdown",

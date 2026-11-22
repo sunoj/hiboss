@@ -52,7 +52,7 @@ pub struct SendArgs {
     #[arg(
         long,
         conflicts_with = "content_file",
-        help = "Markdown message details beneath the short title"
+        help = "Markdown message details beneath the short title; a ```copy fence gets a copy button"
     )]
     pub content: Option<String>,
     #[arg(

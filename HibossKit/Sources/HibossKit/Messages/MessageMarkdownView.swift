@@ -43,6 +43,8 @@ public struct MessageMarkdownView: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        case .copy(let label):
+            CopyableTextBlock(label: label, text: block.text)
         }
     }
 

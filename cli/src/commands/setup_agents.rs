@@ -171,5 +171,6 @@ mod tests {
             assert!(text.contains("hiboss react <reply-id> 👍"));
         }
         assert!(installed.starts_with("Existing guidance"));
+        assert!(PROMPT.contains("```copy"), "agents learn the copy block syntax");
     }
 }

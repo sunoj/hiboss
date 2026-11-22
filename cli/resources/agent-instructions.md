@@ -14,6 +14,10 @@
   `--content-file`. `--summary` only controls the private push preview; it does not
   replace the title or create a body. Example:
   `hiboss send "House update" --content-file /absolute/path/report.md`.
+- To hand the boss an exact value to copy (an address, a command), put it alone in a
+  fenced block whose info string is `copy`, optionally followed by a label:
+  ```` ```copy Deploy command ````. Native clients show a copy button that copies the
+  block text exactly as written, so keep prose and prompts outside the block.
 - Prefer HiBoss for boss-facing progress, results, questions, and rich media. Use it
   proactively during substantive tasks; the user need not repeat "send via HiBoss".
   Honor an explicit request for another channel or no notifications.

@@ -24,6 +24,23 @@ final class MessageMarkdownUITests: XCTestCase {
         }
     }
 
+    func testCopyBlockShowsItsExactValueAndConfirmsTheCopy() {
+        let app = launch(appearance: "Light")
+        XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 10))
+        let value = app.staticTexts["message.copyable.text"]
+        XCTAssertTrue(value.waitForExistence(timeout: 5))
+        XCTAssertEqual(value.label, "hiboss setup --server https://staging.example.com")
+        XCTAssertTrue(app.staticTexts["Staging server"].exists)
+        let copy = app.buttons["message.copyable.copy"]
+        XCTAssertEqual(copy.label, "Copy Staging server")
+        copy.tap()
+        XCTAssertEqual(copy.value as? String, "Copied")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "message-copy-block-copied"
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
     func testHistoricalLongTitleKeepsItsFullTextInTheBodyAtLargeText() {
         let app = launch(appearance: "Light", longTitle: true)
         XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 10))

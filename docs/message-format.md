@@ -24,10 +24,33 @@ The file must contain UTF-8 text. File content is transmitted intact, including 
 and code-block whitespace; it is not a file attachment.
 
 Native iOS and macOS message reading supports paragraphs, ATX headings, emphasis,
-inline code, links, ordered and unordered list items, blockquotes, and fenced code.
+inline code, links, ordered and unordered list items, blockquotes, fenced code, and copy
+blocks (below).
 Text uses native semantic fonts, selection, and Dynamic Type. HTML is not executed.
 Tables, nested-list indentation, and embedded Markdown images are not rendered as rich
 blocks. File/image attachments continue to use message attachment metadata.
+
+## Copy blocks
+
+A fenced block whose info string starts with the word `copy` is a copy block. The rest of
+the opening line is an optional label. Native iOS and macOS clients render the block as
+wrapped monospaced text with a copy button; the button copies the block text exactly as
+written, including inner whitespace, and the text is never truncated.
+
+````markdown
+Point the CLI at staging:
+
+```copy Staging server
+https://staging.example.com
+```
+````
+
+- Only the exact word `copy` qualifies: `copyright`, `copy-x` and `Copy` stay ordinary code.
+- `~~~copy` works as well. CRLF line endings are copied as LF.
+- A block with no closing fence, such as a cut-off preview, renders as ordinary code with
+  no copy button, because its text may be incomplete.
+- Channels and clients without copy support show the block as plain fenced code, so the
+  value stays readable and selectable.
 
 The 144-scalar title is a client-side convention. Native iOS and macOS clients derive
 a bounded heading from a long body on display and preserve the original text in the details.
