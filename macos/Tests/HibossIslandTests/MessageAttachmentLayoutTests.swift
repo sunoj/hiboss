@@ -58,6 +58,29 @@ final class MessageAttachmentLayoutTests: XCTestCase {
         }
     }
 
+    func testCopyBlockShowsLabelValueAndCopyButtonInBothAppearances() async throws {
+        let source = "Point the CLI at staging:\n\n```copy Staging server\nhiboss setup --server https://staging.example.com\n```"
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            let host = NSHostingView(rootView: MessageMarkdownView(source)
+                .padding().frame(width: 360)
+                .background(Color(nsColor: .windowBackgroundColor))
+                .environment(\.colorScheme, appearance == .aqua ? .light : .dark))
+            host.sizingOptions = []
+            host.appearance = NSAppearance(named: appearance)
+            let window = show(host, size: NSSize(width: 360, height: 220))
+            defer { window.close() }
+            try await Task.sleep(for: .milliseconds(350))
+            host.layoutSubtreeIfNeeded()
+            let image = try bitmap(host)
+            let text = try await recognizedText(image)
+            for phrase in ["Staging server", "Copy", "staging.example.com"] {
+                XCTAssertTrue(text.contains(phrase), text)
+            }
+            XCTAssertFalse(text.contains("```"), text)
+            try write(image, name: "message-copy-block-\(appearance.rawValue)")
+        }
+    }
+
     func testMarkdownFileOffersAnInAppPreview() async throws {
         let attachment = try XCTUnwrap(message(fileURL: "https://example.com/report.md").metadata?.attachment)
         let host = NSHostingView(rootView: MessageAttachmentView(attachment: attachment).padding()
