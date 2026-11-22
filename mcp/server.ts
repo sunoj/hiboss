@@ -8,6 +8,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult, type Notification, type Request } from '@modelcontextprotocol/sdk/types.js';
 import { sendFile } from './send-file.js';
+import { askTimeoutSeconds, waitForReply } from './ask-wait.js';
 import { loadAgentSigner, signAction, signSend } from './agent-signer.js';
 import { enumField, fail, field, formatAskResult, formatReplyBody, formatMessageList, formatSessionList, latestReply as latestReplyFromList, ok, tool } from './tool-helpers.js';
 import { assuranceLabel, verifyMessage, verifyMessages, type VerifiableMessage } from './message-security.js';
@@ -31,7 +32,7 @@ const INSTRUCTIONS = [
 ].join('\n');
 const TOOL_DEFS = [
   tool('send', 'Send a new hiboss message.', { body: field('string'), to: field('string'), priority: enumField(['critical', 'high', 'normal', 'low']), options: field('string') }, ['body']),
-  tool('ask', 'Ask boss for input and block until reply or timeout.', { body: field('string'), options: field('string'), timeout: field('number') }, ['body']),
+  tool('ask', 'Ask boss for input and block until reply or timeout (seconds, 60-86400, default 1800).', { body: field('string'), options: field('string'), timeout: field('number') }, ['body']),
   tool('reply', 'Reply to an existing hiboss message.', { message_id: field('string'), body: field('string') }, ['message_id', 'body']),
   tool('forward', 'Forward an existing hiboss message to another channel.', { message_id: field('string'), channel: enumField(['discord', 'telegram']) }, ['message_id', 'channel']),
   tool('react', 'Add a reaction to a hiboss message.', { message_id: field('string'), emoji: field('string') }, ['message_id', 'emoji']),
@@ -100,10 +101,13 @@ async function sendTool(args: Record<string, unknown>): Promise<CallToolResult> 
 }
 
 async function askTool(args: Record<string, unknown>): Promise<CallToolResult> {
-  const timeout = intOr(args.timeout, 300);
-  const request = compact({ body: str(args.body, 'body'), mode: 'blocking', options: splitOptions(args.options), session_id: mustState().session.id });
+  // The timeout is the ask's lifetime on the server too, so it stays open between poll windows.
+  const timeout = askTimeoutSeconds(args.timeout);
+  const request = compact({ body: str(args.body, 'body'), mode: 'blocking', options: splitOptions(args.options), timeout, session_id: mustState().session.id });
   const created = await api('POST', '/api/messages', await signSend(mustState().config.server, mustState().config.key, request)) as Message;
-  const polled = await api('POST', `/api/messages/${encodeURIComponent(created.id)}/poll?timeout=${timeout}`) as Message;
+  const pollPath = `/api/messages/${encodeURIComponent(created.id)}/poll`;
+  const polled = await waitForReply(async (window) => await api('POST', `${pollPath}?timeout=${window}`) as Message,
+    (message) => (message.replies?.length ?? 0) > 0, timeout);
   await verifyMessage(polled);
   const reply = latestReply(polled);
   return formatAskResult(created.id, reply);

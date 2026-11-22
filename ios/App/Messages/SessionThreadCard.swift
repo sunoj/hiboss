@@ -109,6 +109,12 @@ struct SessionThreadCard: View {
                                       media: thread.message.metadata?.optionMedia ?? [],
                                       metadata: thread.message.metadata,
                                       settlement: store.settlement(for: thread.id))
+                if store.answerability(for: thread.id) != .open {
+                    ResolvedOptionList(options: ResolvedOptionList.textOptions(thread.message.options,
+                                                                               metadata: thread.message.metadata),
+                                       metadata: thread.message.metadata,
+                                       settlement: recordedAnswer(thread))
+                }
                 ForEach(thread.entries) { entry in
                     entryRow(entry, root: thread.message).padding(.leading, Space.m)
                 }
@@ -172,6 +178,12 @@ struct SessionThreadCard: View {
             ThreadMessageDetails(message: message)
         }.accessibilityElement(children: .contain)
             .accessibilityIdentifier("session-bubble-incoming")
+    }
+
+    /// The store's settlement, else the boss answer folded into this thread.
+    private func recordedAnswer(_ thread: MessageThread) -> DecisionSettlement? {
+        store.settlement(for: thread.id) ?? thread.entries.last { $0.direction == "boss_to_agent" }
+            .flatMap { settlement($0, root: thread.message) }
     }
 
     private func settlement(_ reply: HistoryMessage, root: HistoryMessage) -> DecisionSettlement? {

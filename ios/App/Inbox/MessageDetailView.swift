@@ -37,21 +37,6 @@ struct MessageDetailView: View {
         store.reply(to: messageID)
     }
 
-    /// The chosen option text, trimmed and non-empty, or nil if unresolved.
-    private var chosenAnswer: String? {
-        guard let body = reply?.body.trimmingCharacters(in: .whitespacesAndNewlines),
-              !body.isEmpty else { return store.settlement(for: messageID)?.answer }
-        return body
-    }
-
-    /// Whether an option is the chosen one. The server trims the stored answer
-    /// while options keep the agent's raw text, so compare trim-normalized to
-    /// avoid a whitespace mismatch that would both un-mark it and duplicate it
-    /// as a "Custom reply" row.
-    private func isChosen(_ option: String) -> Bool {
-        option.trimmingCharacters(in: .whitespacesAndNewlines) == chosenAnswer
-    }
-
     /// The recorded answer and its source, so a timeout default is never shown as a choice.
     private var settlement: DecisionSettlement? {
         store.settlement(for: messageID) ?? reply.flatMap(DecisionSettlement.init(reply:))
@@ -190,14 +175,8 @@ struct MessageDetailView: View {
                 media: message.metadata?.optionMedia ?? [], metadata: message.metadata,
                 settlement: settlement
             )
-            VStack(alignment: .leading, spacing: Space.s) {
-                ForEach(message.options, id: \.self) { option in
-                    optionRow(option, chosen: isChosen(option))
-                }
-                if let answer = chosenAnswer, !message.options.contains(where: isChosen) {
-                    optionRow(answer, chosen: true, custom: true)
-                }
-            }
+            ResolvedOptionList(options: message.options, metadata: message.metadata,
+                               settlement: settlement, showsCustomAnswer: true)
             .hbCard()
             decisionFooter(for: message)?.font(.hbFootnote).foregroundStyle(Theme.ink2)
         }
@@ -223,26 +202,6 @@ struct MessageDetailView: View {
             .disabled(store.replyGate.locksControls(for: message.id)
                       || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-    }
-
-    @ViewBuilder private func optionRow(_ text: String, chosen: Bool, custom: Bool = false) -> some View {
-        let automatic = chosen && settlement?.isAutoDefault == true
-        HStack(spacing: Space.s) {
-            Image(systemName: chosen ? (settlement?.symbol ?? "checkmark.circle.fill") : "circle")
-                .foregroundStyle(chosen ? Theme.accent : Theme.ink2)
-            VStack(alignment: .leading, spacing: Space.xxs) {
-                Text(verbatim: text).foregroundStyle(chosen ? Theme.ink : Theme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                OptionDescriptionText(text: message?.metadata?.optionDescription(for: text))
-                if custom { Text("Custom reply").font(.caption2).foregroundStyle(Theme.ink2) }
-            }
-            Spacer()
-            if chosen {
-                (automatic ? Text("Auto-selected") : Text("Selected")).font(.caption).foregroundStyle(
-                    Theme.ink2)
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 
     private func decisionFooter(for message: HistoryMessage) -> Text? {

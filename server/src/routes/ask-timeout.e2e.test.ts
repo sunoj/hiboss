@@ -120,6 +120,23 @@ describe('caller cleanup', () => {
     expect(stored?.status).toBe('expired');
   });
 
+  it('keeps an option ask open for a minute when its waiter polls only 15s', async () => {
+    const ask = await send({});
+    const now = Date.now();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(now + 15_001);
+    vi.spyOn(Date, 'now').mockReturnValueOnce(now).mockReturnValue(now + 15_001);
+    await request(`/${ask.id}/poll?timeout=15`);
+    vi.restoreAllMocks();
+    const stored = await env.DB.prepare('SELECT status, metadata FROM messages WHERE id = ?')
+      .bind(ask.id).first<{ status: string; metadata: string }>();
+    expect(stored?.status).toBe('sent');
+    expect(JSON.parse(stored?.metadata ?? '{}').options_expired).not.toBe(true);
+    const reply = await testRequest('POST', `https://test.local/api/boss/messages/${ask.id}/reply`,
+      { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' }, { body: 'B' });
+    expect(reply.status).toBe(201);
+  });
+
   it('rejects boss reply after legacy text waiter exits', async () => {
     const ask = await send({ options: undefined });
     await endPollWindow(ask.id);

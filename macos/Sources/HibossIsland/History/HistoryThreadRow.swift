@@ -102,10 +102,10 @@ struct HistoryThreadRow: View {
                     in: message.metadata, outcome: outcome) {
                     HistoryChosenOptionImage(media: media)
                 }
-                DisclosureGroup(L("Decision options")) {
-                    HistoryDecisionBlock(thread: thread,
-                        reply: reply, answerability: answerability, onChoose: onChoose)
-                }.font(.callout)
+                // A closed decision keeps its options on screen, read-only, never folded away.
+                HistoryDecisionBlock(thread: thread,
+                    reply: reply, answerability: answerability, onChoose: onChoose)
+                    .font(.callout)
             }
         } else {
             HistoryDecisionBlock(thread: thread,

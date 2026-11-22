@@ -22,6 +22,7 @@ import {
   parsePriorityFilter,
   validateOption,
 } from './message-helpers';
+import { normalizeTimestamp } from './progress-helpers';
 import { messageReplyRouter } from './message-reply';
 import { messageSendRouter } from './message-send';
 import { reactionsRouter } from './reactions';
@@ -31,6 +32,8 @@ export { insertMessageWithRecovery } from './message-send';
 const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
 const WAIT_INTERVAL_MS = 1000;
+/** The shortest answer window an ask with an expiry gets, whoever is polling it. */
+const MIN_ASK_LIFETIME_MS = 60_000;
 const VALID_TRANSITIONS: Record<string, string[]> = {
   sent: ['delivered', 'read'],
   delivered: ['read'],
@@ -194,10 +197,7 @@ routes.post('/:id/poll', async (c) => {
       if (finalCheck && (finalCheck.replies?.length ?? 0) > 0) {
         return c.json(finalCheck);
       }
-      if (mapMessageRow(message).metadata?.ask_deadline !== true
-        || !message.expires_at
-        || !Number.isFinite(Date.parse(message.expires_at))
-        || Date.parse(message.expires_at) <= Date.now()) {
+      if (endsWithPoll(message, Date.now())) {
         c.executionCtx.waitUntil(expireMessageOptions(c.env, agentId, message).catch(() => {}));
       }
       return c.json(finalCheck ?? { ...mapMessageRow(message), replies: [] });
@@ -205,6 +205,19 @@ routes.post('/:id/poll', async (c) => {
     await delay(Math.min(getStreamPollIntervalMs(c.env, WAIT_INTERVAL_MS), deadline - Date.now()));
   }
 });
+
+/**
+ * Whether an ask ends with its waiter's poll window. An ask with its own future deadline stays
+ * open for the expiry sweep, and so does any ask with a future expiry that is younger than
+ * MIN_ASK_LIFETIME_MS: a short client poll never takes the boss's minute to answer away.
+ */
+function endsWithPoll(message: MessageRow, now: number): boolean {
+  const expiresAt = message.expires_at ? Date.parse(message.expires_at) : Number.NaN;
+  if (!Number.isFinite(expiresAt) || expiresAt <= now) return true;
+  if (mapMessageRow(message).metadata?.ask_deadline === true) return false;
+  const createdAt = Date.parse(normalizeTimestamp(message.created_at));
+  return !Number.isFinite(createdAt) || now - createdAt >= MIN_ASK_LIFETIME_MS;
+}
 
 export const messagesRouter = routes;
 
