@@ -3,13 +3,13 @@
   <channel>
     <title>HiBoss Island</title>
     <item>
-      <title>Version 1.0.3</title>
-      <pubDate>Fri, 20 Nov 2026 10:02:46 +0000</pubDate>
-      <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
-      <sparkle:version>202611201701</sparkle:version>
+      <title>Version 1.0.4</title>
+      <pubDate>Sun, 22 Nov 2026 12:50:17 +0000</pubDate>
+      <sparkle:shortVersionString>1.0.4</sparkle:shortVersionString>
+      <sparkle:version>202611221947</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[ Box: the window shares one column edge with the sidebar, and the preview opens as a sheet below 640 pt. Session text is selectable. Long questionnaires page through their questions with a review of draft answers. Decisions show their tradeoffs. Toolbar items that a narrow window moves into the overflow menu keep their titles. Code blocks in messages wrap long lines. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.3/HiBoss-Island-1.0.3.zip" sparkle:edSignature="hQvWRILZw6YqDZc/BItuH9c/P/QpiZwUylWFcE0lxK32ryqKck/bJdi2bPgI/YLg1HoOf1QnUtGl4yPxk+6jCw==" length="8047944" type="application/zip" />
+      <description><![CDATA[ Messages: a copy block shows a copy button that copies the exact text. The session list fetches only what changed since the last read. Closed decisions keep their option images, and every question stays open for at least a minute. ]]></description>
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.4/HiBoss-Island-1.0.4.zip" sparkle:edSignature="OKxkTsdxd+75P38WO/expwXLtnO4PVNYtllKBhqdYeXWRafVF8zcM+t4M5SczJ2g7Sck+oHOIlq1M7LSFfGQAw==" length="8080937" type="application/zip" />
     </item>
   </channel>
 </rss>
