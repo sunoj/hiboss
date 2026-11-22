@@ -214,3 +214,27 @@ fn bare_repository_worktree_is_named_by_the_repository() {
     assert_eq!(registered[0]["project"], "alpha");
     assert_eq!(registered[0]["project_identity"]["aliases"], json!(["alpha"]));
 }
+
+#[test]
+fn send_outside_the_checkout_keeps_this_runtimes_session_but_plain_shells_do_not() {
+    let http = server(foreign_400());
+    let fixture = Fixture::new("repo", &http.url);
+    let start = claude(&fixture, &["hook", "session-start"], "claude");
+    assert_eq!(start.code, 0, "{}", start.stderr);
+    let registered = read(&fixture.state_dir("claude", "s").join("session"));
+    let outside = fixture.root.join("notes");
+    std::fs::create_dir(&outside).expect("folder outside the repository");
+    let env = [("CLAUDECODE", "1"), ("CLAUDE_CODE_SESSION_ID", "s"), ("HIBOSS_PROFILE", "claude")];
+    let send = fixture.run(&outside, &["send", "from outside"], &env);
+    assert_eq!(send.code, 0, "{}", send.stderr);
+    assert_eq!(lines_with(&send.stderr, "has no session of its own"), 1, "{}", send.stderr);
+    let other = [("CLAUDECODE", "1"), ("CLAUDE_CODE_SESSION_ID", "other"), ("HIBOSS_PROFILE", "claude")];
+    let unrelated = fixture.run(&outside, &["send", "another runtime"], &other);
+    assert_eq!(unrelated.code, 0, "{}", unrelated.stderr);
+    assert!(unrelated.stderr.contains("Run from the project checkout"), "{}", unrelated.stderr);
+    let requests = http.requests();
+    let sends = posts(&requests, "/api/messages");
+    assert_eq!(sends.len(), 2);
+    assert_eq!(sends[0]["session_id"], registered.trim(), "same runtime keeps its session");
+    assert!(sends[1]["session_id"].is_null(), "another runtime borrows nothing");
+}
