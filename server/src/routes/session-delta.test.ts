@@ -71,7 +71,7 @@ describe('GET /api/boss/sessions?updated_after', () => {
     expect(kept.results.map(row => row.session_id)).toEqual(['delta-recent']);
   });
 
-  it('refuses a cursor issued before the boss's agent access changed', async () => {
+  it('refuses a cursor issued before the agent access of the boss changed', async () => {
     const { cursor } = await inventory();
     await run("INSERT INTO api_keys (id, name, key_hash) VALUES ('delta-new-agent', 'delta-new', 'delta-hash')");
     const response = await SELF.fetch(`http://localhost/api/boss/sessions?include_inactive=true&updated_after=${

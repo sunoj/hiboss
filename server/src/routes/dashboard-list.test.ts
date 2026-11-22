@@ -161,7 +161,7 @@ it.each([false, true])('keeps session rows and labels, include_inactive=%s', asy
     WHERE s.agent_id IN (${placeholders}) ${inactive ? '' : "AND s.last_seen_at > datetime('now', '-15 minutes')"}
     ORDER BY s.last_seen_at DESC`).bind(...agents).all<SessionProjectRow>();
   expect(await response.json()).toEqual({ sessions: legacy.results.map(mapSessionProject),
-    cursor: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/) });
+    cursor: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}~[0-9a-f]{16}$/) });
 });
 
 it('keeps inaccessible-agent filters empty', async () => {
