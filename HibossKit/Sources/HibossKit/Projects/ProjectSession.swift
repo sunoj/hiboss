@@ -97,14 +97,14 @@ public protocol SessionsServing: Sendable {
 }
 
 extension HibossAPI: SessionsServing {
+    /// Every session of the boss's agents; after the first read only the changes travel.
     public func projectSessions() async throws -> [ProjectSession] {
-        let url = apiURL.appendingPathComponent("sessions").appending(
-            queryItems: [URLQueryItem(name: "include_inactive", value: "true")]
-        )
-        return try await decode(ProjectSessionsResponse.self, from: url, context: "sessions").sessions
+        let endpoint = apiURL.appendingPathComponent("sessions")
+        return try await SessionInventoryCache.shared.sessions(key: SessionInventoryCache.key(for: config)) { cursor in
+            var query = [URLQueryItem(name: "include_inactive", value: "true")]
+            if let cursor { query.append(URLQueryItem(name: "updated_after", value: cursor)) }
+            return try await self.decode(SessionInventoryPage.self, from: endpoint.appending(queryItems: query),
+                                         context: "sessions")
+        }
     }
-}
-
-private struct ProjectSessionsResponse: Decodable {
-    let sessions: [ProjectSession]
 }
