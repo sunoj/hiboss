@@ -48,9 +48,12 @@ class SiteBuildTests(unittest.TestCase):
     def test_build_contains_exactly_the_public_pages_and_assets(self) -> None:
         assets = {'install.sh', 'robots.txt', 'sitemap.xml', 'updates/macos/appcast.xml',
                   'assets/site.css', 'assets/island-demo.css', 'assets/island-demo.js',
-                  'assets/icon.png', 'assets/apple-touch-icon.png', 'assets/og.jpg'}
+                  'assets/icon.png', 'assets/apple-touch-icon.png', 'assets/og.jpg',
+                  'assets/island-day.svg', 'assets/island-night.svg'}
         assets.update(f'assets/shots/{screen}-{theme}.jpg'
-                      for screen in ['home', 'session', 'panels', 'progress', 'box', 'mac-island']
+                      for screen in ['home', 'decision', 'session', 'sessions', 'box', 'allclear', 'panels', 'progress',
+                                     'mac-island', 'home-zh', 'decision-zh', 'session-zh', 'sessions-zh', 'box-zh',
+                                     'allclear-zh']
                       for theme in ['light', 'dark'])
         actual = {str(path.relative_to(self.output)) for path in self.output.rglob('*') if path.is_file()}
         self.assertEqual(actual, set(PAGES) | assets)

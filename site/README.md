@@ -11,8 +11,14 @@ resources. It is separate from the authenticated admin console in `web/`.
   fragments. `render.py` sets each page's current navigation link and language counterpart at build time.
 - The App Store link is a single marked line in `download/index.html` and `zh/download/index.html` (`APP STORE SWITCH`).
 - iPhone screenshots in `assets/shots/` come from the iOS app's demo mode, at 600 px wide,
-  in light and dark variants. Decision captures enable `HIBOSS_DEMO_OPTION_MEDIA=1` so image
-  previews, option descriptions and the default choice are visible together.
+  in light and dark variants; `*-zh-*` are the same screens launched in Simplified Chinese.
+  `docs/design-marketing/tools/capture.sh` captures them and `site-shots.sh` converts them.
+  Decision captures enable `HIBOSS_DEMO_OPTION_MEDIA=1` so image previews, option descriptions and
+  the default choice are visible together. `panels-*` and `progress-*` are earlier captures of
+  screens that launch flags alone do not reach.
+- `assets/island-day.svg` and `island-night.svg` are the v4 scenes from `docs/design-v4/scenes/`.
+  They appear only in the closing section, beside the all-clear screenshot, never beside a decision.
+- The visual system, message hierarchy and rejected alternatives are in `docs/design-marketing.md`.
 - `mac-island-*.jpg` captures the native Mac Island using
   `IslandAppearanceSnapshotTests/testReferenceDecisionInBothAppearances` with
   `HIBOSS_V4_SNAPSHOTS` set to the capture directory. The Island stays dark in both appearances.

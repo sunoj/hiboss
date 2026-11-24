@@ -19,51 +19,69 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/site.css">
 </head>
-<body>
+<body class="sky short">
   <a class="skip-link" href="#main">Skip to content</a>
   <!-- include header -->
 
   <main id="main">
-    <section class="section" aria-labelledby="page-title">
+    <section class="page-head" aria-labelledby="page-title">
       <div class="wrap">
-        <div class="section-head">
-          <p class="eyebrow">Download</p>
-          <h1 id="page-title">Get HiBoss</h1>
-          <p class="lead">The apps connect to a HiBoss server you run. If you do not have one yet, start with the <a href="/docs/self-host/">self-host guide</a>.</p>
-        </div>
-        <div class="cards">
-          <article class="card" aria-labelledby="ios-title">
-            <p class="kicker">iOS 17 or later</p>
-            <h2 id="ios-title">iPhone</h2>
-            <ul>
+        <h1 id="page-title">Get HiBoss</h1>
+        <p class="lead">The apps connect to a HiBoss server you run. If you do not have one yet, start with the <a href="/docs/self-host/">self-host guide</a>.</p>
+      </div>
+    </section>
+
+    <div class="wrap platforms">
+      <article class="platform" aria-labelledby="ios-title">
+        <div>
+          <p class="kicker">iOS 17 or later</p>
+          <h2 id="ios-title">iPhone and iPad</h2>
+          <ul>
               <li>Answer decisions, follow sessions, panels, progress and the Box.</li>
               <li>Live Activity on the Lock Screen and Dynamic Island.</li>
               <li>Pair by scanning the QR code from <code>hiboss setup</code>.</li>
-            </ul>
+          </ul>
             <!-- APP STORE SWITCH: when the listing exists, replace the next line with
                  <a class="store-badge" href="https://apps.apple.com/app/id6826493549">Download on the App Store</a> -->
-            <p class="store-soon">Coming soon to the App Store</p>
-          </article>
-          <article class="card" aria-labelledby="mac-title">
-            <p class="kicker">macOS 14 or later</p>
-            <h2 id="mac-title">Mac</h2>
-            <ul>
+            <p class="store-soon get">Coming soon to the App Store</p>
+        </div>
+        <div class="platform-media">
+          <div class="phone">
+            <picture>
+              <source srcset="/assets/shots/home-dark.jpg" media="(prefers-color-scheme: dark)">
+              <img src="/assets/shots/home-light.jpg" width="600" height="1304" alt="The Today screen on iPhone with a decision waiting.">
+            </picture>
+          </div>
+        </div>
+      </article>
+      <article class="platform" aria-labelledby="mac-title">
+        <div>
+          <p class="kicker">macOS 14 or later</p>
+          <h2 id="mac-title">Mac</h2>
+          <ul>
               <li>The Island shows the most urgent decision at the top of your screen.</li>
               <li>Menu bar item and a full window for sessions, panels, progress and the Box.</li>
               <li>Pair with a code from <code>hiboss setup</code>, or sign in with your iPhone.</li>
-            </ul>
-            <a class="btn btn-primary" href="https://github.com/sunoj/hiboss/releases">GitHub Releases</a>
-          </article>
-          <article class="card" aria-labelledby="cli-title">
-            <p class="kicker">macOS and Linux</p>
-            <h2 id="cli-title">CLI for agents</h2>
-            <p>The <code>hiboss</code> command lets agents send, ask, post progress, publish panels and use the Box.</p>
-            <pre><code>curl -fsSL https://hiboss.org/install.sh | sh</code></pre>
-            <p><a href="/install.sh">View the install script</a> before you run it. To build from source instead, run <code>cargo build --release</code> in <code>cli/</code> of the <a href="https://github.com/sunoj/hiboss">repository</a>.</p>
-          </article>
+          </ul>
+          <a class="btn btn-primary get" href="https://github.com/sunoj/hiboss/releases">GitHub Releases</a>
         </div>
-      </div>
-    </section>
+        <div class="platform-media">
+          <picture>
+            <source srcset="/assets/shots/mac-island-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img class="mac" src="/assets/shots/mac-island-light.jpg" width="840" height="592" alt="The Mac Island showing a decision with two choices and a default.">
+          </picture>
+        </div>
+      </article>
+      <article class="platform wide" aria-labelledby="cli-title">
+        <div>
+          <p class="kicker">macOS and Linux</p>
+          <h2 id="cli-title">CLI for agents</h2>
+          <p>The <code>hiboss</code> command lets agents send, ask, post progress, publish panels and use the Box.</p>
+          <pre><code>curl -fsSL https://hiboss.org/install.sh | sh</code></pre>
+          <p class="get"><a href="/install.sh">View the install script</a> before you run it. To build from source instead, run <code>cargo build --release</code> in <code>cli/</code> of the <a href="https://github.com/sunoj/hiboss">repository</a>.</p>
+        </div>
+      </article>
+    </div>
 
     <section class="section band" aria-labelledby="next-title">
       <div class="wrap">

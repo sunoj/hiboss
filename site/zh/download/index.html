@@ -20,51 +20,69 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/site.css">
 </head>
-<body>
+<body class="sky short">
   <a class="skip-link" href="#main">跳到正文</a>
   <!-- include header -->
 
   <main id="main">
-    <section class="section" aria-labelledby="page-title">
+    <section class="page-head" aria-labelledby="page-title">
       <div class="wrap">
-        <div class="section-head">
-          <p class="eyebrow">下载</p>
-          <h1 id="page-title">获取 HiBoss</h1>
-          <p class="lead">应用需要连接你自己运行的 HiBoss 服务器。还没有的话，先看<a href="/zh/docs/self-host/">自托管指南</a>。</p>
-        </div>
-        <div class="cards">
-          <article class="card" aria-labelledby="ios-title">
-            <p class="kicker">iOS 17 或更高版本</p>
-            <h2 id="ios-title">iPhone</h2>
-            <ul>
+        <h1 id="page-title">获取 HiBoss</h1>
+        <p class="lead">应用需要连接你自己运行的 HiBoss 服务器。还没有的话，先看<a href="/zh/docs/self-host/">自托管指南</a>。</p>
+      </div>
+    </section>
+
+    <div class="wrap platforms">
+      <article class="platform" aria-labelledby="ios-title">
+        <div>
+          <p class="kicker">iOS 17 或更高版本</p>
+          <h2 id="ios-title">iPhone 和 iPad</h2>
+          <ul>
               <li>回答决策，查看会话、面板、进展和 Box。</li>
               <li>锁屏和灵动岛上的实时活动。</li>
               <li>扫描 <code>hiboss setup</code> 打印的二维码即可配对。</li>
-            </ul>
+          </ul>
             <!-- APP STORE SWITCH: when the listing exists, replace the next line with
                  <a class="store-badge" href="https://apps.apple.com/cn/app/id6826493549">在 App Store 下载</a> -->
-            <p class="store-soon">即将登陆 App Store</p>
-          </article>
-          <article class="card" aria-labelledby="mac-title">
-            <p class="kicker">macOS 14 或更高版本</p>
-            <h2 id="mac-title">Mac</h2>
-            <ul>
+            <p class="store-soon get">即将登陆 App Store</p>
+        </div>
+        <div class="platform-media">
+          <div class="phone">
+            <picture>
+              <source srcset="/assets/shots/home-zh-dark.jpg" media="(prefers-color-scheme: dark)">
+              <img src="/assets/shots/home-zh-light.jpg" width="600" height="1304" alt="iPhone 上的“今天”页面，有一个决策在等你。">
+            </picture>
+          </div>
+        </div>
+      </article>
+      <article class="platform" aria-labelledby="mac-title">
+        <div>
+          <p class="kicker">macOS 14 或更高版本</p>
+          <h2 id="mac-title">Mac</h2>
+          <ul>
               <li>屏幕顶部的 Island 显示最紧急的决策。</li>
               <li>菜单栏图标，以及查看会话、面板、进展和 Box 的完整窗口。</li>
               <li>用 <code>hiboss setup</code> 给出的配对码连接，或用 iPhone 登录。</li>
-            </ul>
-            <a class="btn btn-primary" href="https://github.com/sunoj/hiboss/releases">GitHub Releases</a>
-          </article>
-          <article class="card" aria-labelledby="cli-title">
-            <p class="kicker">macOS 和 Linux</p>
-            <h2 id="cli-title">智能体命令行</h2>
-            <p>智能体用 <code>hiboss</code> 命令发消息、提问、发进展、发布面板和使用 Box。</p>
-            <pre><code>curl -fsSL https://hiboss.org/install.sh | sh</code></pre>
-            <p>运行前可以先<a href="/install.sh">查看安装脚本</a>。也可以从源码构建：在<a href="https://github.com/sunoj/hiboss">仓库</a>的 <code>cli/</code> 目录运行 <code>cargo build --release</code>。</p>
-          </article>
+          </ul>
+          <a class="btn btn-primary get" href="https://github.com/sunoj/hiboss/releases">GitHub Releases</a>
         </div>
-      </div>
-    </section>
+        <div class="platform-media">
+          <picture>
+            <source srcset="/assets/shots/mac-island-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img class="mac" src="/assets/shots/mac-island-light.jpg" width="840" height="592" alt="Mac Island 显示一个带两个选项和默认项的决策。">
+          </picture>
+        </div>
+      </article>
+      <article class="platform wide" aria-labelledby="cli-title">
+        <div>
+          <p class="kicker">macOS 和 Linux</p>
+          <h2 id="cli-title">智能体命令行</h2>
+          <p>智能体用 <code>hiboss</code> 命令发消息、提问、发进展、发布面板和使用 Box。</p>
+          <pre><code>curl -fsSL https://hiboss.org/install.sh | sh</code></pre>
+          <p class="get">运行前可以先<a href="/install.sh">查看安装脚本</a>。也可以从源码构建：在<a href="https://github.com/sunoj/hiboss">仓库</a>的 <code>cli/</code> 目录运行 <code>cargo build --release</code>。</p>
+        </div>
+      </article>
+    </div>
 
     <section class="section band" aria-labelledby="next-title">
       <div class="wrap">

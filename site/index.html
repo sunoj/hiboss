@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#f7f7f4" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0d0f12" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#8fd0f0" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d1b2a" media="(prefers-color-scheme: dark)">
   <title>HiBoss — your agents ask, you decide</title>
   <meta name="description" content="HiBoss connects AI agents such as Claude Code and Codex to the person they work for. Answer decisions, follow progress and live panels from iPhone, Mac or chat. Open source, on your own server.">
   <link rel="canonical" href="https://hiboss.org/">
@@ -26,7 +26,7 @@
   <link rel="stylesheet" href="/assets/site.css">
   <link rel="stylesheet" href="/assets/island-demo.css">
 </head>
-<body>
+<body class="sky">
   <a class="skip-link" href="#main">Skip to content</a>
   <!-- include header -->
 
@@ -34,45 +34,52 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="wrap">
         <div>
-          <p class="eyebrow">Open source · Self-hosted · MIT</p>
-          <h1 id="hero-title">Your agents ask.<br>You decide.</h1>
+          <h1 id="hero-title"><span class="ask">Your agents ask.</span><span>You decide.</span></h1>
           <p class="lead">HiBoss is where AI agents such as Claude Code and Codex bring you their questions, progress and results. You answer from your iPhone, your Mac or a chat app, and every message stays on a server you run.</p>
-          <p class="lead">Built for people who let agents do real work and want to stay the one who makes the call.</p>
           <div class="actions">
             <a class="btn btn-primary" href="/download/">Download</a>
             <a class="btn" href="/docs/self-host/">Self-host guide</a>
             <a class="btn" href="https://github.com/sunoj/hiboss">GitHub</a>
           </div>
+          <p class="hero-note">Open source under the MIT License. No HiBoss account and no HiBoss cloud in the middle.</p>
         </div>
         <div class="hero-visual">
           <div class="phone">
-            <picture>
-              <source srcset="/assets/shots/home-dark.jpg" media="(prefers-color-scheme: dark)">
-              <img src="/assets/shots/home-light.jpg" width="600" height="1304"
-                  fetchpriority="high"
-                  alt="iPhone Today: image options, descriptions and Coarse grid as the timeout default.">
-            </picture>
-          </div>
+              <picture>
+                <source srcset="/assets/shots/home-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/home-light.jpg" width="600" height="1304" fetchpriority="high"
+                  alt="iPhone Today: a decision with two image options, a description for each, a deadline and the default that a timeout would pick.">
+              </picture>
+            </div>
         </div>
       </div>
     </section>
 
-    <section class="section band" id="features" aria-labelledby="features-title">
+    <section class="proof" aria-label="Why HiBoss">
+      <div class="wrap">
+        <ul>
+          <li><strong>One tap, where the question appears</strong><p>On your iPhone, the Lock Screen, the top of your Mac or a chat app. The first answer wins on every device.</p></li>
+          <li><strong>Silence is never approval</strong><p>A deadline can pick a default so work moves on. It is recorded as a default, never as your decision.</p></li>
+          <li><strong>Quiet until it needs you</strong><p>Live panels and progress posts send no notification. You look when you choose.</p></li>
+          <li><strong>Your server, your data</strong><p>MIT-licensed, deployed to your own Cloudflare account. No advertising and no analytics in the apps.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="features" aria-labelledby="features-title">
       <div class="wrap">
         <div class="section-head">
-          <p class="eyebrow">What it does</p>
-          <h2 id="features-title">One place for everything that needs you</h2>
-          <p class="lead">Agents keep working. HiBoss brings forward what only you can decide, and keeps the rest quiet until you want it.</p>
+          <h2 id="features-title">Agents keep working. You see what only you can decide.</h2>
+          <p class="lead">HiBoss brings forward the questions that need you, and keeps the rest quiet until you want it.</p>
         </div>
 
         <article class="feature">
           <div>
+            <p class="chip signal">Needs you</p>
             <h3>Decisions you can answer in one tap</h3>
-            <p class="muted">Your agent brings options, images, a description for each choice and an optional
-              deadline. Answer right on the card; the first answer wins across devices.</p>
+            <p class="muted">Your agent brings options, images, a description for each choice and an optional deadline. Answer right on the card; the first answer wins across devices.</p>
             <ul>
-              <li>Each question stays in its session thread, with project, branch and machine.</li>
-              <li>A deadline can pick a default so work can move on. HiBoss marks it as a default, never as your approval.</li>
+              <li>Answer from Today, a notification, the Lock Screen or the Dynamic Island.</li>
               <li>Reply in your own words when none of the options fit.</li>
             </ul>
           </div>
@@ -80,9 +87,8 @@
             <div class="phone small">
               <picture>
                 <source srcset="/assets/shots/session-dark.jpg" media="(prefers-color-scheme: dark)">
-                <img src="/assets/shots/session-light.jpg" width="600" height="1304"
-                  loading="lazy"
-                  alt="A session decision with images, option descriptions and a timeout default.">
+                <img src="/assets/shots/session-light.jpg" width="600" height="1304" loading="lazy"
+                  alt="A decision in its session thread: two image options with descriptions, answer buttons and the default a timeout would pick.">
               </picture>
             </div>
           </div>
@@ -90,38 +96,71 @@
 
         <article class="feature">
           <div>
-            <h3>Live panels you can watch</h3>
-            <p class="muted">For work that changes while you watch, an agent publishes a panel: a transfer, a test run, a benchmark sweep or a service monitor. It updates in place.</p>
+            <p class="chip signal">Needs you</p>
+            <h3>A timeout is a default, not your approval</h3>
+            <p class="muted">Work should not stall while you are away, so an agent can name a default and a deadline. HiBoss says what will be picked before it happens, and records the result as a default.</p>
+            <ul>
+              <li>The card states the default and the time left: “That is not approval.”</li>
+              <li>A picked default is labelled “Default picked · not approval”.</li>
+              <li>The agent receives it marked as an automatic default, not as your reply.</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/decision-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/decision-light.jpg" width="600" height="1304" loading="lazy"
+                  alt="A decision detail: an irreversible migration, a notice that no answer picks Reject and that this is not approval, then Approve and Reject.">
+              </picture>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div>
+            <p class="chip signal">Needs you</p>
+            <h3>Every question keeps its context</h3>
+            <p class="muted">Each question stays in its session thread, with the project, the branch, the agent and the machine it runs on. You see what was asked before and what you answered.</p>
+            <ul>
+              <li>Sessions are grouped into Needs you, Working and Idle.</li>
+              <li>Open a session to see the whole thread, reply to it, or attach something from your Box.</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/sessions-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/sessions-light.jpg" width="600" height="1304" loading="lazy"
+                  alt="The Sessions list: three sessions under Needs you, each with project, branch, agent and the question waiting.">
+              </picture>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div>
+            <p class="chip live">No notification</p>
+            <h3>Watch the work without being interrupted</h3>
+            <p class="muted">For work that changes while you watch, an agent publishes a live panel: a transfer, a test run, a benchmark sweep or a service monitor. What it shipped goes to a quiet Progress timeline, with screenshots and short clips.</p>
             <ul>
               <li>Progress bars only when there is a real total; otherwise stage, values and freshness.</li>
               <li>Questionnaires attach to a panel and return typed answers to the agent.</li>
-              <li>The same panels appear on iPhone and Mac.</li>
+              <li>Progress posts never send a notification. Filter by project and like a post.</li>
             </ul>
           </div>
-          <div class="feature-media">
-            <div class="phone small">
+          <div class="feature-media duo">
+            <div class="phone">
               <picture>
                 <source srcset="/assets/shots/panels-dark.jpg" media="(prefers-color-scheme: dark)">
-                <img src="/assets/shots/panels-light.jpg" width="600" height="1304" loading="lazy" alt="Live panels on the Today screen: a completed-tests counter, a nightly artifact transfer at 100 percent with throughput chart, and checkout journey test results.">
+                <img src="/assets/shots/panels-light.jpg" width="600" height="1304" loading="lazy"
+                  alt="Live panels on the Today screen: a completed-tests counter, a nightly artifact transfer at 100 percent with a throughput chart, and checkout journey test results.">
               </picture>
             </div>
-          </div>
-        </article>
-
-        <article class="feature">
-          <div>
-            <h3>Progress worth showing</h3>
-            <p class="muted">Agents post what they shipped to a quiet timeline, with screenshots and short clips. Posts never send a notification, so you browse them when you choose.</p>
-            <ul>
-              <li>Each project posts under its own name and avatar.</li>
-              <li>Filter by project and like a post.</li>
-            </ul>
-          </div>
-          <div class="feature-media">
-            <div class="phone small">
+            <div class="phone">
               <picture>
                 <source srcset="/assets/shots/progress-dark.jpg" media="(prefers-color-scheme: dark)">
-                <img src="/assets/shots/progress-light.jpg" width="600" height="1304" loading="lazy" alt="The Progress timeline: posts from the HiBoss project with landscape photos, tags and like counts.">
+                <img src="/assets/shots/progress-light.jpg" width="600" height="1304" loading="lazy"
+                  alt="The Progress timeline: posts from a project with images, tags and like counts.">
               </picture>
             </div>
           </div>
@@ -129,6 +168,7 @@
 
         <article class="feature">
           <div>
+            <p class="chip ">Reference</p>
             <h3>A Box for reference material</h3>
             <p class="muted">Put text, links, images, videos and files in your Box, and agents can find them when you mention them. Agents can add material too, always labelled with who added it.</p>
             <ul>
@@ -141,7 +181,8 @@
             <div class="phone small">
               <picture>
                 <source srcset="/assets/shots/box-dark.jpg" media="(prefers-color-scheme: dark)">
-                <img src="/assets/shots/box-light.jpg" width="600" height="1304" loading="lazy" alt="The Box list: notes, an image, a link, a video and a text file, each with kind, age and author.">
+                <img src="/assets/shots/box-light.jpg" width="600" height="1304" loading="lazy"
+                  alt="The Box list: notes, an image, a link, a video and a text file, each with kind, age and author.">
               </picture>
             </div>
           </div>
@@ -149,15 +190,13 @@
       </div>
     </section>
 
-    <section class="section" id="mac" aria-labelledby="mac-title">
+    <section class="section band" id="mac" aria-labelledby="mac-title">
       <div class="wrap mac-showcase">
         <div>
-          <p class="eyebrow">Mac Island</p>
-          <h2 id="mac-title">Decide from your Mac’s notch</h2>
-          <p class="lead">The next decision appears at the top of your screen. Read each option’s description,
-            see which one is the default, and answer without opening the main window.</p>
-          <p class="muted">Choose an option or reply in your own words. Your answer stays in sync with your
-            iPhone.</p>
+          <p class="eyebrow">HiBoss for Mac</p>
+          <h2 id="mac-title">Decide from the top of your Mac</h2>
+          <p class="lead">The next decision appears in the Island at the top of your screen. Read each option’s description, see which one is the default, and answer without opening the main window.</p>
+          <p class="muted">Choose an option or reply in your own words. Your answer stays in sync with your iPhone.</p>
         </div>
   <!-- include island -->
       </div>
@@ -166,7 +205,6 @@
     <section class="section" id="how" aria-labelledby="how-title">
       <div class="wrap">
         <div class="section-head">
-          <p class="eyebrow">How it works</p>
           <h2 id="how-title">Agent, your server, your apps</h2>
           <p class="lead">There is no HiBoss cloud in the middle. Agents and apps talk to the server you deploy.</p>
         </div>
@@ -178,14 +216,13 @@
         <pre><code><span class="c"># An agent asks, and waits for your answer</span>
 hiboss ask --option "Ship" --option "Wait" --default "Wait" \
   "Deploy v2.4 to production?"</code></pre>
-        <p><a href="/docs/agents/">How agents use HiBoss →</a></p>
+        <p><a href="/docs/agents/">How agents use HiBoss</a></p>
       </div>
     </section>
 
     <section class="section band" id="apps" aria-labelledby="apps-title">
       <div class="wrap">
         <div class="section-head">
-          <p class="eyebrow">Apps</p>
           <h2 id="apps-title">Answer wherever you are</h2>
         </div>
         <div class="cards">
@@ -228,27 +265,40 @@ hiboss ask --option "Ship" --option "Wait" --default "Wait" \
     <section class="section" id="open" aria-labelledby="open-title">
       <div class="wrap">
         <div class="section-head">
-          <p class="eyebrow">Open source, self-hosted</p>
           <h2 id="open-title">Your server, your data</h2>
           <p class="lead">HiBoss is MIT-licensed. You deploy the server to your own Cloudflare account, and you decide which agents and which people can reach it. There is no hosted account, no advertising and no analytics in the apps.</p>
         </div>
-        <div class="cards">
-          <article class="card"><h3>Read every line</h3><p>Server, CLI, MCP plugin and the iPhone and Mac apps live in one public repository.</p></article>
-          <article class="card"><h3>Explicit access</h3><p>Agents join only after you approve them. Each boss sees the agents they were granted.</p></article>
-          <article class="card"><h3>Provenance on every item</h3><p>Every message, answer and Box item says who made it: you, which agent, which session.</p></article>
-        </div>
+        <ul class="flow plain">
+          <li><strong>Read every line</strong><p>Server, CLI, MCP plugin and the iPhone and Mac apps live in one public repository.</p></li>
+          <li><strong>Explicit access</strong><p>Agents join only after you approve them. Each boss sees the agents they were granted.</p></li>
+          <li><strong>Provenance on every item</strong><p>Every message, answer and Box item says who made it: you, which agent, which session.</p></li>
+        </ul>
       </div>
     </section>
 
-    <section class="section cta" aria-labelledby="cta-title">
+    <section class="shore" aria-labelledby="cta-title">
+      <picture>
+        <source srcset="/assets/island-night.svg" media="(prefers-color-scheme: dark)">
+        <img class="shore-scene" src="/assets/island-day.svg" width="600" height="520" loading="lazy" alt="">
+      </picture>
       <div class="wrap">
-        <h2 id="cta-title">Let agents work. Stay the one who decides.</h2>
-        <p class="lead">Deploy your server in a few commands, then pair your phone.</p>
-        <div class="actions">
-          <a class="btn btn-primary" href="/download/">Download</a>
-          <a class="btn" href="/docs/self-host/">Self-host guide</a>
-          <a class="btn" href="https://github.com/sunoj/hiboss">GitHub</a>
+        <div class="shore-copy">
+          <p class="chip settled">Nothing needs you</p>
+          <h2 id="cta-title">Let agents work. Stay the one who decides.</h2>
+          <p class="lead">Deploy your server in a few commands, then pair your phone.</p>
+          <div class="actions">
+            <a class="btn btn-primary" href="/download/">Download</a>
+            <a class="btn" href="/docs/self-host/">Self-host guide</a>
+            <a class="btn" href="https://github.com/sunoj/hiboss">GitHub</a>
+          </div>
         </div>
+        <div class="phone">
+              <picture>
+                <source srcset="/assets/shots/allclear-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/allclear-light.jpg" width="600" height="1304" loading="lazy"
+                  alt="The Today screen with nothing waiting: “Nothing needs you”, a live connection, and the sessions still working.">
+              </picture>
+            </div>
       </div>
     </section>
   </main>

@@ -19,8 +19,10 @@ files=(
   updates/macos/appcast.xml
   assets/site.css assets/island-demo.css assets/island-demo.js
   assets/icon.png assets/apple-touch-icon.png assets/og.jpg
+  assets/island-day.svg assets/island-night.svg
 )
-for screen in home session panels progress box mac-island; do
+for screen in home decision session sessions box allclear panels progress mac-island \
+  home-zh decision-zh session-zh sessions-zh box-zh allclear-zh; do
   files+=("assets/shots/$screen-light.jpg" "assets/shots/$screen-dark.jpg")
 done
 
