@@ -1,6 +1,6 @@
 // Wakes an idle Claude Code session when the boss writes to it, through the messaging
 // socket Claude Code exports to the session's hooks. Sends fixed fields only, never a body.
-// Exports Inbox, Probe, wake_notice, wake_for_unread_spool; deps: serde_json, Unix sockets.
+// Exports Inbox, Probe, deliver, wake_notice, wake_for_unread_spool; deps: serde_json, sockets.
 
 use crate::session;
 use serde_json::Value;
@@ -123,6 +123,28 @@ fn notice_text(message: &Value, id: &str) -> String {
             "[hiboss] The boss sent message {id} to this session while it was idle. \
              Read it with `hiboss inbox`, then {ack}."
         ),
+    }
+}
+
+/// The one delivery path for the daemon's stream and an ask's waiter: spools the message (the
+/// hook shows it on the next tool call) and wakes the session when it is addressed there and
+/// idle. True when the session's process is gone.
+pub(crate) async fn deliver(data: &str, inbox: Option<&Inbox>, session_id: Option<&str>) -> bool {
+    // The spool holds bodies the hook injects into the agent context, so it is only ever
+    // appended as a private file in the validated state directory.
+    let _ = session::append_state(session::DAEMON_PENDING, &format!("{data}\n"));
+    let (Some(inbox), Ok(message)) = (inbox, serde_json::from_str::<Value>(data)) else {
+        return false;
+    };
+    let Some(notice) = wake_notice(&message, session_id) else {
+        return false;
+    };
+    match inbox.push(notice).await {
+        Ok(()) => false,
+        Err(err) => {
+            eprintln!("hiboss: session wake not delivered: {err}");
+            is_gone(&err)
+        }
     }
 }
 

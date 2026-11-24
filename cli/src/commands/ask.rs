@@ -234,7 +234,7 @@ pub async fn run(
     );
     let poll = wait_for_reply(client, &submission.id, args.timeout).await?;
     if let Some(ask) = &poll {
-        super::ask_wait::spool_reply(ask);
+        super::ask_wait::deliver_reply(ask).await;
     }
     let result = AskResult::from_poll(&submission.id, poll.as_ref(), &choices);
     if let Some(reply_id) = &result.reply_id {

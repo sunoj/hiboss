@@ -3,7 +3,7 @@
 // Dependencies: clap, tokio, crate::config, crate::session, crate::sse.
 
 use crate::commands::SubcommandArgs;
-use super::daemon_wake::{Inbox, Probe, is_gone, wake_notice};
+use super::daemon_wake::{Inbox, Probe, deliver};
 use super::hook_helpers::{start_daemon_if_needed, stop_daemon};
 use crate::{config, session, sse};
 use clap::Subcommand;
@@ -123,27 +123,6 @@ fn next_delay(outcome: Result<Result<bool, String>, tokio::task::JoinError>, bac
     eprintln!("SSE stream failed ({reason}), reconnecting in {}s...", delay.as_secs());
     *backoff = (delay * 2).min(RETRY_MAX);
     delay
-}
-
-/// Spools one message (the hook injects it on the next tool call) and wakes the session
-/// when it is addressed there and idle. True when the session's process is gone.
-async fn deliver(data: &str, inbox: Option<&Inbox>, session_id: Option<&str>) -> bool {
-    // The spool holds bodies the hook injects into the agent context, so it is only ever
-    // appended as a private file in the validated state directory.
-    let _ = session::append_state(session::DAEMON_PENDING, &format!("{}\n", data));
-    let (Some(inbox), Ok(message)) = (inbox, serde_json::from_str::<serde_json::Value>(data)) else {
-        return false;
-    };
-    let Some(notice) = wake_notice(&message, session_id) else {
-        return false;
-    };
-    match inbox.push(notice).await {
-        Ok(()) => false,
-        Err(err) => {
-            eprintln!("Session wake not delivered: {err}");
-            is_gone(&err)
-        }
-    }
 }
 
 /// The Claude Code process this daemon served has exited; release its pid file if still ours.

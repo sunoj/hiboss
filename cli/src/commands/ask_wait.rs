@@ -1,5 +1,5 @@
 // Waits across bounded poll windows until a reply or the ask's monotonic deadline.
-// Exports wait_for_reply, spool_reply; retries transient HTTP and transport failures.
+// Exports wait_for_reply, deliver_reply; retries transient HTTP and transport failures.
 // Dependencies: HiBossClient, typed HTTP errors, and Tokio deadline timers.
 
 use super::ask_result::decision_reply;
@@ -40,17 +40,20 @@ pub(crate) async fn wait_for_reply(
     Ok(decision_reply(&message).is_some().then_some(message))
 }
 
-/// Hands the reply to the session spool as well as to the waiter's output. A waiter that was
-/// detached or redirected to a file still gets its answer to the agent: the next tool call
-/// shows it, and Stop wakes an idle session for it. The daemon cannot be relied on here,
-/// because the waiter marks the reply read before the stream's next poll sees it.
-pub(crate) fn spool_reply(ask: &Message) {
+/// Delivers the reply to the session the way the daemon does, as well as printing it. A waiter
+/// that was detached or redirected to a file still gets the answer to the agent: the next tool
+/// call shows it, and an idle session is woken (now, or at Stop if the turn is still running).
+/// The daemon cannot be relied on here: the waiter marks the reply read before the stream's
+/// next poll sees it.
+pub(crate) async fn deliver_reply(ask: &Message) {
     let Some(reply) = decision_reply(ask) else { return };
     let mut entry = reply.clone();
     entry.reply_to = entry.reply_to.or_else(|| Some(ask.id.clone()));
     entry.target_session_id = entry.target_session_id.or_else(|| ask.session_id.clone());
     if let Ok(line) = serde_json::to_string(&entry) {
-        let _ = crate::session::append_state(crate::session::DAEMON_PENDING, &format!("{line}\n"));
+        let inbox = super::daemon_wake::Inbox::from_env();
+        let session_id = crate::session::read_session_id();
+        super::daemon_wake::deliver(&line, inbox.as_ref(), session_id.as_deref()).await;
     }
 }
 

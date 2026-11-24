@@ -4,12 +4,11 @@
 #![cfg(unix)]
 
 mod session_identity_support;
+mod session_wake_support;
 use serde_json::{Value, json};
 use session_identity_support::http::{Http, Response};
-use session_identity_support::{Fixture, Run, is_hiboss, read, wait_until};
-use std::io::Read;
-use std::os::unix::net::UnixListener;
-use std::path::PathBuf;
+use session_identity_support::{Fixture, is_hiboss, read, wait_until};
+use session_wake_support::{Socket, claude, daemon_pid};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -38,58 +37,6 @@ fn sse(messages: &[Value]) -> String {
 fn reply(id: &str, target: &str) -> Value {
     json!({"id": id, "direction": "boss_to_agent", "target_session_id": target,
         "reply_to": "msg-ask-0001", "agent_name": "boss", "body": "BODY-NOT-PUSHED", "metadata": {}})
-}
-
-/// A stand-in for Claude Code's socket: records every non-empty write (probes write nothing).
-struct Socket {
-    path: PathBuf,
-    pushes: Arc<Mutex<Vec<String>>>,
-}
-
-impl Socket {
-    fn bind(name: &str) -> Self {
-        let path = PathBuf::from(format!("/tmp/hbw-{}-{name}.sock", std::process::id()));
-        let _ = std::fs::remove_file(&path);
-        let listener = UnixListener::bind(&path).unwrap();
-        let pushes: Arc<Mutex<Vec<String>>> = Arc::default();
-        let log = pushes.clone();
-        std::thread::spawn(move || {
-            for mut stream in listener.incoming().flatten() {
-                let mut text = String::new();
-                let _ = stream.read_to_string(&mut text);
-                if !text.is_empty() {
-                    log.lock().unwrap().push(text);
-                }
-            }
-        });
-        Self { path, pushes }
-    }
-
-    fn pushes(&self) -> Vec<String> {
-        self.pushes.lock().unwrap().clone()
-    }
-}
-
-impl Drop for Socket {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-    }
-}
-
-fn claude(fixture: &Fixture, args: &[&str], socket: Option<&Socket>) -> Run {
-    let path = socket.map(|s| s.path.to_string_lossy().into_owned());
-    let mut env = vec![("CLAUDECODE", "1"), ("CLAUDE_CODE_SESSION_ID", "s"), ("HIBOSS_PROFILE", "claude")];
-    if let Some(path) = path.as_deref() {
-        env.extend([("CLAUDE_CODE_MESSAGING_SOCKET", path), ("CLAUDE_CODE_MESSAGING_TOKEN", "tok")]);
-    }
-    let run = fixture.run(&fixture.repo, args, &env);
-    assert_eq!(run.code, 0, "{args:?}: {}", run.stderr);
-    run
-}
-
-fn daemon_pid(dir: &std::path::Path) -> u32 {
-    assert!(wait_until(|| dir.join("daemon.pid").exists()), "no daemon pid");
-    read(&dir.join("daemon.pid")).parse().expect("daemon pid")
 }
 
 /// Lets the daemon run several more reconnects so a second push would have arrived.
@@ -208,74 +155,4 @@ fn a_new_socket_replaces_the_daemon_and_a_gone_socket_ends_it() {
     drop(second);
     assert!(wait_until(|| !is_hiboss(new)), "the daemon exits once its session is gone");
     assert!(!dir.join("daemon.pid").exists());
-}
-
-/// A waiter detached with `&` or redirected to a file gets the reply, marks it read before the
-/// stream sees it, and prints it where the agent never looks: the session must still learn of it.
-/// Serves one ask whose poll returns a decision reply addressed to the session in `session`.
-fn ask_server(session: Arc<Mutex<String>>, auto_default: bool) -> Http {
-    let source = if auto_default { "system" } else { "api" };
-    let status = if auto_default { "not_applicable" } else { "not_configured" };
-    Http::start(move |request| {
-        if request.path.contains("/poll?") {
-            let mut metadata = json!({"source": source, "provenance":
-                {"version": 1, "source": source, "signature": {"status": status}}});
-            if auto_default {
-                metadata["auto_default"] = json!(true);
-            }
-            let reply = json!({"id": "reply-spooled", "direction": "boss_to_agent", "reply_to": "ask-1",
-                "target_session_id": *session.lock().unwrap(), "body": "BODY-FROM-ASK", "metadata": metadata});
-            return Response::json(200, json!({"id": "ask-1", "direction": "agent_to_boss", "replies": [reply]}));
-        }
-        match (request.method.as_str(), request.path.as_str()) {
-            ("POST", "/api/messages") => Response::json(201,
-                json!({"id": "ask-1", "status": "sent", "created_at": "2026-11-24T00:00:00Z"})),
-            ("GET", path) if path.starts_with("/api/messages/stream") => {
-                Response::json(200, Value::String(": keepalive\n\n".into()))
-            }
-            _ => Response::json(200, json!({"ok": true, "sessions": [], "messages": [], "total": 0})),
-        }
-    })
-}
-
-#[test]
-fn a_reply_taken_by_a_detached_ask_wakes_the_session_at_stop() {
-    let session: Arc<Mutex<String>> = Arc::default();
-    let http = ask_server(session.clone(), false);
-    let fixture = Fixture::new("repo", &http.url);
-    let dir = fixture.prepare("claude", "s");
-    let socket = Socket::bind("ask");
-    claude(&fixture, &["hook", "session-start"], Some(&socket));
-    daemon_pid(&dir);
-    *session.lock().unwrap() = read(&dir.join("session"));
-    let ask = claude(&fixture, &["ask", "Deploy?", "--option", "Yes", "--option", "No", "--timeout", "60"], Some(&socket));
-    assert!(ask.stdout.contains("BODY-FROM-ASK"), "the waiter still returns the reply: {}", ask.stdout);
-    assert!(socket.pushes().is_empty(), "a working session is not pushed");
-    claude(&fixture, &["hook", "stop"], Some(&socket));
-    let pushes = socket.pushes();
-    assert_eq!(pushes.len(), 1, "{pushes:?}");
-    assert!(pushes[0].contains("reply-spooled") && pushes[0].contains("ask-1"), "{}", pushes[0]);
-    assert!(!pushes[0].contains("BODY-FROM-ASK"), "{}", pushes[0]);
-    let hook = claude(&fixture, &["hook", "post-tool-use"], Some(&socket));
-    assert_eq!(hook.stdout.matches("BODY-FROM-ASK").count(), 1, "{}", hook.stdout);
-}
-
-#[test]
-fn a_server_default_never_reaches_the_agent_as_the_bosss_answer() {
-    let session: Arc<Mutex<String>> = Arc::default();
-    let http = ask_server(session.clone(), true);
-    let fixture = Fixture::new("repo", &http.url);
-    let dir = fixture.prepare("claude", "s");
-    let socket = Socket::bind("default");
-    claude(&fixture, &["hook", "session-start"], Some(&socket));
-    daemon_pid(&dir);
-    *session.lock().unwrap() = read(&dir.join("session"));
-    claude(&fixture, &["ask", "Deploy?", "--option", "Yes", "--option", "No", "--timeout", "60"], Some(&socket));
-    claude(&fixture, &["hook", "stop"], Some(&socket));
-    let pushes = socket.pushes();
-    assert_eq!(pushes.len(), 1, "{pushes:?}");
-    assert!(pushes[0].contains("not a boss decision"), "{}", pushes[0]);
-    let hook = claude(&fixture, &["hook", "post-tool-use"], Some(&socket));
-    assert!(hook.stdout.contains("[server default]") && hook.stdout.contains("not a boss decision"), "{}", hook.stdout);
-    assert!(!hook.stdout.contains("[boss]"), "{}", hook.stdout);
 }
