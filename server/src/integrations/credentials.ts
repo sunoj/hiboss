@@ -59,12 +59,13 @@ export async function findWebhook(db: D1Database, id: string, token: string): Pr
 
 /** Takes one slot in the integration's current minute; concurrent posts are serialized by D1. */
 export async function reserveRateSlot(db: D1Database, agentId: string, limit: number): Promise<boolean> {
+  const window = new Date().toISOString().slice(0, 16);
   const row = await db.prepare(`INSERT INTO integration_rate_windows (agent_id, window_start, count)
-      VALUES (?, strftime('%Y-%m-%d %H:%M', 'now'), 1)
+      VALUES (?, ?, 1)
     ON CONFLICT(agent_id) DO UPDATE SET
       count = CASE WHEN window_start = excluded.window_start THEN count + 1 ELSE 1 END,
       window_start = excluded.window_start
-    RETURNING count`).bind(agentId).first<{ count: number }>();
+    RETURNING count`).bind(agentId, window).first<{ count: number }>();
   return (row?.count ?? Number.MAX_SAFE_INTEGER) <= limit;
 }
 

@@ -7,28 +7,21 @@ export interface MultipartPart { name: string; filename: string | null; type: st
 const MAX_PARTS = 20;
 const MAX_HEADER_BYTES = 8 * 1024;
 
-/** RFC 2046: 1–70 characters from a fixed set, so a hostile boundary cannot inflate the search. */
+/** The exact `boundary` parameter of the media type (RFC 2046: 1–70 characters from a fixed set). */
 function boundaryOf(contentType: string): string | null {
-  const match = contentType.match(/boundary=(?:"([^"]+)"|([^;\s]+))/i);
-  const boundary = match ? (match[1] ?? match[2]) : null;
-  return boundary && /^[0-9A-Za-z'()+_,\-./:=? ]{1,70}$/.test(boundary) ? boundary : null;
+  for (const parameter of contentType.split(';').slice(1)) {
+    const equals = parameter.indexOf('=');
+    if (equals < 0 || parameter.slice(0, equals).trim().toLowerCase() !== 'boundary') continue;
+    const value = parameter.slice(equals + 1).trim().replace(/^"(.*)"$/, '$1');
+    return /^[0-9A-Za-z'()+_,\-./:=? ]{0,69}[0-9A-Za-z'()+_,\-./:=?]$/.test(value) ? value : null;
+  }
+  return null;
 }
 
 function headerParam(header: string, key: string): string | null {
   const match = header.match(new RegExp(`(?:^|;)\\s*${key}="([^"]*)"`, 'i'))
     ?? header.match(new RegExp(`(?:^|;)\\s*${key}=([^;]*)`, 'i'));
   return match ? match[1].trim() : null;
-}
-
-function parsePart(text: string, body: Uint8Array, start: number, end: number, shift: number): MultipartPart | null {
-  const split = text.indexOf('\r\n\r\n', start);
-  if (split < 0 || split > end || split - start > MAX_HEADER_BYTES) return null;
-  const headers = text.slice(start, split).split('\r\n');
-  const disposition = headers.find((line) => /^content-disposition:/i.test(line)) ?? '';
-  if (!/^content-disposition:\s*form-data/i.test(disposition)) return null;
-  const type = headers.find((line) => /^content-type:/i.test(line))?.split(':')[1]?.trim() ?? 'text/plain';
-  return { name: headerParam(disposition, 'name') ?? '', filename: headerParam(disposition, 'filename'),
-    type, bytes: body.subarray(split + 4 - shift, end - shift) };
 }
 
 /** One UTF-16 unit per byte, so string offsets are byte offsets. */
@@ -40,41 +33,55 @@ function byteString(bytes: Uint8Array): string {
   return text;
 }
 
-/**
- * A delimiter counts only as a whole line ("\r\n--boundary" followed by "\r\n" or the closing "--"),
- * so file bytes that merely contain the boundary text never split a part. The body is read as
- * one character per byte, so the engine's native substring search does the scanning.
- * Returns null for anything that is not well-formed multipart.
- */
-type Delimiter = { at: number; close: boolean };
+/** Headers end with a blank line that must sit wholly inside the part; they are UTF-8 text. */
+function parsePart(text: string, body: Uint8Array, start: number, end: number): MultipartPart | null {
+  const split = text.slice(start, Math.min(end, start + MAX_HEADER_BYTES + 4)).indexOf('\r\n\r\n');
+  if (split < 0 || start + split + 4 > end) return null;
+  const headers = new TextDecoder().decode(body.subarray(start, start + split)).split('\r\n');
+  const disposition = headers.find((line) => /^content-disposition:/i.test(line)) ?? '';
+  if (!/^content-disposition:\s*form-data/i.test(disposition)) return null;
+  const type = headers.find((line) => /^content-type:/i.test(line))?.split(':')[1]?.trim() ?? 'text/plain';
+  return { name: headerParam(disposition, 'name') ?? '', filename: headerParam(disposition, 'filename'),
+    type, bytes: body.subarray(start + split + 4, end) };
+}
 
-/** The next real delimiter line at or after `from`; a boundary-like string inside data is skipped. */
-function nextDelimiter(text: string, delimiter: string, from: number): Delimiter | null {
-  for (let at = text.indexOf(delimiter, from); at >= 0; at = text.indexOf(delimiter, at + 1)) {
-    const after = at + delimiter.length;
-    if (text.startsWith('\r\n', after)) return { at, close: false };
-    // A close delimiter may carry transport padding before its line break or the end of the body.
-    const rest = /^--[ \t]*(\r\n|$)/.exec(text.slice(after, after + 64));
-    if (rest) return { at, close: true };
+type Delimiter = { at: number; close: boolean; next: number };
+
+/**
+ * The next real delimiter line at or after `from`: "--boundary" at the start of a line, optional
+ * transport padding, then a line break (or, for the closing "--boundary--", the end of the body).
+ * Anything else that merely contains the boundary text is data and is skipped.
+ */
+function nextDelimiter(text: string, boundary: string, from: number): Delimiter | null {
+  const marker = `--${boundary}`;
+  for (let at = text.indexOf(marker, from); at >= 0; at = text.indexOf(marker, at + 1)) {
+    if (at !== 0 && !text.startsWith('\r\n', at - 2)) continue;
+    let index = at + marker.length;
+    const close = text.startsWith('--', index);
+    if (close) index += 2;
+    while (text[index] === ' ' || text[index] === '\t') index += 1;
+    if (text.startsWith('\r\n', index)) return { at, close, next: index + 2 };
+    if (close && index === text.length) return { at, close, next: index };
   }
   return null;
 }
 
+/**
+ * Parts sit between delimiter lines; the line break before a delimiter belongs to it. The body
+ * is read one character per byte so the engine's native substring search does the scanning.
+ * Returns null for anything that is not well-formed multipart.
+ */
 export function parseMultipart(body: Uint8Array, contentType: string): MultipartPart[] | null {
   const boundary = boundaryOf(contentType);
   if (!boundary) return null;
-  // The first delimiter may open the body without a preceding line break.
-  const text = `\r\n${byteString(body)}`;
-  const delimiter = `\r\n--${boundary}`;
-  let current = nextDelimiter(text, delimiter, 0);
+  const text = byteString(body);
+  let current = nextDelimiter(text, boundary, 0);
   const parts: MultipartPart[] = [];
   while (current && !current.close) {
     if (parts.length >= MAX_PARTS) return null;
-    const start = current.at + delimiter.length + 2;
-    const next = nextDelimiter(text, delimiter, start);
-    if (!next) return null;
-    // Offsets in `text` are one ahead of the body because of the leading line break.
-    const part = parsePart(text, body, start, next.at, 2);
+    const next = nextDelimiter(text, boundary, current.next);
+    if (!next || next.at < current.next + 2) return null;
+    const part = parsePart(text, body, current.next, next.at - 2);
     if (!part) return null;
     parts.push(part);
     current = next;
