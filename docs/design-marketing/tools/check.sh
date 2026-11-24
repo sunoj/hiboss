@@ -51,5 +51,12 @@ git diff --quiet -- docs/design-marketing/app-store/listing.md ios/AppStore/meta
 diff -rq "$store/en-US" ios/AppStore/Screenshots/en-US >/dev/null && diff -rq "$store/zh-Hans" ios/AppStore/Screenshots/zh-Hans >/dev/null \
   || note 'ios/AppStore/Screenshots differs from the composed frames'
 if grep -rniE 'claude|codex' ios/AppStore/metadata/*/keywords.txt; then note 'third-party name in keywords'; fi
+# Creative assets (product page header, search results) and the custom product page manifest.
+for asset in "$store"/creative/*/*.png; do
+  [[ $(sips -g format "$asset" | awk 'NR > 1 { print $2 }') == png ]] || note "$asset is not PNG"
+  check_size "$asset" 5244 2950
+done
+python3 docs/design-marketing/tools/check-store-creative.py || fail=1
+
 (( fail == 0 )) && echo 'marketing checks passed'
 exit $fail

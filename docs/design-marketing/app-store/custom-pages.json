@@ -1,0 +1,100 @@
+{
+  "app": "ai.hiboss.app",
+  "note": "Plan for two custom product pages. Nothing here is uploaded automatically; paths are relative to the repository root.",
+  "default_page": {
+    "creative_asset": {
+      "en-US": "docs/design-marketing/app-store/creative/en-US/universal.png",
+      "zh-Hans": "docs/design-marketing/app-store/creative/zh-Hans/universal.png"
+    }
+  },
+  "pages": [
+    {
+      "name": "Answer from your phone",
+      "purpose": "For people who run AI coding agents and want to answer them away from the desk. Leads with the decision card and the timeout rule.",
+      "locales": {
+        "en-US": {
+          "promotional_text": "Answer your AI coding agents from your phone. One tap on a decision, from Today, a notification or the Lock Screen. A timeout is never treated as your approval.",
+          "frames": {
+            "iphone-6.9": [
+              "docs/design-marketing/app-store/en-US/iphone-6.9/01-today.jpg",
+              "docs/design-marketing/app-store/en-US/iphone-6.9/02-default.jpg",
+              "docs/design-marketing/app-store/en-US/iphone-6.9/03-session.jpg",
+              "docs/design-marketing/app-store/en-US/iphone-6.9/04-sessions.jpg",
+              "docs/design-marketing/app-store/en-US/iphone-6.9/06-all-clear.jpg"
+            ],
+            "ipad-13": [
+              "docs/design-marketing/app-store/en-US/ipad-13/01-today.jpg",
+              "docs/design-marketing/app-store/en-US/ipad-13/02-default.jpg",
+              "docs/design-marketing/app-store/en-US/ipad-13/03-session.jpg",
+              "docs/design-marketing/app-store/en-US/ipad-13/05-all-clear.jpg"
+            ]
+          },
+          "creative_asset": "docs/design-marketing/app-store/creative/en-US/universal.png"
+        },
+        "zh-Hans": {
+          "promotional_text": "用手机回复你的 AI 编程智能体。在“今天”页面、通知或锁屏上点一下就能做决定。超时自动选的默认项，绝不算你的批准。",
+          "frames": {
+            "iphone-6.9": [
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/01-today.jpg",
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/02-default.jpg",
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/03-session.jpg",
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/04-sessions.jpg",
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/06-all-clear.jpg"
+            ],
+            "ipad-13": [
+              "docs/design-marketing/app-store/zh-Hans/ipad-13/01-today.jpg",
+              "docs/design-marketing/app-store/zh-Hans/ipad-13/02-default.jpg",
+              "docs/design-marketing/app-store/zh-Hans/ipad-13/03-session.jpg",
+              "docs/design-marketing/app-store/zh-Hans/ipad-13/05-all-clear.jpg"
+            ]
+          },
+          "creative_asset": "docs/design-marketing/app-store/creative/zh-Hans/universal.png"
+        }
+      }
+    },
+    {
+      "name": "Self-hosted and private",
+      "purpose": "For people who want private infrastructure they run themselves. Leads with the all-clear screen and the server-you-run line, then shows the decisions.",
+      "locales": {
+        "en-US": {
+          "promotional_text": "HiBoss connects to a server you deploy and run yourself. No HiBoss account, no advertising, no analytics. Open source under the MIT License. Try the built-in demo first.",
+          "frames": {
+            "iphone-6.9": [
+              "docs/design-marketing/app-store/en-US/iphone-6.9/06-all-clear.jpg",
+              "docs/design-marketing/app-store/en-US/iphone-6.9/01-today.jpg",
+              "docs/design-marketing/app-store/en-US/iphone-6.9/02-default.jpg",
+              "docs/design-marketing/app-store/en-US/iphone-6.9/05-box.jpg",
+              "docs/design-marketing/app-store/en-US/iphone-6.9/03-session.jpg"
+            ],
+            "ipad-13": [
+              "docs/design-marketing/app-store/en-US/ipad-13/05-all-clear.jpg",
+              "docs/design-marketing/app-store/en-US/ipad-13/01-today.jpg",
+              "docs/design-marketing/app-store/en-US/ipad-13/02-default.jpg",
+              "docs/design-marketing/app-store/en-US/ipad-13/04-box.jpg"
+            ]
+          },
+          "creative_asset": "docs/design-marketing/app-store/creative/en-US/universal-self-hosted.png"
+        },
+        "zh-Hans": {
+          "promotional_text": "HiBoss 连接你自己部署、自己运行的服务器。没有 HiBoss 账号，没有广告，没有统计分析。以 MIT 许可开源。可以先体验内置演示。",
+          "frames": {
+            "iphone-6.9": [
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/06-all-clear.jpg",
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/01-today.jpg",
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/02-default.jpg",
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/05-box.jpg",
+              "docs/design-marketing/app-store/zh-Hans/iphone-6.9/03-session.jpg"
+            ],
+            "ipad-13": [
+              "docs/design-marketing/app-store/zh-Hans/ipad-13/05-all-clear.jpg",
+              "docs/design-marketing/app-store/zh-Hans/ipad-13/01-today.jpg",
+              "docs/design-marketing/app-store/zh-Hans/ipad-13/02-default.jpg",
+              "docs/design-marketing/app-store/zh-Hans/ipad-13/04-box.jpg"
+            ]
+          },
+          "creative_asset": "docs/design-marketing/app-store/creative/zh-Hans/universal-self-hosted.png"
+        }
+      }
+    }
+  ]
+}

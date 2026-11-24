@@ -134,6 +134,60 @@ the proof points in the hierarchy's order.
 The iPad set has five frames. On iPad the Sessions list shows an empty detail column until a
 session is selected, and frame 3 already shows the list next to a thread.
 
+## Creative assets: product page header and search results
+
+One image per locale serves both placements (`PRODUCT_PAGE_HEADER_ASSET` and
+`APP_STORE_SEARCH_RESULTS_ASSET`): Apple's universal asset.
+
+| Property | Value |
+|---|---|
+| File | PNG, exactly 5244×2950 (16:9), no alpha channel |
+| Art safe area | 1402×962 at x 1921, y 660; the headline and the island stay inside it |
+| Auxiliary art area | the rest of the canvas; sky, sea, sun or moon, clouds or stars, waves |
+
+The store crops this image differently per device, so nothing outside the safe area carries
+meaning. The universal asset was chosen over a separate 3840×1646 header and a 3:2 search image
+because one composition holds in every crop tried (see the previews), and one file per locale is
+less to keep in step.
+
+- **Art.** The island, alone under the sky, with the headline above it. No app screen appears, so
+  the scene rule holds: the island is never beside a decision. The island is the v4 scene artwork,
+  placed unchanged; the tool extends only the sky, the sea and their sun, moon, clouds, stars and
+  waves across the canvas.
+- **Default asset** (`creative/<locale>/universal.png`): the day scene with "Your agents ask. You
+  decide." / "智能体来问，你来拍板。", set in the same two weights as the site headline.
+- **Self-hosted variant** (`creative/<locale>/universal-self-hosted.png`): the night scene with
+  "Your server. Your data." / "你的服务器，你的数据。", for the second custom product page.
+- **Previews** (`creative/previews/`): each asset cropped to 21:9 and 3:2, wide and tight, with
+  the safe area drawn as a dashed box. A wide crop keeps one full canvas dimension. A tight crop
+  gives the safe area the share of the frame that Apple's separate header and search specs give
+  theirs. Both are centred on the safe area; the exact crops the store applies are not published.
+
+Regenerate and verify:
+
+```sh
+node docs/design-marketing/tools/creative.mjs docs/design-marketing/app-store/creative
+docs/design-marketing/tools/check.sh
+```
+
+`check.sh` requires PNG, the exact pixel size and no alpha for every asset, and that each has its
+four previews.
+
+## Custom product pages
+
+`app-store/custom-pages.json` is the manifest: for each page its name, purpose, and per locale the
+promotional text, the ordered frames for iPhone 6.9" and iPad 13", and the creative asset. It holds
+no keywords. Frames are chosen from the existing 22; no new frame is made.
+
+| Page | For | Opens with | Frames (iPhone) | Creative asset |
+|---|---|---|---|---|
+| Answer from your phone | people running AI coding agents who want to answer away from the desk | the decision card | today, default, session, sessions, all-clear | default (day) |
+| Self-hosted and private | people who want infrastructure they run themselves | the all-clear screen and "on a server you run" | all-clear, today, default, box, session | self-hosted (night) |
+
+The iPad order is the same with the Sessions frame left out, since the iPad set has none. Promotional
+text stays within 170 characters and names no third-party product; `check.sh` enforces both, and
+that every listed frame exists for its locale and device.
+
 ## Alternatives rejected
 
 - **A hero built from the icon's character.** The Brand sheet says the icon stays an icon and is
