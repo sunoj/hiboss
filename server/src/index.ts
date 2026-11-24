@@ -10,6 +10,7 @@ import { bossDestinationsRouter, bossProvidersRouter } from './routes/boss-desti
 import { cors } from 'hono/cors';
 import type { Env } from './types';
 import { adminRouter } from './routes/admin';
+import integrationsRouter from './integrations/routes';
 import { agentsRouter } from './routes/agents';
 import { agentKeysRouter, agentSigningRouter, bossAgentKeysRouter, bossAgentSigningRouter } from './agent-keys';
 import { bootstrapBossRouter } from './devices/bootstrap-boss';
@@ -89,6 +90,7 @@ app.route('/api/webhooks', webhooksRouter);
 app.route('/api/agents/me/keys', agentKeysRouter);
 app.route('/api/agents/me/signing-keys', agentSigningRouter);
 app.route('/api/agents', agentsRouter);
+app.route('/api/integrations', integrationsRouter);
 app.route('/api/messages', streamRouter);
 app.route('/api/messages', messagesRouter);
 app.route('/api/routing-rules', routingRouter);

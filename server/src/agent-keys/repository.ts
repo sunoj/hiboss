@@ -26,7 +26,7 @@ export async function prepareKey(db: D1Database, agentId: string, label: string,
   const hash = await hashApiKey(key);
   // A boss mint commits only while that boss may still mint, so it cannot outrun a concurrent sweep.
   const statement = db.prepare(`INSERT INTO agent_keys (id, agent_id, key_hash, label, minted_by_boss_id)
-    SELECT ?1, id, ?2, ?3, ?4 FROM api_keys WHERE id = ?5 AND (?4 IS NULL OR ${mayMint('?4', '?5')})
+    SELECT ?1, id, ?2, ?3, ?4 FROM api_keys WHERE id = ?5 AND kind = 'agent' AND (?4 IS NULL OR ${mayMint('?4', '?5')})
     RETURNING ${KEY_COLUMNS}`)
     .bind(id, hash, label, mintedBy, agentId);
   return { id, key, statement };
