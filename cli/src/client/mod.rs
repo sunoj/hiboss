@@ -243,6 +243,7 @@ mod sessions;
 pub mod notes;
 mod bosses;
 mod groups;
+mod integrations;
 mod messages;
 mod signed;
 mod panels;

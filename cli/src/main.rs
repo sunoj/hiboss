@@ -5,7 +5,7 @@
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
-    agent, ask, boss, bot, box_cmd, channel, config as config_cmd, daemon, doctor, edit, forward, group,
+    agent, ask, boss, bot, box_cmd, channel, config as config_cmd, daemon, doctor, edit, forward, group, integration,
     device, hook, inbox, key, onboarding, panel, progress, react, read, reply, request, route, send, setup, ss,
     status, watch, whoami, SubcommandArgs,
 };
@@ -68,6 +68,8 @@ enum Commands {
     Route(SubcommandArgs<route::RouteCommand>),
     #[command(about = "Manage agent groups for broadcast messaging")]
     Group(SubcommandArgs<group::GroupCommand>),
+    #[command(about = "Manage Discord-compatible webhook integrations (admin agents)")]
+    Integration(SubcommandArgs<integration::IntegrationCommand>),
     #[command(about = "Manage boss identities and permissions")]
     Boss(SubcommandArgs<boss::BossCommand>),
     #[command(about = "Session status board")]
@@ -160,6 +162,7 @@ async fn run_remote(
         Commands::Watch(args) => watch::run(args, &config, &client).await?,
         Commands::Route(args) => route::run(args, &config, &client).await?,
         Commands::Group(args) => group::run(args, &config, &client).await?,
+        Commands::Integration(args) => integration::run(args, &client).await?,
         Commands::Boss(args) => boss::run(args, &config, &client).await?,
         Commands::Device(args) => device::run(args, config).await?,
         Commands::Ss(args) => ss::run(args, &config, &client).await?,
