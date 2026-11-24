@@ -2,6 +2,7 @@
 // Exercises MessageEmbed, MessageMarkdown block kinds and the rich_content preference.
 // Dependencies: XCTest and HibossKit.
 
+import SwiftUI
 import XCTest
 @testable import HibossKit
 
@@ -29,6 +30,18 @@ final class MessageEmbedTests: XCTestCase {
         XCTAssertEqual(blocks.map(\.kind), [.paragraph, .embed, .code])
         XCTAssertEqual(blocks[1].text, card)
         XCTAssertEqual(MessageMarkdown.blocks("```hiboss-embedded\n{}\n```").map(\.kind), [.code])
+    }
+
+    /// A long hash wraps inside its column, so a narrow card grows taller instead of clipping.
+    @MainActor func testCardRendersAndWrapsLongValuesAtNarrowWidths() throws {
+        let embed = try XCTUnwrap(MessageEmbed.decode(card))
+        func height(_ width: CGFloat) -> CGFloat {
+            let renderer = ImageRenderer(content: MessageEmbedCard(embed).frame(width: width))
+            return renderer.cgImage.map { CGFloat($0.height) / renderer.scale } ?? 0
+        }
+        let wide = height(640)
+        XCTAssertGreaterThan(wide, 100)
+        XCTAssertGreaterThan(height(240), wide)
     }
 
     func testRichContentIsShownInsteadOfThePlainFallback() throws {
