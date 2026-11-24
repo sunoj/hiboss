@@ -22,7 +22,7 @@ if grep -rn 'document.cookie' "$out" --include='*.html' --include='*.js'; then n
 
 # The App Store switch stays one replaceable line on both download pages.
 for page in download/index.html zh/download/index.html; do
-  [[ $(grep -c 'APP STORE SWITCH' "site/$page") == 1 && $(grep -c 'class="store-soon' "site/$page") == 1 ]] \
+  [[ $(grep -c 'APP STORE SWITCH' "site/$page") == 1 && $(grep -cE 'class="store-(soon|badge)' "site/$page") == 2 ]] \
     || note "App Store switch in $page"
 done
 

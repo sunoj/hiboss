@@ -53,6 +53,13 @@ for (const [device, [width, height, scale]] of Object.entries(WIDTHS)) {
       if (problems.length) { failures += 1; console.error(`FAIL ${name} ${device} ${theme}: ${problems.join('; ')}`); }
       await page.screenshot({ path: join(out, `${name}-${device}-${theme}.jpg`), fullPage: true,
         type: 'jpeg', quality: 64 });
+      for (const narrow of [320, 768]) {
+        await page.setViewportSize({ width: narrow, height });
+        if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) {
+          failures += 1; console.error(`FAIL ${name} ${theme}: horizontal overflow at ${narrow}px`);
+        }
+      }
+      await page.setViewportSize({ width, height });
       offsite.length = 0;
     }
     await context.close();

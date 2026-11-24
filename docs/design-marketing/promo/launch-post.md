@@ -21,8 +21,8 @@ one place to ask, and gives you one tap to answer.
 - It runs on your own server: a Cloudflare Worker with D1 and R2 in your account. There is no
   HiBoss account, and no advertising or analytics in the apps.
 
-HiBoss is open source under the MIT License. The Mac app and the CLI are available now; the iPhone
-and iPad app is coming to the App Store.
+HiBoss is open source under the MIT License. The server, the CLI and the Mac app are in the repository and its
+releases; the iPhone and iPad app is coming to the App Store.
 
 Start with the self-host guide: https://hiboss.org/docs/self-host/
 Source: https://github.com/sunoj/hiboss
@@ -42,7 +42,7 @@ AI 编程智能体干活很在行，却不太知道什么时候该停下来问�
 - 实时面板和进展时间线让你随时看到进度，两者都不推送通知。
 - 它运行在你自己的服务器上：你自己 Cloudflare 账号里的 Worker、D1 和 R2。没有 HiBoss 账号，应用里也没有广告和统计分析。
 
-HiBoss 以 MIT 许可开源。Mac 应用和命令行现在就能用，iPhone 和 iPad 应用即将登陆 App Store。
+HiBoss 以 MIT 许可开源。服务器、命令行和 Mac 应用都在仓库及其发布页里，iPhone 和 iPad 应用即将登陆 App Store。
 
 从自托管指南开始：https://hiboss.org/zh/docs/self-host/
 源码：https://github.com/sunoj/hiboss
