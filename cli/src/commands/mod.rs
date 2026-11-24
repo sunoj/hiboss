@@ -24,6 +24,7 @@ pub mod bot;
 pub mod channel;
 pub mod config;
 pub mod daemon;
+mod daemon_wake;
 pub mod device;
 pub mod doctor;
 pub mod edit;

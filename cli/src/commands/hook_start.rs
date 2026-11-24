@@ -12,7 +12,7 @@ pub(super) async fn run() -> Result<(), Box<dyn Error>> {
         Some(_) => {
             session::clear_session_markers();
             let session_id = register_session().await;
-            if let Err(err) = start_daemon_if_needed() {
+            if let Err(err) = ensure_session_daemon() {
                 eprintln!("hiboss: daemon start failed: {err}");
             }
             session_id

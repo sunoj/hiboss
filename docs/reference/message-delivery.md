@@ -11,12 +11,43 @@ Messages reach the agent through four layers:
 | **BgCheck** | Spawned by PostToolUse when TTL expired | Heartbeat + inbox count via HTTP (detached process) | Async |
 | **MCP SSE push** | Real-time SSE background listener | All messages (terminal-visible) | Real-time* |
 | **SessionStart hook** | New session start | All unread + starts daemon | Session gap |
+| **Session wake** | Daemon gets a boss message addressed to an idle Claude Code session | One fixed notice per idle period | ~2s |
 
 *MCP `notifications/message` is displayed in terminal but NOT injected into agent context by Claude Code.
 
-**With daemon** (default): SSE daemon writes messages to local file → PostToolUse drains file on every tool call → near-instant delivery into agent context.
+**With daemon** (default): SSE daemon writes messages to local file → PostToolUse drains file on every tool call → near-instant delivery into agent context. An idle Claude Code session is woken through its messaging socket (see below).
 
 **Without daemon** (fallback): PostToolUse spawns a detached `bg-check` process when TTL expires — 30s for peer messages, 5min for boss urgent. The bg-check runs HTTP calls asynchronously without blocking the hook. Results are written to a local urgent file, picked up on the next PostToolUse call.
+
+## Waking an idle session
+
+Claude Code exports `CLAUDE_CODE_MESSAGING_SOCKET` and `CLAUDE_CODE_MESSAGING_TOKEN` to a
+session's hooks and commands. A line pair written to that socket (`{"type":"auth","token":…}`
+then `{"type":"user","message":{"role":"user","content":…}}`) starts a turn in an idle session.
+Mid-turn it is added to the running turn. Claude Code labels it as a message from another
+session, not as user input. aid uses the same socket to report a settled task.
+
+- **Stop keeps the daemon when the session has a socket.** Stop fires at every turn
+  boundary, so it marks the session `idle` instead. A session without a socket (Codex, an
+  aid-dispatched agent, older Claude Code) cannot be woken, so Stop still stops its daemon.
+- **What wakes it.** Only a `boss_to_agent` message whose `target_session_id` is exactly this
+  session: a reply to an ask carries the asking session, so an untargeted boss message or a
+  peer message only goes to the spool. The first such message in an idle period consumes the
+  `idle` marker; PostToolUse clears it, and the next Stop sets it again.
+- **What the notice says.** Fixed fields only: the reply id, the ask id, and the command
+  that reads it (`hiboss status <ask>`). The body still reaches the agent through the
+  labelled PostToolUse spool. A server auto-default is named as such, never as a decision.
+- **Stop checks the spool.** A boss message spooled after the turn's last tool call was never
+  shown, so Stop pushes its notice immediately.
+- **Socket lifecycle.** The daemon records the socket path (never the token) in
+  `daemon.socket`. SessionStart replaces a daemon that holds another process's socket, as
+  after a resume. The daemon exits when connecting to the socket returns `ENOENT` or
+  `ECONNREFUSED`, because the Claude Code process is gone.
+- **Reconnects.** The server ends each stream after five minutes, and a new stream carries
+  only messages created after it opens. A clean end therefore reconnects after 250 ms. Only
+  a failed connect backs off from 5 s up to 60 s.
+- **Cost.** An idle session now keeps its stream open, and the stream polls D1 every 2 s:
+  about 43k polls a day for each open Claude Code session, idle or not.
 
 ## Key Design Decisions
 

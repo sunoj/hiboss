@@ -31,7 +31,7 @@ pub enum HookEvent {
     PostToolUse,
     #[command(about = "Background HTTP checks (heartbeat, urgent inbox)")]
     BgCheck,
-    #[command(about = "Mark the session waiting and stop its background listener")]
+    #[command(about = "Mark the session waiting; keep its listener only if the session can be woken")]
     Stop,
 }
 
@@ -59,6 +59,7 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
     if session::state_dir().is_none() {
         return Ok(());
     }
+    session::clear_idle();
     let mut context = Vec::new();
     print_pending_messages(&mut context)?;
     // Urgent notices enter the agent context, so they come only from the private state dir.
@@ -230,6 +231,20 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
         // resumed) will flip this back to "working".
         session::mark_resume_pending();
     }
-    stop_daemon();
+    park_listener().await;
     Ok(())
+}
+
+/// An idle Claude Code session keeps its daemon so a boss message can wake it through the
+/// session socket; without a socket nothing could wake it, so the daemon stops as before.
+async fn park_listener() {
+    if super::daemon_wake::Inbox::from_env().is_none() {
+        stop_daemon();
+        return;
+    }
+    session::mark_idle();
+    if let Err(err) = ensure_session_daemon() {
+        eprintln!("hiboss: daemon start failed: {err}");
+    }
+    super::daemon_wake::wake_for_unread_spool(session::read_session_id().as_deref()).await;
 }

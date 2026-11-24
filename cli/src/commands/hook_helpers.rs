@@ -1,7 +1,8 @@
 // Purpose: Utility functions for hiboss CLI hook events.
-// Exports: start/stop/restart of the session daemon, build_client, get_git_branch,
+// Exports: start/stop/restart/ensure of the session daemon, build_client, get_git_branch,
 //          show_peer_sessions, generate_session_id, get_inbox_count, get_a2a_inbox_count.
 
+use super::daemon_wake::Inbox;
 use crate::{client::HiBossClient, config, session};
 use std::error::Error;
 use std::fs;
@@ -32,7 +33,21 @@ pub(crate) fn start_daemon_if_needed() -> Result<u32, Box<dyn Error>> {
         let _ = child.wait();
         return Err(err.into());
     }
+    match Inbox::socket_from_env() {
+        Some(socket) => session::write_state(session::DAEMON_SOCKET, &socket)?,
+        None => session::remove_state(session::DAEMON_SOCKET),
+    }
     Ok(child.id())
+}
+
+/// Start this session's daemon, first replacing one that pushes to another process's socket:
+/// a resumed session keeps its state directory but Claude Code gives it a new socket.
+pub(crate) fn ensure_session_daemon() -> Result<u32, Box<dyn Error>> {
+    let recorded = session::read_state(session::DAEMON_SOCKET).unwrap_or_default();
+    if recorded != Inbox::socket_from_env().unwrap_or_default() {
+        stop_daemon();
+    }
+    start_daemon_if_needed()
 }
 
 /// Kill this session's SSE daemon if it is running; returns the pid it stopped.
@@ -42,6 +57,7 @@ pub(crate) fn stop_daemon() -> Option<u32> {
         let _ = Command::new("kill").arg(pid.to_string()).output();
     }
     session::remove_state(session::DAEMON_PID);
+    session::remove_state(session::DAEMON_SOCKET);
     pid
 }
 

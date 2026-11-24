@@ -72,6 +72,8 @@ pub const A2A_CHECK: &str = "a2a-check";
 pub const DAEMON_PID: &str = "daemon.pid";
 pub const DAEMON_PENDING: &str = "daemon.pending";
 pub const DAEMON_LOG: &str = "daemon.log";
+/// Messaging socket path the running daemon pushes to; never the token.
+pub const DAEMON_SOCKET: &str = "daemon.socket";
 /// Urgent notice written by bg-check and printed by post-tool-use.
 pub const URGENT: &str = "urgent";
 

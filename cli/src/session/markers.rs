@@ -5,6 +5,7 @@ use super::*;
 const ASKED: &str = "asked";
 const STOP_WARNED: &str = "stop-warned";
 const RESUME_PENDING: &str = "resume-pending";
+const IDLE: &str = "idle";
 const REPLIED: &str = "replied";
 const BROADCAST: &str = "broadcast";
 const PEERS_ACTIVE: &str = "peers-active";
@@ -16,7 +17,7 @@ const ACK_HINT: &str = "ack-hint";
 pub fn clear_session_markers() {
     for name in [
         SESSION, ASKED, REPLIED, ACK_HINT, STOP_WARNED, BROADCAST, PEERS_ACTIVE, BROADCAST_REMIND,
-        READ_QUEUE, URGENT, DAEMON_PENDING, URGENT_CHECK, A2A_CHECK, RESUME_PENDING,
+        READ_QUEUE, URGENT, DAEMON_PENDING, URGENT_CHECK, A2A_CHECK, RESUME_PENDING, IDLE,
     ] {
         remove_state(name);
     }
@@ -67,6 +68,21 @@ pub fn take_resume_pending() -> bool {
 /// (`hiboss ss`) wins, so bg-check must not later override it with "working".
 pub fn clear_resume_pending() {
     remove_state(RESUME_PENDING);
+}
+
+/// Record that the turn ended and the session is idle: the daemon may wake it once.
+pub fn mark_idle() {
+    mark(IDLE);
+}
+
+/// Clear the idle marker because the session is working again.
+pub fn clear_idle() {
+    remove_state(IDLE);
+}
+
+/// Consume the idle marker; Some only for the first caller in one idle period.
+pub fn take_idle() -> Option<String> {
+    take_state(IDLE)
 }
 
 /// Record that agent sent a reply/reaction after asking.
