@@ -136,11 +136,11 @@
 </section>
 
 <style>
+	@import '../../lib/design/panel.css';
+	@import '../../lib/design/shared/summary.css';
 	h1 { font: var(--t-large); margin: 0; }
 	.head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
 	.refresh { min-height: var(--hit); }
-	@import '../../lib/design/panel.css';
-	@import '../../lib/design/shared/summary.css';
 	.hero {
 		grid-template-columns: 1.1fr 1.4fr;
 		align-items: stretch;

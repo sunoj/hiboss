@@ -6,5 +6,5 @@
 	.console-split[data-detail] > .console-list { display: none; }
 }
 @media (min-width: 768px) {
-	.console-split[data-detail] { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+	.console-split[data-detail] { grid-template-columns: minmax(260px, min(360px, 36%)) minmax(0, 1fr); }
 }

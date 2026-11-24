@@ -11,7 +11,7 @@
 
 	let baseUrl = $state(location.origin);
 	let code = $state('');
-	let reachable = $state<boolean | null>(null);
+	let reachable = $state<boolean | 'unprobed' | null>(null);
 	let pairingMissing = $state(false);
 	let host = $state(location.host);
 	let probeVersion = 0;
@@ -25,8 +25,17 @@
 		try {
 			const url = new URL(baseUrl);
 			host = url.host;
+			if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) {
+				reachable = false;
+				return;
+			}
+			if (url.origin !== location.origin) {
+				// The public root is outside the server's CORS middleware.
+				reachable = 'unprobed';
+				return;
+			}
 			const response = await fetch(url.origin, { signal: AbortSignal.timeout(5000) });
-			if (version === probeVersion) reachable = response.ok;
+			if (version === probeVersion) reachable = response.status === 404 ? 'unprobed' : response.ok;
 		} catch {
 			if (version === probeVersion) reachable = false;
 		}
@@ -69,8 +78,8 @@
 		<ConsolePreferences />
 		<IslandScene />
 		<h1>{t('console.connectBrowser')}</h1>
-		{#if reachable !== null}
-			<p role="status" class:reachable>{t(reachable ? 'console.reachable' : 'console.unreachable', { host })}</p>
+		{#if typeof reachable === 'boolean'}
+			<p role="status" class:reachable={reachable === true}>{t(reachable ? 'console.reachable' : 'console.unreachable', { host })}</p>
 		{/if}
 		{#if reachable === false}
 			<button type="button" onclick={probe}>{t('common.refresh')}</button>
