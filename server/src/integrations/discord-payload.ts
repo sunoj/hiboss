@@ -35,7 +35,9 @@ class Clamp {
     if (typeof value !== 'string' || !value.trim()) return null;
     const room = embed ? Math.max(0, LIMITS.embedTotal - this.embedChars) : max;
     const limit = Math.min(max, room);
-    const chars = Array.from(value);
+    // A scalar is at most two UTF-16 units, so this slice keeps every character the limit can use.
+    const chars = Array.from(value.slice(0, limit * 2 + 2));
+    if (value.length > limit * 2 + 2) this.truncated = true;
     if (chars.length > limit) this.truncated = true;
     const kept = chars.slice(0, limit).join('');
     if (embed) this.embedChars += Array.from(kept).length;
@@ -43,7 +45,7 @@ class Clamp {
   }
   url(value: unknown): string | null {
     const text = isRecord(value) ? value.url : value;
-    if (typeof text !== 'string') return null;
+    if (typeof text !== 'string' || text.length > 2048) return null;
     try {
       const url = new URL(text);
       return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null;

@@ -1,20 +1,17 @@
-// Minimal binary-safe multipart/form-data parser for webhook senders the runtime parser rejects.
+// Strict multipart/form-data parser for webhook senders the runtime parser rejects.
 // Exports parseMultipart; Grafana names its file parts with an empty string, which workerd refuses.
-// Dependencies: none; the caller has already capped the body size.
+// Dependencies: none; the caller authenticates and caps the body before calling it.
 
 export interface MultipartPart { name: string; filename: string | null; type: string; bytes: Uint8Array }
 
+const MAX_PARTS = 20;
+const MAX_HEADER_BYTES = 8 * 1024;
+
+/** RFC 2046: 1–70 characters from a fixed set, so a hostile boundary cannot inflate the search. */
 function boundaryOf(contentType: string): string | null {
   const match = contentType.match(/boundary=(?:"([^"]+)"|([^;\s]+))/i);
-  return match ? (match[1] ?? match[2]) : null;
-}
-
-function indexOf(haystack: Uint8Array, needle: Uint8Array, from: number): number {
-  outer: for (let i = from; i <= haystack.length - needle.length; i++) {
-    for (let j = 0; j < needle.length; j++) if (haystack[i + j] !== needle[j]) continue outer;
-    return i;
-  }
-  return -1;
+  const boundary = match ? (match[1] ?? match[2]) : null;
+  return boundary && /^[0-9A-Za-z'()+_,\-./:=? ]{1,70}$/.test(boundary) ? boundary : null;
 }
 
 function headerParam(header: string, key: string): string | null {
@@ -23,33 +20,51 @@ function headerParam(header: string, key: string): string | null {
   return match ? match[1].trim() : null;
 }
 
-function parsePart(bytes: Uint8Array): MultipartPart | null {
-  const split = indexOf(bytes, new TextEncoder().encode('\r\n\r\n'), 0);
-  if (split < 0) return null;
-  const headers = new TextDecoder().decode(bytes.subarray(0, split)).split('\r\n');
+function parsePart(text: string, body: Uint8Array, start: number, end: number): MultipartPart | null {
+  const split = text.indexOf('\r\n\r\n', start);
+  if (split < 0 || split > end || split - start > MAX_HEADER_BYTES) return null;
+  const headers = text.slice(start, split).split('\r\n');
   const disposition = headers.find((line) => /^content-disposition:/i.test(line)) ?? '';
+  if (!/^content-disposition:\s*form-data/i.test(disposition)) return null;
   const type = headers.find((line) => /^content-type:/i.test(line))?.split(':')[1]?.trim() ?? 'text/plain';
   return { name: headerParam(disposition, 'name') ?? '', filename: headerParam(disposition, 'filename'),
-    type, bytes: bytes.subarray(split + 4) };
+    type, bytes: body.subarray(split + 4, end) };
 }
 
-/** Returns null when the body is not well-formed multipart for the declared boundary. */
+/** One UTF-16 unit per byte, so string offsets are byte offsets. */
+function byteString(bytes: Uint8Array): string {
+  let text = '';
+  for (let offset = 0; offset < bytes.length; offset += 8192) {
+    text += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+  }
+  return text;
+}
+
+/**
+ * A delimiter counts only as a whole line ("\r\n--boundary" followed by "\r\n" or the closing "--"),
+ * so file bytes that merely contain the boundary text never split a part. The body is read as
+ * one character per byte, so the engine's native substring search does the scanning.
+ * Returns null for anything that is not well-formed multipart.
+ */
 export function parseMultipart(body: Uint8Array, contentType: string): MultipartPart[] | null {
   const boundary = boundaryOf(contentType);
   if (!boundary) return null;
-  const delimiter = new TextEncoder().encode(`--${boundary}`);
+  const text = byteString(body);
+  const delimiter = `\r\n--${boundary}`;
+  // The first delimiter may open the body without a preceding line break.
+  let at = text.startsWith(delimiter.slice(2)) ? -2 : text.indexOf(delimiter);
+  if (at === -1) return null;
   const parts: MultipartPart[] = [];
-  let start = indexOf(body, delimiter, 0);
-  if (start < 0) return null;
-  for (;;) {
-    const contentStart = start + delimiter.length;
-    if (body[contentStart] === 0x2d && body[contentStart + 1] === 0x2d) return parts;
-    const next = indexOf(body, delimiter, contentStart);
+  while (parts.length <= MAX_PARTS) {
+    const after = at + delimiter.length;
+    if (text.startsWith('--', after)) return parts;
+    if (!text.startsWith('\r\n', after)) return null;
+    const next = text.indexOf(delimiter, after + 2);
     if (next < 0) return null;
-    // Each part sits between "\r\n" after the delimiter and "\r\n" before the next one.
-    const part = parsePart(body.subarray(contentStart + 2, next - 2));
+    const part = parsePart(text, body, after + 2, next);
     if (!part) return null;
     parts.push(part);
-    start = next;
+    at = next;
   }
+  return null;
 }

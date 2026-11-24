@@ -2,10 +2,7 @@
 // Exports createIntegration, listIntegrations, addWebhook, rotateWebhook and revokeWebhook.
 // Dependencies: D1, project slugs and webhook credentials; tokens are returned once, never stored.
 import { projectSlug } from '../projects';
-import { hashWebhookToken, newWebhookId, newWebhookToken } from './credentials';
-
-/** Messages per minute per integration; a noisy sender must not flood the boss. */
-const DEFAULT_RATE_LIMIT = 30;
+import { DEFAULT_RATE_LIMIT, hashWebhookToken, newWebhookId, newWebhookToken } from './credentials';
 
 export type PriorityCap = 'low' | 'normal' | 'high';
 export interface IssuedWebhook { id: string; token: string; label: string; priority_cap: PriorityCap }

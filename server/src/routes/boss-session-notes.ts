@@ -1,5 +1,6 @@
 // Boss note creation and history with exact session authorization.
 // Exports bossNotesRouter; depends on shared boss access and note storage.
+import { isIntegration } from '../integrations/credentials';
 import { Hono, type Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { Env } from '../types';
@@ -34,6 +35,7 @@ routes.post('/sessions/:id/notes', async (c) => {
   if (getBossRole(c) === 'viewer') return c.text('viewer cannot write notes', 403);
   const agent = await sessionAgent(c);
   if (!agent) return c.text('not found', 404);
+  if (await isIntegration(c.env, agent)) return c.text('a webhook integration does not read notes', 409);
   return createNote(c, agent);
 });
 routes.get('/sessions/:id/notes/:noteId/images/:index', async (c) => {

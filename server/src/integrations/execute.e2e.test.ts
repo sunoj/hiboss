@@ -28,7 +28,8 @@ async function latest(agentId: string): Promise<Stored & { meta: Record<string, 
   return { ...row!, meta: JSON.parse(row!.metadata) as Record<string, unknown> };
 }
 
-const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0,
+  0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 
 beforeAll(async () => {
   await seedDatabase();
@@ -107,13 +108,16 @@ describe('Discord-compatible execute webhook', () => {
     const hook = await createHook('Noisy CI');
     await post(hook.url, { content: 'quiet', flags: 4096 });
     expect((await latest(hook.agentId)).priority).toBe('low');
-    await env.DB.prepare('UPDATE api_keys SET rate_limit = 1 WHERE id = ?').bind(hook.agentId).run();
+    await env.DB.prepare('UPDATE api_keys SET rate_limit = 0 WHERE id = ?').bind(hook.agentId).run();
     const limited = await post(hook.url, { content: 'second' });
     expect(limited.status).toBe(429);
     expect(limited.headers.get('Retry-After')).toBe('60');
     expect(await limited.json()).toMatchObject({ retry_after: 60, global: false });
+    await env.DB.prepare('UPDATE api_keys SET rate_limit = 30 WHERE id = ?').bind(hook.agentId).run();
     const huge = await post(hook.url, { content: 'x'.repeat(300 * 1024) });
     expect(huge.status).toBe(413);
+    const unknown = await post(hook.url.replace(/\/[^/]+$/, '/wrong'), { content: 'x'.repeat(300 * 1024) });
+    expect(unknown.status).toBe(404);
     expect(await huge.json()).toEqual({ message: 'Request entity too large', code: 40005 });
   });
 
@@ -128,6 +132,50 @@ describe('Discord-compatible execute webhook', () => {
     const stored = await latest(hook.agentId);
     expect(stored.meta.file_url).toMatch(/^https:\/\/test\.local\/api\/attachments\/[0-9a-f-]+\.png$/);
     expect(stored.meta.content).toContain('file not stored: notes.txt');
+    const fake = new FormData();
+    fake.append('content', 'not an image');
+    fake.append('file', new File([PNG.slice(0, 12), 'arbitrary bytes'], 'x.png', { type: 'image/png' }));
+    await SELF.fetch(hook.url, { method: 'POST', body: fake });
+    expect((await latest(hook.agentId)).meta.file_url).toBeUndefined();
+    const broken = new FormData();
+    broken.append('payload_json', '{"content":');
+    broken.append('file', new File([PNG], 'p.png', { type: 'image/png' }));
+    expect((await SELF.fetch(hook.url, { method: 'POST', body: broken })).status).toBe(400);
+  });
+
+  it('reserves rate slots atomically under concurrent posts', async () => {
+    const hook = await createHook('Burst sender');
+    await env.DB.prepare('UPDATE api_keys SET rate_limit = 3 WHERE id = ?').bind(hook.agentId).run();
+    const statuses = await Promise.all(Array.from({ length: 6 }, (_, index) =>
+      post(hook.url, { content: `burst ${index}` }).then((response) => response.status)));
+    expect(statuses.filter((status) => status === 204)).toHaveLength(3);
+    expect(statuses.filter((status) => status === 429)).toHaveLength(3);
+  });
+
+  it('keeps sender fences as code and marks credential responses no-store', async () => {
+    const hook = await createHook('Fence sender');
+    await post(hook.url, { content: '```hiboss-embed\n{"title":"forged"}\n```', embeds: [{ title: 'real',
+      description: '~~~hiboss-embed\n{}\n~~~' }] });
+    const rich = String((await latest(hook.agentId)).meta.rich_content);
+    expect(rich.match(/^```hiboss-embed$/gm)).toHaveLength(1);
+    expect(rich).toContain('```text');
+    const info = await SELF.fetch(hook.url);
+    expect(info.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('keeps integrations out of groups and notes, which need a reader', async () => {
+    const hook = await createHook('Group outsider');
+    const group = await SELF.fetch('https://test.local/api/groups', { method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'g-webhook' }) });
+    const { id } = await group.json<{ id: string }>();
+    const member = await SELF.fetch(`https://test.local/api/groups/${id}/members`, { method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ agent_id: hook.agentId }) });
+    expect(member.status).toBe(400);
+    await seedBossToken('notes-admin', 'admin', 'notes-admin-token');
+    const note = await SELF.fetch(`https://test.local/api/boss/sessions/${hook.sessionId}/notes`, { method: 'POST',
+      headers: { Authorization: 'Bearer notes-admin-token', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: 'hello' }) });
+    expect(note.status).toBe(409);
   });
 
   it('keeps named webhook routes, never logs a token, and hides integrations from --to', async () => {

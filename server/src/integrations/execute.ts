@@ -3,17 +3,18 @@
 // Dependencies: Hono, webhook credentials, the shared send core, and the Discord payload helpers.
 import { Hono, type Context } from 'hono';
 import type { Env, Priority } from '../types';
-import { checkRateLimit } from '../routes/message-helpers';
 import { finishSend, persistSend } from '../routes/message-send';
 import { selectLegacyConfigs, type SendInput } from '../routes/message-send-input';
 import type { SendTarget } from '../routes/message-send-target';
 import { webhookProvenance } from '../message-security/provenance';
-import { findWebhook, type WebhookCredential } from './credentials';
+import { DEFAULT_RATE_LIMIT, findWebhook, reserveRateSlot, type WebhookCredential } from './credentials';
 import { INVALID_BODY, SUPPRESS_NOTIFICATIONS, type DiscordError, type DiscordPayload } from './discord-payload';
 import { renderDiscordMessage } from './discord-render';
-import { readWebhookBody, storeWebhookFiles, type WebhookBody } from './webhook-body';
+import { discardWebhookFiles, readWebhookBody, storeWebhookFiles, type WebhookBody } from './webhook-body';
 
 const router = new Hono<{ Bindings: Env }>({});
+// Responses can echo the URL's token (GET); nothing here may be cached by a proxy.
+router.use('*', async (c, next) => { await next(); c.header('Cache-Control', 'no-store'); });
 const PATH = '/:id{[0-9]{17,20}}/:token{[A-Za-z0-9_-]{1,128}}';
 const UNKNOWN_WEBHOOK: DiscordError = { status: 404, code: 10015, message: 'Unknown Webhook' };
 const TARGET: SendTarget = { targetAgentId: null, targetSessionId: null, direction: 'agent_to_boss',
@@ -36,16 +37,19 @@ router.get(PATH, async (c) => {
     guild_id: null, application_id: null, token: c.req.param('token') });
 });
 
+/** Credentials and quota come first, so an unknown or throttled sender never makes the body be read. */
 router.post(PATH, async (c) => {
-  const body = await readWebhookBody(c.req.raw);
-  if ('status' in body) return discordError(c, body);
   const credential = await authenticate(c);
   if (!credential) return discordError(c, UNKNOWN_WEBHOOK);
-  if (credential.rate_limit && await checkRateLimit(c.env, credential.agent_id, credential.rate_limit)) {
-    return rateLimited(c, credential);
-  }
+  if (!await reserveRateSlot(c.env.DB, credential.agent_id, limitOf(credential))) return rateLimited(c, credential);
+  const body = await readWebhookBody(c.req.raw);
+  if ('status' in body) return discordError(c, body);
   return deliver(c, credential, body);
 });
+
+function limitOf(credential: WebhookCredential): number {
+  return credential.rate_limit ?? DEFAULT_RATE_LIMIT;
+}
 
 router.on(['PUT', 'PATCH', 'DELETE'], PATH, (c) =>
   discordError(c, { status: 405, code: 0, message: '405: Method Not Allowed' }));
@@ -53,7 +57,7 @@ router.on(['PUT', 'PATCH', 'DELETE'], PATH, (c) =>
 function rateLimited(c: WebhookContext, credential: WebhookCredential): Response {
   // The window is the last minute of messages, so a minute always clears it.
   c.header('Retry-After', '60');
-  c.header('X-RateLimit-Limit', String(credential.rate_limit));
+  c.header('X-RateLimit-Limit', String(limitOf(credential)));
   c.header('X-RateLimit-Remaining', '0');
   c.header('X-RateLimit-Reset-After', '60');
   c.header('X-RateLimit-Bucket', credential.id);
@@ -67,7 +71,7 @@ function priorityOf(credential: WebhookCredential, payload: DiscordPayload): Pri
 
 async function deliver(c: WebhookContext, credential: WebhookCredential, body: WebhookBody): Promise<Response> {
   const { payload } = body;
-  const { fileUrl, fileLines } = await storeWebhookFiles(c.env, body.files, c.req.url, credential.agent_id);
+  const { fileUrl, fileLines, urls } = await storeWebhookFiles(c.env, body.files, c.req.url, credential.agent_id);
   const rendered = renderDiscordMessage(payload, credential.agent_name, fileLines);
   const priority = priorityOf(credential, payload);
   const metadata: Record<string, unknown> = { content: rendered.content,
@@ -85,8 +89,14 @@ async function deliver(c: WebhookContext, credential: WebhookCredential, body: W
     channelConfigs: await selectLegacyConfigs(c.env, credential.agent_id, priority, undefined),
     integration: true,
   };
-  const inserted = await persistSend(c, input, TARGET);
-  if (inserted instanceof Response) return discordError(c, { ...INVALID_BODY, message: 'Message not stored' });
+  const inserted = await persistSend(c, input, TARGET).catch(async (error: unknown) => {
+    await discardWebhookFiles(c.env, urls);
+    throw error;
+  });
+  if (inserted instanceof Response) {
+    await discardWebhookFiles(c.env, urls);
+    return discordError(c, { ...INVALID_BODY, message: 'Message not stored' });
+  }
   const finished = await finishSend(c, input, TARGET, inserted);
   if (finished.status >= 400) return finished;
   await touch(c.env, credential, rendered.title);

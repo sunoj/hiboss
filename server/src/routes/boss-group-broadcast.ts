@@ -29,7 +29,8 @@ routes.post('/groups/:id/broadcast', async (c) => {
   if (!body) return c.text('body is required', 400);
   const priority = parsePriority(payload.priority);
   const members = await c.env.DB.prepare(
-    'SELECT agent_id FROM agent_group_members WHERE group_id = ?',
+    `SELECT m.agent_id FROM agent_group_members m JOIN api_keys k ON k.id = m.agent_id
+      WHERE m.group_id = ? AND k.kind = 'agent'`,
   ).bind(group.id).all<{ agent_id: string }>();
   const metadata = bearerApiMetadata(
     { id: bossId, name: getBossName(c) }, getBossTokenId(c),

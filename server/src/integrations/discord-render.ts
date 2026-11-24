@@ -19,7 +19,9 @@ export function normalizeDiscordMarkup(text: string): string {
     .replace(/<@&\d+>/g, '@role')
     .replace(/<#\d+>/g, '#channel')
     .replace(/<a?:(\w{1,32}):\d+>/g, ':$1:')
-    .replace(/^-# /gm, '');
+    .replace(/^-# /gm, '')
+    // Only the server writes cards: a sender's own fence stays code.
+    .replace(/^(\s*(?:`{3,}|~{3,})\s*)hiboss-embed/gim, '$1text');
 }
 
 function plainLine(text: string): string {

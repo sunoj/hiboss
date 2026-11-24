@@ -24,6 +24,9 @@ CREATE INDEX idx_agent_keys_minted_by;
 CREATE TABLE agent_webhooks;
 CREATE INDEX idx_agent_webhooks_agent;
 
+-- Per-integration webhook rate windows; reserved in one statement so concurrent posts cannot overrun.
+CREATE TABLE integration_rate_windows;
+
 -- Messaging and channel delivery
 
 -- Messages between agents, bosses, and peer agents

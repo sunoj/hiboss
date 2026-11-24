@@ -19,3 +19,10 @@ CREATE TABLE agent_webhooks (
 );
 
 CREATE INDEX idx_agent_webhooks_agent ON agent_webhooks(agent_id, created_at DESC);
+
+-- One fixed one-minute window per integration, reserved atomically before any work is done.
+CREATE TABLE integration_rate_windows (
+  agent_id TEXT PRIMARY KEY REFERENCES api_keys(id),
+  window_start TEXT NOT NULL,
+  count INTEGER NOT NULL
+);

@@ -30,7 +30,11 @@ hiboss integration revoke <webhook-id>
 - The server error log replaces the token in a webhook path with `***`.
 - Admin bosses receive integration messages; a manager needs an explicit agent grant.
 - A boss reply to a webhook message is refused with 409: nobody would read it.
-- Integrations are not `--to` targets and do not appear among a session's peers.
+- Integrations are not `--to` targets, cannot join groups, do not receive group broadcasts or
+  boss notes (409), and do not appear among a session's peers.
+- Revocation and rotation take effect for the next request; a post already authenticated before
+  the change may still be stored.
+- Responses from the endpoint and from `/api/integrations` carry `Cache-Control: no-store`.
 
 ## Endpoint
 
@@ -43,8 +47,10 @@ hiboss integration revoke <webhook-id>
 | `content` (≤ 2000), `embeds` (≤ 10), `username`, `flags`, `thread_name` | Used as below; other fields (`components`, `poll`, `tts`, `allowed_mentions`, `avatar_url`, …) are ignored |
 | Empty `content` and no embeds or files | `400 {"code":50006}` |
 | Malformed JSON or form | `400 {"code":50035}` |
-| Body over 256 KB (JSON) or 4 × 10 MB + 256 KB (multipart) | `413 {"code":40005}`; the cap is counted while reading, not taken from `Content-Length` |
-| More than 30 messages in the last minute (per integration) | `429 {"retry_after":60,"global":false}` with `Retry-After` and `X-RateLimit-*` |
+| Unknown id, wrong token or revoked URL | `404 {"code":10015}` before the body is read |
+| More than 30 posts in the current minute (per integration, reserved atomically before the body is read) | `429 {"retry_after":60,"global":false}` with `Retry-After` and `X-RateLimit-*` |
+| Body over 256 KB (JSON), a text part over 256 KB, more than 20 parts, or over 4 × 10 MB + 256 KB (multipart) | `413 {"code":40005}` or `400 {"code":50035}`; the cap is counted while reading, not taken from `Content-Length` |
+| `payload_json` that is not valid JSON | `400 {"code":50035}` |
 | `?wait=true` | `200` with a minimal message object; otherwise `204` |
 
 `GET` on the same URL returns the webhook object (`id`, `type: 1`, `name`, `token`). `PUT`,
@@ -62,9 +68,10 @@ alert is not lost to a 400.
 | Each embed | `metadata.rich_content`: one `hiboss-embed` card (see [message format](message-format.md)) |
 | `username` | A trailing *via …* line; the sender stays the integration |
 | `flags & 4096` (`SUPPRESS_NOTIFICATIONS`) | Priority `low`; otherwise the URL's priority (default `normal`) |
-| Image files (PNG, JPEG, GIF, WebP by file signature, ≤ 10 MB, ≤ 4) | The first is the message attachment, the rest are links |
+| Image files (PNG, JPEG, GIF, WebP with the format's opening and closing framing, ≤ 10 MB, ≤ 4) | The first is the message attachment, the rest are links; stored files are removed if the message is not stored |
 | Other files | Listed by name, not stored |
 | `<t:…>`, `<@…>`, `<#…>`, `<:emoji:…>`, `-# ` | UTC time, `@user`, `#channel`, `:emoji:`, plain text |
+| A sender's own ```` ```hiboss-embed ```` fence | Becomes an ordinary ```` ```text ```` fence: only the server writes cards |
 
 Messages are `agent_to_boss`, `async`, never asks, and carry provenance
 `{source: 'webhook', authentication: {kind: 'webhook_token', credential_id: <webhook id>}}`.

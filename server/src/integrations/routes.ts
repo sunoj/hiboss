@@ -14,6 +14,8 @@ import {
 const router = new Hono<{ Bindings: Env }>({});
 router.use('*', apiAuth);
 router.use('*', agentAdmin);
+// Create, add and rotate return a webhook URL with its token.
+router.use('*', async (c, next) => { await next(); c.header('Cache-Control', 'no-store'); });
 
 const CAPS: PriorityCap[] = ['low', 'normal', 'high'];
 const WEBHOOK_ID = /^[0-9]{17,20}$/;
