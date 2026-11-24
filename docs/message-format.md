@@ -30,6 +30,11 @@ Text uses native semantic fonts, selection, and Dynamic Type. HTML is not execut
 Tables, nested-list indentation, and embedded Markdown images are not rendered as rich
 blocks. File/image attachments continue to use message attachment metadata.
 
+Links are underlined. A bare `http://` or `https://` URL becomes a link in message text,
+titles, notes and progress posts. It ends at the first non-ASCII character or space, and
+trailing `. , ; : ! ? ' "` and unbalanced `)` or `]` stay outside it, so
+`https://example.com/a，下载` links only `https://example.com/a`. URLs inside inline code stay text.
+
 ## Copy blocks
 
 A fenced block whose info string starts with the word `copy` is a copy block. The rest of
