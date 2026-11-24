@@ -60,6 +60,8 @@ export async function getThumbnail(c: BoxContext): Promise<Response> {
   const headers = new Headers({
     'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
     'content-length': String(object.size), 'x-content-type-options': 'nosniff',
+    // The console shares this origin; stored bytes must never run as a page here.
+    'content-security-policy': "sandbox; default-src 'none'",
     'cache-control': 'private, max-age=86400', etag: object.httpEtag,
   });
   if (c.req.header('if-none-match') === object.httpEtag) {

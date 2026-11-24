@@ -79,5 +79,7 @@ export async function noteImage(c: Context<{ Bindings: Env }>): Promise<Response
   if (!object) return c.text('not found', 404);
   return new Response(object.body as ReadableStream, { headers: {
     'Content-Type': image.content_type, 'Cache-Control': 'private, max-age=3600',
+    // The console shares this origin; stored bytes must never run as a page here.
+    'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "sandbox; default-src 'none'",
   } });
 }
