@@ -3,6 +3,7 @@
 // Dependencies: the Discord payload parser and the ATTACHMENTS R2 bucket; only images are kept.
 import type { Env } from '../types';
 import { INVALID_BODY, parseDiscordPayload, type DiscordError, type DiscordPayload } from './discord-payload';
+import { parseMultipart, type MultipartPart } from './multipart';
 
 const JSON_MAX = 256 * 1024;
 const FILE_MAX = 10 * 1024 * 1024;
@@ -10,7 +11,8 @@ const MAX_FILES = 4;
 const MULTIPART_MAX = MAX_FILES * FILE_MAX + JSON_MAX;
 const TOO_LARGE: DiscordError = { status: 413, code: 40005, message: 'Request entity too large' };
 
-export interface WebhookBody { payload: DiscordPayload; files: File[] }
+export type WebhookFile = Pick<MultipartPart, 'filename' | 'bytes'>;
+export interface WebhookBody { payload: DiscordPayload; files: WebhookFile[] }
 export interface StoredFiles { fileUrl: string | undefined; fileLines: string[] }
 
 /** Counts bytes as they arrive; a missing or false Content-Length cannot exceed the cap. */
@@ -39,10 +41,10 @@ function parseJson(text: string): unknown {
 }
 
 /** Fields may arrive as individual parts or as one payload_json part; a file part's name is free. */
-function formPayload(form: FormData): { value: unknown; files: File[] } {
-  const files: File[] = [];
+function formPayload(entries: Iterable<[string, string | WebhookFile]>): { value: unknown; files: WebhookFile[] } {
+  const files: WebhookFile[] = [];
   const fields: Record<string, unknown> = {};
-  for (const [name, entry] of form.entries()) {
+  for (const [name, entry] of entries) {
     if (typeof entry !== 'string') { files.push(entry); continue; }
     if (name === 'embeds') fields.embeds = parseJson(entry);
     else if (name === 'flags') fields.flags = Number(entry);
@@ -50,6 +52,15 @@ function formPayload(form: FormData): { value: unknown; files: File[] } {
   }
   const json = typeof fields.payload_json === 'string' ? parseJson(fields.payload_json) : undefined;
   return { value: json ?? fields, files };
+}
+
+function formEntries(bytes: Uint8Array, contentType: string): [string, string | WebhookFile][] | null {
+  if (contentType.toLowerCase().startsWith('application/x-www-form-urlencoded')) {
+    return [...new URLSearchParams(new TextDecoder().decode(bytes)).entries()];
+  }
+  const parts = parseMultipart(bytes, contentType);
+  return parts?.map((part) => [part.name, part.filename === null
+    ? new TextDecoder().decode(part.bytes) : { filename: part.filename, bytes: part.bytes }]) ?? null;
 }
 
 export async function readWebhookBody(request: Request): Promise<WebhookBody | DiscordError> {
@@ -63,9 +74,9 @@ export async function readWebhookBody(request: Request): Promise<WebhookBody | D
     const payload = parseDiscordPayload(value);
     return 'status' in payload ? payload : { payload, files: [] };
   }
-  const form = await new Response(bytes.buffer as ArrayBuffer, { headers: { 'content-type': type } }).formData().catch(() => null);
-  if (!form) return INVALID_BODY;
-  const { value, files } = formPayload(form);
+  const entries = formEntries(bytes, request.headers.get('content-type') ?? '');
+  if (!entries) return INVALID_BODY;
+  const { value, files } = formPayload(entries);
   const payload = parseDiscordPayload(value, files.length > 0);
   return 'status' in payload ? payload : { payload, files };
 }
@@ -77,17 +88,17 @@ const SIGNATURES: [string, string, (bytes: Uint8Array) => boolean][] = [
   ['image/webp', 'webp', (b) => b[0] === 0x52 && b[1] === 0x49 && b[8] === 0x57 && b[9] === 0x45],
 ];
 
-function displayName(file: File): string {
-  return (file.name || 'file').replace(/[\r\n[\]()]/g, '').slice(0, 100);
+function displayName(file: WebhookFile): string {
+  return (file.filename || 'file').replace(/[\r\n[\]()]/g, '').slice(0, 100);
 }
 
 /** Runs after authentication: images become attachments, anything else is only listed by name. */
-export async function storeWebhookFiles(env: Env, files: File[], requestUrl: string,
+export async function storeWebhookFiles(env: Env, files: WebhookFile[], requestUrl: string,
   agentId: string): Promise<StoredFiles> {
   const urls: string[] = [];
   const lines: string[] = [];
   for (const file of files) {
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    const { bytes } = file;
     const kind = SIGNATURES.find(([, , matches]) => matches(bytes));
     if (!kind || bytes.byteLength > FILE_MAX || urls.length >= MAX_FILES) {
       lines.push(`*file not stored: ${displayName(file)} (${bytes.byteLength} bytes)*`);
