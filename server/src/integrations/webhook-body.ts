@@ -63,7 +63,7 @@ export async function readWebhookBody(request: Request): Promise<WebhookBody | D
     const payload = parseDiscordPayload(value);
     return 'status' in payload ? payload : { payload, files: [] };
   }
-  const form = await new Response(bytes, { headers: { 'content-type': type } }).formData().catch(() => null);
+  const form = await new Response(bytes.buffer as ArrayBuffer, { headers: { 'content-type': type } }).formData().catch(() => null);
   if (!form) return INVALID_BODY;
   const { value, files } = formPayload(form);
   const payload = parseDiscordPayload(value, files.length > 0);
