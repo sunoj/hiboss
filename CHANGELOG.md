@@ -40,6 +40,10 @@ and Mac apps, the web console and the Claude Code MCP server.
   server timeout default is shown as such, never as the boss's answer.
 - Mac: an answered decision no longer keeps its open card in the session thread until the
   window is reopened.
+- Mac: an image attached to a choice sits on its own line above the answer button, so the
+  button keeps the full width of the other choices.
+- Agent instructions: ask titles and choice labels name the action or the actor (agent,
+  boss) instead of I/you, and an action the agent can run is asked as approve or decline.
 - A ```` ```copy [label] ```` block in message details shows a copy button in the apps that
   copies the text exactly as written.
 - Delivery to the apps, Telegram and Discord, with quiet hours, priorities and per-boss
