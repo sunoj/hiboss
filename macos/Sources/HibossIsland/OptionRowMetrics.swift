@@ -11,7 +11,6 @@ enum OptionRowMetrics {
     static let rowSpacing: CGFloat = 7
     static let mediaWidth: CGFloat = 132
     static let mediaHeight: CGFloat = 96
-    static let mediaSpacing: CGFloat = 8
     static let captionSpacing: CGFloat = 4
     static let descriptionSpacing: CGFloat = 4
 }

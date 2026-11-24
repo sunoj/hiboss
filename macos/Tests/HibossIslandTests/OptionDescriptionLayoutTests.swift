@@ -39,6 +39,14 @@ final class OptionDescriptionLayoutTests: XCTestCase {
         }
     }
 
+    /// The image sits on its own line above a full-width answer button, not beside a narrowed one.
+    func testMediaOptionStacksImageAboveButton() {
+        let media = [OptionMedia(label: "Coast", url: "file:///nonexistent.png")]
+        let height = renderedHeight(options: ["Coast"], media: media)
+        XCTAssertGreaterThanOrEqual(height,
+            OptionRowMetrics.mediaHeight + OptionRowMetrics.minimumHeight)
+    }
+
     func testResolvedRowKeepsDescriptionVisible() {
         let plain = NSHostingView(rootView: ResolvedOptionRow(title: "Coast", chosen: false, source: nil)
             .frame(width: 360).fixedSize(horizontal: false, vertical: true))

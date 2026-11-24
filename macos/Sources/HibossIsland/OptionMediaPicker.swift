@@ -1,4 +1,4 @@
-// Renders option thumbnails beside native answer controls and opens full-size media.
+// Renders option thumbnails above full-width answer controls and opens full-size media.
 // Exports: OptionMediaPicker for the island and standard option window.
 // Dependencies: SwiftUI, HibossKit OptionMedia, and existing OptionButton.
 
@@ -77,8 +77,10 @@ private struct OptionMediaRow: View {
     let choose: (String) -> Void
     let openMedia: () -> Void
 
+    /// The image takes its own line so it never narrows the answer button; the gap inside the
+    /// pair stays smaller than the gap between rows, so the image reads as this option's.
     var body: some View {
-        HStack(spacing: OptionRowMetrics.mediaSpacing) {
+        VStack(alignment: .leading, spacing: OptionRowMetrics.captionSpacing) {
             OptionMediaPreview(media: media, openMedia: openMedia)
             OptionButton(title: option, description: description,
                          isDefault: isDefault, isSending: isSending) {
