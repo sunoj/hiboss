@@ -48,7 +48,7 @@ struct SessionThreadView: View {
                 if !presentation.needsYou.isEmpty {
                     Text(L("Needs you")).font(.headline).padding(.top, 10)
                     ForEach(presentation.needsYou) { thread in
-                        row(thread, reader: reader)
+                        row(thread, pinned: true, reader: reader)
                         Divider()
                     }
                 }
@@ -72,9 +72,12 @@ struct SessionThreadView: View {
         }
     }
 
-    private func row(_ thread: MessageThread, merged: [HistoryMessage] = [],
+    /// A pinned row and its Conversation row are different views: when a decision is answered
+    /// it moves between the sections, and a shared identity kept the pinned card on screen.
+    private func row(_ thread: MessageThread, merged: [HistoryMessage] = [], pinned: Bool = false,
                      reader: ScrollViewProxy) -> some View {
-        HistoryThreadRow(thread: thread,
+        let identity = SessionRowID(thread: thread.id, pinned: pinned)
+        return HistoryThreadRow(thread: thread,
             decision: context.decisions.first { $0.id == thread.id }, usesV4: true,
             sessionEntries: true, mergedMessages: merged,
             answerability: SessionThreadLogic.answerability(
@@ -87,9 +90,15 @@ struct SessionThreadView: View {
                 }), isSearching: false,
             onCollapse: {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) {
-                    reader.scrollTo(thread.id, anchor: .top)
+                    reader.scrollTo(identity, anchor: .top)
                 }
             }, onChoose: { choice in await onChoose(choice, thread.id) })
-            .id(thread.id)
+            .id(identity)
     }
+}
+
+/// Scroll and view identity of one session row, distinct per section.
+struct SessionRowID: Hashable {
+    let thread: MessageID
+    let pinned: Bool
 }
