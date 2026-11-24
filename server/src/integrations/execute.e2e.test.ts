@@ -159,7 +159,7 @@ describe('Discord-compatible execute webhook', () => {
       headers: { 'Content-Type': 'multipart/form-data; boundary=b1' } })).status).toBe(400);
   });
 
-  it('reserves rate slots atomically across one integration's URLs', async () => {
+  it('reserves rate slots atomically across the URLs of one integration', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-24T10:00:30Z'));
     try {
