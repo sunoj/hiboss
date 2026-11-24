@@ -3,13 +3,13 @@
   <channel>
     <title>HiBoss Island</title>
     <item>
-      <title>Version 1.0.5</title>
-      <pubDate>Tue, 24 Nov 2026 02:21:41 +0000</pubDate>
-      <sparkle:shortVersionString>1.0.5</sparkle:shortVersionString>
-      <sparkle:version>202611240920</sparkle:version>
+      <title>Version 1.0.6</title>
+      <pubDate>Tue, 24 Nov 2026 08:08:52 +0000</pubDate>
+      <sparkle:shortVersionString>1.0.6</sparkle:shortVersionString>
+      <sparkle:version>202611241507</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[ An answered decision no longer keeps its open card in the session thread until the window is reopened. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.5/HiBoss-Island-1.0.5.zip" sparkle:edSignature="dZZ4GdT5aGre9yvbrLfP3+fT3vGRuOY1IehuLYO4veujSEoM3qLGixAhF8I/LyltMW61JUa2uKYf40+RDcimCg==" length="8082606" type="application/zip" />
+      <description><![CDATA[ An image attached to a choice sits above its answer button, so the button keeps its full width. ]]></description>
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.6/HiBoss-Island-1.0.6.zip" sparkle:edSignature="OQmRnVnKU3+fyQlzFo6bYCqzFDSiCHt8zJdj4bakYAYKDTXLx81rpLIvbFAbThC5fRzhjjpf5Lke1UWUxj9KBA==" length="8082631" type="application/zip" />
     </item>
   </channel>
 </rss>
