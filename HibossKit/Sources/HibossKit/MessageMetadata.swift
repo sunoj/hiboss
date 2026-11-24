@@ -58,6 +58,8 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     /// older timeout replies carry `source: "api"`, newer ones `source: "system"`.
     public let isAutoDefault: Bool
     public let content: String?
+    /// Server-owned Markdown with hiboss-embed cards; drawn instead of `content` when present.
+    public let richContent: String?
     /// Related file paths from `files` or nested `task_context.files`.
     public let files: [String]
     /// Raw `file_url` an agent attached; `attachment` is the validated form.
@@ -80,6 +82,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         case answeredBy = "answered_by"
         case isAutoDefault = "auto_default"
         case content
+        case richContent = "rich_content"
         case files
         case taskContext = "task_context"
         case fileURL = "file_url"
@@ -96,6 +99,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         answeredBy: AnsweringDevice? = nil,
         isAutoDefault: Bool = false,
         content: String? = nil,
+        richContent: String? = nil,
         files: [String] = [],
         fileURL: String? = nil,
         fileThumbnailURL: String? = nil,
@@ -111,6 +115,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         self.answeredBy = answeredBy
         self.isAutoDefault = isAutoDefault
         self.content = content
+        self.richContent = richContent
         self.files = files
         self.fileURL = fileURL
         self.fileThumbnailURL = fileThumbnailURL
@@ -132,6 +137,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         answeredBy = try? values.decodeIfPresent(AnsweringDevice.self, forKey: .answeredBy)
         isAutoDefault = (try? values.decodeIfPresent(Bool.self, forKey: .isAutoDefault)) == true
         content = try values.decodeIfPresent(String.self, forKey: .content)
+        richContent = try? values.decodeIfPresent(String.self, forKey: .richContent)
         let direct = try values.decodeIfPresent([String].self, forKey: .files) ?? []
         let nested = try values.decodeIfPresent(TaskContext.self, forKey: .taskContext)
         files = direct.isEmpty ? (nested?.files ?? []) : direct
@@ -153,6 +159,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         try values.encodeIfPresent(answeredBy, forKey: .answeredBy)
         if isAutoDefault { try values.encode(true, forKey: .isAutoDefault) }
         try values.encodeIfPresent(content, forKey: .content)
+        try values.encodeIfPresent(richContent, forKey: .richContent)
         if !files.isEmpty { try values.encode(files, forKey: .files) }
         try values.encodeIfPresent(fileURL, forKey: .fileURL)
         try values.encodeIfPresent(fileThumbnailURL, forKey: .fileThumbnailURL)

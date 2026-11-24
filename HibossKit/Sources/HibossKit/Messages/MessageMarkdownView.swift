@@ -37,15 +37,22 @@ public struct MessageMarkdownView: View {
                 inline(block.text).foregroundStyle(.secondary)
             }.fixedSize(horizontal: false, vertical: true)
         case .code:
-            Text(verbatim: block.text).font(.callout.monospaced())
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+            code(block.text)
         case .copy(let label):
             CopyableTextBlock(label: label, text: block.text)
+        case .embed:
+            if let embed = MessageEmbed.decode(block.text) { MessageEmbedCard(embed) }
+            else { code(block.text) }
         }
+    }
+
+    private func code(_ text: String) -> some View {
+        Text(verbatim: text).font(.callout.monospaced())
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func inline(_ text: String) -> some View {

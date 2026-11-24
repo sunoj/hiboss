@@ -9,6 +9,8 @@ public struct MessageMarkdownBlock: Equatable, Sendable {
         case paragraph, heading(Int), item(String), quote, code
         /// A closed ```copy fence; the optional label follows `copy` on the opening line.
         case copy(label: String?)
+        /// A closed ```hiboss-embed fence holding one card as JSON (see MessageEmbed).
+        case embed
     }
     public let kind: Kind
     public let text: String
@@ -68,7 +70,9 @@ public enum MessageMarkdown {
 
     private static func kind(forFenceInfo info: Substring) -> MessageMarkdownBlock.Kind {
         let words = info.trimmingCharacters(in: .whitespaces)
-        guard let first = words.split(maxSplits: 1, whereSeparator: \.isWhitespace).first, first == "copy" else { return .code }
+        guard let first = words.split(maxSplits: 1, whereSeparator: \.isWhitespace).first else { return .code }
+        if first == "hiboss-embed" { return .embed }
+        guard first == "copy" else { return .code }
         let label = words.dropFirst(first.count).trimmingCharacters(in: .whitespaces)
         return .copy(label: label.isEmpty ? nil : label)
     }

@@ -66,7 +66,7 @@ public struct OptionMessage: Codable, Identifiable, Equatable, Sendable {
     /// Label of the option that fires automatically on timeout, if marked.
     public var defaultOption: String? { metadata?.defaultOption }
 
-    public var content: String? { metadata?.content }
+    public var content: String? { metadata?.richContent ?? metadata?.content }
     public var expirationDate: Date? { ISODate.parse(expiresAt) }
 }
 
@@ -166,7 +166,7 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
     /// Label of the option that fires automatically on timeout, if marked.
     public var defaultOption: String? { metadata?.defaultOption }
 
-    public var content: String? { metadata?.content }
+    public var content: String? { metadata?.richContent ?? metadata?.content }
 
     public var expirationDate: Date? { ISODate.parse(expiresAt) }
 }
