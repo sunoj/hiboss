@@ -78,7 +78,7 @@ export const READ_PATHS: ReadPath[] = [
       return driveRequest(get(`/api/boss/sessions?include_inactive=true&updated_after=${encodeURIComponent(cursor)}`, boss));
     } },
   // Externally driven: a misconfigured CI loop can make it hot, so its reads and statements are capped.
-  { id: 'discord-webhook-post', kind: 'endpoint', budget: 200, statementBudget: 30,
+  { id: 'discord-webhook-post', kind: 'endpoint', budget: 40, statementBudget: 14,
     insight: 'POST /api/webhooks/:id/:token (agent_webhooks by id, last-minute rate count, send fan-out)',
     measure: () => driveRequest(() => new Request(`http://localhost${WEBHOOK_PATH}`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: 'Read budget probe' }) })) },
