@@ -5,6 +5,7 @@
 	import { normalizeBaseUrl } from '$lib/api/auth';
 	import { pairingCode } from '$lib/api/pairing';
 	import ConsolePreferences from '$lib/components/ConsolePreferences.svelte';
+	import IslandScene from '$lib/components/IslandScene.svelte';
 	import CopyBlock from '$lib/message/CopyBlock.svelte';
 	import { t } from '$lib/i18n';
 
@@ -66,6 +67,7 @@
 			<span class="name">HiBoss</span>
 		</div>
 		<ConsolePreferences />
+		<IslandScene />
 		<h1>{t('console.connectBrowser')}</h1>
 		{#if reachable !== null}
 			<p role="status" class:reachable>{t(reachable ? 'console.reachable' : 'console.unreachable', { host })}</p>

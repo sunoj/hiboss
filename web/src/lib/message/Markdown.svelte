@@ -7,8 +7,8 @@
 	import InlineText from './InlineText.svelte';
 	import { parseBlocks } from './blocks';
 
-	let { text, embeds = false }: { text: string; embeds?: boolean } = $props();
-	const blocks = $derived(parseBlocks(text, embeds));
+	let { text, embeds = false, tables = false }: { text: string; embeds?: boolean; tables?: boolean } = $props();
+	const blocks = $derived(parseBlocks(text, embeds, tables));
 </script>
 
 <div class="markdown">
@@ -30,6 +30,16 @@
 			{:else}
 				<EmbedCard card={block.card} />
 			{/if}
+		{:else if block.kind === 'table'}
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<div class="table" tabindex="0">
+				<table>
+					<thead><tr>{#each block.rows[0] as cell}<th scope="col"><InlineText text={cell} /></th>{/each}</tr></thead>
+					<tbody>{#each block.rows.slice(1) as row}
+						<tr>{#each row as cell}<td><InlineText text={cell} /></td>{/each}</tr>
+					{/each}</tbody>
+				</table>
+			</div>
 		{:else if block.kind === 'list'}
 			<svelte:element this={block.ordered ? 'ol' : 'ul'}>
 				{#each block.items as item}<li><InlineText text={item} /></li>{/each}
@@ -46,4 +56,7 @@
 	blockquote { border-inline-start: 3px solid var(--hairline); padding-inline-start: 12px; color: var(--text-2); }
 	pre { background: var(--surface-2); border-radius: var(--r-m); overflow: auto; padding: 12px; margin: 0; }
 	code { font: var(--t-mono); }
+	.table { overflow: auto; }
+	table { border-collapse: collapse; min-width: 100%; }
+	th, td { border: 1px solid var(--border); padding: 8px; text-align: start; min-width: 100px; }
 </style>

@@ -12,7 +12,6 @@
 	import { inputs } from '$lib/decisions/inputs.svelte';
 	import { displayContent } from '$lib/message/blocks';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import '$lib/design/console-split.css';
 	import MessageFilters from './MessageFilters.svelte';
 	import MessageSessionGroup from './MessageSessionGroup.svelte';
@@ -90,8 +89,6 @@
 		return '/messages/' + encodeURIComponent(message.id) + (filters.search.trim() ? '?search=1' : '');
 	}
 
-	function openMessage(message: MessageResponse) { void goto(messageHref(message)); }
-
 	function clearFilters() {
 		filters = { ...DEFAULT_FILTERS };
 		chip = 'all';
@@ -162,7 +159,7 @@
 				</div>
 			{:else}
 				{#each groups as group (group.key)}
-					<MessageSessionGroup {group} onSelect={openMessage} />
+					<MessageSessionGroup {group} hrefFor={messageHref} />
 				{/each}
 			{/if}
 

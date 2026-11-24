@@ -1,0 +1,62 @@
+// Localized account, attachment, and decision context labels.
+// Included in the web console feature dictionaries.
+
+export const enExtra = {
+	'console.inApps': "Answer this questionnaire in the apps",
+	'console.panel': "Live panel",
+	'console.firstMachine': "Connect your first machine",
+	'console.account': "Account: {name}",
+	'console.attachment': "Attachment",
+	'console.openOriginal': "Open original",
+	'console.attachmentFailed': "Could not preview this attachment",
+	'console.earlier': "Earlier in this session",
+	'console.openSession': "Open session",
+	'console.showImage': "View image",
+	'console.zoom': "Zoom",
+	'console.viewOnly': "You have view-only access.",
+};
+
+export const zhExtra = {
+	'console.inApps': "请在应用中回答此问卷",
+	'console.panel': "实时面板",
+	'console.firstMachine': "连接首台设备",
+	'console.account': "账户：{name}",
+	'console.attachment': "附件",
+	'console.openOriginal': "打开原文件",
+	'console.attachmentFailed': "无法预览此附件",
+	'console.earlier': "此会话中的早期消息",
+	'console.openSession': "打开会话",
+	'console.showImage': "查看图片",
+	'console.zoom': "缩放",
+	'console.viewOnly': "你拥有只读权限。",
+};
+
+export const jaExtra = {
+	'console.inApps': "この質問票はアプリで回答してください",
+	'console.panel': "ライブパネル",
+	'console.firstMachine': "最初のマシンを接続",
+	'console.account': "アカウント：{name}",
+	'console.attachment': "添付ファイル",
+	'console.openOriginal': "元のファイルを開く",
+	'console.attachmentFailed': "添付ファイルをプレビューできませんでした",
+	'console.earlier': "このセッションの以前のメッセージ",
+	'console.openSession': "セッションを開く",
+	'console.showImage': "画像を表示",
+	'console.zoom': "拡大",
+	'console.viewOnly': "閲覧専用アクセスです。",
+};
+
+export const koExtra = {
+	'console.inApps': "이 설문은 앱에서 응답하세요",
+	'console.panel': "실시간 패널",
+	'console.firstMachine': "첫 컴퓨터 연결",
+	'console.account': "계정: {name}",
+	'console.attachment': "첨부 파일",
+	'console.openOriginal': "원본 열기",
+	'console.attachmentFailed': "첨부 파일을 미리 볼 수 없어요",
+	'console.earlier': "이 세션의 이전 메시지",
+	'console.openSession': "세션 열기",
+	'console.showImage': "이미지 보기",
+	'console.zoom': "확대",
+	'console.viewOnly': "보기 전용으로 접근할 수 있어요.",
+};

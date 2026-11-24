@@ -5,6 +5,7 @@
   import { auth } from '$lib/stores/auth.svelte';
   import { t, formatDateTime } from '$lib/i18n';
   import { listProjects, patchProject, type ProjectId, type ProjectRecord } from '$lib/api/projects';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import ErrorState from '$lib/components/ErrorState.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -12,6 +13,7 @@
   let projects = $state<ProjectRecord[]>([]);
   let loading = $state(true);
   let pending = $state(false);
+  let confirm = $state<{ source: ProjectRecord; target: ProjectRecord } | null>(null);
   let error = $state<string | null>(null);
   let names = $state<Record<string, string>>({});
   let targets = $state<Record<string, string>>({});
@@ -29,20 +31,23 @@
     finally { loading = false; }
   }
 
-  async function save(project: ProjectRecord, merge = false): Promise<void> {
+  async function save(project: ProjectRecord, target?: ProjectRecord): Promise<void> {
     if (!auth.connection || pending || loading) return;
-    const target = projects.find(p => p.id === targets[project.id]);
-    if (merge && (!target || !window.confirm(t('projects.confirm', { source: project.slug, target: target.slug })))) return;
     pending = true;
     error = null;
     try {
-      await patchProject(auth.connection, project.id, merge && target
+      await patchProject(auth.connection, project.id, target
         ? { merge_into: target.id as ProjectId } : { display_name: names[project.id].trim() });
       projects = await listProjects(auth.connection);
       names = Object.fromEntries(projects.map(p => [p.id, p.display_name]));
       targets = {};
     } catch (cause) { error = String(cause); }
     finally { pending = false; }
+  }
+
+  function confirmMerge(source: ProjectRecord): void {
+    const target = projects.find(p => p.id === targets[source.id] && p.id !== source.id);
+    if (target) confirm = { source, target };
   }
 
   function date(value: string | null): string {
@@ -75,11 +80,17 @@
               <option value="">{t('projects.choose')}</option>
               {#each projects.filter(p => p.id !== project.id) as target}<option value={target.id}>{target.slug}</option>{/each}
             </select></label>
-            <button onclick={() => save(project, true)} disabled={pending || loading || !targets[project.id]}>{t('projects.merge')}</button>
+            <button onclick={() => confirmMerge(project)} disabled={pending || loading || !targets[project.id]}>{t('projects.merge')}</button>
           </div>
         {:else}<p>{project.display_name}</p>{/if}
       </li>
     {/each}</ul>
+  {/if}
+  {#if confirm}
+    {@const { source, target } = confirm}
+    <ConfirmDialog action={t('projects.merge')}
+      message={t('projects.confirm', { source: source.slug, target: target.slug })}
+      onConfirm={() => save(source, target)} onClose={() => { confirm = null; }} />
   {/if}
 </section>
 

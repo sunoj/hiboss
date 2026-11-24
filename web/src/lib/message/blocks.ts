@@ -6,7 +6,8 @@ import { decodeEmbed, type Embed } from './embed';
 export type Block = { kind: 'paragraph' | 'heading' | 'quote' | 'code'; text: string }
 	| { kind: 'list'; ordered: boolean; items: string[] }
 	| { kind: 'copy'; text: string; label: string }
-	| { kind: 'embed'; card: Embed };
+	| { kind: 'embed'; card: Embed }
+	| { kind: 'table'; rows: string[][] };
 
 export function displayContent(metadata?: Record<string, unknown> | null):
 	{ text: string; embeds: boolean } {
@@ -48,7 +49,7 @@ function runOfLines(lines: string[], start: number, pattern: RegExp) {
 	return { matches, end };
 }
 
-export function parseBlocks(source: string, embeds = false): Block[] {
+export function parseBlocks(source: string, embeds = false, tables = false): Block[] {
 	const lines = source.replace(/\r\n?/g, '\n').split('\n');
 	const blocks: Block[] = [];
 	let i = 0;
@@ -79,7 +80,11 @@ export function parseBlocks(source: string, embeds = false): Block[] {
 			if (line.includes('|') && tableDelimiter.test(lines[end] ?? '')) {
 				end++;
 				while (lines[end]?.includes('|')) end++;
-				blocks.push({ kind: 'paragraph', text: lines.slice(i, end).join('\n') });
+				if (tables) {
+					const rows = [lines[i], ...lines.slice(i + 2, end)].map((row) => row.trim()
+						.replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim()));
+					blocks.push({ kind: 'table', rows });
+				} else blocks.push({ kind: 'paragraph', text: lines.slice(i, end).join('\n') });
 			} else {
 				while (lines[end]?.trim() && ![fence, heading, quote, item].some((rule) => rule.test(lines[end]))) end++;
 				blocks.push({ kind: 'paragraph', text: lines.slice(i, end).join('\n') });

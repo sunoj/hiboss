@@ -1,7 +1,8 @@
 // Translations shared by the redesigned console surfaces.
 // Spread into the four typed locale dictionaries.
+import { enExtra, zhExtra, jaExtra, koExtra } from './console-extra';
 
-export const enConsole = {
+export const enConsole = { ...enExtra,
 	'console.copySelect': "Press Ctrl/⌘ + C to copy",
 	'console.embedCard': "Card: {title}",
 	'console.appearance': "Appearance",
@@ -75,7 +76,7 @@ export const enConsole = {
 	'console.clearFilters': "Clear filters",
 };
 
-export const zhConsole = {
+export const zhConsole = { ...zhExtra,
 	'console.copySelect': "按 Ctrl/⌘ + C 复制",
 	'console.embedCard': "卡片：{title}",
 	'console.appearance': "外观",
@@ -149,7 +150,7 @@ export const zhConsole = {
 	'console.clearFilters': "清除筛选条件",
 };
 
-export const jaConsole = {
+export const jaConsole = { ...jaExtra,
 	'console.copySelect': "Ctrl/⌘ + C でコピー",
 	'console.embedCard': "カード：{title}",
 	'console.appearance': "外観",
@@ -223,7 +224,7 @@ export const jaConsole = {
 	'console.clearFilters': "絞り込みを解除",
 };
 
-export const koConsole = {
+export const koConsole = { ...koExtra,
 	'console.copySelect': "Ctrl/⌘ + C를 눌러 복사",
 	'console.embedCard': "카드: {title}",
 	'console.appearance': "모양",

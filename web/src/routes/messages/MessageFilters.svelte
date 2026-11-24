@@ -3,7 +3,7 @@
 		DIRECTIONS,
 		MESSAGE_STATUSES,
 		PRIORITIES,
-		directionLabel,
+		directionLabel, priorityLabel, statusLabel,
 		type Direction,
 		type MessageStatus,
 		type Priority
@@ -91,7 +91,7 @@
 			>
 				<option value="all">{t('common.all')}</option>
 				{#each MESSAGE_STATUSES as st (st)}
-					<option value={st}>{st as MessageStatus}</option>
+					<option value={st}>{statusLabel(st as MessageStatus)}</option>
 				{/each}
 			</select>
 		</label>
@@ -128,7 +128,7 @@
 					class:active={filters.priorities.includes(p)}
 					onclick={() => flipPriority(p)}
 				>
-					{p}
+					{priorityLabel(p)}
 				</button>
 			{/each}
 		</div>

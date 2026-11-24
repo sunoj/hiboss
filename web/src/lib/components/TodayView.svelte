@@ -2,10 +2,12 @@
      Open decisions come from the authenticated required-input stream. -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { auth } from '$lib/stores/auth.svelte';
 	import { LoadState } from '$lib/stores/load-state.svelte';
 	import { inputs } from '$lib/decisions/inputs.svelte';
 	import { compareDecisions, deadlineOf, isDecision } from '$lib/decisions/decision';
 	import DecisionActions from '$lib/decisions/DecisionActions.svelte';
+	import IslandScene from './IslandScene.svelte';
 	import MessageRow from './MessageRow.svelte';
 	import Skeleton from './Skeleton.svelte';
 	import ErrorState from './ErrorState.svelte';
@@ -14,6 +16,7 @@
 	import type { MessageResponse, SessionResponse } from '$lib/api/types';
 
 	const loadState = new LoadState();
+	let noAgents = $state(false);
 	let working = $state<SessionResponse[]>([]);
 	let delivered = $state<MessageResponse[]>([]);
 	let cards = $state<MessageResponse[]>([]);
@@ -31,9 +34,10 @@
 
 	async function load() {
 		await loadState.run(async (client) => {
-			const [sessions, messages] = await Promise.all([
-				client.sessions(), client.messages({ direction: 'agent_to_boss', limit: 50 })
+			const [sessions, messages, agents] = await Promise.all([
+				client.sessions(), client.messages({ direction: 'agent_to_boss', limit: 50 }), client.agents()
 			]);
+			noAgents = agents.agents.length === 0;
 			working = sessions.sessions.filter((session) => session.status === 'working');
 			delivered = messages.messages.filter((message) => !isDecision(message)).slice(0, 10);
 		});
@@ -62,10 +66,12 @@
 				}} />
 			</article>
 		{/each}
+	{:else if noAgents && auth.connection?.boss?.role === 'admin'}
+		<article class="clear"><IslandScene /><a href="/agents?tab=join">{t('console.firstMachine')}</a></article>
 	{:else if !inputs.loaded}
 		<article><Skeleton rows={2} /></article><article><Skeleton rows={2} /></article>
 	{:else if inputs.connected}
-		<article class="clear">{t('console.allClear')}</article>
+		<article class="clear"><IslandScene />{t('console.allClear')}</article>
 	{/if}
 	{#if loadState.error}<ErrorState message={loadState.error} onRetry={load} />{/if}
 	{#if working.length}
@@ -73,7 +79,8 @@
 		<div class="rows">
 			{#each working as session (session.id)}
 				<a href={'/sessions/' + encodeURIComponent(session.id)}>
-					{[session.label, session.branch, session.agent_name].filter(Boolean).join(' · ')}
+					<strong>{[session.project_slug ?? session.label, session.branch].filter(Boolean).join(' · ')}</strong>
+					<span>{[session.agent_name, session.status_text].filter(Boolean).join(' · ')}</span>
 				</a>
 			{/each}
 		</div>
@@ -104,6 +111,8 @@
 	.clear { text-align: center; padding-block: 36px; }
 	.question { font: var(--t-headline); overflow-wrap: anywhere; text-decoration: underline; }
 	.rows > a { display: flex; align-items: center; min-height: var(--hit); padding: 0 12px; }
+	.rows > a:has(> strong) { display: grid; padding-block: 8px; }
+	.rows > a > span { color: var(--text-3); font: var(--t-caption); }
 	.rows > a + a { border-block-start: 1px solid var(--hairline); }
 	.more { color: var(--live); display: inline-block; margin-block-start: 8px; text-decoration: underline; }
 </style>

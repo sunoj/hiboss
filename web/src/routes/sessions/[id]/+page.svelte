@@ -1,6 +1,7 @@
 <!-- Addressable session transcript and its reply/note composer.
      Falls back to the loaded conversation if optional endpoints are unavailable. -->
 <script lang="ts">
+	import { sessionPanels, type PanelSummary } from '$lib/api/session-panels';
 	import { readEventStream } from '$lib/api/event-stream';
 	import { page } from '$app/state';
 	import { auth } from '$lib/stores/auth.svelte';
@@ -13,6 +14,7 @@
 
 	let session = $state<SessionResponse | null>(null);
 	let messages = $state<MessageResponse[]>([]);
+	let panels = $state<PanelSummary[]>([]);
 	let notes = $state<{ id: string; body: string }[]>([]);
 	let notesAvailable = $state(false);
 	let loadedAt = $state('');
@@ -23,9 +25,10 @@
 	let busy = $state(false);
 	let generation = 0;
 	const id = $derived(page.params.id ?? '');
-	const integration = $derived(messages.some(({ metadata }) => metadata?.integration === true));
+	const integration = $derived(messages.some(({ metadata }) => metadata?.integration === true || metadata?.source === 'webhook'));
 	const target = $derived(!integration && session?.status !== 'completed'
 		? messages.findLast((message) => message.direction === 'agent_to_boss' && !isDecision(message)) : undefined);
+	const replies = $derived(new Set(messages.filter(isDecision).flatMap((message) => message.replies?.map(({ id }) => id) ?? [])));
 	const canWrite = $derived(auth.connection?.boss?.role !== 'viewer' && !integration);
 
 	async function load(sessionId: string) {
@@ -91,11 +94,17 @@
 	}
 
 	$effect(() => {
-		session = null; messages = []; notes = []; notesAvailable = false; loadedAt = '';
+		session = null; messages = []; notes = []; panels = []; notesAvailable = false; loadedAt = '';
 		draft = ''; note = false; composeError = null;
 		const stop = new AbortController();
 		void load(id);
 		void watch(id, stop.signal);
+		const client = auth.client;
+		if (client) {
+			void sessionPanels(client, id, stop.signal).then((rows) => {
+				if (!stop.signal.aborted) panels = rows;
+			}).catch(() => undefined);
+		}
 		return () => stop.abort();
 	});
 </script>
@@ -119,11 +128,19 @@
 			{t('form.updated')} {formatDateTime(loadedAt)}
 		</time>
 		<div role="feed" aria-label={t('console.transcript')}>
-			{#each messages as message (message.id)}
+			{#each messages.filter(({ id }) => !replies.has(id)) as message (message.id)}
 				<article aria-label={message.body}>
 					<a href={'/messages/' + encodeURIComponent(message.id) + '?from=session'}>{message.body}</a>
 					<MessageContent metadata={message.metadata} />
 					{#if isDecision(message)}<DecisionActions {message} />{/if}
+				</article>
+			{/each}
+			{#each panels as panel (panel.panelId)}
+				{@const updated = panel.lifecycle.lastObservedAt ?? panel.createdAt}
+				<article aria-label={panel.title}>
+					<strong>{panel.title}</strong>
+					<p>{t(panel.questionnaire ? 'console.inApps' : 'console.panel')} · {panel.lifecycle.taskState}</p>
+					<time datetime={updated} title={formatDateTime(updated)}>{formatDateTime(updated)}</time>
 				</article>
 			{/each}
 			{#each notes as item (item.id)}

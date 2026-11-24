@@ -53,14 +53,13 @@ test('rename persists, cancelled merge sends nothing, confirmed merge moves sour
     await source.getByRole('button', { name: 'Save name', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('input')?.value === 'Source Display');
     await source.getByRole('combobox', { name: 'Merge into', exact: true }).selectOption('target');
-    page.once('dialog', dialog => dialog.dismiss());
     await source.getByRole('button', { name: 'Merge', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
     assert.equal(patches.length, 1);
-    page.once('dialog', async dialog => {
-      assert.match(dialog.message(), /source.*target/);
-      await dialog.accept();
-    });
     await source.getByRole('button', { name: 'Merge', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    assert.match(await dialog.innerText(), /source.*target/);
+    await dialog.getByRole('button', { name: 'Merge', exact: true }).click();
     await page.getByRole('heading', { name: 'source', exact: true }).waitFor({ state: 'detached' });
     assert.deepEqual(patches, [{ id: 'source', display_name: 'Source Display' }, { id: 'source', merge_into: 'target' }]);
     await page.reload();
@@ -78,7 +77,11 @@ test('four locales render project management labels', async () => {
       ['en', 'Projects', 'Display name'], ['zh-CN', '项目', '显示名称'],
       ['ja', 'プロジェクト', '表示名'], ['ko', '프로젝트', '표시 이름']
     ]) {
-      await page.locator('.language select').selectOption(locale);
+      const account = page.getByRole('button', { name: 'Account: Boss' });
+      if (await account.count()) await account.click();
+      else await page.locator('.account summary').click();
+      await page.locator('.account select').first().selectOption(locale);
+      await page.locator('.account summary').click();
       await page.getByRole('heading', { name: title, exact: true }).waitFor();
       assert.equal(await page.getByLabel(displayName, { exact: true }).count(), 2);
     }

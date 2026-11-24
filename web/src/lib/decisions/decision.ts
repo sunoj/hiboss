@@ -17,8 +17,10 @@ export function deadlineOf(message: MessageResponse): string | null {
 export function compareDecisions(a: MessageResponse, b: MessageResponse): number {
 	const aDue = Date.parse(deadlineOf(a) ?? '') || Infinity;
 	const bDue = Date.parse(deadlineOf(b) ?? '') || Infinity;
+	const waitingFirst = Number(b.session_status === 'waiting') - Number(a.session_status === 'waiting');
 	const priority = ['critical', 'high', 'normal', 'low'];
 	return (aDue === bDue ? 0 : aDue < bDue ? -1 : 1)
+		|| waitingFirst
 		|| priority.indexOf(a.priority) - priority.indexOf(b.priority)
 		|| Date.parse(b.created_at) - Date.parse(a.created_at);
 }

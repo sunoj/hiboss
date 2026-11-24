@@ -1,11 +1,13 @@
 <!-- Console module navigation with active-route and translated labels.
      Depends on shared navigation definitions, page state, and i18n. -->
 <script lang="ts">
+	import ConsoleIcon from './ConsoleIcon.svelte';
 	import { page } from '$app/stores';
 	import { t } from '$lib/i18n';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { inputs } from '$lib/decisions/inputs.svelte';
 	import { NAV_MODULES, isActivePath } from '$lib/nav';
+	const openCount = $derived(inputs.messages.filter(({ id }) => !inputs.settled.has(id)).length);
 </script>
 
 <aside class="nav" aria-label={t('nav.aria')}>
@@ -22,7 +24,10 @@
 			{#if mod.id === 'access'}<span class="section">{t('console.system')}</span>{/if}
 			{#if mod.id !== 'access' || auth.connection?.boss?.role === 'admin'}
 				<a href={mod.href} aria-current={isActivePath($page.url.pathname, mod.href) ? 'page' : undefined}>
-					{t(mod.labelKey)}
+					<ConsoleIcon name={mod.id} />{t(mod.labelKey)}
+					{#if mod.id === 'today' && inputs.loaded && openCount}
+						<span class="count">{openCount}</span>
+					{/if}
 				</a>
 			{/if}
 		{/each}
@@ -36,10 +41,11 @@
 <nav class="tabs" aria-label={t('nav.aria')}>
 	{#each NAV_MODULES.filter((module) => module.primary) as mod (mod.id)}
 		<a href={mod.href} aria-current={isActivePath($page.url.pathname, mod.href) ? 'page' : undefined}>
+			<ConsoleIcon name={mod.id} />
 			{t(mod.shortKey)}
 		</a>
 	{/each}
-	<a href="/more" aria-current={$page.url.pathname === '/more' ? 'page' : undefined}>{t('console.more')}</a>
+	<a href="/more" aria-current={$page.url.pathname === '/more' ? 'page' : undefined}><ConsoleIcon name="more" />{t('console.more')}</a>
 </nav>
 
 <style>
@@ -54,8 +60,10 @@
 		border-top: 1px solid var(--hairline);
 		padding-bottom: env(safe-area-inset-bottom);
 	}
-	a { display: flex; align-items: center; min-height: var(--hit); padding: 8px 12px; border-radius: var(--r-s); }
-	.tabs a { justify-content: center; padding-inline: 2px; font: var(--t-caption); }
+	a { display: flex; align-items: center; min-height: var(--hit); padding: 8px 12px; gap: 10px; border-radius: var(--r-s); }
+	.tabs a { display: grid; justify-items: center; align-content: center; gap: 2px; min-height: 52px;
+		padding-inline: 2px; font: var(--t-caption); color: var(--text-2); }
+	.tabs a[aria-current="page"] { color: var(--ink); font-weight: 600; background: var(--surface); }
 	a:hover, a[aria-current="page"] { background: var(--live-soft); color: var(--live); }
 	@media (min-width: 1024px) {
 		.tabs { display: none; }
@@ -69,6 +77,8 @@
 			color: var(--on-ink); width: 32px; height: 32px; font-weight: 700; }
 		.name { font: var(--t-headline); }
 		.sub, footer { color: var(--text-3); font: var(--t-caption); }
+		.count { margin-inline-start: auto; background: var(--signal-soft); color: var(--signal);
+			padding: 2px 8px; border-radius: var(--r-pill); }
 		.section { display: block; margin: 20px 12px 4px; font: var(--t-caption); color: var(--text-3); }
 		footer { margin-top: auto; padding: 12px; overflow-wrap: anywhere; }
 		footer span { display: block; }

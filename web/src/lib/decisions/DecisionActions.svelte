@@ -86,6 +86,7 @@
 		<p>{t('console.noDeadline')}</p>
 	{/if}
 	{#if status === 'checking'}<p role="status">{t('console.checking')}</p>{/if}
+	{#if viewer}<p>{t('console.viewOnly')}</p>{/if}
 	<div class="options">
 		{#each options as option, index}
 			{@const illustration = media.find(({ label }) => label === option)}

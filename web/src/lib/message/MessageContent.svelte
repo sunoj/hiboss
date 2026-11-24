@@ -4,11 +4,15 @@
 	import { t, getLocale } from '$lib/i18n';
 	import type { MessageMetadata } from '$lib/api/types';
 	import { displayContent } from './blocks';
+	import { safeLink } from './inline';
+	import MessageAttachment from './MessageAttachment.svelte';
 	import Markdown from './Markdown.svelte';
 
 	let { metadata, expanded = false }: { metadata: MessageMetadata | null; expanded?: boolean } = $props();
 	let open = $state(false);
 	const content = $derived(displayContent(metadata));
+	const href = $derived(safeLink(metadata?.file_url));
+	const thumbnail = $derived(safeLink(metadata?.file_thumbnail_url));
 	const lines = $derived(content.text.split('\n'));
 	const characters = $derived(Array.from(new Intl.Segmenter(getLocale()).segment(content.text)));
 	const long = $derived(!content.embeds && !/^s*(?:`{3,}|~{3,})/m.test(content.text)
@@ -25,6 +29,8 @@
 		</button>
 	{/if}
 {/if}
+
+{#if href}<MessageAttachment {href} {thumbnail} />{/if}
 
 <style>
 	button { min-height: var(--hit); color: var(--live); border: 0; background: transparent; }

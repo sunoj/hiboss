@@ -1,11 +1,10 @@
 <script lang="ts">
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
-	import { formatRelativeTime } from '$lib/api/mappers';
+	import { formatDateTime } from '$lib/i18n';
 	import type { AuditActorType, AuditEntry } from '$lib/api/types';
 	import {
 		actorTypeLabel,
-		formatResource,
-		truncateDetails
+		formatResource
 	} from './audit-helpers';
 	import { t } from '$lib/i18n';
 
@@ -42,7 +41,7 @@
 			{#each entries as row (row.id)}
 				<tr>
 					<td class="when" title={row.created_at}>
-						{formatRelativeTime(row.created_at)}
+						<time datetime={row.created_at}>{formatDateTime(row.created_at)}</time>
 					</td>
 					<td class="actor">
 						<span
@@ -61,7 +60,9 @@
 						{formatResource(row.resource_type, row.resource_id)}
 					</td>
 					<td class="details" title={row.details ?? undefined}>
-						{truncateDetails(row.details)}
+						{#if row.details}
+							<details><summary>{t('form.details')}</summary><pre>{row.details}</pre></details>
+						{/if}
 					</td>
 				</tr>
 			{/each}
@@ -137,5 +138,12 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+	@media (max-width: 767px) {
+		thead { display: none; }
+		table, tbody, tr, td { display: block; width: 100%; min-width: 0; }
+		tr { padding-block: 8px; border-bottom: 1px solid var(--hairline); }
+		.resource, .details { white-space: normal; overflow-wrap: anywhere; max-width: none; }
 	}
 </style>

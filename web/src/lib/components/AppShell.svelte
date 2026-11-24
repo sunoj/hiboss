@@ -1,5 +1,5 @@
 <!-- Console shell arranging shared navigation, header, and routed content.
-     Depends on SideNav, TopBar, and ToastHost. -->
+     Depends on SideNav, AccountActions, and ToastHost. -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import SideNav from './SideNav.svelte';
@@ -20,7 +20,9 @@
 	<SideNav />
 	<div class="main">
 		<details class="account">
-			<summary>{auth.connection?.boss?.name} · {auth.connection?.boss?.role}</summary>
+			<summary title={auth.connection?.boss?.name} aria-label={t('console.account', {
+				name: auth.connection?.boss?.name ?? ''
+			})}>{auth.connection?.boss?.name?.slice(0, 1).toLocaleUpperCase() ?? '·'}</summary>
 			<div class="menu"><AccountActions /></div>
 		</details>
 		<main class="content" id="main">
@@ -39,16 +41,19 @@
 	.main {
 		flex: 1;
 		min-width: 0;
+		position: relative;
 		display: flex;
 		flex-direction: column;
 	}
 	.content {
-		padding: 24px 32px 32px;
+		padding: 24px 76px 32px 32px;
 		flex: 1;
 	}
 
-	.account { align-self: flex-end; margin: 16px 32px 0; position: relative; z-index: 5; }
-	summary { cursor: pointer; min-height: var(--hit); padding: 10px; }
+	.account { position: absolute; inset-block-start: 14px; inset-inline-end: 24px; z-index: 5; }
+	summary { cursor: pointer; min-height: var(--hit); min-width: var(--hit); padding: 10px;
+		display: grid; place-items: center; background: var(--surface); border-radius: 50%;
+		border: 1px solid var(--border); }
 	.menu { position: absolute; inset-inline-end: 0; min-width: 220px; background: var(--surface);
 		border: 1px solid var(--border); border-radius: var(--r-m); padding: 12px; box-shadow: var(--overlay); }
 	.skip { position: fixed; inset-block-start: 8px; inset-inline-start: 8px; background: var(--surface);

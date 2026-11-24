@@ -49,11 +49,13 @@
 		{#if auth.connection?.boss?.role === 'admin' || auth.connection?.boss?.role === 'manager'}
 			{#key agent.id}<AgentKeys agentId={agent.id} />{/key}
 		{/if}
+		{#if auth.connection?.boss?.role !== 'viewer'}
 		<AgentConfigForm
 			agentId={agent.id}
 			initial={config}
 			onSaved={(next) => onConfigSaved?.(agent.id, next)}
 		/>
+		{/if}
 	</div>
 </div>
 
