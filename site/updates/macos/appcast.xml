@@ -3,13 +3,13 @@
   <channel>
     <title>HiBoss Island</title>
     <item>
-      <title>Version 1.0.4</title>
-      <pubDate>Sun, 22 Nov 2026 12:50:17 +0000</pubDate>
-      <sparkle:shortVersionString>1.0.4</sparkle:shortVersionString>
-      <sparkle:version>202611221947</sparkle:version>
+      <title>Version 1.0.5</title>
+      <pubDate>Tue, 24 Nov 2026 02:21:41 +0000</pubDate>
+      <sparkle:shortVersionString>1.0.5</sparkle:shortVersionString>
+      <sparkle:version>202611240920</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[ Messages: a copy block shows a copy button that copies the exact text. The session list fetches only what changed since the last read. Closed decisions keep their option images, and every question stays open for at least a minute. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.4/HiBoss-Island-1.0.4.zip" sparkle:edSignature="OKxkTsdxd+75P38WO/expwXLtnO4PVNYtllKBhqdYeXWRafVF8zcM+t4M5SczJ2g7Sck+oHOIlq1M7LSFfGQAw==" length="8080937" type="application/zip" />
+      <description><![CDATA[ An answered decision no longer keeps its open card in the session thread until the window is reopened. ]]></description>
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.5/HiBoss-Island-1.0.5.zip" sparkle:edSignature="dZZ4GdT5aGre9yvbrLfP3+fT3vGRuOY1IehuLYO4veujSEoM3qLGixAhF8I/LyltMW61JUa2uKYf40+RDcimCg==" length="8082606" type="application/zip" />
     </item>
   </channel>
 </rss>
