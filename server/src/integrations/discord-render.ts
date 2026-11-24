@@ -61,19 +61,33 @@ function embedBlock(embed: DiscordEmbed): string {
   return lines.join('\n');
 }
 
-/** The sender stays the integration; a payload `username` is shown as text, never as identity. */
+/** One card as the apps draw it; backticks are escaped so a value can never close the fence. */
+function embedFence(embed: DiscordEmbed): string {
+  const n = (text: string | null) => (text ? normalizeDiscordMarkup(text) : null);
+  const card = {
+    color: embed.color, title: n(embed.title), url: embed.url, author: n(embed.author),
+    description: n(embed.description), image: embed.image, thumbnail: embed.thumbnail,
+    fields: embed.fields.map((field) => ({ name: n(field.name) ?? '', value: n(field.value) ?? '',
+      inline: field.inline })),
+    footer: n(embed.footer), timestamp: embed.timestamp,
+  };
+  return `\`\`\`hiboss-embed\n${JSON.stringify(card).replaceAll('`', '\\u0060')}\n\`\`\``;
+}
+
+export interface RenderedMessage { title: string; content: string; richContent: string | null }
+
+/** The sender stays the integration; a payload `username` is shown as text, never as identity.
+ *  `content` is plain Markdown for channels and older apps; `richContent` carries native cards. */
 export function renderDiscordMessage(payload: DiscordPayload, integrationName: string,
-  extraLines: string[] = []): { title: string; content: string } {
-  const blocks: string[] = [];
-  if (payload.content) blocks.push(normalizeDiscordMarkup(payload.content));
-  for (const embed of payload.embeds) {
-    const block = embedBlock(embed);
-    if (block) blocks.push(block);
-  }
-  blocks.push(...extraLines);
+  extraLines: string[] = []): RenderedMessage {
+  const lead = payload.content ? [normalizeDiscordMarkup(payload.content)] : [];
   const notes: string[] = [];
   if (payload.username && payload.username !== integrationName) notes.push(`via ${payload.username}`);
   if (payload.truncated) notes.push('truncated');
-  if (notes.length) blocks.push(`*${notes.join(' · ')}*`);
-  return { title: titleOf(payload, integrationName), content: blocks.join('\n\n') };
+  const tail = [...extraLines, ...(notes.length ? [`*${notes.join(' · ')}*`] : [])];
+  const plain = payload.embeds.map(embedBlock).filter(Boolean);
+  const content = [...lead, ...plain, ...tail].join('\n\n');
+  const richContent = payload.embeds.length
+    ? [...lead, ...payload.embeds.map(embedFence), ...tail].join('\n\n') : null;
+  return { title: titleOf(payload, integrationName), content, richContent };
 }

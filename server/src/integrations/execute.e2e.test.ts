@@ -36,6 +36,15 @@ beforeAll(async () => {
 });
 
 describe('Discord-compatible execute webhook', () => {
+  it('keeps a backtick inside a card value from closing its fence', async () => {
+    const hook = await createHook('Fence check');
+    await post(hook.url, { embeds: [{ title: 'x', fields: [{ name: 'cmd', value: '```rm```', inline: true }] }] });
+    const rich = String((await latest(hook.agentId)).meta.rich_content);
+    expect(rich.match(/```/g)).toHaveLength(2);
+    const card = JSON.parse(rich.match(/```hiboss-embed\n(.*)\n```/)?.[1] ?? '{}');
+    expect(card.fields[0]).toEqual({ name: 'cmd', value: '```rm```', inline: true });
+  });
+
   it('stores a curl post in the integration session as an async notice', async () => {
     const hook = await createHook('Deploy script');
     const response = await post(hook.url, { content: 'Deploy finished: https://example.com/run/1' });
@@ -62,6 +71,9 @@ describe('Discord-compatible execute webhook', () => {
     expect(stored.body).toBe('[FIRING:1] HighCPU');
     expect(stored.meta.content).toContain('**[FIRING:1 HighCPU](https://grafana.example/alerting/list)**');
     expect(stored.meta.content).toContain('*Grafana v11*');
+    const fence = String(stored.meta.rich_content).match(/```hiboss-embed\n(.*)\n```/)?.[1] ?? '';
+    expect(JSON.parse(fence)).toMatchObject({ color: 14037554, title: '[FIRING:1] HighCPU',
+      url: 'https://grafana.example/alerting/list', footer: 'Grafana v11' });
     const kuma = await post(hook.url, { username: 'Uptime Kuma', embeds: [{ title: '❌ Site down',
       fields: [{ name: 'Time', value: '<t:1795500000:F>' }, { name: 'Ping', value: '<@123> <#456>' }] }],
       components: [{ type: 1 }], poll: { question: { text: 'never' } } });
@@ -70,6 +82,9 @@ describe('Discord-compatible execute webhook', () => {
     expect(down.meta.content).toContain('- **Time**: 2026-11-24 0');
     expect(down.meta.content).toContain('@user #channel');
     expect(down.meta.content).toContain('*via Uptime Kuma*');
+    const card = JSON.parse(String(down.meta.rich_content).match(/```hiboss-embed\n(.*)\n```/)?.[1] ?? '{}');
+    expect(card.fields[0]).toMatchObject({ name: 'Time', inline: false });
+    expect(String(down.meta.rich_content)).not.toContain('<t:');
     expect(down.mode).toBe('async');
   });
 

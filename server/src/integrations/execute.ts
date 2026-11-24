@@ -72,6 +72,7 @@ async function deliver(c: WebhookContext, credential: WebhookCredential, body: W
   const priority = priorityOf(credential, payload);
   const metadata: Record<string, unknown> = { content: rendered.content,
     ...webhookProvenance(credential.agent_id, credential.id) };
+  if (rendered.richContent) metadata.rich_content = rendered.richContent;
   if (fileUrl) metadata.file_url = fileUrl;
   if (payload.threadName) metadata.webhook = { thread_name: payload.threadName };
   const input: SendInput = {

@@ -2,11 +2,13 @@
 // Exports DiscordPayload, parseDiscordPayload and the Discord error shape used by the route.
 // Dependencies: none; rendering into a HiBoss title and Markdown lives in discord-render.ts.
 
-export interface DiscordEmbedField { name: string; value: string }
+export interface DiscordEmbedField { name: string; value: string; inline: boolean }
 export interface DiscordEmbed {
   title: string | null; url: string | null; description: string | null; author: string | null;
   fields: DiscordEmbedField[]; image: string | null; thumbnail: string | null;
   footer: string | null; timestamp: string | null;
+  /** 0xRRGGBB, as Discord sends it; null when the sender gave none. */
+  color: number | null;
 }
 export interface DiscordPayload {
   content: string | null; username: string | null; embeds: DiscordEmbed[]; flags: number;
@@ -55,7 +57,7 @@ function parseEmbed(value: Record_, clamp: Clamp): DiscordEmbed {
   const fields = rawFields.slice(0, LIMITS.fields).flatMap((field) => {
     const name = clamp.text(field.name, LIMITS.fieldName, true);
     const fieldValue = clamp.text(field.value, LIMITS.fieldValue, true);
-    return name || fieldValue ? [{ name: name ?? '', value: fieldValue ?? '' }] : [];
+    return name || fieldValue ? [{ name: name ?? '', value: fieldValue ?? '', inline: field.inline === true }] : [];
   });
   return {
     title: clamp.text(value.title, LIMITS.title, true),
@@ -68,6 +70,8 @@ function parseEmbed(value: Record_, clamp: Clamp): DiscordEmbed {
     footer: isRecord(value.footer) ? clamp.text(value.footer.text, LIMITS.footer, true) : null,
     timestamp: typeof value.timestamp === 'string' && !Number.isNaN(Date.parse(value.timestamp))
       ? new Date(value.timestamp).toISOString() : null,
+    color: typeof value.color === 'number' && Number.isInteger(value.color) && value.color >= 0
+      && value.color <= 0xffffff ? value.color : null,
   };
 }
 
