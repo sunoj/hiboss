@@ -34,19 +34,35 @@ function clampTitle(text: string): string {
   return chars.length <= TITLE_MAX ? text : `${chars.slice(0, TITLE_MAX - 1).join('')}…`;
 }
 
-function titleOf(payload: DiscordPayload, fallback: string): string {
+type TitleSource = 'embed' | 'content' | 'other';
+
+/** The title and where it came from, so the details do not repeat it. */
+function titleOf(payload: DiscordPayload, fallback: string): { title: string; source: TitleSource } {
   const first = payload.embeds[0];
-  const candidates = [first?.title, payload.content, first?.description, first?.author];
-  for (const candidate of candidates) {
+  const candidates: [string | null | undefined, TitleSource][] = [[first?.title, 'embed'],
+    [payload.content, 'content'], [first?.description, 'other'], [first?.author, 'other']];
+  for (const [candidate, source] of candidates) {
     const line = candidate ? plainLine(candidate) : '';
-    if (line) return clampTitle(line);
+    if (line) return { title: clampTitle(line), source };
   }
-  return clampTitle(fallback);
+  return { title: clampTitle(fallback), source: 'other' };
+}
+
+/** Drops whatever became the title: the first embed's title, or the first line of the text. */
+function withoutTitle(payload: DiscordPayload, source: TitleSource): DiscordPayload {
+  if (source === 'embed') {
+    return { ...payload, embeds: payload.embeds.map((embed, index) => (index ? embed : { ...embed, title: null })) };
+  }
+  if (source !== 'content' || !payload.content) return payload;
+  const lines = payload.content.split('\n');
+  const first = lines.findIndex((line) => line.trim());
+  const rest = lines.slice(first + 1).join('\n').trim();
+  return { ...payload, content: rest || null };
 }
 
 function embedBlock(embed: DiscordEmbed): string {
   const lines: string[] = [];
-  const title = embed.title ? normalizeDiscordMarkup(embed.title).replace(/[[\]]/g, '') : null;
+  const title = embed.title ? normalizeDiscordMarkup(embed.title).replace(/([[\]])/g, '\\$1') : null;
   if (title) lines.push(embed.url ? `**[${title}](${embed.url})**` : `**${title}**`);
   else if (embed.url) lines.push(embed.url);
   if (embed.author) lines.push(`*${normalizeDiscordMarkup(embed.author)}*`);
@@ -89,8 +105,10 @@ export interface RenderedMessage { title: string; content: string; richContent: 
 
 /** The sender stays the integration; a payload `username` is shown as text, never as identity.
  *  `content` is plain Markdown for channels and older apps; `richContent` is what new apps draw. */
-export function renderDiscordMessage(payload: DiscordPayload, integrationName: string,
+export function renderDiscordMessage(original: DiscordPayload, integrationName: string,
   extraLines: string[] = []): RenderedMessage {
+  const { title, source } = titleOf(original, integrationName);
+  const payload = withoutTitle(original, source);
   const lead = payload.content ? normalizeDiscordMarkup(payload.content) : null;
   const notes: string[] = [];
   if (payload.username && payload.username !== integrationName) notes.push(`via ${payload.username}`);
@@ -103,5 +121,5 @@ export function renderDiscordMessage(payload: DiscordPayload, integrationName: s
     ...payload.embeds.map(embedFence),
     ...(tail.length ? [fence({ text: tail.join('\n\n') })] : []),
   ].join('\n\n');
-  return { title: titleOf(payload, integrationName), content, richContent };
+  return { title, content, richContent };
 }

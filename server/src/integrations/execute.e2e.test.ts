@@ -70,11 +70,19 @@ describe('Discord-compatible execute webhook', () => {
     expect(await grafana.json()).toMatchObject({ type: 0, webhook_id: hook.id, author: { bot: true } });
     const stored = await latest(hook.agentId);
     expect(stored.body).toBe('[FIRING:1] HighCPU');
-    expect(stored.meta.content).toContain('**[FIRING:1 HighCPU](https://grafana.example/alerting/list)**');
+    // The title is not repeated: the first card keeps its link but drops its title.
+    expect(stored.meta.content).not.toContain('HighCPU');
+    expect(stored.meta.content).toContain('https://grafana.example/alerting/list');
     expect(stored.meta.content).toContain('*Grafana v11*');
     const fence = String(stored.meta.rich_content).match(/```hiboss-embed\n(.*)\n```/)?.[1] ?? '';
-    expect(JSON.parse(fence)).toMatchObject({ color: 14037554, title: '[FIRING:1] HighCPU',
+    expect(JSON.parse(fence)).toMatchObject({ color: 14037554, title: null,
       url: 'https://grafana.example/alerting/list', footer: 'Grafana v11' });
+    await post(hook.url, { embeds: [{ title: 'Summary' }, { title: '[A] second', url: 'https://example.com/a' }] });
+    expect((await latest(hook.agentId)).meta.content).toContain('**[\\[A\\] second](https://example.com/a)**');
+    await post(hook.url, { content: 'Backup done\nduration 4 min' });
+    const backup = await latest(hook.agentId);
+    expect(backup.body).toBe('Backup done');
+    expect(backup.meta.content).toBe('duration 4 min');
     const kuma = await post(hook.url, { username: 'Uptime Kuma', embeds: [{ title: '❌ Site down',
       fields: [{ name: 'Time', value: '<t:1795500000:F>' }, { name: 'Ping', value: '<@123> <#456>' }] }],
       components: [{ type: 1 }], poll: { question: { text: 'never' } } });

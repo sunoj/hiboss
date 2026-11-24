@@ -56,6 +56,9 @@ public struct MessageEmbedCard: View {
         }
         if let title = embed.title {
             Text(titleText(title)).font(.headline).fixedSize(horizontal: false, vertical: true)
+        } else if let url = embed.url {
+            // The message title already says what this card is; its link stays one tap away.
+            Link(url.host() ?? url.absoluteString, destination: url).font(.subheadline)
         }
     }
 
