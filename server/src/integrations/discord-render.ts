@@ -69,7 +69,7 @@ function embedBlock(embed: DiscordEmbed): string {
  * end a fence nor start one.
  */
 function fence(value: object): string {
-  const json = JSON.stringify(value).replace(/[`\u0085  ]/g,
+  const json = JSON.stringify(value).replace(/[`\u0085\u2028\u2029]/g,
     (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
   return `\`\`\`hiboss-embed\n${json}\n\`\`\``;
 }
