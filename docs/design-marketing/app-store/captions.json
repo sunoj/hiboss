@@ -1,0 +1,22 @@
+{
+  "frames": [
+    { "name": "today", "scene": "today", "appearance": "light",
+      "en-US": ["Your agents ask.\nYou decide.", "Answer your AI coding agents in one tap."],
+      "zh-Hans": ["智能体来问，\n你来拍板。", "点一下，回复你的 AI 编程智能体。"] },
+    { "name": "default", "scene": "decision", "appearance": "light",
+      "en-US": ["Silence is never approval.", "A timeout picks a default, and says so."],
+      "zh-Hans": ["不回复，\n绝不算批准。", "超时只选默认项，并且明确标注。"] },
+    { "name": "session", "scene": "session", "appearance": "dark",
+      "en-US": ["Every question keeps its context.", "Agent, machine and branch, in one thread."],
+      "zh-Hans": ["每个问题\n都带着上下文。", "智能体、机器和分支，都在同一个会话里。"] },
+    { "name": "sessions", "scene": "sessions", "appearance": "light", "skip": ["ipad-13"],
+      "en-US": ["See who needs you, and who is working.", "Every session, grouped by what it needs."],
+      "zh-Hans": ["谁在等你，\n谁在干活。", "所有会话，按需要你做什么来分组。"] },
+    { "name": "box", "scene": "box", "appearance": "light",
+      "en-US": ["A Box your agents can read.", "Text, links, images, videos and files."],
+      "zh-Hans": ["一个智能体\n读得到的 Box。", "文字、链接、图片、视频和文件。"] },
+    { "name": "all-clear", "scene": "allclear", "appearance": "dark",
+      "en-US": ["Nothing needs you.", "Agents keep working, on a server you run."],
+      "zh-Hans": ["没有需要你\n处理的事。", "智能体继续干活，数据留在你的服务器上。"] }
+  ]
+}

@@ -14,7 +14,7 @@ if (!site || !out) { console.error('usage: render-site.mjs <built-site-dir> <out
 const PAGES = { home: '/', 'zh-home': '/zh/', download: '/download/', 'zh-download': '/zh/download/',
   'self-host': '/docs/self-host/', 'zh-self-host': '/zh/docs/self-host/', agents: '/docs/agents/',
   changelog: '/changelog/', privacy: '/privacy/', support: '/support/', 404: '/404.html' };
-const WIDTHS = { desktop: [1440, 900, 1], mobile: [390, 844, 2] };
+const WIDTHS = { desktop: [1440, 900, 1], mobile: [390, 844, 1.5] };
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript',
   '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.png': 'image/png' };
 
@@ -52,7 +52,7 @@ for (const [device, [width, height, scale]] of Object.entries(WIDTHS)) {
         offsite.length && `off-site requests ${offsite}`].filter(Boolean);
       if (problems.length) { failures += 1; console.error(`FAIL ${name} ${device} ${theme}: ${problems.join('; ')}`); }
       await page.screenshot({ path: join(out, `${name}-${device}-${theme}.jpg`), fullPage: true,
-        type: 'jpeg', quality: 78 });
+        type: 'jpeg', quality: 64 });
       offsite.length = 0;
     }
     await context.close();
