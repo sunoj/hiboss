@@ -35,6 +35,9 @@ and Mac apps, the web console and the Claude Code MCP server.
   survives the end of each turn and sends one notice with the reply's id through the
   session's messaging socket. The blocking wait of `hiboss ask` is unchanged. The listener
   reconnects at once after the server ends a quiet stream instead of waiting up to 60 s.
+- An ask whose waiter was detached or redirected to a file still gets its reply to the agent:
+  the waiter delivers it like the background listener, and an idle session is woken. A
+  server timeout default is shown as such, never as the boss's answer.
 - Mac: an answered decision no longer keeps its open card in the session thread until the
   window is reopened.
 - A ```` ```copy [label] ```` block in message details shows a copy button in the apps that
