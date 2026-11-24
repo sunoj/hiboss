@@ -10,12 +10,20 @@ public struct MessageEmbedCard: View {
     public init(_ embed: MessageEmbed) { self.embed = embed }
 
     public var body: some View {
+        if embed.isTextOnly, let text = embed.text {
+            MessageMarkdownView(text, cards: false)
+        } else {
+            card
+        }
+    }
+
+    private var card: some View {
         HStack(spacing: 0) {
             Rectangle().fill(edge).frame(width: 4)
             VStack(alignment: .leading, spacing: 8) {
                 header
                 if let description = embed.description {
-                    MessageMarkdownView(description)
+                    MessageMarkdownView(description, cards: false)
                 }
                 ForEach(Array(embed.fieldRows.enumerated()), id: \.offset) { _, row in
                     fieldRow(row)

@@ -121,44 +121,58 @@ describe('Discord-compatible execute webhook', () => {
     expect(await huge.json()).toEqual({ message: 'Request entity too large', code: 40005 });
   });
 
-  it('stores an image part with an empty field name and lists other files', async () => {
+  it('reads multipart with an empty file field name and lists files without storing them', async () => {
     const hook = await createHook('Grafana images');
     const form = new FormData();
     form.append('payload_json', JSON.stringify({ embeds: [{ title: 'Panel snapshot', image: { url: 'attachment://p.png' } }] }));
     form.append('', new File([PNG], 'p.png', { type: 'image/png' }));
-    form.append('files[1]', new File(['hello'], 'notes.txt', { type: 'text/plain' }));
     const response = await SELF.fetch(hook.url, { method: 'POST', body: form });
     expect(`${response.status} ${await response.text()}`).toBe('204 ');
     const stored = await latest(hook.agentId);
-    expect(stored.meta.file_url).toMatch(/^https:\/\/test\.local\/api\/attachments\/[0-9a-f-]+\.png$/);
-    expect(stored.meta.content).toContain('file not stored: notes.txt');
-    const fake = new FormData();
-    fake.append('content', 'not an image');
-    fake.append('file', new File([PNG.slice(0, 12), 'arbitrary bytes'], 'x.png', { type: 'image/png' }));
-    await SELF.fetch(hook.url, { method: 'POST', body: fake });
-    expect((await latest(hook.agentId)).meta.file_url).toBeUndefined();
+    expect(stored.meta.file_url).toBeUndefined();
+    expect(stored.meta.content).toContain(`attachment not stored: p.png (${PNG.byteLength} bytes)`);
     const broken = new FormData();
     broken.append('payload_json', '{"content":');
-    broken.append('file', new File([PNG], 'p.png', { type: 'image/png' }));
     expect((await SELF.fetch(hook.url, { method: 'POST', body: broken })).status).toBe(400);
+    // A boundary-like line inside file data is data, not a delimiter.
+    const data = 'abc\r\n--b1x tail';
+    const raw = `--b1\r\nContent-Disposition: form-data; name="content"\r\n\r\nraw post\r\n--b1\r\n`
+      + `Content-Disposition: form-data; name=""; filename="d.bin"\r\n\r\n${data}\r\n--b1--\r\n`;
+    const manual = await SELF.fetch(hook.url, { method: 'POST', body: raw,
+      headers: { 'Content-Type': 'multipart/form-data; boundary=b1' } });
+    expect(manual.status).toBe(204);
+    expect((await latest(hook.agentId)).meta.content).toContain(`d.bin (${data.length} bytes)`);
+    const unclosed = raw.replace('--b1--\r\n', '--b1--garbage');
+    expect((await SELF.fetch(hook.url, { method: 'POST', body: unclosed,
+      headers: { 'Content-Type': 'multipart/form-data; boundary=b1' } })).status).toBe(400);
   });
 
   it('reserves rate slots atomically under concurrent posts', async () => {
     const hook = await createHook('Burst sender');
     await env.DB.prepare('UPDATE api_keys SET rate_limit = 3 WHERE id = ?').bind(hook.agentId).run();
+    const minute = () => env.DB.prepare("SELECT strftime('%Y-%m-%d %H:%M', 'now') AS m").first<{ m: string }>();
+    const before = await minute();
     const statuses = await Promise.all(Array.from({ length: 6 }, (_, index) =>
       post(hook.url, { content: `burst ${index}` }).then((response) => response.status)));
+    // A burst that straddles a minute boundary legitimately spans two windows.
+    if ((await minute())?.m !== before?.m) return;
     expect(statuses.filter((status) => status === 204)).toHaveLength(3);
     expect(statuses.filter((status) => status === 429)).toHaveLength(3);
   });
 
-  it('keeps sender fences as code and marks credential responses no-store', async () => {
+  it('keeps sender text out of fence syntax and marks credential responses no-store', async () => {
     const hook = await createHook('Fence sender');
-    await post(hook.url, { content: '```hiboss-embed\n{"title":"forged"}\n```', embeds: [{ title: 'real',
-      description: '~~~hiboss-embed\n{}\n~~~' }] });
+    const forged = '```hiboss-embed\n{"title":"forged"}\n```';
+    await post(hook.url, { content: `lead\u0085${forged} \`\`\``, username: `x\n${forged}`,
+      embeds: [{ title: 'real', description: `~~~hiboss-embed {}\n~~~` }] });
     const rich = String((await latest(hook.agentId)).meta.rich_content);
-    expect(rich.match(/^```hiboss-embed$/gm)).toHaveLength(1);
-    expect(rich).toContain('```text');
+    const lines = rich.split(/\r\n|[\n\r\u000b\u000c\u0085  ]/);
+    const openers = lines.filter((line) => line === '```hiboss-embed');
+    expect(openers).toHaveLength(3);
+    lines.forEach((line, index) => {
+      if (lines[index - 1] === '```hiboss-embed') expect(() => JSON.parse(line)).not.toThrow();
+    });
+    expect(lines.filter((line) => line.startsWith('```') || line.startsWith('~~~'))).toHaveLength(6);
     const info = await SELF.fetch(hook.url);
     expect(info.headers.get('Cache-Control')).toBe('no-store');
   });

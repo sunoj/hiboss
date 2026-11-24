@@ -10,7 +10,7 @@ import { webhookProvenance } from '../message-security/provenance';
 import { DEFAULT_RATE_LIMIT, findWebhook, reserveRateSlot, type WebhookCredential } from './credentials';
 import { INVALID_BODY, SUPPRESS_NOTIFICATIONS, type DiscordError, type DiscordPayload } from './discord-payload';
 import { renderDiscordMessage } from './discord-render';
-import { discardWebhookFiles, readWebhookBody, storeWebhookFiles, type WebhookBody } from './webhook-body';
+import { listWebhookFiles, readWebhookBody, type WebhookBody } from './webhook-body';
 
 const router = new Hono<{ Bindings: Env }>({});
 // Responses can echo the URL's token (GET); nothing here may be cached by a proxy.
@@ -71,32 +71,24 @@ function priorityOf(credential: WebhookCredential, payload: DiscordPayload): Pri
 
 async function deliver(c: WebhookContext, credential: WebhookCredential, body: WebhookBody): Promise<Response> {
   const { payload } = body;
-  const { fileUrl, fileLines, urls } = await storeWebhookFiles(c.env, body.files, c.req.url, credential.agent_id);
-  const rendered = renderDiscordMessage(payload, credential.agent_name, fileLines);
+  const rendered = renderDiscordMessage(payload, credential.agent_name, listWebhookFiles(body.files));
   const priority = priorityOf(credential, payload);
   const metadata: Record<string, unknown> = { content: rendered.content,
     ...webhookProvenance(credential.agent_id, credential.id) };
-  if (rendered.richContent) metadata.rich_content = rendered.richContent;
-  if (fileUrl) metadata.file_url = fileUrl;
+  metadata.rich_content = rendered.richContent;
   if (payload.threadName) metadata.webhook = { thread_name: payload.threadName };
   const input: SendInput = {
     agentId: credential.agent_id, payload: {}, body: rendered.title, idempotencyKey: null,
     agentConfig: { default_priority: credential.priority_cap, rate_limit: credential.rate_limit,
       channel_routing: credential.channel_routing, avatar_url: credential.avatar_url },
-    mode: 'async', priority, requestedChannel: undefined, fileUrl, messageType: 'text',
+    mode: 'async', priority, requestedChannel: undefined, fileUrl: undefined, messageType: 'text',
     sessionId: credential.session_id, toAgent: null, options: undefined,
     optionMediaResult: { ok: true, value: undefined }, metadata, clientMetadata: null, timeout: null,
     channelConfigs: await selectLegacyConfigs(c.env, credential.agent_id, priority, undefined),
     integration: true,
   };
-  const inserted = await persistSend(c, input, TARGET).catch(async (error: unknown) => {
-    await discardWebhookFiles(c.env, urls);
-    throw error;
-  });
-  if (inserted instanceof Response) {
-    await discardWebhookFiles(c.env, urls);
-    return discordError(c, { ...INVALID_BODY, message: 'Message not stored' });
-  }
+  const inserted = await persistSend(c, input, TARGET);
+  if (inserted instanceof Response) return discordError(c, { ...INVALID_BODY, message: 'Message not stored' });
   const finished = await finishSend(c, input, TARGET, inserted);
   if (finished.status >= 400) return finished;
   await touch(c.env, credential, rendered.title);

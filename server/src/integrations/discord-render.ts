@@ -63,33 +63,45 @@ function embedBlock(embed: DiscordEmbed): string {
   return lines.join('\n');
 }
 
-/** One card as the apps draw it; backticks are escaped so a value can never close the fence. */
+/**
+ * rich_content holds only server-written fences, each one line of JSON. Sender text travels inside
+ * that JSON, with backticks and every line separator Swift recognizes escaped, so it can neither
+ * end a fence nor start one.
+ */
+function fence(value: object): string {
+  const json = JSON.stringify(value).replace(/[`\u0085  ]/g,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  return `\`\`\`hiboss-embed\n${json}\n\`\`\``;
+}
+
 function embedFence(embed: DiscordEmbed): string {
   const n = (text: string | null) => (text ? normalizeDiscordMarkup(text) : null);
-  const card = {
+  return fence({
     color: embed.color, title: n(embed.title), url: embed.url, author: n(embed.author),
     description: n(embed.description), image: embed.image, thumbnail: embed.thumbnail,
     fields: embed.fields.map((field) => ({ name: n(field.name) ?? '', value: n(field.value) ?? '',
       inline: field.inline })),
     footer: n(embed.footer), timestamp: embed.timestamp,
-  };
-  return `\`\`\`hiboss-embed\n${JSON.stringify(card).replaceAll('`', '\\u0060')}\n\`\`\``;
+  });
 }
 
-export interface RenderedMessage { title: string; content: string; richContent: string | null }
+export interface RenderedMessage { title: string; content: string; richContent: string }
 
 /** The sender stays the integration; a payload `username` is shown as text, never as identity.
- *  `content` is plain Markdown for channels and older apps; `richContent` carries native cards. */
+ *  `content` is plain Markdown for channels and older apps; `richContent` is what new apps draw. */
 export function renderDiscordMessage(payload: DiscordPayload, integrationName: string,
   extraLines: string[] = []): RenderedMessage {
-  const lead = payload.content ? [normalizeDiscordMarkup(payload.content)] : [];
+  const lead = payload.content ? normalizeDiscordMarkup(payload.content) : null;
   const notes: string[] = [];
   if (payload.username && payload.username !== integrationName) notes.push(`via ${payload.username}`);
   if (payload.truncated) notes.push('truncated');
   const tail = [...extraLines, ...(notes.length ? [`*${notes.join(' · ')}*`] : [])];
   const plain = payload.embeds.map(embedBlock).filter(Boolean);
-  const content = [...lead, ...plain, ...tail].join('\n\n');
-  const richContent = payload.embeds.length
-    ? [...lead, ...payload.embeds.map(embedFence), ...tail].join('\n\n') : null;
+  const content = [...(lead ? [lead] : []), ...plain, ...tail].join('\n\n');
+  const richContent = [
+    ...(lead ? [fence({ text: lead })] : []),
+    ...payload.embeds.map(embedFence),
+    ...(tail.length ? [fence({ text: tail.join('\n\n') })] : []),
+  ].join('\n\n');
   return { title: titleOf(payload, integrationName), content, richContent };
 }

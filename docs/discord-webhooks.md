@@ -49,7 +49,7 @@ hiboss integration revoke <webhook-id>
 | Malformed JSON or form | `400 {"code":50035}` |
 | Unknown id, wrong token or revoked URL | `404 {"code":10015}` before the body is read |
 | More than 30 posts in the current minute (per integration, reserved atomically before the body is read) | `429 {"retry_after":60,"global":false}` with `Retry-After` and `X-RateLimit-*` |
-| Body over 256 KB (JSON), a text part over 256 KB, more than 20 parts, or over 4 × 10 MB + 256 KB (multipart) | `413 {"code":40005}` or `400 {"code":50035}`; the cap is counted while reading, not taken from `Content-Length` |
+| Body over 256 KB (JSON or URL-encoded), a text part over 256 KB, more than 20 parts, or over 8 MB (multipart) | `413 {"code":40005}` or `400 {"code":50035}`; the cap is counted while reading, not taken from `Content-Length` |
 | `payload_json` that is not valid JSON | `400 {"code":50035}` |
 | `?wait=true` | `200` with a minimal message object; otherwise `204` |
 
@@ -65,11 +65,10 @@ alert is not lost to a 400.
 |---|---|
 | First of: `embeds[0].title`, first line of `content`, first line of `embeds[0].description`, `embeds[0].author.name`, the integration name | Message title (≤ 144 characters, Markdown removed) |
 | `content` and embeds | `metadata.content`: plain Markdown for channels and older apps |
-| Each embed | `metadata.rich_content`: one `hiboss-embed` card (see [message format](message-format.md)) |
+| `content`, each embed, and the closing notes | `metadata.rich_content`: only server-written `hiboss-embed` blocks, one JSON line each (see [message format](message-format.md)); sender text is never raw Markdown there |
 | `username` | A trailing *via …* line; the sender stays the integration |
 | `flags & 4096` (`SUPPRESS_NOTIFICATIONS`) | Priority `low`; otherwise the URL's priority (default `normal`) |
-| Image files (PNG, JPEG, GIF, WebP with the format's opening and closing framing, ≤ 10 MB, ≤ 4) | The first is the message attachment, the rest are links; stored files are removed if the message is not stored |
-| Other files | Listed by name, not stored |
+| Files (any field name, including Grafana's empty one) | Listed by name and size; never stored, so a URL cannot be used to host bytes |
 | `<t:…>`, `<@…>`, `<#…>`, `<:emoji:…>`, `-# ` | UTC time, `@user`, `#channel`, `:emoji:`, plain text |
 | A sender's own ```` ```hiboss-embed ```` fence | Becomes an ordinary ```` ```text ```` fence: only the server writes cards |
 

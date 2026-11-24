@@ -44,6 +44,23 @@ final class MessageEmbedTests: XCTestCase {
         XCTAssertGreaterThan(height(240), wide)
     }
 
+    func testATextBlockIsPlainTextAndACardIsNot() throws {
+        let text = try XCTUnwrap(MessageEmbed.decode(#"{"text":"Deploy finished \u0060rm\u0060"}"#))
+        XCTAssertTrue(text.isTextOnly)
+        XCTAssertEqual(text.text, "Deploy finished `rm`")
+        XCTAssertFalse(try XCTUnwrap(MessageEmbed.decode(card)).isTextOnly)
+    }
+
+    /// Text inside a card renders with cards off, so a fence in a description stays code.
+    @MainActor func testTextInsideACardCannotDrawAnotherCard() {
+        let nested = "```hiboss-embed\n\(card)\n```"
+        func height(_ view: some View) -> CGFloat {
+            let renderer = ImageRenderer(content: view.frame(width: 400))
+            return renderer.cgImage.map { CGFloat($0.height) / renderer.scale } ?? 0
+        }
+        XCTAssertNotEqual(height(MessageMarkdownView(nested)), height(MessageMarkdownView(nested, cards: false)))
+    }
+
     func testRichContentIsShownInsteadOfThePlainFallback() throws {
         let json = #"{"content":"plain","rich_content":"```hiboss-embed\n{}\n```"}"#
         let metadata = try JSONDecoder().decode(MessageMetadata.self, from: Data(json.utf8))

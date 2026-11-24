@@ -5,6 +5,7 @@
 import { Hono, type Context } from 'hono';
 import type { Channel, Env, Priority } from '../types';
 import { channelWriteError } from './channel-names';
+import { isIntegration } from '../integrations/credentials';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
 import { mintedKeySweep } from '../agent-keys/boss-access';
@@ -85,6 +86,7 @@ routes.post('/groups/:id/members', async (c) => {
   const agentId = typeof payload.agent_id === 'string' ? payload.agent_id : '';
   if (!agentId) return c.text('agent_id is required', 400);
   if (!scope.agentIds.includes(agentId)) return c.text('agent not accessible', 403);
+  if (await isIntegration(c.env, agentId)) return c.text('a webhook integration cannot join a group: it reads no messages', 400);
   await c.env.DB.prepare('INSERT OR IGNORE INTO agent_group_members (group_id, agent_id) VALUES (?, ?)').bind(group.id, agentId).run();
   audit(c, scope.bossId, 'group.add_member', 'agent_group', group.id, agentId);
   return c.json({ ok: true }, 201);

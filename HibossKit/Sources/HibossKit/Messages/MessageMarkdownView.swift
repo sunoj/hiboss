@@ -6,8 +6,13 @@ import SwiftUI
 
 public struct MessageMarkdownView: View {
     private let blocks: [MessageMarkdownBlock]
+    private let cards: Bool
 
-    public init(_ source: String) { blocks = MessageMarkdown.blocks(source) }
+    /// `cards: false` is for text that sits inside a card, so it can never draw another card.
+    public init(_ source: String, cards: Bool = true) {
+        blocks = MessageMarkdown.blocks(source)
+        self.cards = cards
+    }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -41,7 +46,7 @@ public struct MessageMarkdownView: View {
         case .copy(let label):
             CopyableTextBlock(label: label, text: block.text)
         case .embed:
-            if let embed = MessageEmbed.decode(block.text) { MessageEmbedCard(embed) }
+            if cards, let embed = MessageEmbed.decode(block.text) { MessageEmbedCard(embed) }
             else { code(block.text) }
         }
     }

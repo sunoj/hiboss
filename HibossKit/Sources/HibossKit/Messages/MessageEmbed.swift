@@ -26,6 +26,8 @@ public struct MessageEmbed: Decodable, Equatable, Sendable {
         private enum CodingKeys: String, CodingKey { case name, value, inline }
     }
 
+    /// A text-only block (no card): the sender's message text or notes around the cards.
+    public let text: String?
     public let color: Int?
     public let title: String?
     public let url: URL?
@@ -36,6 +38,11 @@ public struct MessageEmbed: Decodable, Equatable, Sendable {
     public let thumbnail: URL?
     public let footer: String?
     public let timestamp: Date?
+
+    public var isTextOnly: Bool {
+        text != nil && title == nil && url == nil && author == nil && description == nil && fields.isEmpty
+            && image == nil && thumbnail == nil && footer == nil && timestamp == nil
+    }
 
     /// Nil for text that is not a card, so the caller can fall back to plain code.
     public static func decode(_ text: String) -> MessageEmbed? {
@@ -57,18 +64,19 @@ public struct MessageEmbed: Decodable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        let text = { (key: CodingKeys) in (try? values.decodeIfPresent(String.self, forKey: key)) ?? nil }
-        let link = { (key: CodingKeys) in text(key).flatMap(Self.webURL) }
+        let string = { (key: CodingKeys) in (try? values.decodeIfPresent(String.self, forKey: key)) ?? nil }
+        let link = { (key: CodingKeys) in string(key).flatMap(Self.webURL) }
+        text = string(.text)
         color = (try? values.decodeIfPresent(Int.self, forKey: .color)) ?? nil
-        title = text(.title)
+        title = string(.title)
         url = link(.url)
-        author = text(.author)
-        description = text(.description)
+        author = string(.author)
+        description = string(.description)
         fields = (try? values.decodeIfPresent([Field].self, forKey: .fields)) ?? []
         image = link(.image)
         thumbnail = link(.thumbnail)
-        footer = text(.footer)
-        timestamp = text(.timestamp).flatMap { ISO8601DateFormatter.withFraction.date(from: $0)
+        footer = string(.footer)
+        timestamp = string(.timestamp).flatMap { ISO8601DateFormatter.withFraction.date(from: $0)
             ?? ISO8601DateFormatter().date(from: $0) }
     }
 
@@ -78,7 +86,7 @@ public struct MessageEmbed: Decodable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case color, title, url, author, description, fields, image, thumbnail, footer, timestamp
+        case text, color, title, url, author, description, fields, image, thumbnail, footer, timestamp
     }
 }
 

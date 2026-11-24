@@ -97,7 +97,8 @@ carries the same information as plain Markdown. Clients cannot set `rich_content
 In `rich_content`, a closed fenced block whose info string is exactly `hiboss-embed` holds one
 card as a single line of JSON: `color` (0xRRGGBB or null), `title`, `url`, `author`,
 `description`, `fields` (`name`, `value`, `inline`), `image`, `thumbnail`, `footer`, and
-`timestamp` (ISO 8601). Text values are Markdown. Native clients draw a card with a coloured
+`timestamp` (ISO 8601). A block holding only `text` is plain Markdown without card chrome. Text
+values are Markdown, rendered with cards disabled, so text inside a card never draws another card. Native clients draw a card with a coloured
 edge, the title (linked when `url` is set), the description, the fields (up to three inline
 fields per row, other fields on their own row) and the footer with the local time. A block that
 is unclosed or whose JSON does not decode renders as ordinary code.
