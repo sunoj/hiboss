@@ -20,7 +20,7 @@ pub(super) async fn run() -> Result<(), Box<dyn Error>> {
         None => String::new(),
     };
     println!("{PROMPT}");
-    println!("CHOICES: Repeat singular --option or --action for each choice. Use --option-image LABEL=PATH for image comparisons. A timeout default is not a human decision or execution authorization.");
+    println!("CHOICES: Repeat singular --option or --action for each choice. Use --option-image LABEL=PATH for image comparisons. Labels name the action or actor, never I/you; when you can run it, ask approve or decline. A timeout default is not a human decision or execution authorization.");
     println!("NOTIFY CONTEXT: send/ask accept --content for useful context and --summary for a non-sensitive private-mode push summary.");
     if crate::hiboss_dir::should_hint_register() {
         println!("Run: hiboss progress team register --display-name \"{}\"", session::project_name().replace('"', ""));

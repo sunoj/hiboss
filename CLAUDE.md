@@ -23,6 +23,9 @@ Read `hiboss panel guide`, then inspect `hiboss panel --help` and `hiboss reques
   `hiboss send`; a card holding only static text is a message in the wrong place.
 - One question, or one choice among a few labels, is `hiboss ask` with repeatable
   `--option`. Never publish a questionnaire for a single question or a single choice.
+- Ask titles and choice labels use no I/you (我/你): name the action or the actor
+  (agent, boss). When the agent can run the action, the choices are approve or decline;
+  a boss-runs-it choice only when the agent cannot, with the reason and a `copy` block.
 - Use a `hiboss request` questionnaire only for an intake with two or more fields or
   a free-form typed value. A blocking questionnaire pushes once on publication; an
   optional one sends no push and is found only through the Needs input filter. Keep

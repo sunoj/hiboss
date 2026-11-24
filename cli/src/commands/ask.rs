@@ -31,7 +31,7 @@ pub struct AskArgs {
         action = ArgAction::Append,
         conflicts_with = "actions",
         value_name = "TEXT",
-        help = "Quick-reply option; repeat for each choice (commas are preserved)"
+        help = "Choice label naming the action or actor, never I/you; repeat per choice"
     )]
     pub options: Vec<String>,
     #[arg(
@@ -66,7 +66,7 @@ pub struct AskArgs {
         long = "option-image",
         action = ArgAction::Append,
         value_name = "LABEL=PATH_OR_URL",
-        help = "Image for a choice label; repeat per option (local path or http(s) URL)"
+        help = "Image for one choice label (path or http(s) URL); a question image goes in --file"
     )]
     pub option_images: Vec<String>,
     #[arg(long = "option-description", action = ArgAction::Append, value_name = "LABEL=TEXT",

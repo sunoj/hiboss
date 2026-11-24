@@ -8,7 +8,7 @@ A card holding only static text is a message in the wrong place.
 | --- | --- |
 | State the boss would watch change: a series, per-test status, sweep counters, a monitor | `hiboss panel` |
 | Progress note, result, final report | `hiboss send` |
-| One question, or one choice among a few labels (incl. A/B images) | `hiboss ask` — pushes, blocks until answered |
+| One question, or one choice among a few labels (incl. A/B images) | `hiboss ask` — pushes, blocks until answered; labels name the action or actor, never I/you |
 | An intake with two or more fields, or a free-form typed value | `hiboss request` — durable, attached to the card; blocking pushes once, optional never |
 | One-shot notice or urgent blocker | `hiboss send` |
 | A milestone worth showing with images or video | `hiboss progress post` — quiet timeline, no push |

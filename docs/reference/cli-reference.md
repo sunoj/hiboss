@@ -99,6 +99,12 @@ in private-mode pushes (where the body is withheld from Apple's servers).
 `--option` and `--action` are singular repeatable flags. The removed plural flags
 must not be used, and choices must not be joined with commas.
 
+A title and its choice labels name the action ("Upload", "Not now") or the actor
+("agent", "boss"), never first or second person: the boss clicks the label, so "I" and
+"you" would name different parties in the title and in the choices. When the agent can
+run the action itself, the choices are approve or decline; a choice for the boss to run
+a command is offered only when the agent cannot run it.
+
 `--default <LABEL>` marks one option/action label as the default. It is flagged in
 the boss UI, and if the ask times out with no reply the server auto-selects it and
 returns it with `auto_default: true`. This is not a human reply or execution

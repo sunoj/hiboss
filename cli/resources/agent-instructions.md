@@ -31,6 +31,15 @@
 - One question, or one choice among a few labels, is `hiboss ask` with repeatable
   `--option` (and `--option-image` for A/B comparisons). Never publish a questionnaire
   for a single question or a single choice.
+- Write an ask's title and choice labels without first or second person (I/you, 我/你)
+  in any language: the boss clicks a label, so a pronoun's referent flips between the
+  title and the choices. Name the action ("Upload" / "Not now") or the actor ("agent",
+  "boss"). When the agent can run the action itself, the choices are approve or
+  decline, and the agent runs it after approval. Offer a boss-runs-it choice only when
+  the agent cannot run it (a missing credential, an interactive login, a physical
+  device); state why and put the command in a `copy` block.
+- `--option-image` belongs to the choice it illustrates; a picture of the question's
+  subject goes in `--file`.
 - Use `hiboss request publish` only for an intake with two or more fields, or a
   free-form typed value, attached to a panel. A blocking questionnaire pushes once on
   publication; an optional one sends no push and is found only through the boss's
