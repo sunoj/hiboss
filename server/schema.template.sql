@@ -20,6 +20,10 @@ CREATE TABLE agent_keys;
 CREATE INDEX idx_agent_keys_agent;
 CREATE INDEX idx_agent_keys_minted_by;
 
+-- Send-only Discord-compatible webhook URLs for key-less integration agents; tokens stored hashed.
+CREATE TABLE agent_webhooks;
+CREATE INDEX idx_agent_webhooks_agent;
+
 -- Messaging and channel delivery
 
 -- Messages between agents, bosses, and peer agents
