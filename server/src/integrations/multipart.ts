@@ -7,15 +7,21 @@ export interface MultipartPart { name: string; filename: string | null; type: st
 const MAX_PARTS = 20;
 const MAX_HEADER_BYTES = 8 * 1024;
 
+/** Media-type parameters (RFC 2045): quoted values may contain ';' and backslash-escaped characters. */
+function parameters(contentType: string): Map<string, string> {
+  const result = new Map<string, string>();
+  const pattern = /;\s*([!#$%&'*+.^_`|~0-9A-Za-z-]+)\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^;\s"]*))/g;
+  for (const match of contentType.matchAll(pattern)) {
+    const name = match[1].toLowerCase();
+    if (!result.has(name)) result.set(name, match[2]?.replace(/\\(.)/g, '$1') ?? match[3] ?? '');
+  }
+  return result;
+}
+
 /** The exact `boundary` parameter of the media type (RFC 2046: 1–70 characters from a fixed set). */
 function boundaryOf(contentType: string): string | null {
-  for (const parameter of contentType.split(';').slice(1)) {
-    const equals = parameter.indexOf('=');
-    if (equals < 0 || parameter.slice(0, equals).trim().toLowerCase() !== 'boundary') continue;
-    const value = parameter.slice(equals + 1).trim().replace(/^"(.*)"$/, '$1');
-    return /^[0-9A-Za-z'()+_,\-./:=? ]{0,69}[0-9A-Za-z'()+_,\-./:=?]$/.test(value) ? value : null;
-  }
-  return null;
+  const value = parameters(contentType).get('boundary') ?? '';
+  return /^[0-9A-Za-z'()+_,\-./:=? ]{0,69}[0-9A-Za-z'()+_,\-./:=?]$/.test(value) ? value : null;
 }
 
 function headerParam(header: string, key: string): string | null {

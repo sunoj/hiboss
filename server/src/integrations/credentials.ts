@@ -57,15 +57,18 @@ export async function findWebhook(db: D1Database, id: string, token: string): Pr
   return credential;
 }
 
-/** Takes one slot in the integration's current minute; concurrent posts are serialized by D1. */
+/**
+ * Takes one slot in the integration's current minute, by the database clock at execution. The
+ * window only moves forward: a late write stamped with an older minute adds to the current count
+ * instead of resetting it, so a delayed request can never reopen a full minute.
+ */
 export async function reserveRateSlot(db: D1Database, agentId: string, limit: number): Promise<boolean> {
-  const window = new Date().toISOString().slice(0, 16);
   const row = await db.prepare(`INSERT INTO integration_rate_windows (agent_id, window_start, count)
-      VALUES (?, ?, 1)
+      VALUES (?, strftime('%Y-%m-%d %H:%M', 'now'), 1)
     ON CONFLICT(agent_id) DO UPDATE SET
-      count = CASE WHEN window_start = excluded.window_start THEN count + 1 ELSE 1 END,
-      window_start = excluded.window_start
-    RETURNING count`).bind(agentId, window).first<{ count: number }>();
+      count = CASE WHEN excluded.window_start > window_start THEN 1 ELSE count + 1 END,
+      window_start = MAX(window_start, excluded.window_start)
+    RETURNING count`).bind(agentId).first<{ count: number }>();
   return (row?.count ?? Number.MAX_SAFE_INTEGER) <= limit;
 }
 

@@ -2,7 +2,7 @@
 // Covers curl, Grafana (JSON and multipart), Uptime Kuma, auth that leaks nothing, limits and routing.
 // Dependencies: cloudflare:test, vitest and the shared seed helpers.
 import { env, SELF } from 'cloudflare:test';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 import { redactWebhookPath } from './credentials';
 
@@ -142,41 +142,41 @@ describe('Discord-compatible execute webhook', () => {
       headers: { 'Content-Type': 'multipart/form-data; boundary=b1' } });
     expect(manual.status).toBe(204);
     expect((await latest(hook.agentId)).meta.content).toContain(`d.bin (${data.length} bytes)`);
-    const shadowed = await SELF.fetch(hook.url, { method: 'POST', body: raw,
-      headers: { 'Content-Type': 'multipart/form-data; x-boundary=wrong; boundary=b1' } });
-    expect(shadowed.status).toBe(204);
+    for (const type of ['x-boundary=wrong; boundary=b1', 'note="a; boundary=wrong"; boundary=b1', 'boundary="b\\1"']) {
+      const shadowed = await SELF.fetch(hook.url, { method: 'POST', body: raw,
+        headers: { 'Content-Type': `multipart/form-data; ${type}` } });
+      expect(shadowed.status, type).toBe(204);
+    }
     const named = raw.replace('filename="d.bin"', 'filename="東京.png"');
     await SELF.fetch(hook.url, { method: 'POST', body: named, headers: { 'Content-Type': 'multipart/form-data; boundary=b1' } });
     expect((await latest(hook.agentId)).meta.content).toContain('東京.png');
     const padded = raw.replace('--b1--\r\n', `--b1--${' '.repeat(70)}\r\n`);
     expect((await SELF.fetch(hook.url, { method: 'POST', body: padded,
       headers: { 'Content-Type': 'multipart/form-data; boundary=b1' } })).status).toBe(204);
-    const overlap = '--b1\r\nContent-Disposition: form-data; name="content"\r\n--b1--\r\n';
+    const overlap = '--b1\r\nContent-Disposition: form-data; name="content"\r\n\r\n--b1--\r\n';
     expect((await SELF.fetch(hook.url, { method: 'POST', body: overlap,
       headers: { 'Content-Type': 'multipart/form-data; boundary=b1' } })).status).toBe(400);
-    const unclosed = raw.replace('--b1--\r\n', '--b1--garbage');
+    const unclosed = raw.replace('--b1--\r\n', `--b1--${' '.repeat(70)}garbage`);
     expect((await SELF.fetch(hook.url, { method: 'POST', body: unclosed,
       headers: { 'Content-Type': 'multipart/form-data; boundary=b1' } })).status).toBe(400);
   });
 
   it('reserves rate slots atomically across the URLs of one integration', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-11-24T10:00:30Z'));
-    try {
-      const hook = await createHook('Burst sender');
-      await env.DB.prepare('UPDATE api_keys SET rate_limit = 3 WHERE id = ?').bind(hook.agentId).run();
-      const added = await SELF.fetch(`https://test.local/api/integrations/${hook.agentId}/webhooks`, { method: 'POST',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ label: 'second' }) });
-      const second = (await added.json<{ url: string }>()).url;
-      const statuses = await Promise.all(Array.from({ length: 6 }, (_, index) =>
-        post(index % 2 ? second : hook.url, { content: `burst ${index}` }).then((response) => response.status)));
-      expect(statuses.filter((status) => status === 204)).toHaveLength(3);
-      expect(statuses.filter((status) => status === 429)).toHaveLength(3);
-      vi.setSystemTime(new Date('2026-11-24T10:01:05Z'));
-      expect((await post(second, { content: 'next minute' })).status).toBe(204);
-    } finally {
-      vi.useRealTimers();
-    }
+    const hook = await createHook('Burst sender');
+    await env.DB.prepare('UPDATE api_keys SET rate_limit = 3 WHERE id = ?').bind(hook.agentId).run();
+    // A window stamped in the future never rolls over, so every post below counts against it.
+    await env.DB.prepare(`INSERT INTO integration_rate_windows (agent_id, window_start, count)
+      VALUES (?, '2999-01-01 00:00', 0)`).bind(hook.agentId).run();
+    const added = await SELF.fetch(`https://test.local/api/integrations/${hook.agentId}/webhooks`, { method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ label: 'second' }) });
+    const second = (await added.json<{ url: string }>()).url;
+    const statuses = await Promise.all(Array.from({ length: 6 }, (_, index) =>
+      post(index % 2 ? second : hook.url, { content: `burst ${index}` }).then((response) => response.status)));
+    expect(statuses.filter((status) => status === 204)).toHaveLength(3);
+    expect(statuses.filter((status) => status === 429)).toHaveLength(3);
+    const row = await env.DB.prepare('SELECT window_start, count FROM integration_rate_windows WHERE agent_id = ?')
+      .bind(hook.agentId).first();
+    expect(row).toEqual({ window_start: '2999-01-01 00:00', count: 6 });
   });
 
   it('keeps sender text out of fence syntax and marks credential responses no-store', async () => {
