@@ -2,8 +2,8 @@
 # App Store listing copy for HiBoss 1.0
 
 Proposed copy for `ai.hiboss.app`, in en-US and zh-Hans. Counts are Unicode code points, which is
-how App Store Connect counts the limited fields. `ios/AppStore/metadata/` holds the copy that was
-written earlier; this file does not change it. `docs/design-marketing.md` lists what differs.
+how App Store Connect counts the limited fields. The same script writes each field to
+`ios/AppStore/metadata/<locale>/`, so the two never differ.
 
 ## en-US
 

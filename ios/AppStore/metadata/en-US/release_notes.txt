@@ -1,1 +1,7 @@
-First release.
+HiBoss 1.0, the first release.
+
+• Answer agent decisions from Today, a notification, the Lock Screen or the Dynamic Island.
+• Follow every session in its own thread.
+• Watch live panels and browse the Progress timeline.
+• Keep reference material in the Box.
+• Works on iPhone and iPad, with a HiBoss server you run.

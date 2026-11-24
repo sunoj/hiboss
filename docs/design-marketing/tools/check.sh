@@ -46,6 +46,10 @@ done
 cmp -s docs/design-marketing/promo/og-en.jpg site/assets/og.jpg || note 'site og.jpg differs from promo/og-en.jpg'
 
 python3 docs/design-marketing/tools/listing.py
-git diff --quiet -- docs/design-marketing/app-store/listing.md || note 'listing.md is stale'
+git diff --quiet -- docs/design-marketing/app-store/listing.md ios/AppStore/metadata || note 'listing copy is stale'
+# The listing folder holds exactly the composed frames, and no keyword names a third-party product.
+diff -rq "$store/en-US" ios/AppStore/Screenshots/en-US >/dev/null && diff -rq "$store/zh-Hans" ios/AppStore/Screenshots/zh-Hans >/dev/null \
+  || note 'ios/AppStore/Screenshots differs from the composed frames'
+if grep -rniE 'claude|codex' ios/AppStore/metadata/*/keywords.txt; then note 'third-party name in keywords'; fi
 (( fail == 0 )) && echo 'marketing checks passed'
 exit $fail

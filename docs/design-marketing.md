@@ -158,7 +158,8 @@ session is selected, and frame 3 already shows the list next to a thread.
   reader knows what the product does. It is expressed by the closing island instead.
 - **A Live panels store frame and a Progress store frame.** The panel wall with sample panels is
   reached through onboarding's "Explore the demo", not through a launch flag, and the Progress
-  demo posts carry test-fixture captions. The site keeps its earlier captures of both screens.
+  demo posts describe layout cases rather than shipped work. The site keeps its earlier capture of
+  the panels screen.
 
 ## Other promotional assets, and why
 
@@ -186,24 +187,37 @@ node docs/design-marketing/tools/frame-store.mjs <raw>/iphone <raw>/ipad docs/de
 node docs/design-marketing/tools/promo.mjs <raw>/iphone docs/design-marketing/promo
 cp docs/design-marketing/promo/og-en.jpg site/assets/og.jpg
 python3 docs/design-marketing/tools/listing.py
-# 3. Render the site for review, then verify.
-site/build.sh <new-dir> && node docs/design-marketing/tools/render-site.mjs <new-dir> docs/design-marketing/renders
+# 3. Copy the frames to the listing folder, then verify.
+docs/design-marketing/tools/store-screenshots.sh
 docs/design-marketing/tools/check.sh
 ```
+
+Site renders for review are not stored in the repository. This writes 44 JPEGs (11 pages, desktop
+1440 and mobile 390, light and dark) and fails on a wrong dark background, a broken image, an
+off-site request, or horizontal overflow at 320, 390, 768 or 1440 px:
+
+```sh
+site/build.sh /absolute/new/site-dir
+node docs/design-marketing/tools/render-site.mjs /absolute/new/site-dir /absolute/render-dir
+```
+
+The Today status chip sometimes shows a clock time instead of "Just now" right after launch; look
+at the Today and all-clear captures and recapture a scene that shows one
+(`capture.sh <udid> <app> <dir> today allclear`).
 
 Captions are in `app-store/captions.json` and listing copy in `app-store/listing.json`. Raw captures
 are not stored in the repository.
 
 ## Known limits
 
-- Demo content is English in both languages: the app's own labels are localized, the sample
-  messages are not. The zh-Hans frames therefore show Chinese chrome around English questions.
-- The demo data names a payment provider in a failing-request scenario (`fix/stripe-retry`,
-  "Stripe timed out…") and lists an "Apple Developer" link in the Box. These appear in the Sessions,
-  All-clear and Box captures.
-- `panels-*.jpg` and `progress-*.jpg` on the site are the earlier captures. The Progress capture
-  shows the project name `hiboss` and an agent label naming a model.
+- Demo content follows the app's language (`demoCopy` in `ios/App/Preview/DemoSession.swift`):
+  questions, options, Box titles and Progress posts are Chinese in the zh-Hans frames. Session
+  labels, branch names and agent names stay as identifiers, as they would in a real project.
+  Fixtures behind test-only launch flags (threads, notes, the media decision, the transcript
+  stream) are English only.
+- Demo data names no third-party service. The demo project is `storefront`.
+- `panels-*.jpg` on the site is the earlier capture; the store set has no live-panels frame.
 - The proposed keywords contain no third-party product names; the description names Claude Code and
   Codex as agents the product works with.
-- `listing.md` proposes a new subtitle, promotional text, keywords, description and release notes.
-  `ios/AppStore/metadata/` and `ios/AppStore/Screenshots/` are unchanged.
+- `ios/AppStore/metadata/` is written by `tools/listing.py` and `ios/AppStore/Screenshots/` by
+  `tools/store-screenshots.sh`; both are copies of what this folder holds.

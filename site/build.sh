@@ -22,7 +22,7 @@ files=(
   assets/island-day.svg assets/island-night.svg
 )
 for screen in home decision session sessions box allclear panels progress mac-island \
-  home-zh decision-zh session-zh sessions-zh box-zh allclear-zh; do
+  home-zh decision-zh session-zh sessions-zh box-zh progress-zh allclear-zh; do
   files+=("assets/shots/$screen-light.jpg" "assets/shots/$screen-dark.jpg")
 done
 

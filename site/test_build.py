@@ -52,7 +52,7 @@ class SiteBuildTests(unittest.TestCase):
                   'assets/island-day.svg', 'assets/island-night.svg'}
         assets.update(f'assets/shots/{screen}-{theme}.jpg'
                       for screen in ['home', 'decision', 'session', 'sessions', 'box', 'allclear', 'panels', 'progress',
-                                     'mac-island', 'home-zh', 'decision-zh', 'session-zh', 'sessions-zh', 'box-zh',
+                                     'mac-island', 'home-zh', 'decision-zh', 'session-zh', 'sessions-zh', 'box-zh', 'progress-zh',
                                      'allclear-zh']
                       for theme in ['light', 'dark'])
         actual = {str(path.relative_to(self.output)) for path in self.output.rglob('*') if path.is_file()}
