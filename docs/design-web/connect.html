@@ -21,18 +21,18 @@
 </div>
 <form class="stack" action="overview.html">
 <label class="field" for="code">Pairing code
-<input class="input mono" id="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" placeholder="Code from your iPhone or Mac app" aria-describedby="code-help"></label>
-<p class="help" id="code-help">Create a code in the settings of a paired iPhone or Mac app. A code lasts five minutes and works once.</p>
+<input class="input mono" id="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" placeholder="hb_pair_…" aria-describedby="code-help"></label>
+<p class="help" id="code-help">Create a code in a paired iPhone or Mac app, or paste the pairing link that setup printed. A code lasts five minutes and works once.</p>
 <button class="btn primary" type="submit">Connect</button>
 </form>
 <details><summary>Use a boss token instead</summary>
 <form class="stack" action="overview.html"><label class="field">Boss token<input class="input mono" type="password" autocomplete="off" placeholder="hb_boss_…"></label><button class="btn" type="submit">Connect with token</button></form></details>
 <details><summary>Nothing is paired with this server yet</summary>
 <div class="md"><p>Create the first boss from the machine that deployed the server. The command prints a pairing code for this screen.</p>
-<div class="copyblock"><header>First boss<button class="btn small quiet" type="button">Copy</button></header><pre>hiboss setup --bootstrap-secret</pre></div></div></details>
+<div class="copyblock"><header>First boss<button class="btn small quiet" type="button">Copy</button></header><pre>hiboss setup --server https://hiboss.example.net --bootstrap-secret &lt;secret&gt;</pre></div></div></details>
 <details><summary>Connect to a different server</summary>
 <label class="field">Server URL<input class="input" type="url" value="https://hiboss.example.net"></label></details>
-<p class="help">This browser is listed as its own device. Revoke it at any time from Devices, here or in the apps.</p>
+<p class="help">This browser is listed as its own device, and its token is kept in this browser until you sign out. Revoke it at any time from Devices, here or in the apps.</p>
 </div>
 </main>
 <script src="theme.js"></script>

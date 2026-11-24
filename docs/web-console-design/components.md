@@ -21,7 +21,7 @@ drawn in at least one mockup; [`states.html`](../design-web/states.html) shows t
 
 | Component | Description | States and rules |
 |---|---|---|
-| Sidebar (`.sidebar`, `.nav`) | Brand, primary items, Manage and Admin groups, footer with the connection chip and server host. | Current item: `--neutral-soft` fill, weight 600, `aria-current="page"`. Today shows the open-decision count in Signal; "Loading" until the list has loaded; no badge at zero. Groups the role cannot open are absent. |
+| Sidebar (`.sidebar`, `.nav`) | Brand, primary items, Manage and System groups, footer with the connection chip and server host. | Current item: `--neutral-soft` fill, weight 600, `aria-current="page"`. Today shows the open-decision count in Signal on `--signal-soft`; "Loading" until the list has loaded; no badge at zero. Groups the role cannot open are absent. |
 | Tab bar (`.tabbar`) | Four destinations below 1024 px. | Current tab in Ink at weight 600; others `--text-2`. Today carries the same count as a badge. Labels never truncate: they are the four shortest strings in the product. |
 | Page header (`.head`) | Optional eyebrow (date, or a back link), the screen title, then tools: at most one screen action, and the account button. | One `h1` per screen. No subtitle. |
 | Account menu | Opened by the account button: name and role, Devices, Language, Appearance, Sign out. | A menu button with `aria-expanded`; Escape closes it and returns focus. |
@@ -59,7 +59,7 @@ drawn in at least one mockup; [`states.html`](../design-web/states.html) shows t
 | Reply field (`.composer`) | States its target above the field ("Replying to: …" or "Custom answer to: …"), then the text area and Send. | No eligible target: the field is disabled and says why. If a newer agent message arrives while typing, the target stays and "Reply to the newer message" is offered. |
 | Markdown, code, copy block, embed card | See [content and flows](content-and-flows.md). | |
 | Key–value list (`.kv`) | Label column and value column. | The label column is at least 96 px. A missing fact is omitted, never shown as a dash. |
-| Table (`.table`) | Column headers in footnote style; rows divided by hairlines. | Below 768 px each row becomes a labelled stack. Sortable only where the screen spec says so. |
+| Table (`.table`) | Column headers in footnote style; rows divided by hairlines. | In a container narrower than 600 px each row becomes a labelled stack. Sortable only where the screen spec says so. |
 | Tabs (`.tabs`) | Sections of one screen, each with its own URL. | Current tab underlined in Ink. The row scrolls sideways when it does not fit. |
 | Disclosure (`details`) | Hides secondary content: More filters, Details, Completed sessions. | Native element; open state is kept per screen for the visit. |
 | Pager | "Load 50 more" under a list, with "Showing 50 of 248". | Loading state on the button; the list does not jump. Audit uses previous and next with the range. |

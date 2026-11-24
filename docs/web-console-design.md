@@ -19,7 +19,8 @@ below repeats a v4 rule, v4 is the source and the console must match the apps.
 | Mockups (HTML and CSS, light and dark, 375 px to desktop) | [`docs/design-web/`](design-web/index.html) |
 
 The mockups are a precise picture, not code to port. `docs/design-web/tokens.css` is the token
-source and can be copied into `web/src/lib/design/tokens.css` as written.
+source: it replaces the `--hb-*` tokens in `web/src/lib/design/tokens.css`, and components move
+to the new names.
 
 ## Goals
 
@@ -40,8 +41,9 @@ source and can be copied into `web/src/lib/design/tokens.css` as written.
 - **Colour has a job.** Signal means needs you, Live means working now, Settled means the boss's
   recorded answer or a healthy connection, Ink is the primary action. Nothing else is coloured.
   Priority, direction and delivery status are words, not colours.
-- **One filled button per view.** The filled Ink button is the view's primary action. In a
-  decision card it is the first option, as in the apps; every other button is bordered.
+- **One filled button.** Each decision card fills its first option with Ink, as in the apps.
+  Outside decision cards a view has at most one filled button, its primary action; every other
+  button is bordered.
 - **Silence is not consent.** A timeout default is shown as a default, with the fixed sentence
   from v4, on a neutral fill. It never looks like the boss's answer.
 - **Provenance on every item.** Project, branch, agent, and "Integration" for webhook senders.
@@ -69,11 +71,11 @@ Three levels, most used first.
 |---|---|---|
 | Primary | **Today** (open-decision count), **Sessions**, **Messages** | Everyone |
 | Manage | **Agents** (agents, keys, channels, groups, join requests), **Delivery** (destinations, routing rules, providers), **Projects** | Everyone; write controls by role |
-| Admin | **People & access**, **Audit**, **Server** | Admin (Audit and Server also when the API allows the role) |
+| System | **People & access**, **Audit**, **Server** | People & access: admin only. Audit and Server: everyone; the server scopes a non-admin's audit rows to its own actions and its granted agents. |
 | Account menu | Signed-in boss and role, **Devices**, language, appearance, Sign out | Everyone |
 
 Why this order: decisions are why a boss opens HiBoss, sessions are where the work is, and
-Messages is the searchable record. Everything in Manage and Admin is occasional.
+Messages is the searchable record. Everything in Manage and System is occasional.
 
 ### Routes
 
@@ -100,20 +102,21 @@ and reached by the browser's Back button; today's drawers have none of these.
 | Class | Width | Navigation | Content |
 |---|---|---|---|
 | Phone | 375–767 px | Bottom tab bar: Today, Sessions, Messages, More | One column, 16 px side margin. A list and its detail are separate views. |
-| Tablet | 768–1023 px | Bottom tab bar | List and detail side by side (list 280–360 px). |
+| Tablet | 768–1023 px | Bottom tab bar | List and detail side by side. |
 | Desktop | ≥ 1024 px | Sidebar 244 px, sticky, full height | Content padded 24 px top, 32 px sides. |
 
 - **Reading width.** Single-column screens (Today, a decision's main column, forms) are at most
   900 px wide and centred. Split screens and tables are at most 1200 px.
-- **Split view** (Messages, Sessions, Agents): list column `minmax(280px, 360px)`, detail column
-  takes the rest. Below 768 px the detail replaces the list and shows a back link. The list keeps
+- **Split view** (Messages, Sessions, Agents): the list column is 36 % of the content, between
+  260 and 360 px; the detail column takes the rest (about 440 px at 768 and at 1024 px). Below 768 px the detail replaces the list and shows a back link. The list keeps
   its scroll position and selection when the boss returns.
-- **Decision detail** adds a 300 px context column (session facts, earlier in this session) from
-  900 px of content width; below that the context follows the decision.
-- **More** on the tab bar opens a page listing Manage, Admin and the account items as grouped rows.
-- **Tables** keep columns from 768 px. Below that each row becomes a labelled stack
-  (`.table.stack` in the mockups); no screen scrolls sideways at 375 px, except a code block or a
-  Markdown table inside its own scroll area.
+- **Decision detail** adds a 300 px context column (session facts, earlier in this session) when
+  the content area is wider than 760 px; otherwise the context follows the decision.
+- **More** on the tab bar opens a page listing Manage, System and the account items as grouped rows.
+- **Tables** respond to their container, not the viewport: in a container narrower than 600 px
+  each row becomes a labelled stack (`.table.stack` in the mockups), so a table inside a split
+  view's detail stacks on a tablet too. No screen scrolls sideways at 375 px, except a code block
+  or a Markdown table inside its own scroll area.
 - **Targets.** 44 px minimum for anything tappable on touch layouts; 32 px minimum for dense
   desktop actions with a pointer.
 - **Sticky parts.** The sidebar, the tab bar, and the reply field of a session on desktop. Nothing
@@ -206,6 +209,7 @@ most 68 characters wide.
 | `/system` "System / Doctor" | Renamed Server; the toast after a check is removed | The result is on the page. |
 | `/devices` in the sidebar | Moved to the account menu | It lists the reader's own sign-ins. |
 | Sidebar of twelve equal items | Three primary items and two labelled groups | The primary tasks were one third of an undifferentiated list. |
+| Session ID, branch and working directory as drawer rows | Demoted to a Details disclosure in the session header | Needed to find a session on disk, not to follow it. |
 | Top bar (connection light, server URL, boss name, language, Sign out) | Removed. Connection and server sit in the sidebar footer; the rest is the account menu. | A permanent bar spent 48 px on rarely used controls. |
 | Page subtitles such as "Messages — full stream, filters, session grouping, detail drawer" | Removed | They described the interface, not the content. |
 | Dark-first palette with a blue accent; IBM Plex | Replaced by v4 roles, light and dark equal, system fonts | The console must read as the same product as the apps, and loads no web fonts. |
@@ -222,8 +226,11 @@ questionnaire appears as a row stating that it is answered in the apps.
 
 ## Server capabilities the console starts using
 
-The current console calls none of these. Each exists on the server and is used by the apps; the
-implementer confirms the exact request shape against `docs/reference/` before building.
+The current console calls none of these except agent keys. They are server capabilities used by
+the apps or the CLI; the implementer confirms each request shape against `docs/reference/` before
+building, and a capability the deployed server lacks degrades as the last column says. Embed
+cards and integrations come with the Discord-compatible webhook endpoint; a server without it
+sends no `rich_content` and has no integration agents.
 
 | Capability | Used for | If unavailable |
 |---|---|---|
@@ -234,6 +241,8 @@ implementer confirms the exact request shape against `docs/reference/` before bu
 | Session events and stream | Session transcript and live step | The transcript shows loaded messages with their load time |
 | Session notes | "Leave a note" in a session | The action is absent |
 | Join-request list, approve and reject | Agents › Join requests | The tab is absent |
-| Boss-side agent keys | Agents › Keys (already used) | — |
+| A reachability check that needs no token | The first line of Connect | The line is omitted; the first signed-in call reports failure |
+| An agent's admin capability, read and write | Agents: the badge and the switch | Both are absent |
+| An agent's kind (agent or integration) | The Integration badge; hiding the reply field | The reply's 409 is shown as "Replies are off for this sender" |
 | Boss archive, restore and role change | People & access | The row shows the role as text |
 | Embed cards (`metadata.rich_content`) and integrations | Embed card rendering, the Integration badge | `metadata.content` is rendered as Markdown |

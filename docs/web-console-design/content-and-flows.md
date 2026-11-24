@@ -40,7 +40,10 @@ the line is the label.
 - `copyright`, `copy-x`, `Copy`, and a block with no closing fence are ordinary code with no button.
 
 **Embed card.** In `rich_content`, a closed fence whose info string is exactly `hiboss-embed`
-holds one card as one line of JSON. Only the server writes these blocks.
+holds one card as one line of JSON. Only the server writes these blocks; it produces them from
+posts to its Discord-compatible webhook endpoint. The keys, all optional: `color` (an integer
+0xRRGGBB, or null), `title`, `url`, `author`, `description`, `fields` (an array of `name`,
+`value` and a boolean `inline`), `image`, `thumbnail`, `footer`, and `timestamp` (ISO 8601).
 
 - Layout, top to bottom: author, title (a link when `url` is set), description, fields, image,
   footer. A `thumbnail` sits at the top right, 64 px. The card is at most 560 px wide.
@@ -73,15 +76,19 @@ The console is served by the server it talks to, so it never asks for the server
 
 1. **Probe.** On load the console calls its own origin. It shows "<host> is reachable" with a
    Settled dot, or "<host> did not answer" with Retry. Nothing else is asked while the probe fails.
-2. **Pairing code (default path).** One field and one filled button, Connect. The help text says
-   where a code comes from: a paired iPhone or Mac app, valid five minutes, used once. The console
-   redeems the code itself with the device label "Web console · <browser> on <OS>", stores the
-   returned token, loads the boss and opens Today.
+2. **Pairing code (default path).** One field and one filled button, Connect. A code is a
+   pasted string beginning `hb_pair_`; the field also accepts a whole `hiboss://pair?…` link and
+   takes the code from it. The help text says where a code comes from: a paired iPhone or Mac
+   app, or the first-boss setup; valid five minutes, used once. The console redeems the code
+   itself with the device label "Web console · <browser> on <OS>", stores the returned token,
+   loads the boss and opens Today.
 3. **Boss token (disclosure).** "Use a boss token instead" reveals a password field. This is the
-   path for a person created in People & access.
-4. **Nothing paired yet (disclosure).** States that the first boss is created from the machine
-   that deployed the server, with the command in a copy block. The bootstrap secret is never typed
-   into the browser.
+   path for a person created in People & access, and for a viewer's further browsers, because a
+   viewer cannot issue pairing codes.
+4. **Nothing paired yet (disclosure).** States that the first boss is created from the first
+   machine with `hiboss setup --server <this origin> --bootstrap-secret <secret>`, shown in a copy
+   block with the origin filled in; the command prints the pairing code for step 2. The bootstrap
+   secret is never typed into the browser.
 5. **Different server (disclosure).** Reveals the Server URL field, prefilled with the origin.
    Used by local development and by a console hosted apart from its server.
 
@@ -94,17 +101,21 @@ Rules:
   origin."
 - After connecting, a session that the server rejects (401) returns to Connect with "You were
   signed out: this browser's access was revoked."; the unsent draft, if any, is kept for the visit.
-- The closing note states that this browser is listed as its own device and can be revoked.
+- The token is kept in this browser's `localStorage` until Sign out, as today. The closing note
+  says so, and that this browser is listed as its own device and can be revoked.
 - A first-time admin with no agents lands on Today with one card instead of the all-clear scene:
   "Connect your first machine", linking to Agents › Join requests with the install command in a
   copy block.
 
 ## Accessibility
 
-- **Contrast.** Every text token meets 4.5:1 on every fill it is used on, in both themes
-  (lowest pairs: Settled on Ground 4.5, Signal on SignalSoft 4.7 in light; Signal on SignalSoft
-  5.2 in dark). Field outlines meet 3:1. State is never carried by colour alone: every dot has
-  words beside it and every badge is text.
+- **Contrast.** Text meets 4.5:1 on the fills it is allowed on, in both themes. Ink, `--text-2`
+  and `--text-3` may sit on any fill. Signal, Live and Settled text may sit on Ground, Surface,
+  `--surface-2` and their own soft fill, never on `--neutral-soft` (in light, Signal is 4.46:1
+  and Settled 4.31:1 there). The lowest allowed pairs are Settled on Ground (4.5) and Settled on
+  `--settled-soft` (4.6) in light, and Signal on `--signal-soft` (5.2) in dark. Field outlines
+  meet 3:1 on every fill. State is never carried by colour alone: every dot has words beside it
+  and every badge is text.
 - **Focus.** Visible 2 px Live outline on every focusable element. Opening a detail on a phone
   moves focus to its title; going back returns focus to the row. A dialog traps focus and returns
   it to its opener. A skip link is the first focusable element.

@@ -61,7 +61,7 @@ session, each group has a header row with the session name and its message count
 Detail: provenance line and time; title; content (embed cards, Markdown, copy blocks);
 attachments; options when the message is an ask (then the decision detail layout is used);
 reactions (seen, working on it, done) and Forward; the reply field; a Details disclosure with
-status and its times, priority, direction and mode, channel, expiry and the message ID.
+status, sent and updated times, priority, direction and mode, channel, expiry and the message ID.
 
 - **Actions.** Search, filter, open, reply, react, forward to a channel, answer.
 - **States.** Filtered-empty with "Clear filters". An integration message has no reply field and
@@ -78,8 +78,9 @@ with counts; **Completed** in a closed disclosure. A session is in Needs you whe
 decision; the remaining buckets follow `SessionDirectory` in HibossKit, so the console and the
 apps agree. Integration sessions appear in Idle with the Integration label.
 
-Detail: header with "project · branch", a status badge, "agent · machine · started", and the live
-step with freshness; the transcript, oldest first, with resolved decisions as banners, open
+Detail: header with "project · branch", a status badge, "agent · machine · started", the live
+step with freshness, and a Details disclosure (session ID, working directory, last seen); the
+transcript, oldest first, with resolved decisions as banners, open
 decisions answerable, attachments, and live panels as one row each; the reply field with its
 target; "Leave a note instead", which leaves a session note that sends no notification.
 
@@ -95,15 +96,15 @@ target; "Leave a note instead", which leaves a session note that sends no notifi
 
 Tabs: **Agents**, **Groups**, **Join requests** (with the pending count).
 
-Agents list: search; rows with name, workflow role, key count, last seen, and badges for
+Agents list: search; rows with name, workflow role, projects, last seen, and badges for
 "Admin capability" and "Integration". A Signal banner under the list names each agent with no
 enabled channel.
 
 Agent detail:
 
 1. Identity: name, workflow role, ID, last seen, created; the Admin capability switch.
-2. **Keys**: label, created, last used, created by, and Revoke; revoked keys stay listed and
-   greyed. "Create key" takes a label and shows the key once.
+2. **Keys**: label, created, last used, and Revoke; revoked keys stay listed and greyed with
+   their revocation date. "Create key" takes a label and shows the key once.
 3. **Sending defaults**: default priority, rate limit per minute, and priority routes (a priority
    mapped to a channel, for example Critical → Discord; add and remove). One Save button for the
    section, disabled until something changed.
@@ -143,7 +144,10 @@ Tabs: **Destinations**, **Rules**, **Providers** (admin only).
 - **Providers.** Name and type per provider; "Add provider" with write-only credentials (bot
   token, optional Discord webhook URL) and the note that existing secrets are never displayed.
 
-- **States.** No provider yet: non-admins read "An administrator must add a provider first."
+- **Actions.** Add, enable, test and delete a destination; add and delete a rule; add a provider.
+- **States.** Empty: "No destinations yet" with "Add destination"; "No routing rules" with
+  "Add rule". No provider yet: non-admins read "An administrator must add a provider first."
+  A test result ("Test notification sent", or the failure) appears in the destination's row.
 - **Roles.** Manager: own destinations and rules for granted agents. Viewer: read-only with one
   banner, "You have view-only access."
 
@@ -156,6 +160,10 @@ Rows: display name, slug, aliases, session count, last seen, last post. Opening 
 states that sessions, posts, aliases and routes move, that the target's profile is kept and that
 it cannot be undone.
 
+- **Actions.** Rename; merge into another project; open the project's sessions (the Sessions list
+  filtered by project).
+- **States.** Empty: "No projects yet. A project appears with an agent's first session." A
+  project cannot be merged into itself; the select omits it.
 - **Roles.** Viewer: no rename or merge.
 
 ## People & access — `/access` (*mockup: access.html*)
@@ -163,8 +171,8 @@ it cannot be undone.
 **Purpose.** Who can see and answer for which agents.
 
 1. Header with the one filled action, "Add a person".
-2. **People**: name, role (a select), linked Telegram and Discord accounts, device count, Rotate
-   token, Archive or Restore. Rotating shows the new token once and states that every existing
+2. **People**: name, role (a select), linked Telegram and Discord accounts, Rotate token,
+   Archive or Restore. Rotating shows the new token once and states that every existing
    token of that person stops working.
 3. **Agent access**: a grid of people by agents; a checkbox grants or revokes at once. Admin rows
    are checked and disabled, with "Admins see every agent". Below 768 px each person becomes a
@@ -185,7 +193,11 @@ Rows: label, kind, "This browser" badge, created, last seen, push device and sig
 registrations are deleted. Revoked clients stay listed with their revocation date. "Add a device"
 creates a pairing code shown with its five-minute expiry.
 
-- **Roles.** Viewer: no "Add a device". This browser cannot be revoked here; Sign out does that.
+- **Actions.** Revoke a client; add a device.
+- **States.** The list always holds this browser, so it has no empty state. A pairing code that
+  cannot be issued (too many active codes) says so and names the wait.
+- **Roles.** Viewer: no "Add a device", because a viewer cannot issue pairing codes. This browser
+  is not revocable from its own row; Sign out does that.
 
 ## Audit — `/audit`
 
@@ -195,7 +207,10 @@ Filters: actor type, action (with suggestions), page size, and a search within t
 Apply. Table: when (absolute, with the date), actor, action, resource, details. Pager with the
 range and total. Below 768 px rows stack and details collapse behind a disclosure.
 
+- **Actions.** Filter, search the loaded page, page forward and back. Audit is read-only.
 - **States.** "No audit entries" and "No rows match" are different messages.
+- **Roles.** A manager or viewer sees its own actions and those of its granted agents, and a
+  note under the title says so.
 
 ## Server — `/server`
 
@@ -208,7 +223,10 @@ range and total. Below 768 px rows stack and details collapse behind a disclosur
 3. Channel health: one row per configured channel with its state and a hint when unhealthy.
 4. Counts: active sessions, open decisions, channels.
 
+- **Actions.** Run the checks again.
 - **States.** A failed check names the failing part; it never turns the whole page into an error.
+  While checks run, the previous results stay visible and the button shows the loading state.
+- **Roles.** The same for every role; it changes nothing.
 
 ## Connect — `/connect` (*mockup: connect.html*)
 
@@ -216,6 +234,6 @@ See [content and flows](content-and-flows.md#first-run-connect-to-this-server).
 
 ## More (phone and tablet) and the account menu
 
-More lists Manage and Admin screens as grouped rows, then Devices, Language, Appearance and
+More lists Manage and System screens as grouped rows, then Devices, Language, Appearance and
 Sign out. On desktop the last four are the account menu. Sign out asks for no confirmation,
 revokes this browser's token on the server and returns to Connect.

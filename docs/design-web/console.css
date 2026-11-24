@@ -27,7 +27,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border-radius: var(--r-s); text-decoration: none; font: var(--t-callout); }
 .nav a:hover { background: var(--neutral-soft); }
 .nav a[aria-current="page"] { background: var(--neutral-soft); font-weight: 600; }
-.nav .count { margin-left: auto; font: var(--t-caption); font-weight: 600; color: var(--signal); }
+.nav .count { margin-left: auto; font: var(--t-caption); font-weight: 600; color: var(--signal); background: var(--signal-soft);
+  padding: 1px var(--s-2); border-radius: var(--r-pill); }
 .side-foot { margin-top: auto; padding: var(--s-3) var(--s-2) 0; border-top: 1px solid var(--hairline);
   font: var(--t-footnote); color: var(--text-2); display: grid; gap: var(--s-1); }
 .main { min-width: 0; padding: var(--s-6) var(--s-7) 48px; }
@@ -146,8 +147,9 @@ a.row:hover, .row.hover { background: var(--surface-2); }
 .composer .line { display: flex; gap: var(--s-2); align-items: flex-end; }
 
 /* ---------- split view ---------- */
-.split { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: var(--s-4); align-items: start; }
+.split { display: grid; grid-template-columns: minmax(260px, min(360px, 36%)) minmax(0, 1fr); gap: var(--s-4); align-items: start; }
 .pane-list, .pane-detail { display: grid; gap: var(--s-3); min-width: 0; }
+.page, .pane-detail { container-type: inline-size; }
 .back { display: none; }
 @media (max-width: 767px) {
   .split { grid-template-columns: minmax(0, 1fr); }
@@ -186,14 +188,16 @@ a.row:hover, .row.hover { background: var(--surface-2); }
 .msg.boss { background: var(--surface-2); }
 
 /* ---------- tables ---------- */
-.table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-l); overflow: hidden; font: var(--t-callout); }
+.table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); border-radius: var(--r-l); overflow: hidden; font: var(--t-callout); }
 .table th { text-align: left; font: var(--t-footnote); color: var(--text-2); font-weight: 400; padding: var(--s-2) var(--s-4); }
 .table td { padding: var(--s-3) var(--s-4); border-top: 1px solid var(--hairline); vertical-align: middle; }
 .table .c { text-align: center; }
-@media (max-width: 767px) {
+@media (pointer: coarse) { input[type="checkbox"]:not(.switch) { width: 24px; height: 24px; } .table td { height: var(--hit); } }
+@container (max-width: 600px) {
   .table.stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .table.stack tr { display: grid; gap: var(--s-1); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--hairline); }
-  .table.stack td { border: 0; padding: 0; display: flex; gap: var(--s-2); justify-content: space-between; text-align: right; }
+  .table.stack td { border: 0; padding: 0; display: flex; gap: var(--s-2); justify-content: space-between; align-items: center;
+    text-align: right; min-height: 32px; }
   .table.stack td::before { content: attr(data-l); color: var(--text-2); font: var(--t-footnote); text-align: left; }
   .table.stack td:first-child { font-weight: 600; text-align: left; } .table.stack td:first-child::before { content: none; }
 }
@@ -213,7 +217,7 @@ a.row:hover, .row.hover { background: var(--surface-2); }
 .line { display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; min-width: 0; }
 .cols { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s-4); align-items: start; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--s-3); }
-@media (max-width: 899px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr); } }
 .iconbtn { width: var(--hit); height: var(--hit); display: grid; place-items: center; border-radius: var(--r-pill);
   border: 0; background: var(--surface); cursor: pointer; text-decoration: none; font: var(--t-footnote); font-weight: 600; }
 .iconbtn:hover { background: var(--neutral-soft); }

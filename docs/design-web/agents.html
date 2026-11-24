@@ -23,8 +23,8 @@
 <li><a href="index.html#spec-only"><span class="ic delivery" aria-hidden="true"></span>Delivery</a></li>
 <li><a href="index.html#spec-only"><span class="ic projects" aria-hidden="true"></span>Projects</a></li>
 </ul>
-<div class="nav-h" id="nav-admin">Admin</div>
-<ul class="nav" aria-labelledby="nav-admin">
+<div class="nav-h" id="nav-system">System</div>
+<ul class="nav" aria-labelledby="nav-system">
 <li><a href="access.html"><span class="ic access" aria-hidden="true"></span>People & access</a></li>
 <li><a href="index.html#spec-only"><span class="ic audit" aria-hidden="true"></span>Audit</a></li>
 <li><a href="index.html#spec-only"><span class="ic server" aria-hidden="true"></span>Server</a></li>
@@ -42,11 +42,11 @@
 <section class="pane-list" aria-label="Agent list">
 <label class="field"><span class="sr">Search agents</span><input class="input" type="search" placeholder="Search agents"></label>
 <div class="rows">
-<a class="row" href="#detail" aria-current="true"><span class="tile row" aria-hidden="true">B1</span><span class="grow"><span class="t trunc" style="display:block">builder-01 </span><span class="s trunc" style="display:block">Worker · 2 keys</span></span><span class="when">12s ago</span></a>
-<a class="row" href="#detail"><span class="tile row" aria-hidden="true">B3</span><span class="grow"><span class="t trunc" style="display:block">builder-03 </span><span class="s trunc" style="display:block">Worker · 1 key</span></span><span class="when">40s ago</span></a>
-<a class="row" href="#detail"><span class="tile row" aria-hidden="true">R2</span><span class="grow"><span class="t trunc" style="display:block">reviewer-02 </span><span class="s trunc" style="display:block">Reviewer · 1 key</span></span><span class="when">2 min ago</span></a>
-<a class="row" href="#detail"><span class="tile row" aria-hidden="true">O</span><span class="grow"><span class="t trunc" style="display:block">orchestrator <span class="badge">Admin capability</span></span><span class="s trunc" style="display:block">Orchestrator · 1 key</span></span><span class="when">1 hr ago</span></a>
-<a class="row" href="#detail"><span class="tile row" aria-hidden="true">M</span><span class="grow"><span class="t trunc" style="display:block">Morpho Liquidator <span class="badge live">Integration</span></span><span class="s trunc" style="display:block">Integration · 1 webhook URL</span></span><span class="when">08:47</span></a>
+<a class="row" href="#detail" aria-current="true"><span class="tile row" aria-hidden="true">B1</span><span class="grow"><span class="t trunc" style="display:block">builder-01 </span><span class="s trunc" style="display:block">Worker · atlas-api</span></span><span class="when">12s ago</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">B3</span><span class="grow"><span class="t trunc" style="display:block">builder-03 </span><span class="s trunc" style="display:block">Worker · docs-site</span></span><span class="when">40s ago</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">R2</span><span class="grow"><span class="t trunc" style="display:block">reviewer-02 </span><span class="s trunc" style="display:block">Reviewer · storefront</span></span><span class="when">2 min ago</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">O</span><span class="grow"><span class="t trunc" style="display:block">orchestrator <span class="badge">Admin capability</span></span><span class="s trunc" style="display:block">Orchestrator · atlas-api, storefront</span></span><span class="when">1 hr ago</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">M</span><span class="grow"><span class="t trunc" style="display:block">Morpho Liquidator <span class="badge live">Integration</span></span><span class="s trunc" style="display:block">Integration</span></span><span class="when">08:47</span></a>
 </div>
 <p class="banner signal">reviewer-02 has no enabled channel. Its messages reach the apps only.</p>
 </section>
@@ -61,11 +61,11 @@
 
 <h3 class="sec">Keys</h3>
 <table class="table stack">
-<thead><tr><th scope="col">Label</th><th scope="col">Created</th><th scope="col">Last used</th><th scope="col">Created by</th><th scope="col"><span class="sr">Actions</span></th></tr></thead>
+<thead><tr><th scope="col">Label</th><th scope="col">Created</th><th scope="col">Last used</th><th scope="col"><span class="sr">Actions</span></th></tr></thead>
 <tbody>
-<tr><td>build-box-2</td><td data-l="Created">Oct 2, 2026</td><td data-l="Last used">12s ago</td><td data-l="Created by">Join request</td><td><button class="btn small danger" type="button">Revoke</button></td></tr>
-<tr><td>laptop</td><td data-l="Created">Nov 20, 2026</td><td data-l="Last used">Never</td><td data-l="Created by">Robin</td><td><button class="btn small danger" type="button">Revoke</button></td></tr>
-<tr><td class="faint">old-ci</td><td data-l="Created">Aug 14, 2026</td><td data-l="Last used">Sep 30, 2026</td><td data-l="Created by">Robin</td><td><span class="badge">Revoked Oct 2</span></td></tr>
+<tr><td>build-box-2</td><td data-l="Created">Oct 2, 2026</td><td data-l="Last used">12s ago</td><td><button class="btn small danger" type="button">Revoke</button></td></tr>
+<tr><td>laptop</td><td data-l="Created">Nov 20, 2026</td><td data-l="Last used">Never</td><td><button class="btn small danger" type="button">Revoke</button></td></tr>
+<tr><td class="faint">old-ci</td><td data-l="Created">Aug 14, 2026</td><td data-l="Last used">Sep 30, 2026</td><td><span class="badge">Revoked Oct 2</span></td></tr>
 </tbody></table>
 <form class="card" action="#">
 <div class="line" style="align-items:flex-end"><label class="field grow">Key label<input class="input" value="ci-runner"></label><button class="btn primary" type="submit">Create key</button></div>
@@ -86,7 +86,7 @@
 
 <h3 class="sec">Channels</h3>
 <div class="rows">
-<label class="row"><span class="grow"><span class="t" style="display:block">Discord</span><span class="s">Configured · last delivery 08:15</span></span><input class="switch" type="checkbox" checked aria-label="Discord notifications for builder-01"></label>
+<label class="row"><span class="grow"><span class="t" style="display:block">Discord</span><span class="s">Configured</span></span><input class="switch" type="checkbox" checked aria-label="Discord notifications for builder-01"></label>
 <label class="row"><span class="grow"><span class="t" style="display:block">Telegram</span><span class="s">Configured</span></span><input class="switch" type="checkbox" aria-label="Telegram notifications for builder-01"></label>
 </div>
 <p class="help" style="padding:0 var(--s-4)">Channel credentials are set with the CLI and never shown here.</p>
