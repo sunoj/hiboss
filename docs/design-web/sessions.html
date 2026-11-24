@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sessions · HiBoss console mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="console.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="app">
+<nav class="sidebar" aria-label="Console">
+<a class="brand" href="index.html"><span class="mark" aria-hidden="true">hb</span>HiBoss</a>
+<ul class="nav" aria-label="Primary">
+<li><a href="overview.html"><span class="ic today" aria-hidden="true"></span>Today<span class="count" aria-label="2 need you">2</span></a></li>
+<li><a href="sessions.html" aria-current="page"><span class="ic sessions" aria-hidden="true"></span>Sessions</a></li>
+<li><a href="messages.html"><span class="ic messages" aria-hidden="true"></span>Messages</a></li>
+</ul>
+<div class="nav-h" id="nav-manage">Manage</div>
+<ul class="nav" aria-labelledby="nav-manage">
+<li><a href="agents.html"><span class="ic agents" aria-hidden="true"></span>Agents</a></li>
+<li><a href="index.html#spec-only"><span class="ic delivery" aria-hidden="true"></span>Delivery</a></li>
+<li><a href="index.html#spec-only"><span class="ic projects" aria-hidden="true"></span>Projects</a></li>
+</ul>
+<div class="nav-h" id="nav-admin">Admin</div>
+<ul class="nav" aria-labelledby="nav-admin">
+<li><a href="access.html"><span class="ic access" aria-hidden="true"></span>People & access</a></li>
+<li><a href="index.html#spec-only"><span class="ic audit" aria-hidden="true"></span>Audit</a></li>
+<li><a href="index.html#spec-only"><span class="ic server" aria-hidden="true"></span>Server</a></li>
+</ul>
+<div class="side-foot"><span class="line"><span class="dot settled" aria-hidden="true"></span>Live · updated 6s ago</span><span class="trunc">hiboss.example.net</span></div>
+</nav>
+<main class="main" id="main">
+<div class="page wide">
+<header class="head"><div><h1>Sessions</h1></div><div class="tools">
+<button class="iconbtn" type="button" data-theme-toggle aria-label="Switch between light and dark"><span class="ic theme" aria-hidden="true"></span></button>
+<a class="iconbtn" href="index.html#spec-only" aria-label="Account: Robin, admin">R</a>
+</div></header>
+<div class="split">
+<section class="pane-list" aria-label="Session list">
+<label class="field"><span class="sr">Search sessions</span><input class="input" type="search" placeholder="Search projects, branches and agents"></label>
+<h2 class="sec"><span class="dot signal" aria-hidden="true" style="align-self:center"></span>Needs you · 1</h2>
+<div class="rows"><a class="row" href="#detail" aria-current="true"><span class="tile row signal" aria-hidden="true">A</span><span class="grow"><span class="t trunc" style="display:block">atlas-api · release/v2.4</span><span class="s trunc" style="display:block">builder-01 · Deploy migration 0052 to production?</span></span><span class="when">18 min left</span></a></div>
+<h2 class="sec"><span class="dot live" aria-hidden="true" style="align-self:center"></span>Working · 2</h2>
+<div class="rows">
+<a class="row" href="#detail"><span class="tile row live" aria-hidden="true">D</span><span class="grow"><span class="t trunc" style="display:block">docs-site · feat/search</span><span class="s trunc" style="display:block">builder-03 · Rebuilding the search index</span></span><span class="when">40s ago</span></a>
+<a class="row" href="#detail"><span class="tile row live" aria-hidden="true">S</span><span class="grow"><span class="t trunc" style="display:block">storefront · fix/checkout-tax</span><span class="s trunc" style="display:block">reviewer-02 · Running the checkout suite</span></span><span class="when">2 min ago</span></a>
+</div>
+<h2 class="sec"><span class="dot" aria-hidden="true" style="align-self:center"></span>Idle · 2</h2>
+<div class="rows">
+<a class="row" href="#detail"><span class="tile row " aria-hidden="true">M</span><span class="grow"><span class="t trunc" style="display:block">Morpho Liquidator</span><span class="s trunc" style="display:block">Integration · Warning</span></span><span class="when">08:47</span></a>
+<a class="row" href="#detail"><span class="tile row " aria-hidden="true">S</span><span class="grow"><span class="t trunc" style="display:block">storefront · main</span><span class="s trunc" style="display:block">reviewer-02 · Review notes posted</span></span><span class="when">Yesterday</span></a>
+</div>
+<details><summary>Completed · 14</summary><div class="rows"><a class="row" href="#detail"><span class="tile row " aria-hidden="true">A</span><span class="grow"><span class="t trunc" style="display:block">atlas-api · fix/rate-limit</span><span class="s trunc" style="display:block">builder-01 · Merged and deployed</span></span><span class="when">Nov 22</span></a></div></details>
+</section>
+
+<section class="pane-detail" id="detail" aria-label="Session">
+<a class="btn quiet back" href="#">‹ Sessions</a>
+<header class="card">
+<div class="line"><h2 style="font:var(--t-title)" class="grow">atlas-api · release/v2.4</h2><span class="badge signal">Waiting on you</span></div>
+<p class="fn muted">builder-01 · build-box-2 · started 1 hr ago</p>
+<p class="line fn"><span class="dot live" aria-hidden="true"></span><span>Preparing the release</span><span class="faint">updated 9s ago</span></p>
+</header>
+<div class="rows" role="feed" aria-label="Session messages">
+<article class="msg"><div class="who"><b>builder-01</b><span>Today 07:24</span></div><p>Use the v2.4 release branch?</p><p class="banner settled">You chose Yes · 07:26</p></article>
+<article class="msg boss"><div class="who"><b>You</b><span>Today 07:31</span><span class="badge">Read 07:31</span></div><p>Run the migration on staging first and send me the test counts.</p></article>
+<article class="msg"><div class="who"><b>builder-01</b><span>Today 08:02</span></div><p><b>Staging migration finished</b></p><div class="md"><p>Migration 0052 ran on staging in 4.1 s. 38 tests passed, 0 failed.</p></div></article>
+<article class="msg"><div class="who"><b>builder-01</b><span>Today 08:40</span></div><p>Skip the changelog entry?</p><p class="banner">Default picked · not approval · “Keep it” at 08:55</p></article>
+<article class="msg"><div class="who"><b>builder-01</b><span>Today 09:24</span><span class="signal-t" style="font-weight:600">18 min left</span></div>
+<p class="q">Deploy migration 0052 to production?</p><p class="muted">Adds the invoices_archive table and one nullable column. No existing rows change.</p>
+<div class="opts two"><button class="btn primary" type="button">Deploy</button><button class="btn" type="button">Not yet</button></div><p class="default-line">No answer in 18 min picks “Not yet”. That is not approval.</p>
+<a class="link fn" href="decision.html">Open decision</a></article>
+</div>
+<form class="composer" action="#">
+<span class="fn muted">Custom answer to: Deploy migration 0052 to production?</span>
+<div class="line" style="flex-wrap:nowrap"><label class="grow"><span class="sr">Reply to session</span><textarea class="input" rows="1" placeholder="Reply to session…"></textarea></label><button class="btn" type="submit">Send</button></div>
+<div class="line"><button class="btn small quiet" type="button">Leave a note instead</button><span class="help">A note waits for the agent’s next step and sends no notification.</span></div>
+</form>
+</section>
+</div>
+</div>
+</main>
+</div>
+<nav class="tabbar" aria-label="Primary, compact">
+<a href="overview.html"><span class="ic today" aria-hidden="true"></span>Today</a>
+<a href="sessions.html" aria-current="page"><span class="ic sessions" aria-hidden="true"></span>Sessions</a>
+<a href="messages.html"><span class="ic messages" aria-hidden="true"></span>Messages</a>
+<a href="agents.html"><span class="ic more" aria-hidden="true"></span>More</a>
+</nav>
+<script src="theme.js"></script>
+</body>
+</html>
