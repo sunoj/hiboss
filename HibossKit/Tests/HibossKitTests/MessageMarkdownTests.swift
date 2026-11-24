@@ -1,6 +1,7 @@
 // Verifies Markdown content structure and preservation of historical long messages.
 // Exercises the native presentation contract with Unicode titles and selectable text.
 
+import SwiftUI
 import XCTest
 @testable import HibossKit
 
@@ -36,6 +37,15 @@ final class MessageMarkdownTests: XCTestCase {
         XCTAssertEqual(links(in: text), [release, "http://example.com/a?b=1"])
         XCTAssertEqual(String(text.characters), "Release: \(release)，下载 http://example.com/a?b=1.")
         XCTAssertEqual(links(in: MessageMarkdown.plainLinks("See https://hiboss.org/docs.")), ["https://hiboss.org/docs"])
+        let wiki = "https://en.wikipedia.org/wiki/Swift_(programming_language)"
+        XCTAssertEqual(links(in: MessageMarkdown.plainLinks("(see \(wiki))")), [wiki])
+    }
+
+    func testEveryLinkIsUnderlined() {
+        let text = MessageMarkdown.inline("[Evidence](https://example.com) and https://hiboss.org")
+        let linked = text.runs.filter { $0.link != nil }
+        XCTAssertEqual(linked.count, 2)
+        XCTAssertTrue(linked.allSatisfy { $0.swiftUI.underlineStyle == .single })
     }
 
     func testCodeSpansAndSchemelessNamesStayText() {

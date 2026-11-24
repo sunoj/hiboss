@@ -1,8 +1,9 @@
-// Turns bare http(s) URLs in message text into tappable links.
+// Turns bare http(s) URLs in message text into tappable, underlined links.
 // Exports MessageMarkdown.plainLinks and the linker that MessageMarkdown.inline applies.
-// Dependencies: Foundation NSDataDetector; code spans and existing links are left alone.
+// Dependencies: Foundation NSDataDetector, SwiftUI text attributes; code spans stay text.
 
 import Foundation
+import SwiftUI
 
 extension MessageMarkdown {
     /// Plain text (a title, a note) with its bare web URLs linked and nothing else interpreted.
@@ -41,6 +42,10 @@ extension MessageMarkdown {
             }
             if !taken { text[range].link = url }
         }
+        // The iOS accent matches body text, so colour alone would not mark a link.
+        for run in text.runs where run.link != nil {
+            text[run.range].swiftUI.underlineStyle = .single
+        }
     }
 
     /// The detector reads Chinese text written straight after a URL ("…v1.0.6，下载") as part of
@@ -50,7 +55,11 @@ extension MessageMarkdown {
         let lowered = candidate.lowercased()
         guard lowered.hasPrefix("http://") || lowered.hasPrefix("https://") else { return nil }
         var end = candidate.firstIndex { !$0.isASCII } ?? candidate.endIndex
-        while end > candidate.startIndex, ".,;:!?'\")]".contains(candidate[candidate.index(before: end)]) {
+        while end > candidate.startIndex {
+            let last = candidate[candidate.index(before: end)]
+            let open = candidate[..<end].filter { $0 == "(" }.count
+            let close = candidate[..<end].filter { $0 == ")" }.count
+            guard ".,;:!?'\"]".contains(last) || (last == ")" && close > open) else { break }
             end = candidate.index(before: end)
         }
         let scheme = lowered.hasPrefix("https://") ? 8 : 7
