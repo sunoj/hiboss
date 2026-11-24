@@ -85,37 +85,36 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Print messages the daemon spooled and queue them for read marking by bg-check.
+/// Print messages the daemon or an ask's waiter spooled and queue them for read marking by
+/// bg-check. Both can spool the same reply, so each message id is shown once.
 fn print_pending_messages(context: &mut impl Write) -> std::io::Result<()> {
-    let pending = session::drain_pending_messages();
+    let mut seen = std::collections::HashSet::new();
+    let pending: Vec<serde_json::Value> = session::drain_pending_messages()
+        .iter()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter(|msg| msg["id"].as_str().is_none_or(|id| id.is_empty() || seen.insert(id.to_owned())))
+        .collect();
     if pending.is_empty() {
         return Ok(());
     }
     session::clear_woken();
-    writeln!(
-        context,
-        "REAL-TIME: {} new messages arrived via SSE daemon:",
-        pending.len()
-    )?;
-    let mut ids_to_mark: Vec<String> = Vec::new();
-    for line in &pending {
-        if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
-            let body = msg["body"].as_str().unwrap_or("");
-            let agent = msg["agent_name"].as_str().unwrap_or("-");
-            let id = msg["id"].as_str().unwrap_or("");
-            let id_short = &id[..8.min(id.len())];
-            let from = match msg["direction"].as_str() {
-                Some("agent_to_agent") => "peer",
-                _ => "boss",
-            };
-            writeln!(context, "  [{from}] {agent} ({id_short}): {body}")?;
-            if !id.is_empty() {
-                ids_to_mark.push(id.to_owned());
-            }
+    writeln!(context, "REAL-TIME: {} new messages arrived:", pending.len())?;
+    let mut ids_to_mark: Vec<&str> = Vec::new();
+    for msg in &pending {
+        let body = msg["body"].as_str().unwrap_or("");
+        let agent = msg["agent_name"].as_str().unwrap_or("-");
+        let id = msg["id"].as_str().unwrap_or("");
+        let id_short = &id[..8.min(id.len())];
+        let from = match msg["direction"].as_str() {
+            Some("agent_to_agent") => "peer",
+            _ => "boss",
+        };
+        writeln!(context, "  [{from}] {agent} ({id_short}): {body}")?;
+        if !id.is_empty() {
+            ids_to_mark.push(id);
         }
     }
-    let id_refs: Vec<&str> = ids_to_mark.iter().map(|s| s.as_str()).collect();
-    session::queue_mark_read(&id_refs);
+    session::queue_mark_read(&ids_to_mark);
     writeln!(context, "Reply with: hiboss reply <id> \"response\"")
 }
 

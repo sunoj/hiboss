@@ -37,6 +37,11 @@ session, not as user input. aid uses the same socket to report a settled task.
 - **What the notice says.** Fixed fields only: the reply id, the ask id, and the command
   that reads it (`hiboss status <ask>`). The body still reaches the agent through the
   labelled PostToolUse spool. A server auto-default is named as such, never as a decision.
+- **An ask's waiter spools its reply.** `hiboss ask` still returns the reply as its output,
+  and also appends it to the session spool. The waiter marks the reply read within a second,
+  before the stream's next poll, so without this a waiter that was detached (`&`) or
+  redirected to a file would be the only one to see the answer. The hook shows each message
+  id once even when both the daemon and the waiter spooled it.
 - **Stop checks the spool.** A boss message spooled after the turn's last tool call was never
   shown, so Stop pushes its notice immediately.
 - **Socket lifecycle.** The daemon records the socket path (never the token) in

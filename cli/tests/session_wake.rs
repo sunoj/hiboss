@@ -209,3 +209,44 @@ fn a_new_socket_replaces_the_daemon_and_a_gone_socket_ends_it() {
     assert!(wait_until(|| !is_hiboss(new)), "the daemon exits once its session is gone");
     assert!(!dir.join("daemon.pid").exists());
 }
+
+/// A waiter detached with `&` or redirected to a file gets the reply, marks it read before the
+/// stream sees it, and prints it where the agent never looks: the session must still learn of it.
+#[test]
+fn a_reply_taken_by_a_detached_ask_wakes_the_session_at_stop() {
+    let session: Arc<Mutex<String>> = Arc::default();
+    let target = session.clone();
+    let http = Http::start(move |request| {
+        if request.path.contains("/poll?") {
+            let reply = json!({"id": "reply-spooled", "direction": "boss_to_agent", "reply_to": "ask-1",
+                "target_session_id": *target.lock().unwrap(), "body": "BODY-FROM-ASK",
+                "metadata": {"source": "api", "provenance":
+                    {"version": 1, "source": "api", "signature": {"status": "not_configured"}}}});
+            return Response::json(200, json!({"id": "ask-1", "direction": "agent_to_boss", "replies": [reply]}));
+        }
+        match (request.method.as_str(), request.path.as_str()) {
+            ("POST", "/api/messages") => Response::json(201,
+                json!({"id": "ask-1", "status": "sent", "created_at": "2026-11-24T00:00:00Z"})),
+            ("GET", path) if path.starts_with("/api/messages/stream") => {
+                Response::json(200, Value::String(": keepalive\n\n".into()))
+            }
+            _ => Response::json(200, json!({"ok": true, "sessions": [], "messages": [], "total": 0})),
+        }
+    });
+    let fixture = Fixture::new("repo", &http.url);
+    let dir = fixture.prepare("claude", "s");
+    let socket = Socket::bind("ask");
+    claude(&fixture, &["hook", "session-start"], Some(&socket));
+    daemon_pid(&dir);
+    *session.lock().unwrap() = read(&dir.join("session"));
+    let ask = claude(&fixture, &["ask", "Deploy?", "--option", "Yes", "--option", "No", "--timeout", "60"], Some(&socket));
+    assert!(ask.stdout.contains("BODY-FROM-ASK"), "the waiter still returns the reply: {}", ask.stdout);
+    assert!(socket.pushes().is_empty(), "a working session is not pushed");
+    claude(&fixture, &["hook", "stop"], Some(&socket));
+    let pushes = socket.pushes();
+    assert_eq!(pushes.len(), 1, "{pushes:?}");
+    assert!(pushes[0].contains("reply-spooled") && pushes[0].contains("ask-1"), "{}", pushes[0]);
+    assert!(!pushes[0].contains("BODY-FROM-ASK"), "{}", pushes[0]);
+    let hook = claude(&fixture, &["hook", "post-tool-use"], Some(&socket));
+    assert_eq!(hook.stdout.matches("BODY-FROM-ASK").count(), 1, "{}", hook.stdout);
+}

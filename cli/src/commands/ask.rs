@@ -231,6 +231,9 @@ pub async fn run(
         submission.id, args.timeout, submission.id
     );
     let poll = wait_for_reply(client, &submission.id, args.timeout).await?;
+    if let Some(ask) = &poll {
+        super::ask_wait::spool_reply(ask);
+    }
     let result = AskResult::from_poll(&submission.id, poll.as_ref(), &choices);
     if let Some(reply_id) = &result.reply_id {
         let _ = client.update_status(reply_id, "read").await;

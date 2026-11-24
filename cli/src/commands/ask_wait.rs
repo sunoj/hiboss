@@ -1,5 +1,5 @@
 // Waits across bounded poll windows until a reply or the ask's monotonic deadline.
-// Exports wait_for_reply; retries transient HTTP and transport failures with backoff.
+// Exports wait_for_reply, spool_reply; retries transient HTTP and transport failures.
 // Dependencies: HiBossClient, typed HTTP errors, and Tokio deadline timers.
 
 use super::ask_result::decision_reply;
@@ -38,6 +38,20 @@ pub(crate) async fn wait_for_reply(
     }
     let message = reconcile_reply(client, id).await?;
     Ok(decision_reply(&message).is_some().then_some(message))
+}
+
+/// Hands the reply to the session spool as well as to the waiter's output. A waiter that was
+/// detached or redirected to a file still gets its answer to the agent: the next tool call
+/// shows it, and Stop wakes an idle session for it. The daemon cannot be relied on here,
+/// because the waiter marks the reply read before the stream's next poll sees it.
+pub(crate) fn spool_reply(ask: &Message) {
+    let Some(reply) = decision_reply(ask) else { return };
+    let mut entry = reply.clone();
+    entry.reply_to = entry.reply_to.or_else(|| Some(ask.id.clone()));
+    entry.target_session_id = entry.target_session_id.or_else(|| ask.session_id.clone());
+    if let Ok(line) = serde_json::to_string(&entry) {
+        let _ = crate::session::append_state(crate::session::DAEMON_PENDING, &format!("{line}\n"));
+    }
 }
 
 async fn reconcile_reply(client: &HiBossClient, id: &str) -> Result<Message, Box<dyn Error>> {
