@@ -3,7 +3,6 @@
 // Dependencies: serde_json::Value, std::error::Error, super::HiBossClient.
 use super::HiBossClient;
 use serde_json::Value;
-use std::error::Error;
 impl HiBossClient {
     client_endpoints! {
         create_integration(name: &str, priority: &str) -> Value =
