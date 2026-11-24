@@ -21,7 +21,7 @@
 	<p>{message}</p>
 	<form method="dialog">
 		<button>{t('common.cancel')}</button>
-		<button type="button" class="danger" onclick={() => { onClose(); onConfirm(); }}>{action}</button>
+		<button type="button" class="danger" onclick={() => { onConfirm(); dialog.close(); }}>{action}</button>
 	</form>
 </dialog>
 

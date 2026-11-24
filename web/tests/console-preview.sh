@@ -23,5 +23,5 @@ for (let i = 0; i < 40; i++) {
 }
 process.exit(1);
 '
-node --test tests/projects.e2e.mjs
 node tests/console-screenshots.mjs
+node --test tests/projects.e2e.mjs

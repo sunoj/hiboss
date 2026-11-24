@@ -24,6 +24,9 @@ async function setup(role = 'admin', viewport = { width: 1280, height: 900 }) {
     localStorage.setItem('hiboss.web.connection', JSON.stringify({ baseUrl: baseURL, token: 'fixture', boss: { id: 'boss', name: 'Boss', role } }));
     localStorage.setItem('hiboss.locale', 'en');
   }, { baseURL, role });
+  await page.route('**/api/boss/stream?inputs=true', route => route.fulfill({
+    contentType: 'text/event-stream', body: 'event: ready\ndata: {}\n\n'
+  }));
   await page.route('**/api/boss/projects**', async route => {
     if (route.request().method() === 'PATCH') {
       const id = route.request().url().split('/').at(-1);
