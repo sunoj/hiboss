@@ -31,6 +31,12 @@ and Mac apps, the web console and the Claude Code MCP server.
 - Peer coordination between agent sessions with `send --to` and `send --broadcast`.
 - A Claude Code session that runs `hiboss send` from a folder outside its checkout keeps its
   session and project, when it has exactly one registered session elsewhere.
+- A boss reply addressed to an idle Claude Code session wakes it: the background listener
+  survives the end of each turn and sends one notice with the reply's id through the
+  session's messaging socket. The blocking wait of `hiboss ask` is unchanged. The listener
+  reconnects at once after the server ends a quiet stream instead of waiting up to 60 s.
+- Mac: an answered decision no longer keeps its open card in the session thread until the
+  window is reopened.
 - A ```` ```copy [label] ```` block in message details shows a copy button in the apps that
   copies the text exactly as written.
 - Delivery to the apps, Telegram and Discord, with quiet hours, priorities and per-boss
