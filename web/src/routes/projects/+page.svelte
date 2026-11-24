@@ -63,7 +63,7 @@
         <h2>{project.slug}</h2>
         <p>{t('projects.aliases')}: {project.aliases.join(', ')}</p>
         <dl>
-          <div><dt>{t('nav.sessions')}</dt><dd>{project.session_count}</dd></div>
+          <div><dt>{t('nav.sessions')}</dt><dd><a href={'/sessions?project=' + encodeURIComponent(project.slug)}>{project.session_count}</a></dd></div>
           <div><dt>{t('form.lastSeen')}</dt><dd>{date(project.last_seen_at)}</dd></div>
           <div><dt>{t('projects.lastPost')}</dt><dd>{date(project.last_post_at)}</dd></div>
         </dl>

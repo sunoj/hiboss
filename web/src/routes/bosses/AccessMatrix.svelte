@@ -1,8 +1,7 @@
 <script lang="ts">
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import type { AgentResponse, BossRecord } from '$lib/api/types';
-	import { bindingSummary, hasAccess, shortId } from './access-helpers';
-	import RoleBadge from './RoleBadge.svelte';
+	import { hasAccess } from './access-helpers';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -10,26 +9,19 @@
 		agents: AgentResponse[];
 		busyKey: string | null;
 		onToggle: (bossId: string, agentId: string, next: boolean) => void;
-		onRotate: (bossId: string) => void;
 	}
 
-	let { bosses, agents, busyKey, onToggle, onRotate }: Props = $props();
+	let { bosses, agents, busyKey, onToggle }: Props = $props();
 
-	function cellKey(bossId: string, agentId: string): string {
-		return `${bossId}:${agentId}`;
-	}
 </script>
 
 <div class="wrap" role="region" aria-label={t('page.bossesSub')}>
 	<table class="matrix">
 		<thead>
 			<tr>
-				<th class="boss-col">{t('nav.bosses')}</th>
-				<th class="meta">{t('form.role')}</th>
-				<th class="meta">{t('form.channel')}</th>
-				<th class="meta">{t('connect.bossToken')}</th>
+				<th scope="col" class="boss-col">{t('nav.bosses')}</th>
 				{#each agents as agent (agent.id)}
-					<th class="agent-col" title={agent.id}>
+					<th scope="col" class="agent-col" title={agent.id}>
 						<AgentIdentity name={agent.name} size="sm" />
 					</th>
 				{/each}
@@ -37,39 +29,22 @@
 		</thead>
 		<tbody>
 			{#each bosses as boss (boss.id)}
-				{@const bind = bindingSummary(boss)}
 				<tr>
-					<td class="boss-col">
+					<th scope="row" class="boss-col">
 						<div class="boss-name">{boss.name}</div>
-						<code class="id" title={boss.id}>{shortId(boss.id)}</code>
-					</td>
-					<td class="meta"><RoleBadge role={boss.role} /></td>
-					<td class="meta bindings">
-						<div><span class="k">TG</span> {bind.telegram}</div>
-						<div><span class="k">DC</span> {bind.discord}</div>
-					</td>
-					<td class="meta">
-						<button
-							type="button"
-							class="rotate"
-							disabled={busyKey === `rotate:${boss.id}`}
-							onclick={() => onRotate(boss.id)}
-						>
-							{t('form.rotateToken')}
-						</button>
-					</td>
+						{#if boss.role === 'admin'}<small>{t('console.adminAccess')}</small>{/if}
+					</th>
 					{#each agents as agent (agent.id)}
-						{@const granted = hasAccess(boss, agent.id)}
-						{@const key = cellKey(boss.id, agent.id)}
+						{@const granted = boss.role === 'admin' || hasAccess(boss, agent.id)}
 						<td class="cell">
 							<label class="check" title={granted ? t('form.revokeAccess') : t('form.grantAccess')}>
 								<input
 									type="checkbox"
 									checked={granted}
-									disabled={busyKey === key}
+									disabled={busyKey !== null || boss.role === 'admin'}
 									onchange={() => onToggle(boss.id, agent.id, !granted)}
 								/>
-								<span class="visually-hidden">
+								<span class="mobile-label">
 									{boss.name} ↔ {agent.name}
 								</span>
 							</label>
@@ -125,10 +100,6 @@
 		z-index: 3;
 		background: var(--hb-bg-elevated);
 	}
-	.meta {
-		white-space: nowrap;
-		color: var(--hb-text-muted);
-	}
 	.agent-col {
 		text-align: center;
 		min-width: 5.5rem;
@@ -136,23 +107,6 @@
 	.boss-name {
 		font-weight: 650;
 		color: var(--hb-text);
-	}
-	.id {
-		font-family: var(--hb-font-mono);
-		font-size: 10px;
-		color: var(--hb-text-dim);
-	}
-	.bindings {
-		font-family: var(--hb-font-mono);
-		font-size: 11px;
-		line-height: 1.45;
-	}
-	.k {
-		display: inline-block;
-		min-width: 1.4rem;
-		color: var(--hb-text-dim);
-		font-weight: 700;
-		font-size: 9px;
 	}
 	.cell {
 		text-align: center;
@@ -174,34 +128,16 @@
 		cursor: wait;
 		opacity: 0.55;
 	}
-	.rotate {
-		border: 1px solid var(--hb-border);
-		background: var(--hb-bg-elevated);
-		border-radius: var(--hb-radius-sm);
-		padding: 0.25rem 0.55rem;
-		font-size: 11px;
-		cursor: pointer;
-		color: var(--hb-text);
-	}
-	.rotate:hover:not(:disabled) {
-		background: var(--hb-bg-hover);
-	}
-	.rotate:disabled {
-		opacity: 0.55;
-		cursor: wait;
-	}
-	.visually-hidden {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		border: 0;
-	}
 	tbody tr:hover .boss-col,
 	tbody tr:hover td {
 		background: var(--hb-bg-hover);
+	}
+	.mobile-label { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
+	@media (max-width: 767px) {
+		table, tbody, tr, th, td { display: block; width: 100%; min-width: 0; }
+		thead { display: none; }
+		.matrix .boss-col, .matrix .cell { width: auto; min-width: 0; }
+		.mobile-label { position: static; width: auto; height: auto; clip-path: none; }
+		.check { display: flex; align-items: center; gap: 8px; min-height: var(--hit); }
 	}
 </style>

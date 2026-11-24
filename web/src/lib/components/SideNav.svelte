@@ -2,7 +2,9 @@
      Depends on shared navigation definitions, page state, and i18n. -->
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { t, i18n } from '$lib/i18n';
+	import { t } from '$lib/i18n';
+	import { auth } from '$lib/stores/auth.svelte';
+	import { inputs } from '$lib/decisions/inputs.svelte';
 	import { NAV_MODULES, isActivePath } from '$lib/nav';
 </script>
 
@@ -16,102 +18,59 @@
 	</div>
 	<nav>
 		{#each NAV_MODULES as mod (mod.id)}
-			<a
-				href={mod.href}
-				class:active={isActivePath($page.url.pathname, mod.href)}
-				class:primary={mod.primary}
-			>
-				<span class="label">{t(mod.labelKey)}</span>
-				<span class="short">{t(mod.shortKey)}</span>
-			</a>
+			{#if mod.id === 'agents'}<span class="section">{t('console.manage')}</span>{/if}
+			{#if mod.id === 'access'}<span class="section">{t('console.system')}</span>{/if}
+			{#if mod.id !== 'access' || auth.connection?.boss?.role === 'admin'}
+				<a href={mod.href} aria-current={isActivePath($page.url.pathname, mod.href) ? 'page' : undefined}>
+					{t(mod.labelKey)}
+				</a>
+			{/if}
 		{/each}
 	</nav>
+	<footer>
+		{t(inputs.connected ? 'top.connected' : 'top.offline')}
+		<span>{auth.connection?.baseUrl}</span>
+	</footer>
 </aside>
 
-<style>
-	.nav {
-		width: var(--hb-nav-width);
-		flex-shrink: 0;
-		background: var(--hb-bg-elevated);
-		border-right: 1px solid var(--hb-border);
-		display: flex;
-		flex-direction: column;
-		min-height: 100vh;
-		position: sticky;
-		top: 0;
-		align-self: flex-start;
-	}
-	.brand {
-		display: flex;
-		align-items: center;
-		gap: 0.65rem;
-		padding: 0.9rem 1rem;
-		border-bottom: 1px solid var(--hb-border-subtle);
-		height: var(--hb-topbar-height);
-		box-sizing: border-box;
-	}
-	.mark {
-		width: 28px;
-		height: 28px;
-		border-radius: var(--hb-radius);
-		background: var(--hb-accent);
-		color: #0c0e12;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		font-weight: 800;
-		font-family: var(--hb-font-mono);
-		font-size: 11px;
-	}
-	.name {
-		font-weight: 700;
-		letter-spacing: -0.01em;
-	}
-	.sub {
-		font-size: 10px;
-		color: var(--hb-text-dim);
-		letter-spacing: 0.06em;
-	}
-	nav {
-		display: flex;
-		flex-direction: column;
-		padding: 0.5rem;
-		gap: 0.15rem;
-		overflow-y: auto;
-	}
-	a {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		gap: 0.5rem;
-		padding: 0.45rem 0.55rem;
-		border-radius: var(--hb-radius-sm);
-		color: var(--hb-text-muted);
-	}
-	a.primary {
-		color: var(--hb-text);
-	}
-	a:hover {
-		background: var(--hb-bg-hover);
-		color: var(--hb-text);
-	}
-	a.active {
-		background: color-mix(in srgb, var(--hb-accent) 16%, transparent);
-		color: var(--hb-text);
-		box-shadow: inset 2px 0 0 var(--hb-accent);
-	}
-	.label {
-		font-weight: 550;
-	}
-	.short {
-		font-size: 10px;
-		color: var(--hb-text-dim);
-	}
+<nav class="tabs" aria-label={t('nav.aria')}>
+	{#each NAV_MODULES.filter((module) => module.primary) as mod (mod.id)}
+		<a href={mod.href} aria-current={isActivePath($page.url.pathname, mod.href) ? 'page' : undefined}>
+			{t(mod.shortKey)}
+		</a>
+	{/each}
+	<a href="/more" aria-current={$page.url.pathname === '/more' ? 'page' : undefined}>{t('console.more')}</a>
+</nav>
 
-	@media (max-width: 760px) {
-		.nav { width: 100%; min-height: auto; position: static; border-right: 0; border-bottom: 1px solid var(--hb-border); }
-		nav { flex-direction: row; overflow-x: auto; }
-		a { flex-shrink: 0; white-space: nowrap; }
-		.short { display: none; }
+<style>
+	.nav { display: none; }
+	.tabs {
+		position: fixed;
+		inset: auto 0 0;
+		z-index: 20;
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		background: var(--surface);
+		border-top: 1px solid var(--hairline);
+		padding-bottom: env(safe-area-inset-bottom);
+	}
+	a { display: flex; align-items: center; min-height: var(--hit); padding: 8px 12px; border-radius: var(--r-s); }
+	.tabs a { justify-content: center; padding-inline: 2px; font: var(--t-caption); }
+	a:hover, a[aria-current="page"] { background: var(--live-soft); color: var(--live); }
+	@media (min-width: 1024px) {
+		.tabs { display: none; }
+		.nav {
+			display: flex; flex-direction: column; flex: 0 0 var(--sidebar);
+			position: sticky; top: 0; height: 100dvh; overflow: auto;
+			background: var(--surface); border-inline-end: 1px solid var(--hairline); padding: 16px;
+		}
+		.brand { display: flex; align-items: center; gap: 10px; margin-block-end: 24px; }
+		.mark { display: grid; place-items: center; border-radius: 8px; background: var(--ink);
+			color: var(--on-ink); width: 32px; height: 32px; font-weight: 700; }
+		.name { font: var(--t-headline); }
+		.sub, footer { color: var(--text-3); font: var(--t-caption); }
+		.section { display: block; margin: 20px 12px 4px; font: var(--t-caption); color: var(--text-3); }
+		footer { margin-top: auto; padding: 12px; overflow-wrap: anywhere; }
+		footer span { display: block; }
 	}
 </style>

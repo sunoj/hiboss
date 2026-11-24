@@ -1,7 +1,6 @@
 <!-- Agent detail drawer with profile, config and credential management.
      Depends on agent metadata, auth and the console detail components. -->
 <script lang="ts">
-	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import { formatRelativeTime } from '$lib/api/mappers';
 	import type { AgentConfigResponse, AgentResponse } from '$lib/api/types';
 	import { lastUsedLabel, roleLabel, shortId } from './agent-helpers';
@@ -13,20 +12,18 @@
 	interface Props {
 		agent: AgentResponse;
 		config?: AgentConfigResponse | null;
-		onClose: () => void;
 		onConfigSaved?: (agentId: string, config: AgentConfigResponse) => void;
 	}
 
-	let { agent, config = null, onClose, onConfigSaved }: Props = $props();
+	let { agent, config = null, onConfigSaved }: Props = $props();
 </script>
 
-<div class="drawer" role="dialog" aria-modal="true" aria-label={t('form.agentDetail')}>
+<div class="panel">
 	<header class="head">
 		<div class="titles">
-			<h2>{t('nav.agents')}</h2>
-			<AgentIdentity name={agent.name} size="md" />
+			<h1>{agent.name}</h1>
 		</div>
-		<button type="button" class="close" onclick={onClose} aria-label={t('common.close')}>✕</button>
+		<a href="/agents">← {t('nav.agents')}</a>
 	</header>
 
 	<div class="body">
@@ -61,27 +58,13 @@
 </div>
 
 <style>
-	@import '../../lib/design/detail-drawer.css';
-	.titles {
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
-	}
-	h2 {
-		margin: 0;
-		font-size: 11px;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--hb-text-muted);
-	}
-	.body {
-		gap: 1rem;
-	}
-	.k {
-		font-size: 11px;
-		letter-spacing: 0.04em;
-	}
-	.mono {
-		font-size: 11px;
-	}
+	.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-m);
+		padding: 16px; margin-bottom: 16px; overflow-wrap: anywhere; }
+	.head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+	h1 { font: var(--t-title); margin: 0; }
+	a { color: var(--live); text-decoration: underline; }
+	.body { display: grid; gap: 16px; min-width: 0; }
+	.meta { padding-block-start: 12px; }
+	.row { display: flex; gap: 8px; }
+	.k { font: var(--t-caption); color: var(--text-3); }
 </style>

@@ -7,12 +7,32 @@
 	import type { BossClient } from '$lib/api/clients';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import { ApiError } from '$lib/api/types';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import CopyBlock from '$lib/message/CopyBlock.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 
 	let clients = $state<BossClient[]>([]);
 	let loading = $state(true);
 	let pending = $state<string | null>(null);
 	let error = $state<string | null>(null);
+	let confirm = $state<BossClient | null>(null);
+	let pairing = $state<{ code: string; expires_at: string } | null>(null);
+	let pairingAvailable = $state(true);
+	let pairingBusy = $state(false);
+	let pairingError = $state('');
+
+	async function addDevice() {
+		const client = auth.client;
+		if (!client || pairingBusy) return;
+		pairingBusy = true;
+		pairingError = '';
+		try { pairing = await client.createPairing(); }
+		catch (failure) {
+			if (failure instanceof ApiError && [404, 405].includes(failure.status)) pairingAvailable = false;
+			else pairingError = failure instanceof Error ? failure.message : String(failure);
+		} finally { pairingBusy = false; }
+	}
 
 	async function load(): Promise<void> {
 		if (pending) return;
@@ -30,7 +50,6 @@
 
 	async function revoke(client: BossClient): Promise<void> {
 		if (pending || client.is_current || client.revoked_at || !auth.client) return;
-		if (!window.confirm(t('devices.confirm', { name: client.label }))) return;
 		pending = client.id;
 		error = null;
 		try {
@@ -52,9 +71,21 @@
 
 <section class="page">
 	<header>
-		<div><h1>{t('page.devices')}</h1><p>{t('page.devicesSub')}</p></div>
+		<h1>{t('page.devices')}</h1>
+		{#if pairingAvailable && auth.connection?.boss?.role !== 'viewer'}
+			<button onclick={addDevice} disabled={pairingBusy}>{t('console.addDevice')}</button>
+		{/if}
 		<button onclick={load} disabled={loading || pending !== null}>{t('common.refresh')}</button>
 	</header>
+	{#if pairing}
+		<CopyBlock text={pairing.code} label={t('console.pairExpires', { time: formatDateTime(pairing.expires_at) })} />
+	{/if}
+	{#if pairingError}<p role="alert">{pairingError}</p>{/if}
+	{#if confirm}
+		{@const current = confirm}
+		<ConfirmDialog action={t('devices.revoke')} message={t('devices.confirm', { name: current.label })}
+			onConfirm={() => revoke(current)} onClose={() => { confirm = null; }} />
+	{/if}
 	{#if error}<ErrorState message={error} onRetry={load} />{/if}
 	{#if loading && clients.length === 0}
 		<Skeleton rows={4} />
@@ -76,7 +107,7 @@
 						<div><dt>{t('devices.signing')}</dt><dd>{t(client.has_signing_key ? 'devices.attached' : 'devices.none')}</dd></div>
 					</dl>
 					{#if !client.is_current && !client.revoked_at}
-						<button class="revoke" onclick={() => revoke(client)} disabled={pending !== null || loading}>
+						<button class="revoke" onclick={() => { confirm = client; }} disabled={pending !== null || loading}>
 							{t(pending === client.id ? 'devices.revoking' : 'devices.revoke')}
 						</button>
 					{/if}

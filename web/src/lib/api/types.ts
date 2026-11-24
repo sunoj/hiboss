@@ -113,6 +113,7 @@ export interface BossRecord {
 	discord_user_id: string | null;
 	agent_id: string | null;
 	preferences: Record<string, unknown> | string | null;
+	archived_at?: string | null;
 	created_at: string;
 	agent_ids?: string[];
 }

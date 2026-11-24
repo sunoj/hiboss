@@ -11,8 +11,9 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 	import AgentChannelGroup from './AgentChannelGroup.svelte';
-	import { CLI_NOTE, groupChannelsByAgent } from './groupChannels';
+	import { groupChannelsByAgent } from './groupChannels';
 
+	let { agentId }: { agentId?: string } = $props();
 	let channels = $state<BossChannelConfig[]>([]);
 	const loadState = new LoadState();
 	let pending = $state<Record<string, boolean>>({});
@@ -47,7 +48,8 @@
 	async function load() {
 		if (saving) return;
 		await loadState.run(async (client) => {
-			channels = await client.channels();
+			const all = await client.channels();
+			channels = agentId ? all.filter((channel) => channel.agent_id === agentId) : all;
 			errors = {};
 			warnings = {};
 		});
@@ -61,15 +63,14 @@
 <section class="page">
 	<header class="head">
 		<div>
-			<h1>{t('page.channels')}</h1>
-			<p class="sub">{t('page.channelsSub')}</p>
+			{#if agentId}<h2>{t('page.channels')}</h2>{:else}<h1>{t('page.channels')}</h1>{/if}
 		</div>
 		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading || saving}>
 			{t('common.refresh')}
 		</button>
 	</header>
 
-	<p class="cli-note" role="note">{CLI_NOTE}</p>
+	<p class="cli-note" role="note">{t('channel.cliNote')}</p>
 
 	{#if loadState.error}
 		<ErrorState message={loadState.error} onRetry={load} />
@@ -100,7 +101,32 @@
 </section>
 
 <style>
-	@import '../../lib/design/page-header.css';
+	/* Page headings and refresh controls shared by the console routes.
+ * Inlined by vitePreprocess so each consuming component retains scoped selectors. */
+.head {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+h1 {
+	margin: 0;
+	font-size: 1.25rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+.refresh {
+	border: 1px solid var(--hb-border);
+	background: var(--hb-bg-panel);
+	border-radius: var(--hb-radius-sm);
+	padding: 0.35rem 0.7rem;
+	cursor: pointer;
+}
+.refresh:disabled {
+	opacity: 0.6;
+	cursor: wait;
+}
 	.head {
 		margin-bottom: 0.65rem;
 	}

@@ -101,6 +101,8 @@ export function normalizeMessage(raw: Record<string, unknown>): MessageResponse 
 		agent_name: raw.agent_name == null ? null : String(raw.agent_name),
 		session_label: raw.session_label == null ? null : String(raw.session_label),
 		session_branch: raw.session_branch == null ? null : String(raw.session_branch),
+		replies: Array.isArray(raw.replies)
+			? raw.replies.map((reply) => normalizeMessage(reply as Record<string, unknown>)) : undefined,
 		session_status: raw.session_status == null ? null : String(raw.session_status)
 	};
 }

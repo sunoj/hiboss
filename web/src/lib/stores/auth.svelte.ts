@@ -1,5 +1,6 @@
 // Reactive auth and per-browser connection state for the SPA.
 // Exports auth; depends on the boss API, client exchange, and localStorage.
+import { redeemPairing } from '$lib/api/pairing';
 import { browserLabel } from '$lib/api/clients';
 
 import {
@@ -37,6 +38,16 @@ class AuthStore {
 			token: grant.token,
 			boss: { id: boss.id, name: boss.name, role: boss.role }
 		};
+		this.store(stored);
+	}
+
+	async pair(baseUrl: string, code: string): Promise<void> {
+		const { token } = await redeemPairing(baseUrl, code);
+		const boss = await validateConnection(baseUrl, token);
+		this.store({ baseUrl, token, boss: { id: boss.id, name: boss.name, role: boss.role } });
+	}
+
+	private store(stored: StoredConnection): void {
 		saveConnection(stored);
 		this.connection = stored;
 		this.client = BossApiClient.fromConnection(stored);

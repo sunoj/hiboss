@@ -12,6 +12,8 @@
   import Providers from './Providers.svelte';
   import { NotificationsClient } from './client';
   import type { Destination, DestinationInput, DestinationPatch, Inventory, ProviderInput } from './types';
+  let { providersOnly = false }: { providersOnly?: boolean } = $props();
+
   let inventory = $state<Inventory>({ destinations: [], providers: [], mode: 'off' });
   let loading = $state(true);
   let pending = $state(false);
@@ -56,13 +58,15 @@
   {#if loading}<Skeleton rows={4} />{:else}
     {#if inventory.mode !== 'on'}<aside>{t('notifications.preview')} {t('notifications.testHint')}</aside>{/if}
     {#if readOnly}<p role="note">{t('notifications.readOnly')}</p>{/if}
+    {#if !providersOnly}
     {#if inventory.destinations.length === 0 && !error}<EmptyState title={t('notifications.empty')} detail={t('notifications.subtitle')} />{/if}
     {#each inventory.destinations as row (row.id)}
       <DestinationRow {row} mode={inventory.mode} disabled={readOnly || pending || Boolean(error)} feedback={feedback[row.id]}
         onPatch={input => patch(row, input)} onTest={() => { void mutate(api => api.test(row.id), row.id, false); }} onDelete={() => remove(row)} />
     {/each}
     {#if !readOnly && !error}<DestinationForm providers={inventory.providers} disabled={pending} onCreate={create} />{/if}
-    {#if admin && !error}<Providers providers={inventory.providers} disabled={pending} onCreate={createProvider} />{/if}
+    {/if}
+    {#if providersOnly && admin && !error}<Providers providers={inventory.providers} disabled={pending} onCreate={createProvider} />{/if}
   {/if}
 </section>
 <style>
