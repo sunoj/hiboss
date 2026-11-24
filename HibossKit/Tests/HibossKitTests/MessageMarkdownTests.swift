@@ -46,6 +46,8 @@ final class MessageMarkdownTests: XCTestCase {
         let linked = text.runs.filter { $0.link != nil }
         XCTAssertEqual(linked.count, 2)
         XCTAssertTrue(linked.allSatisfy { $0.swiftUI.underlineStyle == .single })
+        let labelled = MessageMarkdown.inline("[executor txs](https://bscscan.com/address/0x1)")
+        XCTAssertTrue(labelled.runs.contains { $0.link != nil && $0.swiftUI.underlineStyle == .single })
     }
 
     func testCodeSpansAndSchemelessNamesStayText() {

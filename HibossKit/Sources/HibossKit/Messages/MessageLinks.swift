@@ -26,8 +26,8 @@ extension MessageMarkdown {
             }
         }
         let string = String(text.characters)
-        guard string.localizedCaseInsensitiveContains("http"), let detector = linkDetector else { return }
-        let matches = detector.matches(in: string, range: NSRange(string.startIndex..., in: string))
+        let matches = string.localizedCaseInsensitiveContains("http")
+            ? linkDetector?.matches(in: string, range: NSRange(string.startIndex..., in: string)) ?? [] : []
         for match in matches {
             guard let detected = Range(match.range, in: string),
                   let found = webURLRange(in: string, detected),
