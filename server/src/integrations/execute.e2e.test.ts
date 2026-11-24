@@ -75,7 +75,7 @@ describe('Discord-compatible execute webhook', () => {
 
   it('answers every bad credential the same way and rejects empty or malformed bodies', async () => {
     const hook = await createHook('Credential checks');
-    const [, , , , id, token] = new URL(hook.url).pathname.split('/');
+    const [, , , id, token] = new URL(hook.url).pathname.split('/');
     const wrongToken = await post(`https://test.local/api/webhooks/${id}/${'x'.repeat(64)}`, { content: 'x' });
     const unknownId = await post(`https://test.local/api/webhooks/1234567890123456789/${token}`, { content: 'x' });
     expect(wrongToken.status).toBe(404);
@@ -108,7 +108,8 @@ describe('Discord-compatible execute webhook', () => {
     form.append('payload_json', JSON.stringify({ embeds: [{ title: 'Panel snapshot', image: { url: 'attachment://p.png' } }] }));
     form.append('', new File([PNG], 'p.png', { type: 'image/png' }));
     form.append('files[1]', new File(['hello'], 'notes.txt', { type: 'text/plain' }));
-    expect((await SELF.fetch(hook.url, { method: 'POST', body: form })).status).toBe(204);
+    const response = await SELF.fetch(hook.url, { method: 'POST', body: form });
+    expect(`${response.status} ${await response.text()}`).toBe('204 ');
     const stored = await latest(hook.agentId);
     expect(stored.meta.file_url).toMatch(/^https:\/\/test\.local\/api\/attachments\/[0-9a-f-]+\.png$/);
     expect(stored.meta.content).toContain('file not stored: notes.txt');
