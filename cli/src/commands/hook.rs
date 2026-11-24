@@ -105,11 +105,14 @@ fn print_pending_messages(context: &mut impl Write) -> std::io::Result<()> {
         let agent = msg["agent_name"].as_str().unwrap_or("-");
         let id = msg["id"].as_str().unwrap_or("");
         let id_short = &id[..8.min(id.len())];
-        let from = match msg["direction"].as_str() {
-            Some("agent_to_agent") => "peer",
-            _ => "boss",
-        };
-        writeln!(context, "  [{from}] {agent} ({id_short}): {body}")?;
+        if msg["metadata"]["auto_default"] == true {
+            // The server picked this on timeout; it must never read as the boss's answer.
+            writeln!(context, "  [server default] ({id_short}): {body} (automatic timeout default; \
+                not a boss decision or execution authorization)")?;
+        } else {
+            let from = if msg["direction"] == "agent_to_agent" { "peer" } else { "boss" };
+            writeln!(context, "  [{from}] {agent} ({id_short}): {body}")?;
+        }
         if !id.is_empty() {
             ids_to_mark.push(id);
         }

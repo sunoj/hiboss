@@ -225,6 +225,8 @@ pub async fn run(
         warn_unread_messages(client).await;
     }
     session::mark_asked();
+    // An ask runs inside a turn: a reply that arrives while it waits must not read as "idle".
+    session::clear_idle();
     let submission = super::session_register::send_with_session_heal(client, &mut request).await?;
     eprintln!(
         "[ask {}] sent, waiting up to {}s for reply (recover anytime via: hiboss status {})",
