@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Messages · HiBoss console mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="console.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="app">
+<nav class="sidebar" aria-label="Console">
+<a class="brand" href="index.html"><span class="mark" aria-hidden="true">hb</span>HiBoss</a>
+<ul class="nav" aria-label="Primary">
+<li><a href="overview.html"><span class="ic today" aria-hidden="true"></span>Today<span class="count" aria-label="2 need you">2</span></a></li>
+<li><a href="sessions.html"><span class="ic sessions" aria-hidden="true"></span>Sessions</a></li>
+<li><a href="messages.html" aria-current="page"><span class="ic messages" aria-hidden="true"></span>Messages</a></li>
+</ul>
+<div class="nav-h" id="nav-manage">Manage</div>
+<ul class="nav" aria-labelledby="nav-manage">
+<li><a href="agents.html"><span class="ic agents" aria-hidden="true"></span>Agents</a></li>
+<li><a href="index.html#spec-only"><span class="ic delivery" aria-hidden="true"></span>Delivery</a></li>
+<li><a href="index.html#spec-only"><span class="ic projects" aria-hidden="true"></span>Projects</a></li>
+</ul>
+<div class="nav-h" id="nav-system">System</div>
+<ul class="nav" aria-labelledby="nav-system">
+<li><a href="access.html"><span class="ic access" aria-hidden="true"></span>People & access</a></li>
+<li><a href="index.html#spec-only"><span class="ic audit" aria-hidden="true"></span>Audit</a></li>
+<li><a href="index.html#spec-only"><span class="ic server" aria-hidden="true"></span>Server</a></li>
+</ul>
+<div class="side-foot"><span class="line"><span class="dot settled" aria-hidden="true"></span>Live · updated 6s ago</span><span class="trunc">hiboss.example.net</span></div>
+</nav>
+<main class="main" id="main">
+<div class="page wide">
+<header class="head"><div><h1>Messages</h1></div><div class="tools">
+<button class="iconbtn" type="button" data-theme-toggle aria-label="Switch between light and dark"><span class="ic theme" aria-hidden="true"></span></button>
+<a class="iconbtn" href="index.html#spec-only" aria-label="Account: Robin, admin">R</a>
+</div></header>
+<div class="split">
+<section class="pane-list" aria-label="Message list">
+<label class="field"><span class="sr">Search messages</span><input class="input" type="search" placeholder="Search titles and content"></label>
+<div class="chips" role="group" aria-label="Filter">
+<button class="chip" type="button" aria-pressed="true">All</button><button class="chip" type="button" aria-pressed="false">Needs you</button><button class="chip" type="button" aria-pressed="false">From agents</button><button class="chip" type="button" aria-pressed="false">From me</button><button class="chip" type="button" aria-pressed="false">Integrations</button>
+</div>
+<details><summary>More filters</summary>
+<div class="grid2 card">
+<label class="field">Direction<select class="select"><option>All</option><option>Agent → Boss</option><option>Boss → Agent</option><option>Agent → Agent</option></select></label>
+<label class="field">Status<select class="select"><option>All</option><option>Sent</option><option>Delivered</option><option>Read</option><option>Replied</option><option>Expired</option></select></label>
+<label class="field">Priority<select class="select"><option>Any</option><option>Critical</option><option>High</option><option>Normal</option><option>Low</option></select></label>
+<label class="field">Agent or session<input class="input" placeholder="Name, label or ID prefix"></label>
+<label class="line fn"><input type="checkbox" checked> Group by session</label>
+</div></details>
+<p class="fn faint" role="status">Showing 6 of 248 · updated 6s ago</p>
+<div class="rows">
+<a class="row" href="decision.html"><span class="tile row" aria-hidden="true">A</span><span class="grow"><span class="t trunc" style="display:block">Deploy migration 0052 to production?</span><span class="s trunc" style="display:block">atlas-api · builder-01</span></span><span class="when"><span class="badge signal">Needs you</span> 09:24</span></a>
+<a class="row" href="#detail" aria-current="true"><span class="tile row" aria-hidden="true">M</span><span class="grow"><span class="t trunc" style="display:block">Warning</span><span class="s trunc" style="display:block">Morpho Liquidator · integration</span></span><span class="when">08:47</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">P</span><span class="grow"><span class="t trunc" style="display:block">Order Filled</span><span class="s trunc" style="display:block">PCSX Filler · integration</span></span><span class="when">08:32</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">D</span><span class="grow"><span class="t trunc" style="display:block">Staging is ready for review</span><span class="s trunc" style="display:block">docs-site · builder-03 · 1 attachment</span></span><span class="when">08:15</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">S</span><span class="grow"><span class="t trunc" style="display:block">Checkout suite: 214 passed, 2 failed</span><span class="s trunc" style="display:block">storefront · reviewer-02</span></span><span class="when">07:52</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">A</span><span class="grow"><span class="t trunc" style="display:block">Use the v2.4 release branch?</span><span class="s trunc" style="display:block">atlas-api · You chose Yes</span></span><span class="when"><span class="badge settled">Answered</span> 07:24</span></a>
+</div>
+<button class="btn" type="button">Load 50 more</button>
+</section>
+
+<section class="pane-detail" id="detail" aria-label="Message">
+<a class="btn quiet back" href="#">‹ Messages</a>
+<article class="card">
+<div class="prov"><span class="tile" aria-hidden="true">M</span><span><b>Morpho Liquidator</b> · <span class="badge live">Integration</span></span><span class="when fn faint" style="margin-left:auto">Today 08:47</span></div>
+<h2 style="font:var(--t-title)">Warning</h2>
+<article class="embed" style="--edge:#E67E22" aria-label="Card: Warning">
+<h4 class="et">Warning</h4>
+<p class="ed">Position health is below the alert threshold. No liquidation was sent.</p>
+<dl class="ef">
+<div><dt>market</dt><dd>WETH / USDC</dd></div><div><dt>health</dt><dd>1.04</dd></div><div><dt>threshold</dt><dd>1.05</dd></div>
+<div class="full"><dt>position</dt><dd><a class="link" href="#">0x4c…9e21</a></dd></div>
+</dl>
+<footer>Morpho Liquidator · Today 08:47</footer>
+</article>
+<p class="fn faint">via liquidator-prod</p>
+<div class="line" role="group" aria-label="React"><button class="btn small" type="button" aria-label="React: seen">👀</button><button class="btn small" type="button" aria-label="React: working on it">🔨</button><button class="btn small" type="button" aria-label="React: done">✅</button><button class="btn small" type="button">Forward…</button></div>
+<p class="banner">Replies are off for integration messages. Nothing reads them.</p>
+<details><summary>Details</summary><dl class="kv"><dt>Status</dt><dd>Read</dd><dt>Sent</dt><dd>Today 08:47</dd><dt>Updated</dt><dd>Today 08:49</dd><dt>Priority</dt><dd>Normal</dd><dt>Direction</dt><dd>Agent → Boss · async</dd><dt>Source</dt><dd>Webhook “liquidator-prod”</dd><dt>ID</dt><dd class="mono">msg_7f3a…c21e</dd></dl></details>
+</article>
+
+<p class="fn faint" id="fill">Mockup note: two more message bodies follow, to show the other content types.</p>
+<article class="card">
+<div class="prov"><span class="tile" aria-hidden="true">P</span><span><b>PCSX Filler</b> · <span class="badge live">Integration</span></span><span class="when fn faint" style="margin-left:auto">Today 08:32</span></div>
+<h2 style="font:var(--t-title)">Order Filled</h2>
+<article class="embed" style="--edge:#3498DB" aria-label="Card: Order Filled">
+<h4 class="et"><a class="link" href="#">Order Filled</a></h4>
+<dl class="ef">
+<div><dt>tx</dt><dd><a class="link" href="#">0x75…a3f0</a></dd></div><div><dt>order</dt><dd>0xaf…12</dd></div><div><dt>provider</dt><dd>SmartRouter</dd></div>
+<div><dt>gas</dt><dd>0.000024 BNB</dd></div>
+<div class="full"><dt>net</dt><dd>$0.0270</dd></div>
+</dl>
+<footer>PCSX Filler · Today 08:32</footer>
+</article>
+</article>
+
+<article class="card" id="report">
+<div class="prov"><span class="tile" aria-hidden="true">D</span><span class="trunc"><b>docs-site</b> · feat/search · builder-03</span><span class="when fn faint" style="margin-left:auto">Today 08:15</span></div>
+<h2 style="font:var(--t-title)">Staging is ready for review</h2>
+<div class="md">
+<p>The new search page is deployed to staging. It indexes <code>1,204</code> pages; see the <a href="#">build log</a> for the two pages that were skipped.</p>
+<ul><li>Typo tolerance is on for queries of five or more characters.</li><li>Keyboard: <code>/</code> focuses the search field.</li></ul>
+<div class="copyblock"><header>Staging server<button class="btn small quiet" type="button">Copy</button></header><pre>https://staging.example.net/search</pre></div>
+<pre class="code">npm run test:search   # 61 passed, 0 failed</pre>
+</div>
+<a class="row" href="#" style="border:1px solid var(--hairline);border-radius:var(--r-m)"><span class="tile row" aria-hidden="true">PNG</span><span class="grow"><span class="t" style="display:block">search-results.png</span><span class="s">Image · 412 KB</span></span></a>
+<form class="composer" action="#" style="background:var(--surface-2)">
+<span class="fn muted">Replying to: Staging is ready for review</span>
+<div class="line" style="flex-wrap:nowrap"><label class="grow"><span class="sr">Reply</span><textarea class="input" rows="1" placeholder="Write a reply…"></textarea></label><button class="btn primary" type="submit">Send</button></div>
+</form>
+</article>
+</section>
+</div>
+</div>
+</main>
+</div>
+<nav class="tabbar" aria-label="Primary, compact">
+<a href="overview.html"><span class="ic today" aria-hidden="true"></span>Today</a>
+<a href="sessions.html"><span class="ic sessions" aria-hidden="true"></span>Sessions</a>
+<a href="messages.html" aria-current="page"><span class="ic messages" aria-hidden="true"></span>Messages</a>
+<a href="agents.html"><span class="ic more" aria-hidden="true"></span>More</a>
+</nav>
+<script src="theme.js"></script>
+</body>
+</html>

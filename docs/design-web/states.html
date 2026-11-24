@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Components and states · HiBoss console mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="console.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="app">
+<nav class="sidebar" aria-label="Console">
+<a class="brand" href="index.html"><span class="mark" aria-hidden="true">hb</span>HiBoss</a>
+<ul class="nav" aria-label="Primary">
+<li><a href="overview.html"><span class="ic today" aria-hidden="true"></span>Today<span class="count" aria-label="2 need you">2</span></a></li>
+<li><a href="sessions.html"><span class="ic sessions" aria-hidden="true"></span>Sessions</a></li>
+<li><a href="messages.html"><span class="ic messages" aria-hidden="true"></span>Messages</a></li>
+</ul>
+<div class="nav-h" id="nav-manage">Manage</div>
+<ul class="nav" aria-labelledby="nav-manage">
+<li><a href="agents.html"><span class="ic agents" aria-hidden="true"></span>Agents</a></li>
+<li><a href="index.html#spec-only"><span class="ic delivery" aria-hidden="true"></span>Delivery</a></li>
+<li><a href="index.html#spec-only"><span class="ic projects" aria-hidden="true"></span>Projects</a></li>
+</ul>
+<div class="nav-h" id="nav-system">System</div>
+<ul class="nav" aria-labelledby="nav-system">
+<li><a href="access.html"><span class="ic access" aria-hidden="true"></span>People & access</a></li>
+<li><a href="index.html#spec-only"><span class="ic audit" aria-hidden="true"></span>Audit</a></li>
+<li><a href="index.html#spec-only"><span class="ic server" aria-hidden="true"></span>Server</a></li>
+</ul>
+<div class="side-foot"><span class="line"><span class="dot settled" aria-hidden="true"></span>Live · updated 6s ago</span><span class="trunc">hiboss.example.net</span></div>
+</nav>
+<main class="main" id="main">
+<div class="page">
+<header class="head"><div><p class="eyebrow"><a class="link" href="index.html">‹ All mockups</a></p><h1>Components and states</h1></div><div class="tools">
+<button class="iconbtn" type="button" data-theme-toggle aria-label="Switch between light and dark"><span class="ic theme" aria-hidden="true"></span></button>
+<a class="iconbtn" href="index.html#spec-only" aria-label="Account: Robin, admin">R</a>
+</div></header>
+<p class="muted">Each component in its states. Hover and focus are shown with a static class; in the build they come from the pointer and the keyboard.</p>
+<section class="card"><h2 class="fn muted">Buttons: default, hover, focus, disabled, loading</h2>
+<div class="line"><button class="btn primary" type="button">Deploy</button><button class="btn primary hover" type="button">Hover</button><button class="btn primary" type="button" style="outline:2px solid var(--live);outline-offset:2px">Focus</button><button class="btn primary" type="button" disabled>Disabled</button><button class="btn primary" type="button" aria-busy="true" disabled>Sending…</button></div>
+<div class="line"><button class="btn" type="button">Not yet</button><button class="btn hover" type="button">Hover</button><button class="btn" type="button" disabled>Disabled</button><button class="btn quiet" type="button">Quiet action</button><button class="btn danger" type="button">Revoke</button><button class="btn small" type="button">Small</button></div>
+</section><section class="card"><h2 class="fn muted">Fields: default, filled, invalid, disabled; switch; chips; badges</h2>
+<div class="grid2">
+<label class="field">Label<input class="input" placeholder="Placeholder"></label>
+<label class="field">Rate limit<input class="input" value="-3" aria-invalid="true" aria-describedby="e1"><span class="err" id="e1">Enter a whole number, 0 or more, or leave it empty.</span></label>
+<label class="field">Disabled<input class="input" value="Read only for viewers" disabled></label>
+<label class="field">Select<select class="select"><option>Normal</option></select></label>
+</div>
+<div class="line"><input class="switch" type="checkbox" aria-label="Off"><input class="switch" type="checkbox" checked aria-label="On"><input class="switch" type="checkbox" checked disabled aria-label="On, disabled">
+<button class="chip" type="button" aria-pressed="true" style="background:var(--ink)">Selected</button><button class="chip" type="button" aria-pressed="false" style="background:var(--neutral-soft)">Chip</button>
+<span class="badge signal">Needs you</span><span class="badge live">Integration</span><span class="badge settled">Answered</span><span class="badge">Idle</span><span class="badge danger">Failed</span></div>
+</section><section class="card"><h2 class="fn muted">Decision outcomes (one per card, never together)</h2>
+<p class="banner settled">You chose Deploy · 09:31</p>
+<p class="banner">Default picked · not approval · “Not yet” at 09:42</p>
+<p class="banner">No longer open · answered on another device</p>
+<p class="banner">Expired at 09:42 with no answer. Nothing was chosen.</p>
+<div class="opts two"><button class="btn primary" type="button" disabled>Checking…</button><button class="btn" type="button" disabled>Checking…</button></div>
+<p class="help">Before the open-decision list has loaded, options are disabled and counts read “Loading”, never 0.</p>
+<p class="banner">You have view-only access. Options are shown, not answerable.</p>
+<p class="banner danger" role="alert">The answer was not sent: the server is unreachable. Your choice is kept. <button class="btn small" type="button">Try again</button></p>
+</section><section class="card"><h2 class="fn muted">Connection and freshness</h2>
+<div class="chips"><span class="chip" style="background:var(--neutral-soft)"><span class="dot settled"></span>Live · updated 6s ago</span><span class="chip" style="background:var(--neutral-soft)"><span class="dot"></span>Connecting…</span><span class="chip" style="background:var(--signal-soft);color:var(--signal)"><span class="dot signal"></span>Offline · last updated 09:12</span></div>
+<p class="banner signal" role="status">Showing what was loaded at 09:12. Decisions cannot be answered until the connection returns. <button class="btn small" type="button">Retry</button></p>
+</section><section class="card"><h2 class="fn muted">Loading (skeleton keeps the final layout), empty, error</h2>
+<div class="rows" aria-busy="true" aria-label="Loading sessions"><div class="row"><span class="tile row"></span><span class="grow stack"><span class="skel" style="width:40%"></span><span class="skel" style="width:70%"></span></span></div><div class="row"><span class="tile row"></span><span class="grow stack"><span class="skel" style="width:30%"></span><span class="skel" style="width:60%"></span></span></div></div>
+<div class="empty"><b>No sessions yet</b><span>A session appears when an agent on a connected machine starts work.</span><a class="btn" href="agents.html">Connect an agent</a></div>
+<div class="empty" role="alert"><b>Sessions could not be loaded</b><span>The server answered 503. Nothing here is current.</span><button class="btn" type="button">Try again</button></div>
+</section><section class="card"><h2 class="fn muted">All clear (Today only: no decisions, live connection, complete coverage)</h2>
+<div class="scene" style="height:200px" role="img" aria-label="A small island with a palm tree and an empty deck chair"><img class="art light" src="../design-v4/scenes/island-day.svg" alt=""><img class="art dark" src="../design-v4/scenes/island-night.svg" alt=""></div>
+<div class="empty" style="padding:var(--s-2)"><b>Nothing needs you</b><span class="line"><span class="dot settled"></span>Live · updated 6s ago · 3 working</span></div>
+</section><section class="card"><h2 class="fn muted">Confirm dialog, shown-once secret, status toast</h2>
+<div class="dialog" role="alertdialog" aria-labelledby="cd" aria-describedby="cdd"><h3 id="cd" style="font:var(--t-headline)">Revoke “laptop”?</h3><p id="cdd" class="muted">Every machine using this key loses access at once. This cannot be undone.</p><div class="line" style="justify-content:flex-end"><button class="btn" type="button">Cancel</button><button class="btn danger" type="button">Revoke key</button></div></div>
+<div class="copyblock"><header>New token for Kai · shown once<button class="btn small quiet" type="button">Copied</button></header><pre>hb_boss_EXAMPLE-ONLY-not-a-real-token</pre></div>
+<div><span class="toast" role="status">Access granted to Kai for builder-03</span></div>
+</section><section class="card"><h2 class="fn muted">Embed card fallback: an unclosed or undecodable block is ordinary code</h2>
+<pre class="code">{"color":15105570,"title":"Warning","fields":[{"name":"market"</pre>
+</section>
+</div>
+</main>
+</div>
+<nav class="tabbar" aria-label="Primary, compact">
+<a href="overview.html"><span class="ic today" aria-hidden="true"></span>Today</a>
+<a href="sessions.html"><span class="ic sessions" aria-hidden="true"></span>Sessions</a>
+<a href="messages.html"><span class="ic messages" aria-hidden="true"></span>Messages</a>
+<a href="agents.html" aria-current="page"><span class="ic more" aria-hidden="true"></span>More</a>
+</nav>
+<script src="theme.js"></script>
+</body>
+</html>

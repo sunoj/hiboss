@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agents · HiBoss console mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="console.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="app">
+<nav class="sidebar" aria-label="Console">
+<a class="brand" href="index.html"><span class="mark" aria-hidden="true">hb</span>HiBoss</a>
+<ul class="nav" aria-label="Primary">
+<li><a href="overview.html"><span class="ic today" aria-hidden="true"></span>Today<span class="count" aria-label="2 need you">2</span></a></li>
+<li><a href="sessions.html"><span class="ic sessions" aria-hidden="true"></span>Sessions</a></li>
+<li><a href="messages.html"><span class="ic messages" aria-hidden="true"></span>Messages</a></li>
+</ul>
+<div class="nav-h" id="nav-manage">Manage</div>
+<ul class="nav" aria-labelledby="nav-manage">
+<li><a href="agents.html" aria-current="page"><span class="ic agents" aria-hidden="true"></span>Agents</a></li>
+<li><a href="index.html#spec-only"><span class="ic delivery" aria-hidden="true"></span>Delivery</a></li>
+<li><a href="index.html#spec-only"><span class="ic projects" aria-hidden="true"></span>Projects</a></li>
+</ul>
+<div class="nav-h" id="nav-system">System</div>
+<ul class="nav" aria-labelledby="nav-system">
+<li><a href="access.html"><span class="ic access" aria-hidden="true"></span>People & access</a></li>
+<li><a href="index.html#spec-only"><span class="ic audit" aria-hidden="true"></span>Audit</a></li>
+<li><a href="index.html#spec-only"><span class="ic server" aria-hidden="true"></span>Server</a></li>
+</ul>
+<div class="side-foot"><span class="line"><span class="dot settled" aria-hidden="true"></span>Live · updated 6s ago</span><span class="trunc">hiboss.example.net</span></div>
+</nav>
+<main class="main" id="main">
+<div class="page wide">
+<header class="head"><div><h1>Agents</h1></div><div class="tools">
+<button class="iconbtn" type="button" data-theme-toggle aria-label="Switch between light and dark"><span class="ic theme" aria-hidden="true"></span></button>
+<a class="iconbtn" href="index.html#spec-only" aria-label="Account: Robin, admin">R</a>
+</div></header>
+<nav class="tabs" aria-label="Agents sections"><a href="#" aria-current="page">Agents · 5</a><a href="index.html#spec-only">Groups · 2</a><a href="index.html#spec-only">Join requests · 1</a></nav>
+<div class="split">
+<section class="pane-list" aria-label="Agent list">
+<label class="field"><span class="sr">Search agents</span><input class="input" type="search" placeholder="Search agents"></label>
+<div class="rows">
+<a class="row" href="#detail" aria-current="true"><span class="tile row" aria-hidden="true">B1</span><span class="grow"><span class="t trunc" style="display:block">builder-01 </span><span class="s trunc" style="display:block">Worker · atlas-api</span></span><span class="when">12s ago</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">B3</span><span class="grow"><span class="t trunc" style="display:block">builder-03 </span><span class="s trunc" style="display:block">Worker · docs-site</span></span><span class="when">40s ago</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">R2</span><span class="grow"><span class="t trunc" style="display:block">reviewer-02 </span><span class="s trunc" style="display:block">Reviewer · storefront</span></span><span class="when">2 min ago</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">O</span><span class="grow"><span class="t trunc" style="display:block">orchestrator <span class="badge">Admin capability</span></span><span class="s trunc" style="display:block">Orchestrator · atlas-api, storefront</span></span><span class="when">1 hr ago</span></a>
+<a class="row" href="#detail"><span class="tile row" aria-hidden="true">M</span><span class="grow"><span class="t trunc" style="display:block">Morpho Liquidator <span class="badge live">Integration</span></span><span class="s trunc" style="display:block">Integration</span></span><span class="when">08:47</span></a>
+</div>
+<p class="banner signal">reviewer-02 has no enabled channel. Its messages reach the apps only.</p>
+</section>
+
+<section class="pane-detail" id="detail" aria-label="Agent">
+<a class="btn quiet back" href="#">‹ Agents</a>
+<div class="card">
+<div class="line"><span class="tile row" aria-hidden="true">B1</span><h2 style="font:var(--t-title)" class="grow">builder-01</h2></div>
+<dl class="kv"><dt>Role</dt><dd>Worker</dd><dt>ID</dt><dd class="mono">agt_3c9d…71ab</dd><dt>Last seen</dt><dd>12s ago</dd><dt>Created</dt><dd>Oct 2, 2026</dd>
+<dt><label for="adm">Admin capability</label></dt><dd class="line"><input class="switch" type="checkbox" id="adm"><span class="help">Lets this agent create agents and edit channels. Each change is audited.</span></dd></dl>
+</div>
+
+<h3 class="sec">Keys</h3>
+<table class="table stack">
+<thead><tr><th scope="col">Label</th><th scope="col">Created</th><th scope="col">Last used</th><th scope="col"><span class="sr">Actions</span></th></tr></thead>
+<tbody>
+<tr><td>build-box-2</td><td data-l="Created">Oct 2, 2026</td><td data-l="Last used">12s ago</td><td><button class="btn small danger" type="button">Revoke</button></td></tr>
+<tr><td>laptop</td><td data-l="Created">Nov 20, 2026</td><td data-l="Last used">Never</td><td><button class="btn small danger" type="button">Revoke</button></td></tr>
+<tr><td class="faint">old-ci</td><td data-l="Created">Aug 14, 2026</td><td data-l="Last used">Sep 30, 2026</td><td><span class="badge">Revoked Oct 2</span></td></tr>
+</tbody></table>
+<form class="card" action="#">
+<div class="line" style="align-items:flex-end"><label class="field grow">Key label<input class="input" value="ci-runner"></label><button class="btn primary" type="submit">Create key</button></div>
+<div class="banner settled" role="status">Key “ci-runner” created. Copy it now. It is shown only once.</div>
+<div class="copyblock"><header>New key for builder-01<button class="btn small quiet" type="button">Copy</button></header><pre>hb_agent_EXAMPLE-ONLY-not-a-real-key</pre></div>
+</form>
+
+<h3 class="sec">Sending defaults</h3>
+<form class="card" action="#">
+<div class="grid2">
+<label class="field">Default priority<select class="select"><option>Normal</option><option>Low</option><option>High</option><option>Critical</option></select></label>
+<label class="field">Rate limit (messages per minute)<input class="input" inputmode="numeric" placeholder="No limit"></label>
+</div>
+<div class="stack"><span class="fn muted">Priority routes</span>
+<div class="line"><span class="badge">Critical → Discord</span><button class="btn small quiet" type="button" aria-label="Remove route Critical to Discord">Remove</button><button class="btn small" type="button">Add route</button></div></div>
+<div class="line"><button class="btn" type="submit" disabled>Save</button><span class="help">No changes to save.</span></div>
+</form>
+
+<h3 class="sec">Channels</h3>
+<div class="rows">
+<label class="row"><span class="grow"><span class="t" style="display:block">Discord</span><span class="s">Configured</span></span><input class="switch" type="checkbox" checked aria-label="Discord notifications for builder-01"></label>
+<label class="row"><span class="grow"><span class="t" style="display:block">Telegram</span><span class="s">Configured</span></span><input class="switch" type="checkbox" aria-label="Telegram notifications for builder-01"></label>
+</div>
+<p class="help" style="padding:0 var(--s-4)">Channel credentials are set with the CLI and never shown here.</p>
+</section>
+</div>
+</div>
+</main>
+</div>
+<nav class="tabbar" aria-label="Primary, compact">
+<a href="overview.html"><span class="ic today" aria-hidden="true"></span>Today</a>
+<a href="sessions.html"><span class="ic sessions" aria-hidden="true"></span>Sessions</a>
+<a href="messages.html"><span class="ic messages" aria-hidden="true"></span>Messages</a>
+<a href="agents.html" aria-current="page"><span class="ic more" aria-hidden="true"></span>More</a>
+</nav>
+<script src="theme.js"></script>
+</body>
+</html>

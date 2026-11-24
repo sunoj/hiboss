@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision · HiBoss console mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="console.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="app">
+<nav class="sidebar" aria-label="Console">
+<a class="brand" href="index.html"><span class="mark" aria-hidden="true">hb</span>HiBoss</a>
+<ul class="nav" aria-label="Primary">
+<li><a href="overview.html" aria-current="page"><span class="ic today" aria-hidden="true"></span>Today<span class="count" aria-label="2 need you">2</span></a></li>
+<li><a href="sessions.html"><span class="ic sessions" aria-hidden="true"></span>Sessions</a></li>
+<li><a href="messages.html"><span class="ic messages" aria-hidden="true"></span>Messages</a></li>
+</ul>
+<div class="nav-h" id="nav-manage">Manage</div>
+<ul class="nav" aria-labelledby="nav-manage">
+<li><a href="agents.html"><span class="ic agents" aria-hidden="true"></span>Agents</a></li>
+<li><a href="index.html#spec-only"><span class="ic delivery" aria-hidden="true"></span>Delivery</a></li>
+<li><a href="index.html#spec-only"><span class="ic projects" aria-hidden="true"></span>Projects</a></li>
+</ul>
+<div class="nav-h" id="nav-system">System</div>
+<ul class="nav" aria-labelledby="nav-system">
+<li><a href="access.html"><span class="ic access" aria-hidden="true"></span>People & access</a></li>
+<li><a href="index.html#spec-only"><span class="ic audit" aria-hidden="true"></span>Audit</a></li>
+<li><a href="index.html#spec-only"><span class="ic server" aria-hidden="true"></span>Server</a></li>
+</ul>
+<div class="side-foot"><span class="line"><span class="dot settled" aria-hidden="true"></span>Live · updated 6s ago</span><span class="trunc">hiboss.example.net</span></div>
+</nav>
+<main class="main" id="main">
+<div class="page wide">
+<header class="head"><div><p class="eyebrow"><a class="link" href="overview.html">‹ Today</a></p><h1>Decision</h1></div><div class="tools">
+<button class="iconbtn" type="button" data-theme-toggle aria-label="Switch between light and dark"><span class="ic theme" aria-hidden="true"></span></button>
+<a class="iconbtn" href="index.html#spec-only" aria-label="Account: Robin, admin">R</a>
+</div></header>
+<div class="cols">
+<div class="stack">
+<article class="card" aria-labelledby="dq">
+<div class="prov"><span class="tile signal" aria-hidden="true">A</span><span class="trunc"><b>atlas-api</b> · release/v2.4 · builder-01 · build-box-2</span></div>
+<h2 id="dq" style="font:var(--t-title)">Deploy migration 0052 to production?</h2>
+<div class="banner signal" role="status"><span><b>18 min left</b> · due 09:42. No answer picks “Not yet”. That is not approval.</span></div>
+<dl class="kv">
+<dt>Changes</dt><dd>Adds the invoices_archive table and one nullable column, archived_at, to invoices.</dd>
+<dt>Risk</dt><dd>Low. The migration takes no table lock on existing rows.</dd>
+<dt>Undo</dt><dd>Migration 0052 has a down step; it was run on staging.</dd>
+<dt>Evidence</dt><dd><a class="link" href="#">staging-run-0052.md</a> · 38 tests passed, 0 failed</dd>
+</dl>
+<div class="md">
+<p>Staging has run with the new schema since 07:30. To inspect it first:</p>
+<div class="copyblock"><header>Staging database shell<button class="btn small quiet" type="button">Copy</button></header><pre>atlas db shell --env staging --read-only</pre></div>
+</div>
+<div class="opts">
+<button class="btn primary opt" type="button">Deploy<small>Run migration 0052 on production now.</small></button>
+<button class="btn opt" type="button">Not yet<small>Keep production on 0051. The session waits.</small></button>
+</div>
+<form class="stack" action="#">
+<label class="field" for="custom">Custom answer to: Deploy migration 0052 to production?
+<textarea class="input" id="custom" rows="2" placeholder="Reply with your own instruction…"></textarea></label>
+<div class="line"><button class="btn" type="submit">Send answer</button><span class="help">A typed reply answers this decision. Ctrl/⌘ + Enter sends.</span></div>
+</form>
+</article>
+</div>
+<aside class="stack" aria-label="Session context">
+<div class="card">
+<h2 class="fn muted">Session</h2>
+<dl class="kv"><dt>Agent</dt><dd>builder-01</dd><dt>Machine</dt><dd>build-box-2</dd><dt>Status</dt><dd><span class="badge signal">Waiting on you</span></dd><dt>Started</dt><dd>1 hr ago</dd><dt>Last seen</dt><dd>12s ago</dd></dl>
+<a class="btn" href="sessions.html#detail">Open session</a>
+</div>
+<h2 class="sec">Earlier in this session</h2>
+<div class="rows">
+<a class="row" href="messages.html"><span class="grow"><span class="t" style="display:block">Staging migration finished</span><span class="s">38 tests passed, 0 failed</span></span><span class="when">08:02</span></a>
+<a class="row" href="messages.html"><span class="grow"><span class="t" style="display:block">Use the v2.4 release branch?</span><span class="s settled-t">You chose Yes · 07:26</span></span><span class="when">07:24</span></a>
+</div>
+</aside>
+</div>
+</div>
+</main>
+</div>
+<nav class="tabbar" aria-label="Primary, compact">
+<a href="overview.html" aria-current="page"><span class="ic today" aria-hidden="true"></span>Today</a>
+<a href="sessions.html"><span class="ic sessions" aria-hidden="true"></span>Sessions</a>
+<a href="messages.html"><span class="ic messages" aria-hidden="true"></span>Messages</a>
+<a href="agents.html"><span class="ic more" aria-hidden="true"></span>More</a>
+</nav>
+<script src="theme.js"></script>
+</body>
+</html>
