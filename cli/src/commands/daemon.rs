@@ -74,7 +74,8 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
     if let Some(ref sid) = session_id {
         sse_url = format!("{}?session={}", sse_url, sid);
     }
-    let sse_client = reqwest::Client::new();
+    // The server sends a keepalive every 15 s; a silent socket (a sleep, a dropped route) is dead.
+    let sse_client = reqwest::Client::builder().read_timeout(STREAM_READ_TIMEOUT).build()?;
     eprintln!("Daemon SSE connecting to {} (session wake {})", sse_url,
         if inbox.is_some() { "on" } else { "off" });
 
@@ -94,20 +95,7 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
                 return Ok(());
             }
         }
-        // The server ends every stream after a few minutes; a clean end reconnects at once,
-        // because the next stream only carries messages created after it opens.
-        match stream.await {
-            Ok(Ok(())) => {
-                backoff = RETRY_MIN;
-                sleep(RECONNECT_AFTER_CLOSE).await;
-            }
-            outcome => {
-                let reason = outcome.map_or_else(|err| err.to_string(), |r| r.err().unwrap_or_default());
-                eprintln!("SSE stream failed ({reason}), reconnecting in {}s...", backoff.as_secs());
-                sleep(backoff).await;
-                backoff = (backoff * 2).min(RETRY_MAX);
-            }
-        }
+        sleep(next_delay(stream.await, &mut backoff)).await;
     }
     exit_with_session();
     Ok(())
@@ -116,6 +104,26 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
 const RETRY_MIN: Duration = Duration::from_secs(5);
 const RETRY_MAX: Duration = Duration::from_secs(60);
 const RECONNECT_AFTER_CLOSE: Duration = Duration::from_millis(250);
+const STREAM_READ_TIMEOUT: Duration = Duration::from_secs(45);
+
+/// The server ends every stream after a few minutes, and the next one only carries messages
+/// created after it opens, so a stream that sent data reconnects at once. A stream that ended
+/// without a byte (the server's error path) or failed backs off like a refused connect.
+fn next_delay(outcome: Result<Result<bool, String>, tokio::task::JoinError>, backoff: &mut Duration) -> Duration {
+    let reason = match outcome {
+        Ok(Ok(true)) => {
+            *backoff = RETRY_MIN;
+            return RECONNECT_AFTER_CLOSE;
+        }
+        Ok(Ok(false)) => "ended without data".to_owned(),
+        Ok(Err(err)) => err,
+        Err(err) => err.to_string(),
+    };
+    let delay = *backoff;
+    eprintln!("SSE stream failed ({reason}), reconnecting in {}s...", delay.as_secs());
+    *backoff = (delay * 2).min(RETRY_MAX);
+    delay
+}
 
 /// Spools one message (the hook injects it on the next tool call) and wakes the session
 /// when it is addressed there and idle. True when the session's process is gone.

@@ -1,5 +1,5 @@
 // Purpose: SSE client for real-time message streaming from hiboss server.
-// Exports: SseEvent struct and connect_sse function.
+// Exports: SseEvent struct and connect_sse, which reports whether the stream sent any bytes.
 // Dependencies: reqwest, tokio::sync::mpsc, futures_util::StreamExt.
 
 use futures_util::StreamExt;
@@ -17,7 +17,7 @@ pub async fn connect_sse(
     url: &str,
     auth_token: &str,
     tx: mpsc::Sender<SseEvent>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<bool, Box<dyn Error>> {
     let response = client
         .get(url)
         .header("Authorization", format!("Bearer {}", auth_token))
@@ -31,8 +31,10 @@ pub async fn connect_sse(
     let mut buffer = String::new();
     let mut current_event = String::from("message");
     let mut current_data = String::new();
+    let mut received = false;
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
+        received |= !chunk.is_empty();
         buffer.push_str(&String::from_utf8_lossy(&chunk));
         while let Some(pos) = buffer.find("\n\n") {
             let block = buffer[..pos].to_string();
@@ -56,5 +58,5 @@ pub async fn connect_sse(
             }
         }
     }
-    Ok(())
+    Ok(received)
 }

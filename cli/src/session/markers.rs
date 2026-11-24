@@ -6,6 +6,7 @@ const ASKED: &str = "asked";
 const STOP_WARNED: &str = "stop-warned";
 const RESUME_PENDING: &str = "resume-pending";
 const IDLE: &str = "idle";
+const WOKEN: &str = "woken";
 const REPLIED: &str = "replied";
 const BROADCAST: &str = "broadcast";
 const PEERS_ACTIVE: &str = "peers-active";
@@ -17,7 +18,7 @@ const ACK_HINT: &str = "ack-hint";
 pub fn clear_session_markers() {
     for name in [
         SESSION, ASKED, REPLIED, ACK_HINT, STOP_WARNED, BROADCAST, PEERS_ACTIVE, BROADCAST_REMIND,
-        READ_QUEUE, URGENT, DAEMON_PENDING, URGENT_CHECK, A2A_CHECK, RESUME_PENDING, IDLE,
+        READ_QUEUE, URGENT, DAEMON_PENDING, URGENT_CHECK, A2A_CHECK, RESUME_PENDING, IDLE, WOKEN,
     ] {
         remove_state(name);
     }
@@ -83,6 +84,21 @@ pub fn clear_idle() {
 /// Consume the idle marker; Some only for the first caller in one idle period.
 pub fn take_idle() -> Option<String> {
     take_state(IDLE)
+}
+
+/// Whether the session was already woken for this message; one message wakes it once.
+pub fn was_woken(id: &str) -> bool {
+    read_state(WOKEN).is_some_and(|ids| ids.lines().any(|line| line == id))
+}
+
+/// Record a message the session was woken for, until the hook shows the spool.
+pub fn record_woken(id: &str) {
+    let _ = append_state(WOKEN, &format!("{id}\n"));
+}
+
+/// Forget the woken messages once the hook has shown them to the agent.
+pub fn clear_woken() {
+    remove_state(WOKEN);
 }
 
 /// Record that agent sent a reply/reaction after asking.

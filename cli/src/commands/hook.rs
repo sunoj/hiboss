@@ -91,6 +91,7 @@ fn print_pending_messages(context: &mut impl Write) -> std::io::Result<()> {
     if pending.is_empty() {
         return Ok(());
     }
+    session::clear_woken();
     writeln!(
         context,
         "REAL-TIME: {} new messages arrived via SSE daemon:",

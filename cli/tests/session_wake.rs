@@ -15,12 +15,17 @@ use std::time::Duration;
 
 type Queue = Arc<Mutex<Vec<String>>>;
 
-/// Each stream GET serves the next queued SSE body, or an empty stream.
+/// Each stream GET serves the next queued SSE body, or a keepalive as a quiet live stream does.
 fn server(queue: Queue) -> Http {
+    serve(queue, ": keepalive\n\n")
+}
+
+/// `idle` is what a stream GET returns when nothing is queued.
+fn serve(queue: Queue, idle: &'static str) -> Http {
     Http::start(move |request| match (request.method.as_str(), request.path.as_str()) {
         ("GET", path) if path.starts_with("/api/messages/stream") => {
             let next = queue.lock().unwrap().pop();
-            Response::json(200, Value::String(next.unwrap_or_default()))
+            Response::json(200, Value::String(next.unwrap_or_else(|| idle.into())))
         }
         _ => Response::json(200, json!({"ok": true, "sessions": [], "messages": [], "total": 0})),
     })
@@ -123,6 +128,46 @@ fn an_idle_session_is_woken_once_by_a_reply_addressed_to_it() {
     // The bodies still reach the agent through the hook, as labelled messages.
     let hook = claude(&fixture, &["hook", "post-tool-use"], Some(&socket));
     assert!(hook.stdout.contains("BODY-NOT-PUSHED"), "{}", hook.stdout);
+}
+
+#[test]
+fn a_woken_turn_without_a_tool_call_is_not_woken_again_for_the_same_reply() {
+    let queue: Queue = Arc::default();
+    let http = server(queue.clone());
+    let fixture = Fixture::new("repo", &http.url);
+    let dir = fixture.prepare("claude", "s");
+    let socket = Socket::bind("loop");
+    claude(&fixture, &["hook", "session-start"], Some(&socket));
+    daemon_pid(&dir);
+    claude(&fixture, &["hook", "stop"], Some(&socket));
+    let session = read(&dir.join("session"));
+    queue.lock().unwrap().push(sse(&[reply("msg-reply-loop", &session)]));
+    settle(&queue);
+    assert_eq!(socket.pushes().len(), 1);
+    // The woken turn only answers in text: no PostToolUse drains the spool before each Stop.
+    claude(&fixture, &["hook", "stop"], Some(&socket));
+    claude(&fixture, &["hook", "stop"], Some(&socket));
+    assert_eq!(socket.pushes().len(), 1, "the same reply woke the session again: {:?}", socket.pushes());
+    // A new reply after the turn ends still wakes it.
+    queue.lock().unwrap().push(sse(&[reply("msg-reply-next", &session)]));
+    settle(&queue);
+    let pushes = socket.pushes();
+    assert_eq!(pushes.len(), 2, "{pushes:?}");
+    assert!(pushes[1].contains("msg-reply-next"), "{}", pushes[1]);
+}
+
+#[test]
+fn a_stream_that_ends_without_data_backs_off() {
+    let http = serve(Queue::default(), "");
+    let fixture = Fixture::new("repo", &http.url);
+    let dir = fixture.prepare("claude", "s");
+    let socket = Socket::bind("empty");
+    claude(&fixture, &["hook", "session-start"], Some(&socket));
+    daemon_pid(&dir);
+    std::thread::sleep(Duration::from_secs(3));
+    let streams = http.paths().iter().filter(|p| p.starts_with("GET /api/messages/stream")).count();
+    assert!((1..=2).contains(&streams), "reconnected {streams} times in 3s");
+    assert!(read(&dir.join("daemon.log")).contains("ended without data"));
 }
 
 #[test]

@@ -85,8 +85,15 @@ pub(crate) fn is_gone(err: &io::Error) -> bool {
 /// message addressed to exactly this session does, and only while the session is idle.
 pub(crate) fn wake_notice(message: &Value, session_id: Option<&str>) -> Option<String> {
     let notice = notice_for(message, session_id)?;
+    let id = message["id"].as_str()?;
+    // One push per message: a woken turn that ends without a tool call leaves it spooled, and
+    // the next Stop must not wake the session for it again.
+    if session::was_woken(id) {
+        return None;
+    }
     // One push per idle period: a woken turn that ends idle again re-arms it on Stop.
     session::take_idle()?;
+    session::record_woken(id);
     Some(notice)
 }
 
