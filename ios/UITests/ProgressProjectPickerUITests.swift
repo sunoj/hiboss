@@ -18,7 +18,7 @@ final class ProgressProjectPickerUITests: XCTestCase {
         let payments = app.buttons["payments (2)"]
         XCTAssertTrue(payments.appears(timeout: 5), app.debugDescription)
         XCTAssertTrue(payments.isHittable)
-        XCTAssertTrue(app.buttons["hiboss (6)"].exists)
+        XCTAssertTrue(app.buttons["storefront (6)"].exists)
         captureDemoScreenshot(app, name: "progress-project-menu-dark", test: self)
         payments.tap()
         XCTAssertTrue(app.images["retry latency chart"].appears(timeout: 5))

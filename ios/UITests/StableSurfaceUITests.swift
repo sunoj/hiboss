@@ -51,7 +51,7 @@ final class StableSurfaceUITests: IntermediateCaptureCase {
 
     func testHomeChoicesKeepTheirFramesDuringRefresh() {
         launch(["HIBOSS_DEMO_REFRESH_DELAY_MS": "60000"])
-        let choice = app.buttons["Reject"].firstMatch
+        let choice = app.buttons[reject].firstMatch
         XCTAssertTrue(choice.appears(timeout: 10))
         pause(6)
         let frame = choice.frame

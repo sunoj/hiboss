@@ -9,10 +9,10 @@ final class HomeDecisionDetailUITests: XCTestCase {
     private static let accessibilityXXXL = [
         "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
     ]
-    private static let c5Question = "Which release banner grid should ship — coarse blocks or a fine weave?"
+    private static let c5Question = "发布横幅该用哪种网格：粗块还是细密编织？"
     private static let c1Question =
-        "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?"
-    private static let autoSelectCopy = "将选择“Coarse grid”。这不代表批准。"
+        "生产部署将删除 3 张历史表（orders_2023 等），不可恢复。执行迁移吗？"
+    private static let autoSelectCopy = "将选择“粗网格”。这不代表批准。"
 
     private var app: XCUIApplication!
 
@@ -43,9 +43,9 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(timing("c5").appears(timeout: 5))
         XCTAssertTrue(timing("c5").label.contains(Self.autoSelectCopy), timing("c5").label)
         XCTAssertTrue(timing("c5").label.contains("内未回答"))
-        XCTAssertEqual(app.buttons["Coarse grid"].value as? String, "默认", "Home marks the live default")
-        XCTAssertNotEqual(app.buttons["Fine grid"].value as? String, "默认")
-        assertFullWidth("Coarse grid", "Fine grid")
+        XCTAssertEqual(app.buttons["粗网格"].value as? String, "默认", "Home marks the live default")
+        XCTAssertNotEqual(app.buttons["细网格"].value as? String, "默认")
+        assertFullWidth("粗网格", "细网格")
 
         app.buttons["home-message-c5"].tap()
         let question = app.staticTexts["message-question"]
@@ -56,8 +56,8 @@ final class HomeDecisionDetailUITests: XCTestCase {
 
         XCTAssertTrue(timing("c5").label.contains(Self.autoSelectCopy), "detail repeats Home's timing copy")
         XCTAssertTrue(timing("c5").label.contains("内未回答"))
-        XCTAssertEqual(app.buttons["Coarse grid"].value as? String, "默认", "detail marks the same default")
-        assertFullWidth("Coarse grid", "Fine grid")
+        XCTAssertEqual(app.buttons["粗网格"].value as? String, "默认", "detail marks the same default")
+        assertFullWidth("粗网格", "细网格")
         XCTAssertTrue(app.descendants(matching: .any)["message-more-information"].exists)
         XCTAssertFalse(app.staticTexts["方向"].exists, "routing facts stay collapsed")
 
@@ -87,8 +87,8 @@ final class HomeDecisionDetailUITests: XCTestCase {
         let row = app.buttons["home-message-c1"]
         XCTAssertTrue(row.appears(timeout: 10))
         XCTAssertTrue(row.label.contains(Self.c1Question))
-        let reply = app.buttons["Approve"]
-        assertSideBySide("Approve", "Reject", allowsWrapping: true)
+        let reply = app.buttons["批准"]
+        assertSideBySide("批准", "拒绝", allowsWrapping: true)
         keepScreenshot("accessibility-home-question")
         XCTAssertGreaterThan(row.frame.height, reply.frame.height * 4, "Home question must not truncate")
 
@@ -101,20 +101,20 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertGreaterThan(
             detailQuestion.frame.height, reply.frame.height * 3, "detail question must not truncate"
         )
-        for _ in 0..<8 where !app.buttons["Approve"].isHittable { app.swipeUp() }
-        XCTAssertGreaterThanOrEqual(app.buttons["Approve"].frame.height, 44)
-        assertFullWidth("Approve", "Reject")
+        for _ in 0..<8 where !app.buttons["批准"].isHittable { app.swipeUp() }
+        XCTAssertGreaterThanOrEqual(app.buttons["批准"].frame.height, 44)
+        assertFullWidth("批准", "拒绝")
         XCTAssertLessThanOrEqual(detailQuestion.frame.width, app.frame.width)
     }
 
     /// Choices share a row when they fit and wrap without overlap at accessibility sizes.
     func testTwoChoicesShareTheRowHeightAtAccessibilitySize() {
         launch(arguments: Self.accessibilityXXXL)
-        let coarse = app.buttons["Coarse grid"].firstMatch
+        let coarse = app.buttons["粗网格"].firstMatch
         XCTAssertTrue(coarse.appears(timeout: 10))
         for _ in 0..<8 where !coarse.isHittable { app.swipeUp() }
         keepScreenshot("accessibility-two-choices")
-        assertSideBySide("Coarse grid", "Fine grid", allowsWrapping: true)
+        assertSideBySide("粗网格", "细网格", allowsWrapping: true)
     }
 
     func testNoPanelControlsWithoutPanels() {
@@ -172,15 +172,15 @@ final class HomeDecisionDetailUITests: XCTestCase {
     private func verifyOptionDescriptions(style: String, arguments: [String] = []) {
         launch(["HIBOSS_DEMO_STABLE_DEADLINES": "1"],
                arguments: arguments + ["-AppleInterfaceStyle", style])
-        let choice = app.buttons["Coarse grid"]
+        let choice = app.buttons["粗网格"]
         XCTAssertTrue(choice.appears(timeout: 10))
-        XCTAssertTrue(choice.label.contains("Larger blocks emphasize each announcement."))
-        XCTAssertTrue(app.staticTexts["Larger blocks emphasize each announcement."].firstMatch.exists)
+        XCTAssertTrue(choice.label.contains("更大的色块能突出每条公告。"))
+        XCTAssertTrue(app.staticTexts["更大的色块能突出每条公告。"].firstMatch.exists)
         keepScreenshot("descriptions-home-\(style)-\(arguments.isEmpty ? "default" : "large")")
         app.buttons["home-message-c5"].tap()
         XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
-        XCTAssertTrue(choice.label.contains("Larger blocks emphasize each announcement."))
-        XCTAssertTrue(app.staticTexts["Smaller tiles fit more announcements at once."].firstMatch.exists)
+        XCTAssertTrue(choice.label.contains("更大的色块能突出每条公告。"))
+        XCTAssertTrue(app.staticTexts["更小的格子能同时放下更多公告。"].firstMatch.exists)
         keepScreenshot("descriptions-detail-\(style)-\(arguments.isEmpty ? "default" : "large")")
     }
 

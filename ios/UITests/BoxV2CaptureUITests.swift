@@ -295,8 +295,8 @@ final class BoxCardSwipeUITests: XCTestCase {
         XCTAssertEqual(link.frame.minY, text.frame.minY, accuracy: 1)
         XCTAssertEqual(link.frame.height, 260, accuracy: 1)
         XCTAssertEqual(text.frame.height, link.frame.height, accuracy: 1)
-        XCTAssertTrue(link.label.contains("developer.apple.com"))
-        XCTAssertEqual(link.staticTexts["Apple Developer"].frame.minY, link.frame.minY + 66, accuracy: 2)
+        XCTAssertTrue(link.label.contains("docs.example.com"))
+        XCTAssertEqual(link.staticTexts["API style guide"].frame.minY, link.frame.minY + 66, accuracy: 2)
         XCTAssertEqual(text.staticTexts["A passage to keep"].frame.minY, text.frame.minY + 12, accuracy: 2)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "box-mixed-cards-\(appearance.lowercased())"

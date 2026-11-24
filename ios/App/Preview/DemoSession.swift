@@ -1,10 +1,16 @@
 // The demo a new user enters from onboarding: fixture data only, kept until they exit it.
-// Exports: DemoSession (persisted flag, enter/exit, demo residue purge) read via `isDemoMode`.
+// Exports: DemoSession (persisted flag, enter/exit, demo residue purge) read via `isDemoMode`,
+// and demoCopy, which picks each fixture string's language.
 // Dependencies: Foundation, ActivityKit, os unfair lock, shared Live Activity attributes.
 
 import ActivityKit
 import Foundation
 import os
+
+/// Demo content follows the app's language: Simplified Chinese when the app runs in it, English otherwise.
+func demoCopy(_ english: String, zh chinese: String) -> String {
+    Bundle.main.preferredLocalizations.first?.hasPrefix("zh") == true ? chinese : english
+}
 
 @MainActor
 final class DemoSession: ObservableObject {

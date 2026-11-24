@@ -22,7 +22,8 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing, BoxThumbnailServing {
         let imageFile = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "image"
         let kinds: [BoxItem.Kind] = [.image, .text, .link, .video, .file]
         let titles = [
-            "Layout reference", "A passage to keep", "Apple Developer", "Motion reference",
+            demoCopy("Layout reference", zh: "布局参考"), demoCopy("A passage to keep", zh: "值得保留的一段话"),
+            demoCopy("API style guide", zh: "API 风格指南"), demoCopy("Motion reference", zh: "动效参考"),
             pdf ? "Reference.pdf" : imageFile ? "Reference.png"
                 : unsupported ? "Reference.hibossfixture" : "Reference.txt",
         ]
@@ -36,8 +37,9 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing, BoxThumbnailServing {
             }
             return BoxItem(
                 id: "demo-\(kind.rawValue)", bossID: "demo-boss", bossName: "Demo", kind: kind,
-                text: titles[index], url: kind == .link ? "https://developer.apple.com" : nil,
-                note: kind == .image ? "Use this layout for the next screen." : nil, project: "hiboss",
+                text: titles[index], url: kind == .link ? "https://docs.example.com/api-style" : nil,
+                note: kind == .image ? demoCopy("Use this layout for the next screen.", zh: "下一个页面用这个布局。") : nil,
+                project: "storefront",
                 tags: ["reference"], hasMedia: [.image, .video, .file].contains(kind),
                 mediaType: mediaType,
                 mediaBytes: kind == .file ? (pdf ? pdfData.count : referenceText.utf8.count) : nil,
@@ -48,7 +50,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing, BoxThumbnailServing {
         }
         let agentReference = BoxItem(
             id: "demo-agent-text", bossID: "demo-boss", bossName: "Demo", kind: .text,
-            text: "Agent research notes", project: "hiboss",
+            text: demoCopy("Agent research notes", zh: "智能体调研笔记"), project: "storefront",
             createdAt: Date().addingTimeInterval(-30).ISO8601Format(),
             addedBy: .agent(id: "demo-researcher", name: "Researcher")
         )
@@ -61,7 +63,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing, BoxThumbnailServing {
         }
         return [agentReference] + organized + extras + (1...20).map { index in
             BoxItem(id: "demo-text-\(index)", bossID: "demo-boss", bossName: "Demo", kind: .text,
-                text: "Saved reference \(index)",
+                text: demoCopy("Saved reference \(index)", zh: "已存参考 \(index)"),
                 createdAt: Date().addingTimeInterval(Double(-600 - index * 60))
                     .ISO8601Format())
         }
@@ -74,7 +76,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing, BoxThumbnailServing {
             let date = Date().addingTimeInterval(Double(-120 - index)).ISO8601Format()
             return BoxItem(id: "demo-grid-\(index)", bossID: "demo-boss", bossName: "Demo",
                     kind: video ? .video : .image, text: "Visual reference \(index)",
-                    note: "A saved composition for the next design.", project: "hiboss", tags: ["design"],
+                    note: "A saved composition for the next design.", project: "storefront", tags: ["design"],
                     hasMedia: true, mediaType: video ? "video/mp4" : "image/png", mediaBytes: 1024,
                     width: 320, height: 200, durationMs: video ? 1600 : nil,
                     createdAt: date, addedBy: author, hasThumbnail: true)

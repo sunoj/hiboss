@@ -6,9 +6,13 @@ import Foundation
 import HibossKit
 
 enum DemoOptionMedia {
+    static let coarse = demoCopy("Coarse grid", zh: "粗网格")
+    static let fine = demoCopy("Fine grid", zh: "细网格")
     static let descriptions = [
-        OptionDescription(label: "Coarse grid", text: "Larger blocks emphasize each announcement."),
-        OptionDescription(label: "Fine grid", text: "Smaller tiles fit more announcements at once.")
+        OptionDescription(label: coarse, text: demoCopy(
+            "Larger blocks emphasize each announcement.", zh: "更大的色块能突出每条公告。")),
+        OptionDescription(label: fine, text: demoCopy(
+            "Smaller tiles fit more announcements at once.", zh: "更小的格子能同时放下更多公告。"))
     ]
 
     static var images: [OptionMedia] {
@@ -18,8 +22,8 @@ enum DemoOptionMedia {
     static func images(enabled: Bool) -> [OptionMedia] {
         guard enabled else { return [] }
         return [
-            image(label: "Coarse grid", resource: "demo-coarse-grid"),
-            image(label: "Fine grid", resource: "demo-fine-grid"),
+            image(label: coarse, resource: "demo-coarse-grid"),
+            image(label: fine, resource: "demo-fine-grid"),
         ].compactMap { $0 }
     }
 

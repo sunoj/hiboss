@@ -21,12 +21,12 @@ final class IntermediateBehaviorUITests: IntermediateCaptureCase {
 
     func testReplyOnlyDisablesItsOwnDecision() {
         launch(["HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
-        let reject = app.buttons["Reject"].firstMatch
+        let reject = app.buttons[reject].firstMatch
         XCTAssertTrue(reject.appears(timeout: 8))
         reject.tap()
         XCTAssertFalse(reject.isEnabled)
-        XCTAssertFalse(app.buttons["Approve"].firstMatch.isEnabled)
-        XCTAssertTrue(app.buttons["Fine grid"].firstMatch.isEnabled)
+        XCTAssertFalse(app.buttons[approve].firstMatch.isEnabled)
+        XCTAssertTrue(app.buttons[fineGrid].firstMatch.isEnabled)
         XCTAssertTrue(app.buttons["home-message-c1"].isEnabled)
     }
 

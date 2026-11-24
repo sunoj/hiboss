@@ -64,16 +64,16 @@ final class IntermediateStateUITests: IntermediateCaptureCase {
 
     func testReplies() {
         launch(["HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
-        let choice = app.buttons["Reject"].firstMatch
+        let choice = app.buttons[reject].firstMatch
         reveal(choice)
         choice.tap()
         holdAndCapture("home-reply")
         launch(["HIBOSS_DEMO_OPEN": "c1", "HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
-        XCTAssertTrue(app.buttons["Reject"].firstMatch.appears(timeout: 8))
-        app.buttons["Reject"].firstMatch.tap()
+        XCTAssertTrue(app.buttons[reject].firstMatch.appears(timeout: 8))
+        app.buttons[reject].firstMatch.tap()
         holdAndCapture("detail-reply")
         launch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
-        let transcriptChoice = app.buttons["Reject"].firstMatch
+        let transcriptChoice = app.buttons[reject].firstMatch
         for _ in 0..<5 where !transcriptChoice.isHittable { app.swipeDown() }
         XCTAssertTrue(transcriptChoice.appears(timeout: 8))
         transcriptChoice.tap()

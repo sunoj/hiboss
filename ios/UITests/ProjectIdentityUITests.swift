@@ -79,7 +79,7 @@ final class ProjectIdentityUITests: XCTestCase {
         XCTAssertFalse(session.label.contains("prod-release /"))
         let payments = app.buttons["activity-session-sess-pay"]
         XCTAssertTrue(payments.label.contains("payments-hotfix"))
-        XCTAssertTrue(payments.label.contains("fix/stripe-retry · worker-payments"))
+        XCTAssertTrue(payments.label.contains("fix/gateway-retry · worker-payments"))
         shot(app, "\(appearance)-sessions")
         app.segmentedControls.buttons["Messages"].tap()
         verifySessionTitle(app, label: "Sessions")

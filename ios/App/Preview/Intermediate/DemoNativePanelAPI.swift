@@ -28,7 +28,7 @@ actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
         let delay = ProcessInfo.processInfo.environment["HIBOSS_DEMO_RECOVERY_DELAY_MS"] ?? ""
         guard (Int(delay) ?? 0) > 0 else { return }
         let key = "hiboss.questionnaire.\(questionnaireScope).demo-boss.demo-intake.1"
-        let draft = Data("{\"answers\":{\"target\":\"TestFlight\"},\"submissionID\":\"demo-pending\"}".utf8)
+        let draft = Data("{\"answers\":{\"target\":\"Beta channel\"},\"submissionID\":\"demo-pending\"}".utf8)
         UserDefaults.standard.set(draft, forKey: key)
     }
 
@@ -140,7 +140,7 @@ actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
     private static let questionJSON = """
     {"requestId":"demo-intake","panelId":"demo-panel","requestRevision":1,
      "definitionRevision":1,"state":"open","definition":{"title":"Release checklist",
-      "kind":"intake","blocking":true,"answerSchema":{},"defaults":{"target":"TestFlight"},
+      "kind":"intake","blocking":true,"answerSchema":{},"defaults":{"target":"Beta channel"},
       "context":{},"formSpec":{"root":"form","elements":{
        "form":{"type":"Stack","props":{},"children":["target","notes","submit"]},
        "target":{"type":"TextInput","props":{"label":"Release target",

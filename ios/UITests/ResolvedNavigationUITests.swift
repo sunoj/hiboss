@@ -90,7 +90,7 @@ final class HomeAttentionUITests: XCTestCase {
         ]
         app.launchConfiguredDemo()
         XCTAssertTrue(app.staticTexts["4 need you"].appears(timeout: 10))
-        let option = app.buttons["Fail over to Adyen"]
+        let option = app.buttons["Fail over to the backup gateway"]
         for _ in 0..<12 where !option.isHittable { app.swipeUp() }
         // `isHittable` already holds for a sliver above the floating tab bar, and XCTest then
         // taps that sliver's corner, outside the capsule: drag the option fully clear of the

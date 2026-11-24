@@ -31,7 +31,7 @@ final class BoxV2UITests: XCTestCase {
         let text = app.buttons["box-item-demo-text"]
         let link = app.buttons["box-item-demo-link"]
         XCTAssertTrue(text.label.contains("A passage to keep"))
-        XCTAssertTrue(link.label.contains("developer.apple.com"))
+        XCTAssertTrue(link.label.contains("docs.example.com"))
         app.terminate()
         app.launchConfiguredDemo()
         app.tabBars.buttons["Box"].tap()
@@ -213,7 +213,7 @@ final class BoxV2UITests: XCTestCase {
         let delete = app.buttons["Delete"]
         for _ in 0..<5 where !delete.isHittable { app.swipeUp() }
         delete.tap()
-        XCTAssertTrue(app.alerts["Delete Apple Developer?"].appears(timeout: 5))
+        XCTAssertTrue(app.alerts["Delete API style guide?"].appears(timeout: 5))
         app.alerts.buttons["Cancel"].tap()
         app.navigationBars.buttons.firstMatch.tap()
         let text = app.buttons["box-item-demo-text"]

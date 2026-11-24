@@ -37,7 +37,7 @@ final class DemoJoinRequestsAPI: JoinRequestServing, @unchecked Sendable {
         JoinRequest(
             id: "jr-build", deviceLabel: "build-box-2", deviceHost: "build-box-2.local",
             inviterLabel: "MacBook Air", verificationCode: "482913",
-            profiles: [JoinRequestProfile(profile: "claude-code", name: "builder")],
+            profiles: [JoinRequestProfile(profile: "coding-agent", name: "builder")],
             createdAt: Date().addingTimeInterval(-240).ISO8601Format()
         ),
         JoinRequest(

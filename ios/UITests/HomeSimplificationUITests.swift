@@ -128,14 +128,16 @@ final class HomeSimplificationUITests: XCTestCase {
             app.launchConfiguredDemo()
             let first = app.buttons["home-message-c5"]
             XCTAssertTrue(first.appears(timeout: 10))
-            XCTAssertTrue(app.buttons["Coarse grid"].isHittable)
-            XCTAssertTrue(app.buttons["Fine grid"].isHittable)
+            let english = language == "en"
+            let (approve, reject) = english ? ("Approve", "Reject") : ("批准", "拒绝")
+            XCTAssertTrue(app.buttons[english ? "Coarse grid" : "粗网格"].isHittable)
+            XCTAssertTrue(app.buttons[english ? "Fine grid" : "细网格"].isHittable)
             let timing = app.descendants(matching: .any)["decision-timing-c5"].firstMatch
             XCTAssertTrue(timing.label.contains(language == "en" ? "That is not approval" : "这不代表批准"))
-            for _ in 0..<8 where !app.buttons["Reject"].isHittable { app.swipeUp() }
-            XCTAssertTrue(app.buttons["Approve"].isHittable)
-            XCTAssertTrue(app.buttons["Reject"].isHittable)
-            for option in ["Approve", "Reject"] {
+            for _ in 0..<8 where !app.buttons[reject].isHittable { app.swipeUp() }
+            XCTAssertTrue(app.buttons[approve].isHittable)
+            XCTAssertTrue(app.buttons[reject].isHittable)
+            for option in [approve, reject] {
                 XCTAssertGreaterThanOrEqual(app.buttons[option].frame.height, 44)
             }
             let shot = XCTAttachment(screenshot: app.screenshot())

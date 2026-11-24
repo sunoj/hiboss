@@ -8,6 +8,10 @@ class IntermediateCaptureCase: XCTestCase {
     var app: XCUIApplication!
     var appearance: String? { nil }
     var variant: String { ProcessInfo.processInfo.environment["INTERMEDIATE_VARIANT"] ?? "en" }
+    /// Demo option labels follow the app's language, so a zh variant looks them up in Chinese.
+    var approve: String { variant.contains("zh") ? "批准" : "Approve" }
+    var reject: String { variant.contains("zh") ? "拒绝" : "Reject" }
+    var fineGrid: String { variant.contains("zh") ? "细网格" : "Fine grid" }
 
     override func setUpWithError() throws {
         continueAfterFailure = false

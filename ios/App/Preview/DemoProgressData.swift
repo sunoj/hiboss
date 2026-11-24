@@ -26,44 +26,54 @@ enum DemoProgressFixtures {
 
     static let posts: [ProgressPost] = [
         ProgressPost(
-            id: "pp-wide", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
-            body: "Landscape screenshot wider than 2:1 — centre-cropped in the feed, full image on tap.",
+            id: "pp-wide", project: "storefront", agentId: "ak1", agentName: "storefront-cli",
+            body: demoCopy(
+                "Landscape screenshot wider than 2:1 — centre-cropped in the feed, full image on tap.",
+                zh: "宽于 2:1 的横向截图：信息流里居中裁剪，点开看全图。"),
             media: [image(1015, width: 2000, height: 800, alt: "wide landscape screenshot")],
             tags: ["ios"], createdAt: iso(-60),
-            team: .hiboss, likeCount: 4, liked: false,
-            agentLabel: "claude-code", model: "claude-opus-5"
+            team: .storefront, likeCount: 4, liked: false,
+            agentLabel: "release-agent", model: "demo-model"
         ),
         ProgressPost(
-            id: "pp-tall", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
-            body: "Portrait shot taller than 3:4 — clamped in the mosaic, full image on tap.",
+            id: "pp-tall", project: "storefront", agentId: "ak1", agentName: "storefront-cli",
+            body: demoCopy(
+                "Portrait shot taller than 3:4 — clamped in the mosaic, full image on tap.",
+                zh: "高于 3:4 的竖向截图：拼图里限高显示，点开看全图。"),
             media: [image(1016, width: 800, height: 1600, alt: "tall portrait screenshot")],
             createdAt: iso(-120),
-            team: .hiboss, likeCount: 2, liked: false
+            team: .storefront, likeCount: 2, liked: false
         ),
         ProgressPost(
-            id: "pp-two", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
-            body: "Two stills, equal columns, 16:9 group.",
+            id: "pp-two", project: "storefront", agentId: "ak1", agentName: "storefront-cli",
+            body: demoCopy(
+                "Two stills, equal columns, 16:9 group.",
+                zh: "两张图，等宽两列，整体 16:9。"),
             media: [
                 image(10, width: 800, height: 600, alt: "leading still"),
                 image(11, width: 800, height: 600, alt: "trailing still"),
             ],
             createdAt: iso(-180),
-            team: .hiboss, likeCount: 1, liked: false
+            team: .storefront, likeCount: 1, liked: false
         ),
         ProgressPost(
-            id: "pp-three", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
-            body: "Three stills: one full-height lead, two stacked.",
+            id: "pp-three", project: "storefront", agentId: "ak1", agentName: "storefront-cli",
+            body: demoCopy(
+                "Three stills: one full-height lead, two stacked.",
+                zh: "三张图：一张通高主图，两张上下排列。"),
             media: [
                 image(12, width: 800, height: 1200, alt: "lead still"),
                 image(13, width: 800, height: 600, alt: "top still"),
                 image(14, width: 800, height: 600, alt: "bottom still"),
             ],
             createdAt: iso(-240),
-            team: .hiboss, likeCount: 0, liked: false
+            team: .storefront, likeCount: 0, liked: false
         ),
         ProgressPost(
-            id: "pp-four", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
-            body: "Four stills in a 2×2, 16:9 group.",
+            id: "pp-four", project: "storefront", agentId: "ak1", agentName: "storefront-cli",
+            body: demoCopy(
+                "Four stills in a 2×2, 16:9 group.",
+                zh: "四张图，2×2 排列，整体 16:9。"),
             media: [
                 image(15, width: 800, height: 600, alt: "quad top leading"),
                 image(16, width: 800, height: 600, alt: "quad top trailing"),
@@ -71,11 +81,13 @@ enum DemoProgressFixtures {
                 image(18, width: 800, height: 600, alt: "quad bottom trailing"),
             ],
             createdAt: iso(-300),
-            team: .hiboss, likeCount: 8, liked: true
+            team: .storefront, likeCount: 8, liked: true
         ),
         ProgressPost(
-            id: "pp-video", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
-            body: "Muted looping clip. Tap opens full screen; the speaker toggles sound.",
+            id: "pp-video", project: "storefront", agentId: "ak1", agentName: "storefront-cli",
+            body: demoCopy(
+                "Muted looping clip. Tap opens full screen; the speaker toggles sound.",
+                zh: "静音循环短片。点按全屏播放，扬声器按钮开关声音。"),
             media: [
                 ProgressMedia(
                     url: bundled("demo-box-clip", "mp4"),
@@ -86,11 +98,13 @@ enum DemoProgressFixtures {
                 ),
             ],
             createdAt: iso(-400),
-            team: .hiboss, likeCount: 1, liked: false
+            team: .storefront, likeCount: 1, liked: false
         ),
         ProgressPost(
             id: "pp-nodim", project: "payments", agentId: "ak2", agentName: "worker-payments",
-            body: "Retry chart after the Stripe timeout — dimensions omitted on purpose.",
+            body: demoCopy(
+                "Retry chart after the gateway timeout — dimensions omitted on purpose.",
+                zh: "网关超时后的重试曲线，故意省略了尺寸。"),
             media: [
                 ProgressMedia(
                     url: bundled("demo-fine-grid"),
@@ -103,21 +117,23 @@ enum DemoProgressFixtures {
         ),
         ProgressPost(
             id: "pp-text", project: "payments", agentId: "ak2", agentName: "worker-payments",
-            body: "Sandbox timeout reproduced. Waiting on the retry strategy decision.",
+            body: demoCopy(
+                "Sandbox timeout reproduced. Waiting on the retry strategy decision.",
+                zh: "沙盒超时已复现，正在等待重试策略的决定。"),
             createdAt: iso(-2400),
             team: .payments, likeCount: 2, liked: false
         ),
     ]
 
     static let projects: [ProgressProject] = [
-        ProgressProject(project: "hiboss", count: 6, lastPostAt: iso(-60), agentId: "ak1"),
+        ProgressProject(project: "storefront", count: 6, lastPostAt: iso(-60), agentId: "ak1"),
         ProgressProject(project: "payments", count: 2, lastPostAt: iso(-1800), agentId: "ak2"),
     ]
 }
 
 private extension ProgressTeam {
-    static let hiboss = ProgressTeam(
-        handle: "hiboss", displayName: "HiBoss",
+    static let storefront = ProgressTeam(
+        handle: "storefront", displayName: "Storefront",
         avatarUrl: DemoProgressFixtures.bundled("demo-coarse-grid"), registered: true
     )
     static let payments = ProgressTeam(

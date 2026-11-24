@@ -62,7 +62,7 @@ enum DemoSessionStream {
             SessionEvent(
                 id: "evt-tool-call", sessionId: sid, sequence: 0, kind: "tool_call",
                 direction: "agent_to_boss", actorName: actor,
-                payload: .object(["body": .string("xcodebuild test -scheme HiBoss"), "tool": .string("bash")]),
+                payload: .object(["body": .string("xcodebuild test -scheme Storefront"), "tool": .string("bash")]),
                 createdAt: when
             ),
             SessionEvent(
@@ -99,9 +99,9 @@ enum DemoSessionStream {
 
     private static let longToolOutput = """
     Test Suite 'All Tests' started.
-    Test Suite 'HiBossTests.xctest' started.
-    Test Case '-[HiBossTests.InboxStoreTests testReplySettlesCardInPlaceAndKeepsBossReplyInSession]' passed (0.041 seconds).
-    Test Case '-[HiBossTests.SessionTranscriptLayoutTests testUnknownKindRendersAsSystemLine]' passed (0.002 seconds).
+    Test Suite 'StorefrontTests.xctest' started.
+    Test Case '-[StorefrontTests.CartStoreTests testCheckoutKeepsTheCartUntilPaymentSettles]' passed (0.041 seconds).
+    Test Case '-[StorefrontTests.CatalogLayoutTests testUnknownCategoryRendersAsPlainRow]' passed (0.002 seconds).
     ** TEST SUCCEEDED ** 34 tests, 0 failures, 214 assertions. Full log retained for the operator.
     """
 }

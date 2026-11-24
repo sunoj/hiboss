@@ -32,7 +32,7 @@ enum DemoMarkdown {
         let withImages = ProcessInfo.processInfo.environment["HIBOSS_DEMO_MARKDOWN_IMAGES"] == "1"
         let imageMarkdown = withImages ? "![Report image](\(image.absoluteString) \"Release reference\")" : ""
         return [HistoryMessage(
-            id: "markdown-report", body: title, agentName: "codex", direction: "agent_to_boss",
+            id: "markdown-report", body: title, agentName: "docs-agent", direction: "agent_to_boss",
             status: "delivered", priority: "normal", mode: "async", type: "task_update",
             metadata: MessageMetadata(options: [], content: """
             ## Result

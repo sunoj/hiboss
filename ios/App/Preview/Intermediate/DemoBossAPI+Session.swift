@@ -94,12 +94,13 @@ extension DemoBossAPI: SessionsServing {
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_PEERS"] == "1" {
             return DemoProjectPeers.sessions
         }
-        return [ProjectSession(id: "sess-deploy", projectId: nil, projectSlug: "hiboss",
+        return [ProjectSession(id: "sess-deploy", projectId: nil, projectSlug: "storefront",
                         branch: "release/v2.4",
                         label: "prod-release", host: "Mac mini",
                         agentName: ProcessInfo.processInfo.environment["HIBOSS_DEMO_SESSION_AGENT"]
                             .flatMap { $0.isEmpty ? nil : $0 } ?? "worker-deploy",
-                        status: "working", statusText: "Preparing the release",
+                        status: "working",
+                        statusText: demoCopy("Preparing the release", zh: "正在准备发布"),
                         startedAt: Date().addingTimeInterval(-3600).ISO8601Format(),
                         lastSeenAt: Date().addingTimeInterval(-9).ISO8601Format())]
     }

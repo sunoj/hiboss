@@ -118,7 +118,7 @@ private enum DemoFixtures {
     static let messages: [HistoryMessage] = deploy + payments + data + direct
         + [
             bossReply(
-                to: data[1], choice: "Keep current key", source: "api", automatic: true, at: iso(-6_600))
+                to: data[1], choice: keepKey, source: "api", automatic: true, at: iso(-6_600))
         ]
 
     static func answered(_ parent: HistoryMessage) -> HistoryMessage {
@@ -150,33 +150,42 @@ private enum DemoFixtures {
         )
     }
 
+    // Option labels double as reply bodies, so each is defined once per language.
+    private static let ship = demoCopy("Ship", zh: "发布")
+    private static let hold = demoCopy("Hold", zh: "暂缓")
+    private static let merge = demoCopy("Merge", zh: "合并")
+    private static let later = demoCopy("Later", zh: "稍后")
+    private static let reject = demoCopy("Reject", zh: "拒绝")
+    private static let backoff = demoCopy("Retry with exponential backoff", zh: "指数退避后重试")
+    private static let keepKey = demoCopy("Keep current key", zh: "保留当前密钥")
+
     private static let deploy: [HistoryMessage] = [
         HistoryMessage(
-            id: "c5", body: "Which release banner grid should ship — coarse blocks or a fine weave?",
+            id: "c5", body: demoCopy("Which release banner grid should ship — coarse blocks or a fine weave?", zh: "发布横幅该用哪种网格：粗块还是细密编织？"),
             agentName: "worker-design", direction: "agent_to_boss", status: "delivered",
             priority: "high", channel: "telegram", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(
-                options: ["Coarse grid", "Fine grid"],
+                options: [DemoOptionMedia.coarse, DemoOptionMedia.fine],
                 optionMedia: DemoOptionMedia.images,
                 optionDescriptions: DemoOptionMedia.descriptions,
-                defaultOption: "Coarse grid",
-                content: "Choose the density for the banner layout."
+                defaultOption: DemoOptionMedia.coarse,
+                content: demoCopy("Choose the density for the banner layout.", zh: "为横幅布局选择密度。")
             ),
             expiresAt: iso(90), createdAt: iso(-60),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
             sessionStatus: "blocked"
         ),
         HistoryMessage(
-            id: "c0", body: "Ship the changelog to TestFlight tonight?",
+            id: "c0", body: demoCopy("Ship the changelog to beta testers tonight?", zh: "今晚把更新日志发给测试用户吗？"),
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
             priority: "high", channel: "discord", mode: "blocking", type: "approval_request",
-            metadata: MessageMetadata(options: ["Ship", "Hold"]),
+            metadata: MessageMetadata(options: [ship, hold]),
             expiresAt: nil, createdAt: iso(-120),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
             sessionStatus: "working"
         ),
         HistoryMessage(
-            id: "r0", body: "Ship",
+            id: "r0", body: ship,
             agentName: "orchestrator-01", direction: "boss_to_agent", status: "sent",
             priority: "normal", channel: "telegram", mode: "async",
             replyTo: "c0",
@@ -186,16 +195,16 @@ private enum DemoFixtures {
             sessionStatus: "working"
         ),
         HistoryMessage(
-            id: "c4", body: "Merge the payments hotfix to main?",
+            id: "c4", body: demoCopy("Merge the payments hotfix to main?", zh: "把支付热修复合并到 main 吗？"),
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
             priority: "high", channel: "discord", mode: "blocking", type: "approval_request",
-            metadata: MessageMetadata(options: ["Merge", "Hold"]),
+            metadata: MessageMetadata(options: [merge, hold]),
             createdAt: iso(-90_000),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
             sessionStatus: "working"
         ),
         HistoryMessage(
-            id: "r4", body: "Merge",
+            id: "r4", body: merge,
             agentName: "orchestrator-01", direction: "boss_to_agent", status: "sent",
             priority: "normal", channel: "api", mode: "async",
             replyTo: "c4",
@@ -205,16 +214,16 @@ private enum DemoFixtures {
             sessionStatus: "working"
         ),
         HistoryMessage(
-            id: "c6", body: "Page the on-call for the staging 5xx spike?",
+            id: "c6", body: demoCopy("Page the on-call for the staging 5xx spike?", zh: "预发环境 5xx 激增，要呼叫值班人员吗？"),
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
             priority: "normal", channel: "api", mode: "blocking", type: "approval_request",
-            metadata: MessageMetadata(options: ["Page", "Later"]),
+            metadata: MessageMetadata(options: [demoCopy("Page", zh: "呼叫"), later]),
             createdAt: iso(-180_000),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
             sessionStatus: "working"
         ),
         HistoryMessage(
-            id: "r5", body: "Later",
+            id: "r5", body: later,
             agentName: "orchestrator-01", direction: "boss_to_agent", status: "sent",
             priority: "normal", channel: "api", mode: "async",
             replyTo: "c6",
@@ -226,19 +235,21 @@ private enum DemoFixtures {
         HistoryMessage(
             id: "c1",
             body:
-                "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?",
+                demoCopy(
+                    "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?",
+                    zh: "生产部署将删除 3 张历史表（orders_2023 等），不可恢复。执行迁移吗？"),
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "delivered",
             priority: "critical", channel: "discord", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(
-                options: ["Approve", "Reject"], defaultOption: "Reject",
-                content: "The migration cannot be undone once it starts."
+                options: [demoCopy("Approve", zh: "批准"), reject], defaultOption: reject,
+                content: demoCopy("The migration cannot be undone once it starts.", zh: "迁移一旦开始就无法撤销。")
             ),
             expiresAt: iso(95), createdAt: iso(-40),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
             sessionStatus: "waiting"
         ),
         HistoryMessage(
-            id: "h1", body: "Deployment to staging complete. All 214 tests green.",
+            id: "h1", body: demoCopy("Deployment to staging complete. All 214 tests green.", zh: "预发环境部署完成，214 项测试全部通过。"),
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
             priority: "normal", channel: "discord", mode: "async", type: "task_update",
             metadata: MessageMetadata(
@@ -251,44 +262,45 @@ private enum DemoFixtures {
 
     private static let payments: [HistoryMessage] = [
         HistoryMessage(
-            id: "c2", body: "Stripe timed out 3× in a row. Pick a retry strategy:",
+            id: "c2", body: demoCopy("The payment gateway timed out 3× in a row. Pick a retry strategy:", zh: "支付网关连续超时 3 次，请选择重试策略："),
             agentName: "worker-payments", direction: "agent_to_boss", status: "delivered",
             priority: "high", channel: "telegram", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(options: [
-                "Retry now (same gateway)", "Retry with exponential backoff", "Fail over to Adyen",
-                ], defaultOption: "Retry with exponential backoff",
-                content: "The agent is waiting for a retry policy."),
+                demoCopy("Retry now (same gateway)", zh: "立即重试（同一网关）"), backoff,
+                demoCopy("Fail over to the backup gateway", zh: "切换到备用网关"),
+                ], defaultOption: backoff,
+                content: demoCopy("The agent is waiting for a retry policy.", zh: "智能体正在等待重试策略。")),
             expiresAt: iso(760), createdAt: iso(-90),
-            sessionId: "sess-pay", sessionLabel: "payments-hotfix", sessionBranch: "fix/stripe-retry",
+            sessionId: "sess-pay", sessionLabel: "payments-hotfix", sessionBranch: "fix/gateway-retry",
             sessionStatus: "blocked"
         ),
         HistoryMessage(
-            id: "h2", body: "Reproduced the timeout on the sandbox key — it's gateway-side latency.",
+            id: "h2", body: demoCopy("Reproduced the timeout on the sandbox key — it's gateway-side latency.", zh: "已用沙盒密钥复现超时，是网关侧的延迟。"),
             agentName: "worker-payments", direction: "agent_to_boss", status: "replied",
             priority: "normal", channel: "telegram", mode: "async",
             metadata: nil, expiresAt: nil, createdAt: iso(-600),
-            sessionId: "sess-pay", sessionLabel: "payments-hotfix", sessionBranch: "fix/stripe-retry",
+            sessionId: "sess-pay", sessionLabel: "payments-hotfix", sessionBranch: "fix/gateway-retry",
             sessionStatus: "blocked"
         ),
     ]
 
     private static let data: [HistoryMessage] = [
         HistoryMessage(
-            id: "c3", body: "Need read-only staging DB credentials to continue the export.",
+            id: "c3", body: demoCopy("Need read-only staging DB credentials to continue the export.", zh: "需要预发数据库的只读凭据才能继续导出。"),
             agentName: "worker-data", direction: "agent_to_boss", status: "delivered",
             priority: "normal", channel: "api", mode: "async", type: "steer_command",
-            metadata: MessageMetadata(options: ["Provide", "Later"]),
+            metadata: MessageMetadata(options: [demoCopy("Provide", zh: "提供"), later]),
             expiresAt: nil, createdAt: iso(-300),
             sessionId: "sess-data", sessionLabel: "nightly-export", sessionBranch: "main",
             sessionStatus: "waiting"
         ),
         // Timed out: the server recorded its default as a `system` reply.
         HistoryMessage(
-            id: "a1", body: "Rotate the export bucket key before tonight's run?",
+            id: "a1", body: demoCopy("Rotate the export bucket key before tonight's run?", zh: "今晚运行前要轮换导出存储桶的密钥吗？"),
             agentName: "worker-data", direction: "agent_to_boss", status: "replied",
             priority: "normal", channel: "api", mode: "blocking", type: "approval_request",
-            metadata: MessageMetadata(options: ["Rotate now", "Keep current key"], isExpired: true,
-                                      defaultOption: "Keep current key"),
+            metadata: MessageMetadata(options: [demoCopy("Rotate now", zh: "立即轮换"), keepKey], isExpired: true,
+                                      defaultOption: keepKey),
             expiresAt: iso(-6_600), createdAt: iso(-7_200),
             sessionId: "sess-data", sessionLabel: "nightly-export", sessionBranch: "main",
             sessionStatus: "waiting"
@@ -297,7 +309,7 @@ private enum DemoFixtures {
 
     private static let direct: [HistoryMessage] = [
         HistoryMessage(
-            id: "d1", body: "Heads up — I paused the backfill until you confirm the credentials above.",
+            id: "d1", body: demoCopy("Heads up — I paused the backfill until you confirm the credentials above.", zh: "提醒一下：在你确认上面的凭据之前，我已暂停回填。"),
             agentName: "worker-data", direction: "agent_to_boss", status: "delivered",
             priority: "low", channel: "api", mode: "async",
             metadata: nil, expiresAt: nil, createdAt: iso(-120)

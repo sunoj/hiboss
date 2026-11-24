@@ -16,7 +16,7 @@ enum DemoProjectPeers {
     }
 
     static var sessions: [ProjectSession] {
-        let project = ProjectIdentity(id: "hiboss", slug: "hiboss", displayName: "HiBoss",
+        let project = ProjectIdentity(id: "storefront", slug: "storefront", displayName: "Storefront",
                                       avatarURL: URL(string: "https://127.0.0.1:1/unavailable.png"))
         return (0..<8).map { index in
             ProjectSession(
