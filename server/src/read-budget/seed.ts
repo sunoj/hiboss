@@ -4,6 +4,7 @@
 
 import { env } from 'cloudflare:test';
 import { createAgentAuth, seedBossToken } from '../test-helpers';
+import { hashApiKey } from '../middleware/auth';
 
 // One layer has the production shape at half size: two busy agents, a long tail.
 const VOLUMES = [5_000, 4_500, 2_000, 1_500, 1_000, 750, 500, 300, 200, 100, 75, 40, 20, 10, 4, 1];
@@ -14,6 +15,7 @@ export const BOSS_TOKEN = 'hb_boss_read_budget_admin_0000001';
 export const SESSIONS = 200;
 export const STREAM_SESSION = 'rb-session-1';
 export const PENDING_ASK = 'rb-pending-blocking';
+export const WEBHOOK_PATH = '/api/webhooks/1234567890123456789/rb-webhook-token';
 const LAYER_MESSAGES = VOLUMES.reduce((sum, volume) => sum + volume, 0);
 
 /** Agents, boss, sessions, and the small current working set the polls should be sized by. */
@@ -33,6 +35,20 @@ export async function seedLiveState(): Promise<void> {
       index % 2 === 0 ? null : '{"options":["Go"]}', hourAgo, index < 3 ? later : null).run();
   }
   await seedPanels('rb-live', 3, hourAgo, 'running', 'open');
+  await seedWebhook();
+}
+
+/** One integration with a live webhook URL, as created by POST /api/integrations. */
+async function seedWebhook(): Promise<void> {
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO api_keys (id, name, kind, rate_limit) VALUES ('rb-webhook', 'Read Budget Hook',
+      'integration', 30)`),
+    env.DB.prepare(`INSERT INTO sessions (id, agent_id, label, status) VALUES ('rb-webhook-session', 'rb-webhook',
+      'webhook-rb', 'idle')`),
+    env.DB.prepare(`INSERT INTO agent_webhooks (id, agent_id, session_id, token_hash, label, created_by_agent_id)
+      VALUES ('1234567890123456789', 'rb-webhook', 'rb-webhook-session', ?, 'Read Budget Hook', ?)`)
+      .bind(await hashApiKey('rb-webhook-token'), AGENTS[0]),
+  ]);
 }
 
 /** Appends one history layer (`layer` 0, 1, …), each older than the previous one. */

@@ -3,7 +3,7 @@
 // Dependencies: cloudflare:test, vitest and the shared seed helpers.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
+import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 import { redactWebhookPath } from './credentials';
 
 interface Hook { agentId: string; sessionId: string; url: string; id: string }
@@ -127,5 +127,17 @@ describe('Discord-compatible execute webhook', () => {
     const toAgent = await env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE target_agent_id = ?')
       .bind(hook.agentId).first<{ n: number }>();
     expect(toAgent?.n).toBe(0);
+  });
+
+  it('refuses a boss reply to a webhook message, which nobody would read', async () => {
+    const hook = await createHook('Reply target');
+    await post(hook.url, { content: 'Backup failed' });
+    const message = await env.DB.prepare('SELECT id FROM messages WHERE agent_id = ?').bind(hook.agentId)
+      .first<{ id: string }>();
+    await seedBossToken('webhook-admin', 'admin', 'webhook-admin-token');
+    const reply = await SELF.fetch(`https://test.local/api/boss/messages/${message!.id}/reply`, { method: 'POST',
+      headers: { Authorization: 'Bearer webhook-admin-token', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: 'on it' }) });
+    expect(reply.status).toBe(409);
   });
 });
