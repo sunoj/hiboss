@@ -4,6 +4,9 @@
 import { projectSlug } from '../projects';
 import { hashWebhookToken, newWebhookId, newWebhookToken } from './credentials';
 
+/** Messages per minute per integration; a noisy sender must not flood the boss. */
+const DEFAULT_RATE_LIMIT = 30;
+
 export type PriorityCap = 'low' | 'normal' | 'high';
 export interface IssuedWebhook { id: string; token: string; label: string; priority_cap: PriorityCap }
 export interface CreatedIntegration { agent_id: string; name: string; session_id: string; webhook: IssuedWebhook }
@@ -39,8 +42,8 @@ export async function createIntegration(db: D1Database, name: string, cap: Prior
   const slug = integrationSlug(name, agentId);
   const { issued, statement } = await webhookInsert(db, agentId, sessionId, name, cap, actor);
   const [agents] = await db.batch<{ id: string }>([
-    db.prepare(`INSERT INTO api_keys (id, name, kind) VALUES (?, ?, 'integration')
-      ON CONFLICT(name) DO NOTHING RETURNING id`).bind(agentId, name),
+    db.prepare(`INSERT INTO api_keys (id, name, kind, rate_limit) VALUES (?, ?, 'integration', ?)
+      ON CONFLICT(name) DO NOTHING RETURNING id`).bind(agentId, name, DEFAULT_RATE_LIMIT),
     db.prepare(`INSERT INTO projects (id, slug, display_name, created_by_agent_id)
       SELECT ?, ?, ?, id FROM api_keys WHERE id = ?`).bind(projectId, slug, name, agentId),
     db.prepare(`INSERT INTO project_aliases (alias, project_id, source)

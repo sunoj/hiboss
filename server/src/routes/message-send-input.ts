@@ -29,6 +29,8 @@ export interface SendInput {
   clientMetadata: Record<string, unknown> | null;
   timeout: number | null;
   channelConfigs: { channel: Channel; config: Record<string, unknown> }[];
+  /** Set for webhook posts from an integration agent. */
+  integration?: boolean;
 }
 export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<Response | SendInput> {
   const agentId = getAgentId(c);
@@ -91,7 +93,7 @@ function fileThumbnailError(value: unknown, fileUrl: string | undefined, request
   return null;
 }
 
-async function selectLegacyConfigs(env: Env, agentId: string, priority: Priority, requestedChannel: Channel | undefined): Promise<{ channel: Channel; config: Record<string, unknown> }[]> {
+export async function selectLegacyConfigs(env: Env, agentId: string, priority: Priority, requestedChannel: Channel | undefined): Promise<{ channel: Channel; config: Record<string, unknown> }[]> {
   const isUrgent = priority === 'critical' || priority === 'high';
   let channelConfigs: { channel: Channel; config: Record<string, unknown> }[] = [];
   try {

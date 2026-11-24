@@ -11,6 +11,8 @@ import { cors } from 'hono/cors';
 import type { Env } from './types';
 import { adminRouter } from './routes/admin';
 import integrationsRouter from './integrations/routes';
+import discordWebhookRouter from './integrations/execute';
+import { redactWebhookPath } from './integrations/credentials';
 import { agentsRouter } from './routes/agents';
 import { agentKeysRouter, agentSigningRouter, bossAgentKeysRouter, bossAgentSigningRouter } from './agent-keys';
 import { bootstrapBossRouter } from './devices/bootstrap-boss';
@@ -85,6 +87,9 @@ app.use(
 app.route('/api/attachments', attachmentsRouter);
 app.route('/api/box', boxRouter);
 app.route('/s', publicShares);
+// Discord-compatible webhook URLs: /{17-20 digit id}/{token} never matches the named routes below.
+app.route('/api/webhooks', discordWebhookRouter);
+app.route('/api/:version{v[0-9]{1,2}}/webhooks', discordWebhookRouter);
 app.route('/api/webhooks/discord-interactions', discordInteractionsRouter);
 app.route('/api/webhooks', webhooksRouter);
 app.route('/api/agents/me/keys', agentKeysRouter);
@@ -148,7 +153,7 @@ app.onError((err, c) => {
     level: 'error',
     reqId,
     method: c.req.method,
-    path: c.req.path,
+    path: redactWebhookPath(c.req.path),
     status: 500,
     message,
     name,
