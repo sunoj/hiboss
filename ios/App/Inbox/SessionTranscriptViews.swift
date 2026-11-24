@@ -172,12 +172,12 @@ struct SessionBubbleView: View {
         VStack(alignment: .leading, spacing: Space.xs) {
             if event.direction == "agent_to_boss", event.kind == "message" {
                 let text = MessageText(body: event.displayBody, content: content ?? event.messageContent)
-                Text(verbatim: text.title).font(.body.weight(.semibold))
+                Text(MessageMarkdown.plainLinks(text.title)).font(.body.weight(.semibold))
                 if let details = text.content {
                     MediaMarkdownView(details).font(.body).foregroundStyle(textColor)
                 }
             } else {
-                Text(verbatim: event.displayBody).font(.body).foregroundStyle(textColor)
+                Text(MessageMarkdown.plainLinks(event.displayBody)).font(.body).foregroundStyle(textColor)
                     .textSelection(.enabled)
             }
             if let agentAttachment {

@@ -62,6 +62,7 @@ public enum MessageMarkdown {
                 text[run.range].link = nil
             }
         }
+        linkBareURLs(in: &text)
         return text
     }
 

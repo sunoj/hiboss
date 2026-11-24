@@ -164,7 +164,7 @@ struct SessionThreadCard: View {
                 Text("Reply to note: \(quote)").font(.caption).foregroundStyle(Theme.ink2)
                     .lineLimit(1).accessibilityIdentifier("session-note-quote")
             }
-            Text(verbatim: message.body).font(.subheadline).textSelection(.enabled)
+            Text(MessageMarkdown.plainLinks(message.body)).font(.subheadline).textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
             if let attachment = message.metadata?.attachment {
                 MessageAttachmentView(attachment: attachment)

@@ -30,6 +30,22 @@ final class MessageMarkdownTests: XCTestCase {
         XCTAssertFalse(MessageMarkdown.inline("[local](file:///private/unused)").runs.contains { $0.link != nil })
     }
 
+    func testBareWebURLsBecomeLinksWithoutTrailingPunctuation() {
+        let release = "https://github.com/sunoj/hiboss/releases/tag/macos-v1.0.6"
+        let text = MessageMarkdown.inline("**Release**: \(release)，下载 http://example.com/a?b=1.")
+        XCTAssertEqual(links(in: text), [release, "http://example.com/a?b=1"])
+        XCTAssertEqual(String(text.characters), "Release: \(release)，下载 http://example.com/a?b=1.")
+        XCTAssertEqual(links(in: MessageMarkdown.plainLinks("See https://hiboss.org/docs.")), ["https://hiboss.org/docs"])
+    }
+
+    func testCodeSpansAndSchemelessNamesStayText() {
+        XCTAssertEqual(links(in: MessageMarkdown.inline("`https://example.com` and config.json or hiboss.org")), [])
+    }
+
+    private func links(in text: AttributedString) -> [String] {
+        text.runs.compactMap { run in run.link.map { _ in String(text[run.range].characters) } }
+    }
+
     func testUnclosedFenceAndLiteralHTMLRemainReadable() {
         XCTAssertEqual(MessageMarkdown.blocks("```\n<plain>\n"), [.init(kind: .code, text: "<plain>\n")])
         XCTAssertEqual(MessageMarkdown.blocks("<script>literal</script>").first?.text, "<script>literal</script>")

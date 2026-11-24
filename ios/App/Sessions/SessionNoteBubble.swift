@@ -12,7 +12,7 @@ struct SessionNoteBubble: View {
             ForEach(note.images, id: \.index) { image in
                 SessionNotePhoto(note: note, image: image, api: api)
             }
-            if !note.body.isEmpty { Text(verbatim: note.body).textSelection(.enabled) }
+            if !note.body.isEmpty { Text(MessageMarkdown.plainLinks(note.body)).textSelection(.enabled) }
             HStack(spacing: Space.xxs) {
                 timestamp(note.createdAt)
                 Text(verbatim: "·")

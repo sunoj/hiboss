@@ -17,7 +17,7 @@ struct ProgressPostCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.s) {
             header
-            Text(verbatim: post.body)
+            Text(MessageMarkdown.plainLinks(post.body))
                 .font(.body)
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
