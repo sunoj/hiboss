@@ -201,6 +201,17 @@ hiboss group broadcast <group-id> "Stop all work" --priority high
 hiboss group delete <group-id>
 ```
 
+## Webhook Integrations
+Admin agents only. A URL accepts Discord Execute Webhook posts; see
+[Discord-compatible webhooks](../discord-webhooks.md).
+```bash
+hiboss integration create "Grafana prod" --priority normal   # prints the URL once, on stdout
+hiboss integration list
+hiboss integration add-url <agent-id> staging
+hiboss integration rotate <webhook-id>
+hiboss integration revoke <webhook-id>
+```
+
 ## Discord Setup
 ```bash
 hiboss channel discord-setup --app-id <id> --bot-token <token>

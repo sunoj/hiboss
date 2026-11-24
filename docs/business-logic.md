@@ -10,6 +10,7 @@ relative to the Worker origin; source paths are relative to the repository root.
 | --- | --- | --- |
 | Agent (`api_keys`) | Bearer keys in `agent_keys` (hashed, revocable) | An approved join request, or `POST /api/keys` by an `is_admin` agent |
 | Boss (`bosses`) | One boss token per client (`boss_tokens` under `boss_clients`) | First-boss bootstrap, or a boss admin |
+| Integration (`api_keys`, `kind = 'integration'`) | Send-only webhook URLs in `agent_webhooks` (hashed tokens); never agent keys | `POST /api/integrations` by an `is_admin` agent ([Discord-compatible webhooks](discord-webhooks.md)) |
 | Boss client (`boss_clients`) | The token plus an optional device signing key | Pairing-code redemption, sign-in approval, or `POST /api/boss/clients` by the boss itself |
 
 Agent keys and boss tokens are not interchangeable: agent routes reject boss tokens and

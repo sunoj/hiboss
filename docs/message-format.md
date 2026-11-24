@@ -87,3 +87,18 @@ guidance, preserving unrelated hooks. The hook adapter reads `session_id` and `c
 from Codex's JSON input and returns model-visible JSON context. Codex requires review
 and trust of new hook definitions through `/hooks`; installation does not grant trust.
 See [official OpenAI documentation](https://learn.chatgpt.com/docs/hooks).
+
+## Embed cards
+
+`metadata.rich_content` is a server-owned variant of `metadata.content`. Clients that draw
+cards show it instead of `content`; channels and older clients keep using `content`, which
+carries the same information as plain Markdown. Clients cannot set `rich_content`.
+
+In `rich_content`, a closed fenced block whose info string is exactly `hiboss-embed` holds one
+card as a single line of JSON: `color` (0xRRGGBB or null), `title`, `url`, `author`,
+`description`, `fields` (`name`, `value`, `inline`), `image`, `thumbnail`, `footer`, and
+`timestamp` (ISO 8601). Text values are Markdown. Native clients draw a card with a coloured
+edge, the title (linked when `url` is set), the description, the fields (up to three inline
+fields per row, other fields on their own row) and the footer with the local time. A block that
+is unclosed or whose JSON does not decode renders as ordinary code.
+[Discord-compatible webhooks](discord-webhooks.md) produce these cards.
