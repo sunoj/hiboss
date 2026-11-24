@@ -153,12 +153,12 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(row.appears(timeout: 10))
         XCTAssertTrue(timing("c3").label.contains("已等待"))
         XCTAssertFalse(timing("c3").label.contains("自动选择"))
-        XCTAssertNotEqual(app.buttons["Provide"].value as? String, "默认")
+        XCTAssertNotEqual(app.buttons["提供"].value as? String, "默认")
         row.tap()
         XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         XCTAssertTrue(timing("c3").label.contains("已等待"))
         XCTAssertFalse(timing("c3").label.contains("自动选择"))
-        XCTAssertNotEqual(app.buttons["Provide"].value as? String, "默认")
+        XCTAssertNotEqual(app.buttons["提供"].value as? String, "默认")
     }
 
     func testOptionDescriptionsLight() { verifyOptionDescriptions(style: "Light") }
