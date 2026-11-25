@@ -104,16 +104,21 @@ routes.get('/agents', async (c) => {
   if (agentIds.length === 0) return c.json({ agents: [] });
   const placeholders = agentIds.map(() => '?').join(', ');
   const rows = await c.env.DB
-    .prepare(`SELECT a.id, a.name, a.role, a.avatar_url, a.last_used_at, a.created_at,
+    .prepare(`SELECT a.id, a.name, a.role, a.avatar_url, a.last_used_at, a.created_at, a.kind, a.is_admin,
+      a.default_priority, a.rate_limit, a.channel_routing,
       (SELECT json_group_array(slug) FROM (SELECT DISTINCT p.slug FROM sessions s
         JOIN projects p ON p.id = s.project_id WHERE s.agent_id = a.id ORDER BY p.slug)) AS project_slugs
       FROM api_keys a WHERE a.id IN (${placeholders})`)
     .bind(...agentIds)
     .all<{
       id: string; name: string; role: string | null; avatar_url: string | null;
-      last_used_at: string | null; created_at: string; project_slugs: string;
+      last_used_at: string | null; created_at: string; project_slugs: string; kind: string; is_admin: number;
+      default_priority: string; rate_limit: number | null; channel_routing: string | null;
     }>();
-  return c.json({ agents: rows.results.map(row => ({ ...row, project_slugs: JSON.parse(row.project_slugs) as string[] })) });
+  // kind tells an integration (webhook sender, reads nothing) from an agent; admin is the agent capability.
+  return c.json({ agents: rows.results.map(({ is_admin, ...row }) => ({
+    ...row, admin: is_admin === 1, project_slugs: JSON.parse(row.project_slugs) as string[],
+  })) });
 });
 
 /** GET /api/boss/groups — list groups for accessible agents */
