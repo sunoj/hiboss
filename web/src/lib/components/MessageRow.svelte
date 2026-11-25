@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { agentDirectory } from '$lib/stores/agents.svelte';
+	import { isIntegrationMessage } from '$lib/api/agent-capabilities';
 	import AgentIdentity from './AgentIdentity.svelte';
 	import { formatRelativeTime, truncateBody } from '$lib/api/mappers';
 	import type { MessageResponse } from '$lib/api/types';
@@ -22,7 +24,7 @@
 		<time class="time" datetime={message.created_at} title={formatDateTime(message.created_at)}>{when}</time>
 	</div>
 	<p class="body">{truncateBody(message.body, 160)}</p>
-	{#if message.metadata?.source === 'webhook' || message.metadata?.integration === true}
+	{#if isIntegrationMessage(message, agentDirectory.rows)}
 		<span class="badge">{t('console.integration')}</span>
 	{:else if message.direction === 'agent_to_agent'}
 		<span class="badge">{t('console.peer')}</span>

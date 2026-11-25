@@ -17,6 +17,7 @@
 		busyId?: string | null;
 		onSort: (key: RuleSortKey) => void;
 		onDelete: (id: string) => void;
+		readOnly?: boolean;
 	}
 
 	let {
@@ -25,17 +26,19 @@
 		sortKey,
 		sortDir,
 		busyId = null,
+		readOnly = false,
 		onSort,
 		onDelete
 	}: Props = $props();
 
-	const columns: { key: RuleSortKey; label: string }[] = [
+	const columns = $derived<{ key: RuleSortKey; label: string }[]>([
+		{ key: 'owner', label: t('form.ownerAgent') },
 		{ key: 'channel', label: t('form.channel') },
 		{ key: 'pattern', label: t('form.pattern') },
 		{ key: 'target', label: t('form.targetAgent') },
 		{ key: 'priority', label: t('form.priority') },
 		{ key: 'enabled', label: t('form.enabledReadOnly') }
-	];
+	]);
 
 	function ariaSort(key: RuleSortKey): 'ascending' | 'descending' | 'none' {
 		if (sortKey !== key) return 'none';
@@ -49,9 +52,9 @@
 </script>
 
 <div class="wrap">
-	<div class="table-scroll">
+	<div class="table-scroll table-region">
 		<table>
-			<thead>
+			<thead class="sortable">
 				<tr>
 					{#each columns as col (col.key)}
 						<th aria-sort={ariaSort(col.key)}>
@@ -60,26 +63,29 @@
 							</button>
 						</th>
 					{/each}
-					<th class="actions">{t('form.actions')}</th>
+					{#if !readOnly}<th class="actions">{t('form.actions')}</th>{/if}
 				</tr>
 			</thead>
 			<tbody>
 				{#each rules as row (row.id)}
 					<tr>
-						<td>
+						<td data-label={t('form.ownerAgent')}>
+							<AgentIdentity name={resolveAgentName(agentNames, row.owner_id) ?? row.owner_id} />
+						</td>
+						<td data-label={t('form.channel')}>
 							<span class="channel">{row.channel}</span>
 						</td>
-						<td>
+						<td data-label={t('form.pattern')}>
 							<code class="pattern">{row.pattern}</code>
 						</td>
-						<td>
+						<td data-label={t('form.targetAgent')}>
 							<AgentIdentity
 								name={resolveAgentName(agentNames, row.target_agent_id) ??
 									row.target_agent_id}
 							/>
 						</td>
-						<td class="num">{row.priority}</td>
-						<td>
+						<td class="num" data-label={t('form.priority')}>{row.priority}</td>
+						<td data-label={t('form.enabledReadOnly')}>
 							<label class="toggle" title={t('form.enabledReadOnly')}>
 								<input
 									type="checkbox"
@@ -92,7 +98,7 @@
 								</span>
 							</label>
 						</td>
-						<td class="actions">
+						{#if !readOnly}<td class="actions" data-label={t('form.actions')}>
 							<button
 								type="button"
 								class="danger"
@@ -101,7 +107,7 @@
 							>
 								{busyId === row.id ? t('common.deleting') : t('common.delete')}
 							</button>
-						</td>
+						</td>{/if}
 					</tr>
 				{/each}
 			</tbody>
@@ -112,9 +118,8 @@
 <style>
 	.wrap {
 		background: var(--hb-bg-panel);
-		border: 1px solid var(--hb-border);
-		border-radius: var(--hb-radius);
-		box-shadow: var(--hb-shadow);
+		border: 1px solid var(--border);
+		border-radius: var(--r-l);
 		overflow: hidden;
 	}
 	.danger,
@@ -159,6 +164,7 @@
 		white-space: nowrap;
 	}
 	.sort {
+		min-height: var(--hit);
 		border: none;
 		background: transparent;
 		padding: 0;

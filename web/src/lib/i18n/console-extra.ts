@@ -2,6 +2,13 @@
 // Included in the web console feature dictionaries.
 
 export const enExtra = {
+	'console.linkedAccounts': "Linked accounts",
+	'console.noEnabledChannels': "No enabled channel: {agents}",
+	'console.webhookKeys': "Integration webhook credentials are managed with the CLI.",
+	'console.adminKeys': "An admin must manage keys for this agent.",
+	'console.lastUpdated': "last updated {time} ago",
+	'console.loadOlder': "Load older messages",
+	'console.adminCapability': "Admin capability",
 	'console.inApps': "Answer this questionnaire in the apps",
 	'console.panel': "Live panel",
 	'console.firstMachine': "Connect your first machine",
@@ -17,6 +24,13 @@ export const enExtra = {
 };
 
 export const zhExtra = {
+	'console.linkedAccounts': "关联账户",
+	'console.noEnabledChannels': "没有已启用的渠道：{agents}",
+	'console.webhookKeys': "集成 Webhook 凭据通过 CLI 管理。",
+	'console.adminKeys': "此智能体的密钥必须由管理员管理。",
+	'console.lastUpdated': "上次更新于 {time}前",
+	'console.loadOlder': "加载较早的消息",
+	'console.adminCapability': "管理员权限",
 	'console.inApps': "请在应用中回答此问卷",
 	'console.panel': "实时面板",
 	'console.firstMachine': "连接首台设备",
@@ -32,6 +46,13 @@ export const zhExtra = {
 };
 
 export const jaExtra = {
+	'console.linkedAccounts': "リンク済みアカウント",
+	'console.noEnabledChannels': "有効なチャネルなし：{agents}",
+	'console.webhookKeys': "連携の Webhook 認証情報は CLI で管理します。",
+	'console.adminKeys': "このエージェントのキーは管理者が管理します。",
+	'console.lastUpdated': "最終更新 {time}前",
+	'console.loadOlder': "以前のメッセージを読み込む",
+	'console.adminCapability': "管理者権限",
 	'console.inApps': "この質問票はアプリで回答してください",
 	'console.panel': "ライブパネル",
 	'console.firstMachine': "最初のマシンを接続",
@@ -47,6 +68,13 @@ export const jaExtra = {
 };
 
 export const koExtra = {
+	'console.linkedAccounts': "연결된 계정",
+	'console.noEnabledChannels': "활성화된 채널 없음: {agents}",
+	'console.webhookKeys': "연동 웹훅 자격 증명은 CLI에서 관리합니다.",
+	'console.adminKeys': "이 에이전트의 키는 관리자가 관리해야 합니다.",
+	'console.lastUpdated': "마지막 업데이트 {time} 전",
+	'console.loadOlder': "이전 메시지 불러오기",
+	'console.adminCapability': "관리자 권한",
 	'console.inApps': "이 설문은 앱에서 응답하세요",
 	'console.panel': "실시간 패널",
 	'console.firstMachine': "첫 컴퓨터 연결",

@@ -7,6 +7,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { inputs } from '$lib/decisions/inputs.svelte';
 	import { NAV_MODULES, isActivePath } from '$lib/nav';
+	let { tabHeight = $bindable(0) }: { tabHeight?: number } = $props();
 	const openCount = $derived(inputs.messages.filter(({ id }) => !inputs.settled.has(id)).length);
 </script>
 
@@ -38,7 +39,7 @@
 	</footer>
 </aside>
 
-<nav class="tabs" aria-label={t('nav.aria')}>
+<nav class="tabs" bind:clientHeight={tabHeight} aria-label={t('nav.aria')}>
 	{#each NAV_MODULES.filter((module) => module.primary) as mod (mod.id)}
 		<a href={mod.href} aria-current={isActivePath($page.url.pathname, mod.href) ? 'page' : undefined}>
 			<ConsoleIcon name={mod.id} />
@@ -61,8 +62,8 @@
 		padding-bottom: env(safe-area-inset-bottom);
 	}
 	a { display: flex; align-items: center; min-height: var(--hit); padding: 8px 12px; gap: 10px; border-radius: var(--r-s); }
-	.tabs a { display: grid; justify-items: center; align-content: center; gap: 2px; min-height: 52px;
-		padding-inline: 2px; font: var(--t-caption); color: var(--text-2); }
+	.tabs a { display: grid; justify-items: center; align-content: center; gap: 2px; min-height: calc(var(--bottom-tabs) - 1px);
+		padding-inline: 2px; text-align: center; font: var(--t-caption); color: var(--text-2); }
 	.tabs a[aria-current="page"] { color: var(--ink); font-weight: 600; background: var(--surface); }
 	a:hover, a[aria-current="page"] { background: var(--live-soft); color: var(--live); }
 	@media (min-width: 1024px) {

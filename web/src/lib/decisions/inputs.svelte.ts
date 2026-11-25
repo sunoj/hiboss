@@ -14,6 +14,8 @@ class Inputs {
 		return this.ready && (this.disconnectedAt === null || this.now - this.disconnectedAt < 30_000);
 	}
 	connected = $state(false);
+	connecting = $state(true);
+	updatedAt = $state<number | null>(null);
 	settled = $state(new Set<string>());
 	now = $state(Date.now());
 
@@ -22,6 +24,9 @@ class Inputs {
 		this.ready = false;
 		this.disconnectedAt = null;
 		this.connected = false;
+		this.connecting = true;
+		this.updatedAt = null;
+		this.now = Date.now();
 		this.settled = new Set();
 		const stop = new AbortController();
 		const interval = setInterval(() => { this.now = Date.now(); }, 1000);
@@ -38,10 +43,12 @@ class Inputs {
 
 	private async reconnect(client: BossApiClient, signal: AbortSignal): Promise<void> {
 		while (!signal.aborted) {
+			this.connecting = true;
 			try { await this.stream(client, signal); } catch { /* Keep the last complete snapshot. */ }
 			if (signal.aborted) return;
 			if (this.connected) this.disconnectedAt = Date.now();
 			this.connected = false;
+			this.connecting = false;
 			await new Promise<void>((resolve) => setTimeout(resolve, 3000));
 		}
 	}
@@ -60,8 +67,12 @@ class Inputs {
 				this.ready = true;
 				this.disconnectedAt = null;
 				this.connected = true;
+				this.connecting = false;
 			}
-			if (ready) this.messages = [...snapshot.values()];
+			if (ready && ['ready', 'message', 'resolved'].includes(event)) {
+				this.messages = [...snapshot.values()];
+				this.updatedAt = Date.now();
+			}
 		});
 	}
 }

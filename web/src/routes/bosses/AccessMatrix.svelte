@@ -45,7 +45,7 @@
 									onchange={() => onToggle(boss.id, agent.id, !granted)}
 								/>
 								<span class="mobile-label">
-									{boss.name} ↔ {agent.name}
+									{agent.name}
 								</span>
 							</label>
 						</td>
@@ -59,10 +59,10 @@
 <style>
 	.wrap {
 		overflow: auto;
-		border: 1px solid var(--hb-border);
+		border: 1px solid var(--border);
 		border-radius: var(--hb-radius);
 		background: var(--hb-bg-panel);
-		box-shadow: var(--hb-shadow);
+
 	}
 	.matrix {
 		width: 100%;
@@ -134,6 +134,7 @@
 	}
 	.mobile-label { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
 	@media (max-width: 767px) {
+		.matrix { min-width: 0; }
 		table, tbody, tr, th, td { display: block; width: 100%; min-width: 0; }
 		thead { display: none; }
 		.matrix .boss-col, .matrix .cell { width: auto; min-width: 0; }

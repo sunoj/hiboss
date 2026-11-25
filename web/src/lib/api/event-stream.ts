@@ -3,12 +3,15 @@
 
 export async function readEventStream(
 	url: string, headers: HeadersInit, signal: AbortSignal,
-	onEvent: (event: string, data: Record<string, unknown>) => void
+	onEvent: (event: string, data: Record<string, unknown>) => void,
+	onOpen?: () => void
 ): Promise<boolean> {
 	const response = await fetch(url, { headers, signal });
 	if (!response.ok || !response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
 		return false;
 	}
+	if (signal.aborted) return false;
+	onOpen?.();
 	const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
 	let buffer = '';
 	try {

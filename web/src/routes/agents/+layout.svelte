@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { agentDirectory } from '$lib/stores/agents.svelte';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
 	import type { JoinRequest } from '$lib/api/client';
 	import GroupsView from '../groups/GroupsView.svelte';
@@ -11,24 +11,27 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
-	import type { AgentResponse } from '$lib/api/types';
+	import type { BossChannelConfig } from '$lib/api/types';
 	import { t } from '$lib/i18n';
 	import { sortAgentsByLastUsed } from './agent-helpers';
 	import '$lib/design/console-split.css';
 	import AgentTable from './AgentTable.svelte';
 
-	let agents = $state<AgentResponse[]>([]);
+	const agents = $derived(agentDirectory.rows);
 	const loadState = new LoadState();
 	let { children } = $props();
 	let joins = $state<JoinRequest[] | null>(null);
 	let search = $state('');
+	let channels = $state<BossChannelConfig[] | null>(null);
+	const withoutChannels = $derived(channels && agents.filter((agent) =>
+		!channels?.some((channel) => channel.agent_id === agent.id && channel.configured && channel.enabled === 1)));
 	const tab = $derived(page.url.searchParams.get('tab'));
 	const sorted = $derived(sortAgentsByLastUsed(agents.filter((agent) => [agent.name, agent.role,
 		...agent.project_slugs ?? []].some((value) => value?.toLowerCase().includes(search.trim().toLowerCase())))));
 
-	async function load() {
+	async function load(force = false) {
 		await loadState.run(async (client) => {
-			agents = (await client.agents()).agents ?? [];
+			await agentDirectory.load(client, force);
 		});
 	}
 
@@ -38,17 +41,16 @@
 		catch { joins = null; }
 	}
 
-	function selectAgent(agent: AgentResponse) {
-		void goto('/agents/' + encodeURIComponent(agent.id));
-	}
-
 	onMount(() => {
 		void load();
 		void loadJoins();
+		void auth.client?.channels().then((rows) => { channels = Array.isArray(rows) ? rows : null; })
+			.catch(() => undefined);
 	});
 </script>
 
-<nav class="tabs" aria-label={t('nav.agents')}>
+<h1>{t('page.agents')}</h1>
+<nav class="section-tabs" aria-label={t('nav.agents')}>
 	<a href="/agents" aria-current={!tab ? 'page' : undefined}>{t('nav.agents')}</a>
 	<a href="/agents?tab=groups" aria-current={tab === 'groups' ? 'page' : undefined}>{t('nav.groups')}</a>
 	{#if joins}
@@ -67,10 +69,7 @@
 <div class="console-split" data-detail={page.params.id ? '' : undefined}>
 <section class="page console-list">
 	<header class="head">
-		<div>
-			<h1>{t('page.agents')}</h1>
-		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading}>
+		<button type="button" class="refresh" onclick={() => load(true)} disabled={loadState.loading}>
 			{t('common.refresh')}
 		</button>
 	</header>
@@ -85,6 +84,8 @@
 			title={t('page.noAgents')}
 			detail={t('page.noAgentsDetail')}
 		/>
+	{:else if sorted.length === 0}
+		<EmptyState title={t('page.noAgents')} />
 	{:else}
 		<div class="layout">
 			<div class="panel table-panel">
@@ -94,10 +95,14 @@
 				<AgentTable
 					agents={sorted}
 					selectedId={page.params.id ?? null}
-					onSelect={selectAgent}
 				/>
 			</div>
 		</div>
+	{/if}
+	{#if withoutChannels?.length}
+		<p class="channel-warning">
+			{t('console.noEnabledChannels', { agents: withoutChannels.map(({ name }) => name).join(', ') })}
+		</p>
 	{/if}
 </section>
 {@render children()}
@@ -106,7 +111,8 @@
 
 <style>
 	@import '../../lib/design/panel.css';
-	@import '../../lib/design/shared/split-view.css';
+	@import '../../lib/design/section-tabs.css';
+	.layout { min-width: 0; }
 	/* Page headings and refresh controls shared by the console routes.
  * Inlined by vitePreprocess so each consuming component retains scoped selectors. */
 .head {
@@ -118,8 +124,7 @@
 }
 h1 {
 	margin: 0;
-	font-size: 1.25rem;
-	font-weight: 700;
+	font: var(--t-large);
 	letter-spacing: -0.02em;
 }
 .refresh {
@@ -152,8 +157,8 @@ h1 {
 			flex-direction: column;
 		}
 	}
-	.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-	.tabs a { display: flex; align-items: center; min-height: var(--hit); padding-inline: 12px; border-radius: 8px; }
-	.tabs a[aria-current="page"] { background: var(--live-soft); color: var(--live); }
+	.channel-warning { background: var(--signal-soft); color: var(--signal);
+		border-radius: var(--r-m); padding: 12px 16px; }
+
 	input { min-height: var(--hit); margin-bottom: 12px; }
 </style>

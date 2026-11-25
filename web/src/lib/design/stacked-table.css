@@ -1,0 +1,23 @@
+/* Labels become visible when a console table's own container is narrow.
+   Imported by the application layout for console table regions. */
+.table-region { container-type: inline-size; }
+@container (width < 600px) {
+	.table-region thead:not(.sortable) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+	.table-region :is(table, tbody, tbody tr) { display: block; width: 100%; }
+	.table-region tbody tr { padding-block: 8px; }
+	.table-region tbody tr + tr { border-block-start: 1px solid var(--hairline); }
+	.table-region tbody td[data-label] {
+		display: grid; grid-template-columns: minmax(96px, 35%) minmax(0, 1fr);
+		gap: 8px; width: auto; padding: 4px 16px; border: 0;
+		text-align: start; white-space: normal; overflow-wrap: anywhere;
+	}
+	.table-region td.details { max-width: none; }
+	.table-region .sortable { display: block; padding: 8px 16px; border-bottom: 1px solid var(--hairline); }
+	.table-region .sortable tr { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+	.table-region .sortable th { padding: 0; border: 0; }
+	.table-region tbody td[data-label]::before { content: attr(data-label); color: var(--text-3); font: var(--t-footnote); }
+}
+@media (max-width: 767px) {
+	.audit-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+	.audit-table :is(table, tbody, tbody tr) { display: block; width: 100%; }
+}

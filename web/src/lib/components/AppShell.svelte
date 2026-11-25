@@ -13,11 +13,12 @@
 	}
 
 	let { children }: Props = $props();
+	let tabHeight = $state(0);
 </script>
 
 <a class="skip" href="#main">{t('console.skip')}</a>
-<div class="shell">
-	<SideNav />
+<div class="shell" style:--measured-tabs={tabHeight + 'px'}>
+	<SideNav bind:tabHeight />
 	<div class="main">
 		<details class="account">
 			<summary title={auth.connection?.boss?.name} aria-label={t('console.account', {
@@ -61,6 +62,6 @@
 	.skip:focus { transform: none; }
 	@media (max-width: 1023px) {
 		.account { display: none; }
-		.content { padding: 20px 16px calc(64px + env(safe-area-inset-bottom)); }
+		.content { padding: 20px 16px calc(max(var(--measured-tabs), var(--bottom-tabs) + env(safe-area-inset-bottom)) + 16px); }
 	}
 </style>

@@ -56,6 +56,14 @@ export function defaultAgentConfig(): AgentConfigResponse {
 	return { default_priority: 'normal', rate_limit: null, channel_routing: null };
 }
 
+export function agentConfig(agent: AgentResponse): AgentConfigResponse {
+	return {
+		default_priority: agent.default_priority ?? 'normal',
+		rate_limit: agent.rate_limit ?? null,
+		channel_routing: agent.channel_routing ?? null
+	};
+}
+
 export function rateLimitToInput(value: number | null | undefined): string {
 	return value === null || value === undefined ? '' : String(value);
 }

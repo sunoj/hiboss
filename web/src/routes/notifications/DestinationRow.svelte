@@ -22,16 +22,18 @@
       {#each PRIORITIES as priority}<button type="button" aria-pressed={row.min_priority === priority} onclick={() => onPatch({ min_priority: priority })}>{t(`notifications.${priority}`)}</button>{/each}
     </div></fieldset>
     <label><input type="checkbox" role="switch" checked={row.honours_quiet_hours === 1} {disabled} onchange={(event) => onPatch({ honours_quiet_hours: event.currentTarget.checked })} />{t('notifications.quiet')}</label>
-    <button type="button" disabled={disabled || Boolean(testHint)} title={testHint} onclick={onTest}>{t('notifications.test')}</button>
+    {#if !testHint}<button type="button" {disabled} onclick={onTest}>{t('notifications.test')}</button>{/if}
     {#if row.kind === 'telegram_chat' || row.kind === 'discord_channel'}<button type="button" class="delete" {disabled} onclick={onDelete}>{t('notifications.remove')}</button>{/if}
   </div>
   {#if testHint && row.kind === 'native_live' && mode === 'on'}<p class="hint">{testHint}</p>{/if}
   {#if feedback}<p class="feedback" role="status">{feedback}</p>{/if}
 </article>
 <style>
-  article { padding: 1.25rem 0; border-top: 1px solid var(--hb-border); }
+  article { padding: 12px 16px; }
+  strong { font: var(--t-headline); }
   .identity, .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; }
-  .icon { font-size: 1.5rem; width: 2rem; color: var(--hb-accent); }
+  .icon { font-size: 1.2rem; width: var(--tile-row); height: var(--tile-row); display: grid;
+    place-items: center; border-radius: var(--r-m); background: var(--neutral-soft); }
   .identity div { flex: 1; min-width: 9rem; overflow-wrap: anywhere; }
   p { margin: 0.25rem 0 0; color: var(--hb-text-muted); font-size: 0.8rem; }
   .provider, .routes { font-size: 0.8rem; color: var(--hb-text-muted); overflow-wrap: anywhere; }
@@ -40,11 +42,11 @@
   input { accent-color: var(--hb-accent); width: 1rem; height: 1rem; }
   fieldset { padding: 0; margin: 0; border: 0; }
   legend { font-size: 0.7rem; color: var(--hb-text-muted); margin-bottom: 0.3rem; }
-  .segments { display: flex; }
-  button { padding: 0.45rem 0.65rem; border: 1px solid var(--hb-border); background: var(--hb-bg-panel); color: var(--hb-text); border-radius: var(--hb-radius-sm); cursor: pointer; }
+  .segments { display: flex; flex-wrap: wrap; }
+  button { min-height: var(--hit); padding: 0.45rem 0.65rem; border: 1px solid var(--hb-border); background: var(--hb-bg-panel); color: var(--hb-text); border-radius: var(--hb-radius-sm); cursor: pointer; }
   .segments button { border-radius: 0; }
   button[aria-pressed='true'] { color: var(--hb-bg); background: var(--hb-accent); }
   button:disabled, fieldset:disabled, input:disabled { opacity: 0.55; cursor: not-allowed; }
-  .delete { color: var(--hb-priority-critical, #d66); }
+  .delete { color: var(--danger); }
   .feedback, .hint { margin-top: 0.75rem; }
 </style>

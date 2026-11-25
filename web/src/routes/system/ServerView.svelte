@@ -20,6 +20,7 @@
 	let connectivity = $state<ConnectivityResult>(emptyConnectivity());
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let checkedAt = $state('');
 
 	async function probeMe(
 		client: NonNullable<typeof auth.client>
@@ -58,6 +59,7 @@
 		if (sys.status === 'fulfilled') system = sys.value;
 		else error = apiErrorMessage(sys.reason);
 		if (me.status === 'fulfilled') connectivity = me.value;
+		checkedAt = new Date().toISOString();
 		loading = false;
 	}
 
@@ -95,13 +97,25 @@
 		</div>
 		<div class="panel"><Skeleton rows={5} /></div>
 	{:else if !system}
-		<DoctorMeta serverTime="" {connectivity} />
+		<div class="grid hero">
+			<StatusBeacon dbOk={false} meOk={connectivity.ok} {checkedAt} />
+			<DoctorMeta serverTime="" dbOk={false} {connectivity} />
+		</div>
 	{:else}
 		<div class="grid hero">
-			<StatusBeacon dbOk={system.db_ok} meOk={connectivity.ok} />
-			<DoctorMeta serverTime={system.server_time} {connectivity} />
+			<StatusBeacon dbOk={system.db_ok && !error} meOk={connectivity.ok} {checkedAt} />
+			<DoctorMeta serverTime={system.server_time} dbOk={system.db_ok && !error} {connectivity} />
 		</div>
 
+		<div class="panel">
+			<h2>{t('page.channelHealth')}</h2>
+			<p class="hint">{t('page.configuredPaths')}</p>
+			{#if system.channels.length === 0}
+				<p class="empty">{t('page.noChannelRows')}</p>
+			{:else}
+				<ChannelLights channels={system.channels} />
+			{/if}
+		</div>
 		<div class="grid kpis">
 			<KpiCard
 				label={t('page.activeSessions')}
@@ -123,15 +137,6 @@
 			/>
 		</div>
 
-		<div class="panel">
-			<h2>{t('page.channelHealth')}</h2>
-			<p class="hint">{t('page.configuredPaths')}</p>
-			{#if system.channels.length === 0}
-				<p class="empty">{t('page.noChannelRows')}</p>
-			{:else}
-				<ChannelLights channels={system.channels} />
-			{/if}
-		</div>
 	{/if}
 </section>
 
@@ -141,10 +146,8 @@
 	h1 { font: var(--t-large); margin: 0; }
 	.head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
 	.refresh { min-height: var(--hit); }
-	.hero {
-		grid-template-columns: 1.1fr 1.4fr;
-		align-items: stretch;
-	}
+	.hero { grid-template-columns: 1fr; }
+	h2 { font: var(--t-title); margin: 0 0 8px; }
 	.kpis {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
@@ -153,8 +156,7 @@
 		color: var(--hb-text-dim);
 		font-size: 12px;
 	}
-	@media (max-width: 1100px) {
-		.hero,
+	@media (max-width: 599px) {
 		.kpis {
 			grid-template-columns: 1fr;
 		}

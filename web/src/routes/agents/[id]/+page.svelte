@@ -4,37 +4,33 @@
 	import { page } from '$app/state';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
-	import { apiErrorMessage, type AgentResponse } from '$lib/api/types';
+	import { agentDirectory } from '$lib/stores/agents.svelte';
+	import ErrorState from '$lib/components/ErrorState.svelte';
+	import { apiErrorMessage } from '$lib/api/types';
 	import AgentDrawer from '../AgentDrawer.svelte';
 	import ChannelsView from '../../channels/ChannelsView.svelte';
 
-	let agent = $state<AgentResponse | null>(null);
+	const agent = $derived(agentDirectory.rows.find((row) => row.id === page.params.id));
 	let error = $state('');
-	let generation = 0;
 
-	async function load(id: string) {
-		const request = ++generation;
-		try {
-			const result = await auth.client?.agents();
-			if (request === generation) agent = result?.agents.find((row) => row.id === id) ?? null;
-		} catch (failure) {
-			if (request === generation) error = apiErrorMessage(failure);
-		}
+	async function load() {
+		error = '';
+		try { await agentDirectory.load(auth.client); }
+		catch (failure) { error = apiErrorMessage(failure); }
 	}
 
-	$effect(() => {
-		agent = null; error = '';
-		void load(page.params.id ?? '');
-	});
+	$effect(() => { void load(); });
 </script>
 
 <section>
-	{#if error}<p role="alert">{error}</p>
+	{#if error}<ErrorState message={error} onRetry={load} />
 	{:else if agent}
 		{#key agent.id}
 			<AgentDrawer {agent} />
 			<ChannelsView agentId={agent.id} />
 		{/key}
+	{:else if agentDirectory.loaded}
+		<p>{t('page.noAgents')}</p>
 	{:else}
 		<p role="status">{t('app.loading')}</p>
 	{/if}

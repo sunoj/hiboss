@@ -2,13 +2,18 @@
      Open decisions come from the authenticated required-input stream. -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { agentDirectory } from '$lib/stores/agents.svelte';
+	import { isIntegrationMessage } from '$lib/api/agent-capabilities';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { LoadState } from '$lib/stores/load-state.svelte';
 	import { inputs } from '$lib/decisions/inputs.svelte';
 	import { compareDecisions, deadlineOf, isDecision } from '$lib/decisions/decision';
 	import DecisionActions from '$lib/decisions/DecisionActions.svelte';
 	import IslandScene from './IslandScene.svelte';
-	import MessageRow from './MessageRow.svelte';
+	import FreshnessChip from './FreshnessChip.svelte';
+	import ConsoleRow from './ConsoleRow.svelte';
+	import DecisionDeadline from '$lib/decisions/DecisionDeadline.svelte';
+	import { agentInitials } from '$lib/design/agent-color';
 	import Skeleton from './Skeleton.svelte';
 	import ErrorState from './ErrorState.svelte';
 	import { untrack } from 'svelte';
@@ -34,10 +39,10 @@
 
 	async function load() {
 		await loadState.run(async (client) => {
-			const [sessions, messages, agents] = await Promise.all([
-				client.sessions(), client.messages({ direction: 'agent_to_boss', limit: 50 }), client.agents()
+			const [sessions, messages] = await Promise.all([
+				client.sessions(), client.messages({ direction: 'agent_to_boss', limit: 50 }), agentDirectory.load(client)
 			]);
-			noAgents = agents.agents.length === 0;
+			noAgents = agentDirectory.rows.length === 0;
 			working = sessions.sessions.filter((session) => session.status === 'working');
 			delivered = messages.messages.filter((message) => !isDecision(message)).slice(0, 10);
 		});
@@ -51,17 +56,23 @@
 	<div class="chips">
 		<span class="signal">{inputs.loaded ? t('console.needYou', { count: open.length }) : t('app.loading')}</span>
 		<span class="live">{t('page.working', { count: working.length })}</span>
-		<span>{t(inputs.connected ? 'top.connected' : 'top.offline')}</span>
+		<FreshnessChip updatedAt={inputs.updatedAt}
+			status={inputs.connected ? 'online' : inputs.connecting ? 'connecting' : 'offline'} />
 	</div>
 	<h2>{t('console.yourCall')}</h2>
 	{#if cards.length}
 		{#each cards as message (message.id)}
 			<article aria-label={message.body}>
-				<p>{[message.session_label, message.session_branch, message.agent_name].filter(Boolean).join(' · ')}</p>
+				<p class="provenance">
+					<span>{[message.session_label, message.session_branch, message.agent_name].filter(Boolean).join(' · ')}</span>
+					{#if !inputs.settled.has(message.id) && !message.replies?.some((reply) => reply.direction === 'boss_to_agent')}
+						<DecisionDeadline deadline={deadlineOf(message)} />
+					{/if}
+				</p>
 				<a class="question" href={'/messages/' + encodeURIComponent(message.id) + '?from=today'}>
 					{Array.from(message.body).slice(0, 144).join('')}
 				</a>
-				<DecisionActions {message} onUpdate={(updated) => {
+				<DecisionActions {message} showDeadline={false} onUpdate={(updated) => {
 					cards = cards.map((item) => item.id === updated.id ? updated : item);
 				}} />
 			</article>
@@ -75,32 +86,35 @@
 	{/if}
 	{#if loadState.error}<ErrorState message={loadState.error} onRetry={load} />{/if}
 	{#if working.length}
-		<h2>{t('console.workingNow')}</h2>
+		<h2>{t('console.workingNow')} <a class="more" href="/sessions">{t('console.allSessions')}</a></h2>
 		<div class="rows">
 			{#each working as session (session.id)}
-				<a href={'/sessions/' + encodeURIComponent(session.id)}>
-					<strong>{[session.project_slug ?? session.label, session.branch].filter(Boolean).join(' · ')}</strong>
-					<span>{[session.agent_name, session.status_text].filter(Boolean).join(' · ')}</span>
-				</a>
+				<ConsoleRow href={'/sessions/' + encodeURIComponent(session.id)}
+					title={[session.project_slug ?? session.label, session.branch].filter(Boolean).join(' · ')}
+					subtitle={[session.agent_name, session.status_text].filter(Boolean).join(' · ')}
+					tile={agentInitials(session.project_slug ?? session.label ?? session.agent_name)}
+					datetime={session.last_seen_at} live />
 			{/each}
 		</div>
-		<a class="more" href="/sessions">{t('nav.sessions')}</a>
 	{/if}
 	{#if delivered.length}
-		<h2>{t('console.delivered')}</h2>
+		<h2>{t('console.delivered')} <a class="more" href="/messages">{t('console.allMessages')}</a></h2>
 		<div class="rows">
 			{#each delivered as message (message.id)}
-				<a href={'/messages/' + encodeURIComponent(message.id) + '?from=today'}><MessageRow {message} /></a>
+				{@const integration = isIntegrationMessage(message, agentDirectory.rows)}
+				<ConsoleRow href={'/messages/' + encodeURIComponent(message.id) + '?from=today'} title={message.body}
+					subtitle={[message.session_label, message.agent_name, integration && t('console.integration')]
+						.filter(Boolean).join(' · ')}
+					tile={agentInitials(message.session_label ?? message.agent_name)} datetime={message.created_at} />
 			{/each}
 		</div>
-		<a class="more" href="/messages">{t('nav.messages')}</a>
 	{/if}
 </section>
 
 <style>
 	.today { max-width: var(--read); margin-inline: auto; }
 	h1 { font: var(--t-large); margin: 0 0 16px; }
-	h2 { font: var(--t-title); margin: 24px 0 12px; }
+	h2 { font: var(--t-footnote); color: var(--text-2); padding-inline: var(--s-4); margin: 24px 0 12px; display: flex; align-items: baseline; gap: 12px; }
 	p { font: var(--t-caption); color: var(--text-3); margin: 0 0 4px; }
 	.chips { display: flex; flex-wrap: wrap; gap: 8px; }
 	.chips span { border-radius: var(--r-pill); padding: 6px 12px; background: var(--surface); }
@@ -109,10 +123,10 @@
 	article, .rows { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-m); }
 	article { padding: 16px; margin-block: 8px; }
 	.clear { text-align: center; padding-block: 36px; }
-	.question { font: var(--t-headline); overflow-wrap: anywhere; text-decoration: underline; }
-	.rows > a { display: flex; align-items: center; min-height: var(--hit); padding: 0 12px; }
-	.rows > a:has(> strong) { display: grid; padding-block: 8px; }
-	.rows > a > span { color: var(--text-3); font: var(--t-caption); }
-	.rows > a + a { border-block-start: 1px solid var(--hairline); }
-	.more { color: var(--live); display: inline-block; margin-block-start: 8px; text-decoration: underline; }
+	.provenance { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
+	.question { font: var(--t-headline); overflow-wrap: anywhere; }
+	.question:hover, .more:hover { text-decoration: underline; }
+	.rows { display: grid; overflow: hidden; }
+	.rows > :global(a + a) { border-block-start: 1px solid var(--hairline); }
+	.more { font: var(--t-footnote); color: var(--live); margin-inline-start: auto; }
 </style>

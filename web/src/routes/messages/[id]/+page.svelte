@@ -3,6 +3,9 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import { page } from '$app/state';
+	import { agentDirectory } from '$lib/stores/agents.svelte';
+	import { isIntegrationMessage } from '$lib/api/agent-capabilities';
+	import { imageAttachments } from '$lib/message/attachment';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { directionLabel, priorityLabel, statusLabel } from '$lib/design/semantics';
 	import { formatDateTime, t } from '$lib/i18n';
@@ -22,8 +25,9 @@
 	const from = $derived(page.url.searchParams.get('from'));
 	const back = $derived(from === 'today' ? '/' : from === 'session' && message?.session_id
 		? '/sessions/' + encodeURIComponent(message.session_id) : '/messages');
-	const integration = $derived(message?.metadata?.integration === true || message?.metadata?.source === 'webhook'
-		|| message?.metadata?.rich_content !== undefined);
+	const integration = $derived(message ? isIntegrationMessage(message, agentDirectory.rows) : false);
+	const gallery = $derived(message ? imageAttachments([message, ...earlier]) : []);
+	let capabilitiesReady = $state(false);
 
 	async function load(id: string) {
 		const request = ++generation;
@@ -51,8 +55,17 @@
 		message = null;
 		error = null;
 		earlier = [];
+		capabilitiesReady = false;
+		const client = auth.client;
+		let active = true;
+		untrack(() => {
+			void agentDirectory.load(client).catch(() => undefined).finally(() => {
+				if (active) capabilitiesReady = true;
+			});
+		});
 		const id = page.params.id ?? '';
 		untrack(() => { void load(id); });
+		return () => { active = false; };
 	});
 </script>
 
@@ -68,12 +81,12 @@
 		<time datetime={message.created_at} title={formatDateTime(message.created_at)}>
 			{formatDateTime(message.created_at)}
 		</time>
-		{#if integration}<p>{t('console.integration')}</p>{/if}
+		{#if integration}<p><span class="badge live">{t('console.integration')}</span></p>{/if}
 		{#if message.direction === 'agent_to_agent'}<p>{t('console.peer')}</p>{/if}
-		<MessageContent metadata={message.metadata} expanded={page.url.searchParams.has('search')} />
+		<MessageContent metadata={message.metadata} {gallery} expanded={page.url.searchParams.has('search')} />
 		{#if isDecision(message)}
-			{#key message.id}<DecisionActions {message} custom onUpdate={(updated) => { message = updated; }} />{/key}
-		{:else if auth.connection?.boss?.role !== 'viewer' && message.direction === 'agent_to_boss'}
+			{#key message.id}<DecisionActions {message} custom={capabilitiesReady && !integration} onUpdate={(updated) => { message = updated; }} />{/key}
+		{:else if auth.connection?.boss?.role !== 'viewer' && message.direction === 'agent_to_boss' && capabilitiesReady}
 			{#if integration}<p>{t('console.integrationReply')}</p>{/if}
 			{#key message.id}
 				<MessageDrawerActions messageId={message.id} options={[]} optionMedia={[]} optionsExpired={false}

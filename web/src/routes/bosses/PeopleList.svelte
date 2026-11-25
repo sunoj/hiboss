@@ -5,7 +5,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { t } from '$lib/i18n';
-	import { bindingSummary, BOSS_ROLES, roleLabel } from './access-helpers';
+	import { BOSS_ROLES, roleLabel } from './access-helpers';
 
 	let { bosses, busy, onRotate, onRole, onArchive }: {
 		bosses: BossRecord[]; busy: boolean; onRotate: (id: string) => void;
@@ -23,20 +23,30 @@
 </script>
 
 <h2>{t('console.people')}</h2>
-<div class="people">
+<div class="people table-region">
+	<table>
+		<thead><tr>
+			<th scope="col">{t('form.name')}</th><th scope="col">{t('form.role')}</th>
+			<th scope="col">{t('console.linkedAccounts')}</th><th scope="col">{t('form.actions')}</th>
+		</tr></thead>
+		<tbody>
 	{#each bosses as boss (boss.id)}
-		{@const bindings = bindingSummary(boss)}
 		{@const last = boss.role === 'admin' && !boss.archived_at && liveAdmins === 1}
-		<article aria-label={boss.name}>
-			<strong>{boss.name}</strong>
+		<tr>
+			<td data-label={t('form.name')}><strong>{boss.name}</strong></td>
+			<td data-label={t('form.role')}>
 			{#if !last && boss.archived_at === null}
 				<select aria-label={t('form.role') + ' · ' + boss.name} value={boss.role} disabled={busy}
 					onchange={(event) => selectRole(boss, event.currentTarget)}>
 					{#each BOSS_ROLES as role}<option value={role}>{roleLabel(role)}</option>{/each}
 				</select>
-			{:else}<span>{roleLabel(boss.role)}</span>{/if}
-			<div>Telegram {bindings.telegram} · Discord {bindings.discord}</div>
-			<div class="actions">
+			{:else}<span class="badge" class:settled={boss.role === 'admin'}>{roleLabel(boss.role)}</span>{/if}
+			</td>
+			<td data-label={t('console.linkedAccounts')}>
+				{[boss.telegram_user_id && 'Telegram', boss.discord_user_id && 'Discord']
+					.filter(Boolean).join(', ') || t('devices.none')}
+			</td>
+			<td data-label={t('form.actions')}><div class="actions">
 				{#if boss.archived_at}
 					<button disabled={busy} onclick={() => onArchive(boss.id, false)}>{t('console.restore')}</button>
 				{:else}
@@ -49,10 +59,12 @@
 						</button>
 					{/if}
 				{/if}
-			</div>
-			{#if last}<p>{t('console.lastAdmin')}</p>{/if}
-		</article>
+				{#if last}<p>{t('console.lastAdmin')}</p>{/if}
+			</div></td>
+		</tr>
 	{/each}
+		</tbody>
+	</table>
 </div>
 
 {#if confirm}
@@ -64,11 +76,12 @@
 {/if}
 
 <style>
-	h2 { font: var(--t-title); }
+	h2 { font: var(--t-footnote); color: var(--text-2); padding-inline: 16px; }
 	.people { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-m); }
-	article { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px; overflow-wrap: anywhere; }
-	article + article { border-block-start: 1px solid var(--hairline); }
-	article p { flex-basis: 100%; color: var(--text-3); margin: 0; }
+	table { width: 100%; border-collapse: collapse; }
+	th, td { padding: 12px 16px; text-align: start; border-block-end: 1px solid var(--hairline); }
+	tr:last-child td { border-block-end: 0; }
+	th, p { color: var(--text-3); font: var(--t-footnote); margin: 0; }
 	.actions { display: flex; flex-wrap: wrap; gap: 8px; }
 	select, button { min-height: var(--hit); border: 1px solid var(--field-border);
 		border-radius: var(--r-s); background: var(--surface); }

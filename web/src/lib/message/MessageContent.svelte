@@ -5,10 +5,13 @@
 	import type { MessageMetadata } from '$lib/api/types';
 	import { displayContent } from './blocks';
 	import { safeLink } from './inline';
+	import type { PreviewImage } from './attachment';
 	import MessageAttachment from './MessageAttachment.svelte';
 	import Markdown from './Markdown.svelte';
 
-	let { metadata, expanded = false }: { metadata: MessageMetadata | null; expanded?: boolean } = $props();
+	let { metadata, expanded = false, gallery = [] }: {
+		metadata: MessageMetadata | null; expanded?: boolean; gallery?: PreviewImage[];
+	} = $props();
 	let open = $state(false);
 	const content = $derived(displayContent(metadata));
 	const href = $derived(safeLink(metadata?.file_url));
@@ -30,7 +33,7 @@
 	{/if}
 {/if}
 
-{#if href}<MessageAttachment {href} {thumbnail} />{/if}
+{#if href}<MessageAttachment {href} {thumbnail} {gallery} />{/if}
 
 <style>
 	button { min-height: var(--hit); color: var(--live); border: 0; background: transparent; }

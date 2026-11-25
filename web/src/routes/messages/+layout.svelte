@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { agentDirectory } from '$lib/stores/agents.svelte';
+	import { isIntegrationMessage } from '$lib/api/agent-capabilities';
 	import { onMount } from 'svelte';
 	import { LoadState } from '$lib/stores/load-state.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -45,7 +47,7 @@
 			if (chip === 'needs' && inputs.settled.has(message.id)) return false;
 			if (chip === 'fromAgents' && message.direction !== 'agent_to_boss') return false;
 			if (chip === 'fromMe' && message.direction !== 'boss_to_agent') return false;
-			if (chip === 'integrations' && !message.metadata?.integration && message.metadata?.source !== 'webhook') {
+			if (chip === 'integrations' && !isIntegrationMessage(message, agentDirectory.rows)) {
 				return false;
 			}
 			const search = filters.search.trim().toLocaleLowerCase();
@@ -97,6 +99,7 @@
 
 	onMount(() => {
 		void load();
+		void agentDirectory.load(auth.client).catch(() => undefined);
 	});
 </script>
 
@@ -191,8 +194,7 @@
 }
 h1 {
 	margin: 0;
-	font-size: 1.25rem;
-	font-weight: 700;
+	font: var(--t-large);
 	letter-spacing: -0.02em;
 }
 .refresh {

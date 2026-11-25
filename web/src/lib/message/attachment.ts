@@ -1,6 +1,9 @@
 // Attachment metadata and bounded UTF-8 reads for Markdown previews.
 // Public attachment URLs can be opened directly from the application.
 
+import type { MessageMetadata } from '$lib/api/types';
+import { safeLink } from './inline';
+
 export function attachmentName(url: string): string {
 	try {
 		const component = new URL(url).pathname.split('/').filter(Boolean).at(-1);
@@ -34,4 +37,19 @@ export async function readMarkdown(response: Response): Promise<string> {
 	} finally {
 		await reader.cancel().catch(() => undefined);
 	}
+}
+
+export interface PreviewImage {
+	href: string;
+	label: string;
+}
+
+export function imageAttachments(
+	rows: { metadata: MessageMetadata | null }[]
+): PreviewImage[] {
+	return rows.flatMap(({ metadata }) => {
+		const href = safeLink(metadata?.file_url);
+		return href && (safeLink(metadata?.file_thumbnail_url) || attachmentKind(attachmentName(href)) === 'image')
+			? [{ href, label: attachmentName(href) }] : [];
+	});
 }

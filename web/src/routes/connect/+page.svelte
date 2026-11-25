@@ -211,7 +211,7 @@
 		font-size: 11px;
 		color: var(--hb-text-dim);
 	}
-	h1 { font: var(--t-title); margin: 0; }
+	h1 { font: var(--t-large); margin: 0; }
 	p { margin: 0; }
 	form { display: grid; gap: 8px; }
 	input, button, summary { min-height: var(--hit); }

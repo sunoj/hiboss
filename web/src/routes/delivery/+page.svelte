@@ -10,7 +10,8 @@
 	const tab = $derived(page.url.searchParams.get('tab'));
 </script>
 
-<nav aria-label={t('console.delivery')}>
+<h1>{t('console.delivery')}</h1>
+<nav class="section-tabs" aria-label={t('console.delivery')}>
 	<a href="/delivery" aria-current={!tab ? 'page' : undefined}>{t('console.destinations')}</a>
 	<a href="/delivery?tab=rules" aria-current={tab === 'rules' ? 'page' : undefined}>{t('console.rules')}</a>
 	{#if auth.connection?.boss?.role === 'admin'}
@@ -20,13 +21,12 @@
 	{/if}
 </nav>
 {#if tab === 'rules'}
-	<RulesView />
+	<RulesView embedded />
 {:else}
-	<NotificationsView providersOnly={tab === 'providers' && auth.connection?.boss?.role === 'admin'} />
+	<NotificationsView embedded providersOnly={tab === 'providers' && auth.connection?.boss?.role === 'admin'} />
 {/if}
 
 <style>
-	nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-	a { display: flex; align-items: center; min-height: var(--hit); padding-inline: 12px; border-radius: 8px; }
-	a[aria-current="page"] { background: var(--live-soft); color: var(--live); }
+	@import '../../lib/design/section-tabs.css';
+	h1 { margin: 0 0 12px; }
 </style>

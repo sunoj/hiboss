@@ -28,7 +28,8 @@
   --scrim: rgba(17, 19, 23, 0.4);
 
   /* type: rem so the browser text size setting scales everything */
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Hiragino Sans",
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Noto Sans", "DejaVu Sans",
+    "Hiragino Sans",
     "PingFang SC", "Noto Sans CJK SC", "Malgun Gothic", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --t-large: 700 1.875rem/2.25rem var(--font);   /* largeTitle */
@@ -46,6 +47,7 @@
   --tile-inline: 20px; --tile-compact: 28px; --tile-row: 40px;
   --hit: 44px;               /* minimum pointer target */
   --sidebar: 244px;
+  --bottom-tabs: 64px;
   --read: 900px;             /* maximum reading width */
 }
 
@@ -133,6 +135,19 @@ body {
 	line-height: 1.45;
 	-webkit-font-smoothing: antialiased;
 }
+
+h1 { font: var(--t-large); }
+
+.badge {
+	display: inline-block;
+	padding: 3px 8px;
+	border-radius: var(--r-pill);
+	background: var(--neutral-soft);
+	color: var(--text-2);
+	font: var(--t-caption);
+}
+.badge.live { background: var(--live-soft); color: var(--live); }
+.badge.settled { background: var(--settled-soft); color: var(--settled); }
 
 a {
 	color: inherit;

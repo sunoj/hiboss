@@ -2,7 +2,6 @@
 // No external services or real credentials are involved.
 
 const now = new Date().toISOString();
-const due = new Date(Date.now() + 18 * 60000).toISOString();
 const agent = {
 	id: 'builder-01', name: 'Builder One', role: 'builder', project_slugs: ['atlas-api'],
 	created_at: now, last_used_at: now
@@ -20,7 +19,7 @@ const message = {
 };
 const decision = {
 	...message, id: 'decision-fixture', body: 'Deploy migration 0052 to production?',
-	mode: 'blocking', expires_at: due,
+	mode: 'blocking',
 	metadata: {
 		options: ['Deploy', 'Not yet'], default_option: 'Not yet', ask_deadline: true,
 		content: '### Changes\nAdds an index needed for the release.\n\n> The staging replay passed.'
@@ -47,20 +46,34 @@ const people = [
 	{ id: 'observer', name: 'Taylor', role: 'viewer', archived_at: null, agent_ids: [] }
 ];
 
-export async function mockApi(page) {
+export async function mockApi(page, { capabilities = false, patches = [] } = {}) {
+	const integration = { ...agent, id: 'monitor-01', name: 'Market monitor', kind: 'integration' };
+	let builder = capabilities ? {
+		...agent, kind: 'agent', admin: true, default_priority: 'high', rate_limit: 12,
+		channel_routing: { high: 'discord' }
+	} : agent;
+	const delivered = capabilities ? { ...result, agent_id: integration.id, agent_name: integration.name, metadata: null } : result;
+	const openDecision = { ...decision, expires_at: new Date(Date.now() + 18 * 60000).toISOString() };
+	const report = { ...message, id: 'report-fixture', body: 'Staging replay passed', metadata: null };
 	await page.route('**/api/**', async (route) => {
 		const path = new URL(route.request().url()).pathname;
+		if (path === '/api/boss/agents/builder-01/config' && route.request().method() === 'PATCH') {
+			const patch = route.request().postDataJSON();
+			patches.push(patch);
+			builder = { ...builder, ...patch };
+			return route.fulfill({ json: builder });
+		}
 		if (path === '/api/boss/stream') {
-			const body = 'event: message\ndata: ' + JSON.stringify(decision) + '\n\nevent: ready\ndata: {}\n\n';
+			const body = 'event: message\ndata: ' + JSON.stringify(openDecision) + '\n\nevent: ready\ndata: {}\n\n';
 			return route.fulfill({ contentType: 'text/event-stream', body });
 		}
 		const data = {
-			'/api/boss/messages': { messages: [result, decision], total: 2 },
-			'/api/boss/messages/decision-fixture': { ...decision, replies: [] },
-			'/api/boss/messages/result-fixture': { ...result, replies: [] },
+			'/api/boss/messages': { messages: [delivered, report, openDecision], total: 3 },
+			'/api/boss/messages/decision-fixture': { ...openDecision, replies: [] },
+			'/api/boss/messages/result-fixture': { ...delivered, replies: [] },
 			'/api/boss/sessions': { sessions: [session] },
 			'/api/boss/sessions/release-session/notes': { notes: [] },
-			'/api/boss/agents': { agents: [agent] },
+			'/api/boss/agents': { agents: capabilities ? [builder, integration] : [builder] },
 			'/api/boss/join-requests': { requests: [] },
 			'/api/boss/channels': [],
 			'/api/bosses': { bosses: people }

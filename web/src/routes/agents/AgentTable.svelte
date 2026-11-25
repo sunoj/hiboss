@@ -10,96 +10,46 @@
 	interface Props {
 		agents: AgentResponse[];
 		selectedId: string | null;
-		onSelect: (agent: AgentResponse) => void;
 	}
 
-	let { agents, selectedId, onSelect }: Props = $props();
+	let { agents, selectedId }: Props = $props();
 </script>
 
-<div class="wrap">
-	<table class="table">
-		<thead>
-			<tr>
-				<th scope="col">{t('nav.agents')}</th>
-				<th scope="col">{t('form.role')}</th>
-				<th scope="col">{t('form.lastSeen')}</th>
-				<th scope="col" class="right">{t('form.created')}</th>
-			</tr>
-		</thead>
-		<tbody>
-			{#each agents as agent (agent.id)}
-				<tr
-					class:selected={selectedId === agent.id}
-					onclick={() => onSelect(agent)}
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							e.preventDefault();
-							onSelect(agent);
-						}
-					}}
-					tabindex="0"
-					role="button"
-					aria-pressed={selectedId === agent.id}
-				>
-					<td>
-						<AgentIdentity name={agent.name} size="sm" />
-						{#if agent.project_slugs?.length}<div class="muted">{agent.project_slugs.join(", ")}</div>{/if}
-					</td>
-					<td class="muted">{roleLabel(agent.role)}</td>
-					<td class="muted">{lastUsedLabel(agent.last_used_at)}</td>
-					<td class="muted right">{formatRelativeTime(agent.created_at)}</td>
-				</tr>
-			{/each}
-		</tbody>
-	</table>
-</div>
+<ul class="rows">
+	{#each agents as agent (agent.id)}
+		<li>
+			<a href={'/agents/' + encodeURIComponent(agent.id)} aria-current={selectedId === agent.id ? 'page' : undefined}>
+				<AgentIdentity name={agent.name} size="row" showName={false} />
+				<span class="text">
+					<strong title={agent.name}>{agent.name}</strong>
+					<span title={agent.project_slugs?.join(', ')}>
+						{[roleLabel(agent.role), ...agent.project_slugs ?? []].join(' · ')}
+					</span>
+					{#if agent.kind === 'integration'}<span class="badge live">{t('console.integration')}</span>{/if}
+					{#if agent.admin}<span class="badge settled">{t('console.adminCapability')}</span>{/if}
+				</span>
+				{#if agent.last_used_at}
+					<time datetime={agent.last_used_at} title={t('form.lastSeen')}>
+						{formatRelativeTime(agent.last_used_at)}
+					</time>
+				{:else}
+					<span class="when">{lastUsedLabel(agent.last_used_at)}</span>
+				{/if}
+			</a>
+		</li>
+	{/each}
+</ul>
 
 <style>
-	.wrap {
-		overflow-x: auto;
-	}
-	.table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 13px;
-	}
-	th {
-		text-align: left;
-		padding: 0.65rem 1rem;
-		font-size: 10px;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--hb-text-muted);
-		border-bottom: 1px solid var(--hb-border-subtle);
-		background: var(--hb-bg-elevated);
-		white-space: nowrap;
-	}
-	th.right,
-	td.right {
-		text-align: right;
-	}
-	td {
-		padding: 0.7rem 1rem;
-		border-bottom: 1px solid var(--hb-border-subtle);
-		vertical-align: middle;
-	}
-	tbody tr {
-		cursor: pointer;
-		transition: background 0.12s ease;
-	}
-	tbody tr:hover {
-		background: var(--hb-bg-hover);
-	}
-	tbody tr.selected {
-		background: color-mix(in srgb, var(--hb-accent) 12%, var(--hb-bg-panel));
-	}
-	tbody tr:focus-visible {
-		outline: 2px solid var(--hb-accent);
-		outline-offset: -2px;
-	}
-	.muted {
-		color: var(--hb-text-muted);
-		font-size: 12px;
-	}
+	.rows { list-style: none; padding: 0; margin: 0; }
+	li + li { border-block-start: 1px solid var(--hairline); }
+	a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-height: 56px; }
+	a:hover { background: var(--surface-2); }
+	a:focus-visible { outline-offset: -2px; }
+	a[aria-current="page"] { background: var(--live-soft); }
+	.text { flex: 1; min-width: 0; }
+	.text > :not(.badge) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	strong { font: var(--t-callout); font-weight: 600; }
+	time, .when, .text > span:not(.badge) { font: var(--t-footnote); color: var(--text-3); }
+	.badge { margin-inline-end: 4px; }
 </style>

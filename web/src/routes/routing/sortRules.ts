@@ -2,7 +2,7 @@
 
 import type { RoutingRuleResponse } from '$lib/api/types';
 
-export type RuleSortKey = 'channel' | 'pattern' | 'target' | 'priority' | 'enabled';
+export type RuleSortKey = 'owner' | 'channel' | 'pattern' | 'target' | 'priority' | 'enabled';
 export type SortDir = 'asc' | 'desc';
 
 export function isRuleEnabled(enabled: number): boolean {
@@ -31,6 +31,8 @@ function valueFor(
 	names: Map<string, string>
 ): string | number {
 	switch (key) {
+		case 'owner':
+			return names.get(rule.owner_id) ?? rule.owner_id;
 		case 'channel':
 			return rule.channel;
 		case 'pattern':

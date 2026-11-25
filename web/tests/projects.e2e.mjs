@@ -51,10 +51,11 @@ async function setup(role = 'admin', viewport = { width: 1280, height: 900 }) {
 test('rename persists, cancelled merge sends nothing, confirmed merge moves source to target', async () => {
   const { page, patches } = await setup();
   try {
-    const source = page.locator('li').filter({ has: page.getByRole('heading', { name: 'source', exact: true }) });
+    const source = page.locator('li').filter({ has: page.locator('code').filter({ hasText: /^source$/ }) });
+    await source.locator('summary').click();
     await source.getByLabel('Display name', { exact: true }).fill('Source Display');
     await source.getByRole('button', { name: 'Save name', exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('input')?.value === 'Source Display');
+    await page.getByRole('heading', { name: 'Source Display', exact: true }).waitFor();
     await source.getByRole('combobox', { name: 'Merge into', exact: true }).selectOption('target');
     await source.getByRole('button', { name: 'Merge', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
@@ -63,7 +64,7 @@ test('rename persists, cancelled merge sends nothing, confirmed merge moves sour
     const dialog = page.getByRole('dialog');
     assert.match(await dialog.innerText(), /source.*target/);
     await dialog.getByRole('button', { name: 'Merge', exact: true }).click();
-    await page.getByRole('heading', { name: 'source', exact: true }).waitFor({ state: 'detached' });
+    await page.getByRole('heading', { name: 'Source Display', exact: true }).waitFor({ state: 'detached' });
     assert.deepEqual(patches, [{ id: 'source', display_name: 'Source Display' }, { id: 'source', merge_into: 'target' }]);
     await page.reload();
     await page.getByRole('heading', { name: 'target', exact: true }).waitFor();
@@ -94,6 +95,7 @@ test('four locales render project management labels', async () => {
 test('mobile controls stay reachable without horizontal overflow', async () => {
   const { page } = await setup('admin', { width: 390, height: 844 });
   try {
+    await page.locator('li summary').last().click();
     await page.getByRole('button', { name: 'Merge', exact: true }).last().scrollIntoViewIfNeeded();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await mkdir('output/playwright', { recursive: true });
