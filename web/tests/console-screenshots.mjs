@@ -98,6 +98,11 @@ async function capture(browser, width, colorScheme, [name, path, heading]) {
 		await assertTypography(page, heading, name);
 		if (width === 375 && ['today', 'messages', 'sessions'].includes(name)) await assertMobileClearance(page);
 		assert.deepEqual(errors, [], name + ' page errors');
+		if (width === 375) {
+			// Keep the fixed tabs at the bottom of long captures after testing the real phone viewport.
+			const height = await page.evaluate(() => document.documentElement.scrollHeight);
+			if (height > 812) await page.setViewportSize({ width, height });
+		}
 		const file = output + '/' + name + '-' + colorScheme + '-' + width + '.png';
 		await page.screenshot({ path: file, fullPage: true, animations: 'disabled' });
 		console.info(file);
