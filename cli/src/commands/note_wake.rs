@@ -15,15 +15,18 @@ const NOTE_TICK: Duration = Duration::from_secs(2);
 /// Starts the note poll on its own thread and runtime: the client's futures are not Send, and
 /// the reply stream must never wait on a notes request. It ends with the daemon process.
 pub(crate) fn spawn(client: HiBossClient, inbox: Inbox) {
-    std::thread::spawn(move || {
+    let worker = std::thread::Builder::new().name("note-wake".into()).spawn(move || {
         match tokio::runtime::Builder::new_current_thread().enable_all().build() {
             Ok(runtime) => runtime.block_on(run(client, inbox)),
             Err(err) => eprintln!("hiboss: note wake disabled: {err}"),
         }
     });
+    if let Err(err) = worker {
+        eprintln!("hiboss: note wake disabled: {err}");
+    }
 }
 
-/// Ticks until the session's process is gone. The session id is read on every tick, because
+/// Ticks until the session's process is gone, then ends the daemon. The session id is read on every tick, because
 /// a SessionStart on the same socket can register a new one.
 async fn run(client: HiBossClient, inbox: Inbox) {
     let mut tick = tokio::time::interval(NOTE_TICK);
@@ -33,7 +36,9 @@ async fn run(client: HiBossClient, inbox: Inbox) {
         if let Some(sid) = session::read_session_id()
             && check(&client, &inbox, &sid).await
         {
-            return;
+            // The session is gone: end the whole daemon now, as the reply path does.
+            super::daemon::exit_with_session();
+            std::process::exit(0);
         }
     }
 }

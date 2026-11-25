@@ -132,7 +132,7 @@ fn next_delay(outcome: Result<Result<bool, String>, tokio::task::JoinError>, bac
 }
 
 /// The Claude Code process this daemon served has exited; release its pid file if still ours.
-fn exit_with_session() {
+pub(super) fn exit_with_session() {
     eprintln!("Session socket is gone; daemon exiting");
     let own = std::process::id().to_string();
     if session::read_state(session::DAEMON_PID).is_some_and(|pid| pid.trim() == own) {

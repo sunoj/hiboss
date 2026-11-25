@@ -101,9 +101,11 @@ fn a_note_read_before_the_turn_ends_does_not_wake_the_session() {
     lift_poll_limit(&dir);
     settle();
     pending.lock().unwrap().clear();
+    let polls = || http.paths().iter().filter(|p| p.contains("/notes?status=pending")).count();
+    let before = polls();
     claude(&fixture, &["hook", "stop"], Some(&socket));
     lift_poll_limit(&dir);
+    assert!(wait_until(|| polls() > before), "the idle daemon never polled after Stop");
     settle();
     assert!(socket.pushes().is_empty(), "{:?}", socket.pushes());
-    assert!(http.paths().iter().any(|p| p.contains("/notes?status=pending")), "the idle daemon never polled");
 }
