@@ -7,11 +7,11 @@ high) running MicroPython. HiBoss Island drives it over USB serial while the app
 |---|---|
 | Blue, slow blink (1 s) | A decision is waiting for the boss |
 | Red, fast blink (0.4 s) | A waiting decision expires within 5 minutes (wins over blue) |
-| One green flash (0.8 s) | A new agent message arrived |
+| One green flash (0.8 s) | A new agent message arrived on the live feed |
 | Off | Nothing is waiting, the app quit, or no command arrived for 90 seconds |
 
-Decisions that quiet hours hold back from alerting do not light the lamp, matching the
-Island's own presentation rule. The app finds the lamp by its USB product string
+Messages and decisions that quiet hours hold back from alerting do not light the lamp,
+matching the Island's presentation and notification rules. The app finds the lamp by its USB product string
 `HiBoss Lamp`, which `boot.py` sets, so other serial devices are never written to.
 
 ## Install
