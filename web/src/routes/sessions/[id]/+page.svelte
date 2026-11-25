@@ -130,8 +130,10 @@
 		const client = auth.client;
 		if (client) {
 			const sessionId = id;
-			void agentDirectory.load(client).catch(() => undefined).finally(() => {
-				if (!stop.signal.aborted) capabilitiesReady = true;
+			untrack(() => {
+				void agentDirectory.load(client).catch(() => undefined).finally(() => {
+					if (!stop.signal.aborted) capabilitiesReady = true;
+				});
 			});
 			void watchTranscript(client, sessionId, stop.signal,
 				(state) => { streamState = state; }, () => { void load(sessionId); });

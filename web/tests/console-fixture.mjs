@@ -76,6 +76,24 @@ export async function mockApi(page, { capabilities = false, patches = [] } = {})
 			'/api/boss/agents': { agents: capabilities ? [builder, integration] : [builder] },
 			'/api/boss/join-requests': { requests: [] },
 			'/api/boss/channels': [],
+			'/api/boss/me': people[0],
+			'/api/boss/audit': { entries: [{
+				id: 'audit-1', created_at: now, actor_type: 'boss', actor_id: 'boss', action: 'agent.update',
+				resource_type: 'agent', resource_id: agent.id, details: '{"fixture":true}'
+			}], total: 1 },
+			'/api/boss/system': {
+				server_time: now, db_ok: true, active_sessions: 1, pending_decisions: 1,
+				channels: [{ channel: 'discord', configured: true }]
+			},
+			'/api/boss/clients': { clients: [{
+				id: 'browser-1', label: 'Fixture browser', kind: 'web', created_at: now, last_seen_at: now,
+				revoked_at: null, has_push_device: false, has_signing_key: false, is_current: true
+			}] },
+			'/api/boss/destinations': { mode: 'off', destinations: [], providers: [] },
+			'/api/boss/routing-rules': { rules: [{
+				id: 'rule-1', owner_id: agent.id, target_agent_id: agent.id, channel: 'discord',
+				pattern: '^release', priority: 42, enabled: 1, created_at: now
+			}] },
 			'/api/bosses': { bosses: people }
 		}[path];
 		return data ? route.fulfill({ json: data }) : route.fulfill({ status: 404, body: 'fixture route absent' });

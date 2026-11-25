@@ -38,6 +38,7 @@ async function assertTypography(page, heading, name) {
 		const { fonts } = await session.send('CSS.getPlatformFontsForNode', { nodeId: nodeIds[visibleIndex] });
 		assert(fonts.some(({ glyphCount, postScriptName }) => glyphCount > 0 && /bold/i.test(postScriptName)),
 			JSON.stringify(fonts));
+		if (name === 'today') console.info('Today page title face:', fonts.map((font) => font.postScriptName).join(', '));
 	} finally {
 		await session.detach();
 	}
@@ -82,6 +83,10 @@ async function capture(browser, width, colorScheme, [name, path, heading]) {
 			assert.equal(await page.locator('.provenance time').first().innerText(), '18 min left');
 			await page.getByText('No answer in 18 min picks “Not yet”. That is not approval.', { exact: true }).waitFor();
 			const second = page.getByRole('link', { name: /Staging replay passed/ });
+			const question = page.getByRole('link', { name: 'Deploy migration 0052 to production?' });
+			assert.equal(await question.evaluate((node) => getComputedStyle(node).fontWeight), '600');
+			const section = page.getByRole('heading', { name: 'Your call' });
+			assert.equal(await section.evaluate((node) => getComputedStyle(node).fontWeight), '400');
 			assert.equal(await second.evaluate((node) => getComputedStyle(node).borderBlockStartWidth), '1px');
 		}
 		if (name === 'messages') {

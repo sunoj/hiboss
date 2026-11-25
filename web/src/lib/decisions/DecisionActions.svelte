@@ -96,7 +96,8 @@
 	{#if showDeadline}<p class="banner signal"><DecisionDeadline {deadline} /></p>{/if}
 	{#if status === 'checking'}<p role="status">{t('console.checking')}</p>{/if}
 	{#if viewer}<p>{t('console.viewOnly')}</p>{/if}
-	<div class="options" class:paired={options.length === 2 && media.length === 0}>
+	<div class="options" class:paired={!showDeadline && media.length === 0 && options.length === 2
+		&& options.every((option) => option.length <= 30)}>
 		{#each options as option, index}
 			{@const illustration = media.find(({ label }) => label === option)}
 			{@const image = safeLink(illustration?.url)}
@@ -108,9 +109,9 @@
 					<span>{option}</span>
 				{:else}
 					<button type="button" class:primary={index === 0} disabled={busy || status !== 'open'}
-					onclick={() => answer(option)}>
-					<strong>{option}</strong>
-					{#if illustration?.caption}<span>{illustration.caption}</span>{/if}
+						onclick={() => answer(option)}>
+						<strong>{option}</strong>
+						{#if illustration?.caption}<span>{illustration.caption}</span>{/if}
 					</button>
 				{/if}
 			</div>

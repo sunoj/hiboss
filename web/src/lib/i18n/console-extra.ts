@@ -2,6 +2,9 @@
 // Included in the web console feature dictionaries.
 
 export const enExtra = {
+	'console.allSessions': "All sessions",
+	'console.allMessages': "All messages",
+	'console.timeLeft': "{time} left",
 	'console.linkedAccounts': "Linked accounts",
 	'console.noEnabledChannels': "No enabled channel: {agents}",
 	'console.webhookKeys': "Integration webhook credentials are managed with the CLI.",
@@ -24,6 +27,9 @@ export const enExtra = {
 };
 
 export const zhExtra = {
+	'console.allSessions': "所有会话",
+	'console.allMessages': "所有消息",
+	'console.timeLeft': "剩余 {time}",
 	'console.linkedAccounts': "关联账户",
 	'console.noEnabledChannels': "没有已启用的渠道：{agents}",
 	'console.webhookKeys': "集成 Webhook 凭据通过 CLI 管理。",
@@ -46,6 +52,9 @@ export const zhExtra = {
 };
 
 export const jaExtra = {
+	'console.allSessions': "すべてのセッション",
+	'console.allMessages': "すべてのメッセージ",
+	'console.timeLeft': "残り {time}",
 	'console.linkedAccounts': "リンク済みアカウント",
 	'console.noEnabledChannels': "有効なチャネルなし：{agents}",
 	'console.webhookKeys': "連携の Webhook 認証情報は CLI で管理します。",
@@ -68,6 +77,9 @@ export const jaExtra = {
 };
 
 export const koExtra = {
+	'console.allSessions': "모든 세션",
+	'console.allMessages': "모든 메시지",
+	'console.timeLeft': "{time} 남음",
 	'console.linkedAccounts': "연결된 계정",
 	'console.noEnabledChannels': "활성화된 채널 없음: {agents}",
 	'console.webhookKeys': "연동 웹훅 자격 증명은 CLI에서 관리합니다.",

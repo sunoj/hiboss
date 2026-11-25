@@ -23,5 +23,7 @@ for (let i = 0; i < 40; i++) {
 }
 process.exit(1);
 '
-node tests/console-screenshots.mjs
-node --test tests/*.e2e.mjs
+browser_status=0
+node --test tests/*.e2e.mjs || browser_status=$?
+node tests/console-screenshots.mjs || browser_status=$?
+exit "$browser_status"

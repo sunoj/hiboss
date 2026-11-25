@@ -109,3 +109,26 @@ test('transcript keeps older pages on reconnect and navigates its image gallery'
 		await dialog.waitFor({ state: 'hidden' });
 	} finally { await page.close(); }
 });
+
+test('management pages fit a 375 px viewport and narrow tables retain their labels', async () => {
+	const { page } = await setup();
+	try {
+		for (const [path, landmark] of [
+			['/delivery', page.getByText('No destinations yet', { exact: true })],
+			['/delivery?tab=rules', page.getByText('^release', { exact: true })],
+			['/access', page.getByRole('heading', { name: 'Agent access' })],
+			['/audit', page.getByText('agent.update', { exact: true })],
+			['/server', page.getByText('Healthy', { exact: true })],
+			['/devices', page.getByText('Fixture browser', { exact: true })]
+		]) {
+			await page.goto(baseURL + path);
+			await landmark.waitFor();
+			assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 375, path);
+			if (path === '/audit' || path === '/delivery?tab=rules') {
+				const cell = page.locator('td[data-label]').first();
+				assert.equal(await cell.evaluate((node) => getComputedStyle(node).display), 'grid');
+				assert.notEqual(await cell.evaluate((node) => getComputedStyle(node, '::before').content), 'none');
+			}
+		}
+	} finally { await page.close(); }
+});

@@ -20,4 +20,12 @@
 @media (max-width: 767px) {
 	.audit-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 	.audit-table :is(table, tbody, tbody tr) { display: block; width: 100%; }
+	.audit-table tbody td[data-label] {
+		display: grid; grid-template-columns: minmax(96px, 35%) minmax(0, 1fr);
+		gap: 8px; width: auto; padding: 4px 16px; border: 0;
+		text-align: start; white-space: normal; overflow-wrap: anywhere;
+	}
+	.audit-table tbody td[data-label]::before { content: attr(data-label); color: var(--text-3); font: var(--t-footnote); }
+	.audit-table tbody tr { padding-block: 8px; }
+	.audit-table tbody tr + tr { border-block-start: 1px solid var(--hairline); }
 }
