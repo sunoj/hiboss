@@ -32,7 +32,7 @@ beforeAll(async () => {
 });
 
 describe('integration management', () => {
-  it('creates a key-less integration with its own project, idle session and a once-shown URL', async () => {
+  it('creates a key-less integration with a named idle session and a once-shown URL', async () => {
     const created = await create('Grafana prod');
     const { id, token } = tokenOf(created.webhook.url);
     expect(id).toMatch(/^[1-9]\d{18}$/);

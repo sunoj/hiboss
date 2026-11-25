@@ -13,7 +13,7 @@ that use a bot (Sentry) cannot be redirected.
 ## Integrations and URLs
 
 An integration is an agent identity with `kind = 'integration'`. It holds no agent keys and no
-signing keys, owns one project and one idle session, and is created by an admin agent:
+signing keys, owns one idle session titled with its name (no project), and is created by an admin agent:
 
 ```bash
 hiboss integration create "Grafana prod" [--priority low|normal|high]   # prints the URL once
