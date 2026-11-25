@@ -3,13 +3,13 @@
   <channel>
     <title>HiBoss Island</title>
     <item>
-      <title>Version 1.0.6</title>
-      <pubDate>Tue, 24 Nov 2026 08:08:52 +0000</pubDate>
-      <sparkle:shortVersionString>1.0.6</sparkle:shortVersionString>
-      <sparkle:version>202611241507</sparkle:version>
+      <title>Version 1.0.7</title>
+      <pubDate>Wed, 25 Nov 2026 04:37:36 +0000</pubDate>
+      <sparkle:shortVersionString>1.0.7</sparkle:shortVersionString>
+      <sparkle:version>202611251136</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[ An image attached to a choice sits above its answer button, so the button keeps its full width. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.6/HiBoss-Island-1.0.6.zip" sparkle:edSignature="OQmRnVnKU3+fyQlzFo6bYCqzFDSiCHt8zJdj4bakYAYKDTXLx81rpLIvbFAbThC5fRzhjjpf5Lke1UWUxj9KBA==" length="8082631" type="application/zip" />
+      <description><![CDATA[ HiBoss Island can drive a USB status lamp: blue blinks while a decision waits, red blinks when one expires within five minutes, and green flashes when a message arrives. Bare web links in messages open as links. ]]></description>
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.7/HiBoss-Island-1.0.7.zip" sparkle:edSignature="BPl5JLBOljzyfEn2krrNyZ8/lW7knuYyv7+tWk1fARewX5Ti6Fao+14VWEtf2NlTssnq7AgfEZlS3m7Ap8FtCQ==" length="8103571" type="application/zip" />
     </item>
   </channel>
 </rss>
