@@ -72,7 +72,8 @@ struct TodayResults: View {
                 metaLine(identity, date: session.lastActivityDate, working: true)
             }
             Spacer(minLength: 0)
-            SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
+            SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou,
+                                 window: session.decisionWindow)
             disclosure.padding(.top, Space.xxs)
         }
         .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap, alignment: .leading)

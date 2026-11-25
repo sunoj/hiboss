@@ -73,6 +73,8 @@ final class SessionsV4UITests: XCTestCase {
         app.tabBars.buttons["Sessions"].tap()
         XCTAssertTrue(app.buttons["activity-session-sess-deploy"].appears(timeout: 10))
         XCTAssertTrue(app.staticTexts["Needs you"].exists)
+        let row = app.buttons["activity-session-sess-deploy"].label
+        XCTAssertTrue(row.contains("left"), "the open decision's deadline reads as a countdown: \(row)")
         shot(app, "\(appearance)-sessions")
         app.buttons["activity-session-sess-deploy"].tap()
         for _ in 0..<8 where !app.staticTexts["Mac mini"].isHittable { app.swipeDown() }

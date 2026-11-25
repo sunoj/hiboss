@@ -1,5 +1,5 @@
 // Shared session summaries and live-work classification for Today and Sessions.
-// Exports: TodaySession with provenance, latest status text, activity, and needsYou.
+// Exports: TodaySession with provenance, latest status text, activity, needsYou and its deadline.
 // Dependencies: Foundation, HistoryMessage, SessionGrouping, and TodayMessageRules.
 
 import Foundation
@@ -17,6 +17,8 @@ public struct TodaySession: Identifiable, Equatable, Sendable {
     public let needsYou: Bool
     /// The server's session heartbeat (`last_seen_at`), when the app has the inventory.
     public var lastSeenDate: Date? = nil
+    /// The open decision with the earliest deadline, while the session needs the boss.
+    public var decisionWindow: DecisionWindow? = nil
 
     /// Inclusive fifteen-minute window for messages and heartbeats.
     public static let activityWindow: TimeInterval = 15 * 60
@@ -38,10 +40,12 @@ public struct TodaySession: Identifiable, Equatable, Sendable {
     static func summaries(newestFirst messages: [HistoryMessage], decisions: [AttentionItem],
                           lastSeen: [String: Date] = [:]) -> [TodaySession] {
         let needsYou = Set(decisions.map { SessionGrouping.sessionKey(for: $0.message) })
+        let windows = DecisionWindow.soonest(in: decisions)
         let buckets = Dictionary(grouping: messages, by: SessionGrouping.sessionKey(for:))
         return buckets.map { id, messages in
             var session = make(id: id, messages: messages, needsYou: needsYou.contains(id))
             session.lastSeenDate = lastSeen[id]
+            session.decisionWindow = windows[id]
             return session
         }.sorted {
             let left = $0.lastActivityDate ?? .distantPast
