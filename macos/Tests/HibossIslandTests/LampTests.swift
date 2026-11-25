@@ -46,11 +46,16 @@ final class LampSignalTests: XCTestCase {
         XCTAssertEqual(signal(snapshot([ask("a", priority: "high")]), quiet), .waiting)
     }
 
-    func testOnlyAFreshUnseenAgentMessageIsAnArrival() {
-        var arrivals = LampArrivals()
-        XCTAssertFalse(arrivals.hasArrival(in: [ask("old", age: 3600)], now: now))
-        XCTAssertTrue(arrivals.hasArrival(in: [ask("new", age: 5), ask("old", age: 3600)], now: now))
-        XCTAssertFalse(arrivals.hasArrival(in: [ask("new", age: 5)], now: now))
+    func testAFreshAlertingAgentMessageFlashes() {
+        let none = BossPreferences()
+        XCTAssertTrue(LampArrivals.flashes(ask("new", age: 5), preferences: none, now: now))
+        XCTAssertFalse(LampArrivals.flashes(ask("old", age: 3600), preferences: none, now: now))
+        let live = TodayProjection.historyMessage(from: OptionMessage(id: "live", body: "Ship?",
+            metadata: MessageMetadata(options: ["Yes", "No"])))
+        XCTAssertTrue(LampArrivals.flashes(live, preferences: none, now: now), "a live push is undated")
+        let quiet = BossPreferences(quietHours: QuietHours(enabled: true, start: "00:00", end: "23:59",
+            timezone: "UTC", days: [], criticalBypass: true))
+        XCTAssertFalse(LampArrivals.flashes(ask("held", age: 5), preferences: quiet, now: now))
     }
 }
 
@@ -65,15 +70,18 @@ final class LampControllerTests: XCTestCase {
     func testSendsSignalChangesFlashesArrivalsAndGoesDarkOnStop() {
         let port = RecordingPort()
         let snapshots = PassthroughSubject<OverviewSnapshot, Never>()
+        let arrivals = PassthroughSubject<HistoryMessage, Never>()
         let controller = LampController(port: port, now: { now })
         controller.start(snapshots: snapshots.eraseToAnyPublisher(),
-            preferences: Just(BossPreferences()).eraseToAnyPublisher())
+            preferences: Just(BossPreferences()).eraseToAnyPublisher(),
+            arrivals: arrivals.eraseToAnyPublisher())
 
-        snapshots.send(snapshot([], history: [ask("old", age: 3600)]))
+        snapshots.send(snapshot([]))
         XCTAssertEqual(port.lines, ["off"])
         let incoming = ask("new", age: 5)
+        arrivals.send(incoming)
         snapshots.send(snapshot([incoming], history: [incoming]))
-        XCTAssertEqual(port.lines, ["off", "show 0 0 100 blink 1000", "flash 0 100 0 800"])
+        XCTAssertEqual(port.lines, ["off", "flash 0 100 0 800", "show 0 0 100 blink 1000"])
         snapshots.send(snapshot([incoming], history: [incoming]))
         XCTAssertEqual(port.lines.count, 3, "an unchanged snapshot sends nothing")
         controller.refresh()

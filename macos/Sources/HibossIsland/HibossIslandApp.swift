@@ -141,7 +141,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         observeJoinRequests()
         observePanels()
         lamp.start(snapshots: overview.$snapshot.eraseToAnyPublisher(),
-            preferences: preferencesStore.$preferences.eraseToAnyPublisher())
+            preferences: preferencesStore.$preferences.eraseToAnyPublisher(),
+            arrivals: notifications.arrivals.eraseToAnyPublisher())
         Task { [weak self] in
             guard let self else { return }
             await settings.loadToken()

@@ -1,5 +1,5 @@
 // Maps the boss's open decisions and new arrivals to the USB status lamp's line commands.
-// Exports: LampSignal (steady state), LampArrivals (one green flash per new agent message).
+// Exports: LampSignal (steady state), LampArrivals (which new agent messages flash green).
 // Dependencies: Foundation, HibossKit AttentionItem, HistoryMessage and MessageAlertPolicy.
 
 import Foundation
@@ -42,21 +42,19 @@ enum LampSignal: Equatable {
     }
 }
 
-/// Remembers which agent messages were already visible, so only a newly arrived one flashes.
-/// A message older than `freshness` never flashes: the first history load and a message
-/// paging back into view are not arrivals.
-struct LampArrivals {
+/// Whether a newly delivered agent message flashes green. It flashes only when it would alert
+/// (quiet hours hold non-urgent ones), and only while fresh, so a feed replay after a
+/// reconnect does not flash. An undated message has just been pushed.
+enum LampArrivals {
     static let freshness: TimeInterval = 120
-    private var seen: Set<MessageID> = []
 
-    mutating func hasArrival(in history: [HistoryMessage], now: Date) -> Bool {
-        let incoming = history.filter { $0.direction == "agent_to_boss" }
-        let arrived = incoming.contains { message in
-            guard !seen.contains(message.id),
-                  let created = HistoryTimestamp.date(from: message.createdAt) else { return false }
-            return now.timeIntervalSince(created) <= Self.freshness
-        }
-        seen.formUnion(incoming.map(\.id))
-        return arrived
+    static func flashes(_ message: HistoryMessage, preferences: BossPreferences, now: Date) -> Bool {
+        guard message.direction == "agent_to_boss" else { return false }
+        let alert = message.isDecision
+            ? MessageAlertPolicy.decisionAlert(priority: message.priority, preferences: preferences, now: now)
+            : MessageAlertPolicy.messageAlert(priority: message.priority, preferences: preferences, now: now)
+        guard alert != nil else { return false }
+        guard let created = HistoryTimestamp.date(from: message.createdAt) else { return true }
+        return now.timeIntervalSince(created) <= freshness
     }
 }

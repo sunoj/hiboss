@@ -13,6 +13,8 @@ final class MessageNotificationStore: ObservableObject {
     @Published private(set) var authorization: MessageNotificationAuthorization = .unknown
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var errorMessage: String?
+    /// Each agent message the feed delivers for the first time, whether or not it notifies.
+    let arrivals = PassthroughSubject<HistoryMessage, Never>()
 
     private let center: any MessageNotificationCenter
     private let defaults: UserDefaults
@@ -83,7 +85,9 @@ final class MessageNotificationStore: ObservableObject {
 
     func receive(_ message: HistoryMessage) async {
         guard !Task.isCancelled, message.direction == "agent_to_boss",
-              seenIDs.insert(message.id).inserted, isEnabled, let alert = alert(for: message) else { return }
+              seenIDs.insert(message.id).inserted else { return }
+        arrivals.send(message)
+        guard isEnabled, let alert = alert(for: message) else { return }
         await prepareAuthorization()
         guard !Task.isCancelled, isEnabled,
               authorization == .authorized || authorization == .provisional else { return }

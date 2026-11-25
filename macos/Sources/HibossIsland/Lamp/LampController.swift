@@ -14,7 +14,6 @@ final class LampController {
     private let now: () -> Date
     private var snapshot: OverviewSnapshot?
     private var preferences = BossPreferences()
-    private var arrivals = LampArrivals()
     private var cancellables: Set<AnyCancellable> = []
     private var timer: Timer?
 
@@ -24,12 +23,16 @@ final class LampController {
     }
 
     func start(snapshots: AnyPublisher<OverviewSnapshot, Never>,
-               preferences: AnyPublisher<BossPreferences, Never>) {
+               preferences: AnyPublisher<BossPreferences, Never>,
+               arrivals: AnyPublisher<HistoryMessage, Never>) {
         // Use emitted values: every `@Published` emits before its property changes.
         Publishers.CombineLatest(snapshots, preferences)
             .sink { [weak self] snapshot, preferences in
                 self?.receive(snapshot: snapshot, preferences: preferences)
             }
+            .store(in: &cancellables)
+        arrivals
+            .sink { [weak self] message in self?.receive(arrival: message) }
             .store(in: &cancellables)
         timer = Timer.scheduledTimer(withTimeInterval: Self.resendInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
@@ -41,7 +44,12 @@ final class LampController {
         self.snapshot = snapshot
         self.preferences = preferences
         if changed { refresh() }
-        if arrivals.hasArrival(in: snapshot.history, now: now()) { port.send(LampSignal.flashCommand) }
+    }
+
+    func receive(arrival message: HistoryMessage) {
+        if LampArrivals.flashes(message, preferences: preferences, now: now()) {
+            port.send(LampSignal.flashCommand)
+        }
     }
 
     /// Resends the steady signal: a replugged lamp catches up and a live one never goes stale.

@@ -2,6 +2,7 @@
 // Exports: MessageNotificationTests using a fake center without OS notification access.
 // Dependencies: XCTest, HibossKit, and the macOS notification store.
 
+import Combine
 import XCTest
 import HibossKit
 @testable import HibossIsland
@@ -26,6 +27,17 @@ final class MessageNotificationTests: XCTestCase {
         await store.receive(message(metadata: MessageMetadata(options: ["Yes"])))
         await store.receive(message(id: "expired", metadata: MessageMetadata(options: ["Yes"], isExpired: true)))
         XCTAssertTrue(center.notices.isEmpty)
+    }
+
+    func testEveryFirstAgentMessageIsAnArrivalEvenWithoutANotice() async {
+        let store = MessageNotificationStore(center: RecordingNotificationCenter(), defaults: defaults)
+        var arrived: [MessageID] = []
+        let subscription = store.arrivals.sink { arrived.append($0.id) }
+        store.setEnabled(false)
+        await store.receive(message(metadata: MessageMetadata(options: ["Yes"])))
+        await store.receive(message(metadata: MessageMetadata(options: ["Yes"])))
+        XCTAssertEqual(arrived.count, 1)
+        subscription.cancel()
     }
 
     func testDuplicatesAreSkippedAcrossDisconnects() async {
