@@ -82,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let overview: OverviewStore
     let requiredInputs = RequiredInputStore()
     let panels: PanelsModel
+    let lamp = LampController(port: USBLampPort())
     var cancellables: Set<AnyCancellable> = []
 
     override convenience init() {
@@ -139,6 +140,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             preferences: preferencesStore.$preferences.eraseToAnyPublisher())
         observeJoinRequests()
         observePanels()
+        lamp.start(snapshots: overview.$snapshot.eraseToAnyPublisher(),
+            preferences: preferencesStore.$preferences.eraseToAnyPublisher())
         Task { [weak self] in
             guard let self else { return }
             await settings.loadToken()
@@ -249,6 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        lamp.stop()
         requiredInputs.disconnect()
         notifications.disconnect()
     }
