@@ -11,7 +11,8 @@ it('bounds dashboard page visits and preserves results on 30,044 messages', () =
 
 it('gates Worker publication on successful remote migrations', () => {
   const config = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: { deploy: string } };
-  expect(config.scripts.deploy.split(/\s*&&\s*/)).toEqual([
-    'wrangler d1 migrations apply hiboss-db --remote', 'wrangler deploy',
-  ]);
+  const steps = config.scripts.deploy.split(/\s*&&\s*/);
+  // The console is built first; publication still follows successful migrations directly.
+  expect(steps.slice(-2)).toEqual(['wrangler d1 migrations apply hiboss-db --remote', 'wrangler deploy']);
+  expect(steps.slice(0, -2).every((step) => step.startsWith('npm --prefix ../web '))).toBe(true);
 });
