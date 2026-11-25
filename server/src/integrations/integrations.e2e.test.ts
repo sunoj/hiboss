@@ -40,11 +40,10 @@ describe('integration management', () => {
     const agent = await env.DB.prepare('SELECT kind, key_hash FROM api_keys WHERE id = ?')
       .bind(created.agent_id).first();
     expect(agent).toEqual({ kind: 'integration', key_hash: null });
-    const session = await env.DB.prepare(`SELECT s.status, s.runtime, p.display_name, p.slug FROM sessions s
-      JOIN projects p ON p.id = s.project_id WHERE s.id = ? AND s.agent_id = ?`)
-      .bind(created.session_id, created.agent_id).first<Record<string, string>>();
-    expect(session).toMatchObject({ status: 'idle', runtime: 'webhook', display_name: 'Grafana prod' });
-    expect(session?.slug).toMatch(/^webhook-grafana-prod-/);
+    // No project: the apps title a project-less session with its label, the integration's name.
+    const session = await env.DB.prepare(`SELECT status, runtime, label, project_id FROM sessions
+      WHERE id = ? AND agent_id = ?`).bind(created.session_id, created.agent_id).first<Record<string, string>>();
+    expect(session).toEqual({ status: 'idle', runtime: 'webhook', label: 'Grafana prod', project_id: null });
     expect((await findWebhook(env.DB, id, token))?.agent_id).toBe(created.agent_id);
     const stored = await env.DB.prepare('SELECT token_hash FROM agent_webhooks WHERE id = ?').bind(id)
       .first<{ token_hash: string }>();

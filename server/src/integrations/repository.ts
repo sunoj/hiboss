@@ -1,7 +1,6 @@
 // Creates integration agents and manages their webhook URLs in audited D1 batches.
 // Exports createIntegration, listIntegrations, addWebhook, rotateWebhook and revokeWebhook.
 // Dependencies: D1, project slugs and webhook credentials; tokens are returned once, never stored.
-import { projectSlug } from '../projects';
 import { DEFAULT_RATE_LIMIT, hashWebhookToken, newWebhookId, newWebhookToken } from './credentials';
 
 export type PriorityCap = 'low' | 'normal' | 'high';
@@ -25,28 +24,18 @@ async function webhookInsert(db: D1Database, agentId: string, sessionId: string,
   return { issued, statement };
 }
 
-/** The integration's own project slug never merges with a repository's project. */
-function integrationSlug(name: string, agentId: string): string {
-  return `webhook-${projectSlug(name).slice(0, 48) || 'integration'}-${agentId.slice(0, 6)}`;
-}
-
-/** One batch: the agent, its project, its idle session, the first URL and the audit rows. */
+/** One batch: the agent, its idle session, the first URL and the audit row. The session has no
+ *  project, so the apps title it with the integration's name. */
 export async function createIntegration(db: D1Database, name: string, cap: PriorityCap,
   actor: string): Promise<CreatedIntegration | null> {
   const agentId = crypto.randomUUID().replaceAll('-', '');
-  const projectId = crypto.randomUUID();
   const sessionId = crypto.randomUUID();
-  const slug = integrationSlug(name, agentId);
   const { issued, statement } = await webhookInsert(db, agentId, sessionId, name, cap, actor);
   const [agents] = await db.batch<{ id: string }>([
     db.prepare(`INSERT INTO api_keys (id, name, kind, rate_limit) VALUES (?, ?, 'integration', ?)
       ON CONFLICT(name) DO NOTHING RETURNING id`).bind(agentId, name, DEFAULT_RATE_LIMIT),
-    db.prepare(`INSERT INTO projects (id, slug, display_name, created_by_agent_id)
-      SELECT ?, ?, ?, id FROM api_keys WHERE id = ?`).bind(projectId, slug, name, agentId),
-    db.prepare(`INSERT INTO project_aliases (alias, project_id, source)
-      SELECT ?, id, 'explicit' FROM projects WHERE id = ?`).bind(slug, projectId),
-    db.prepare(`INSERT INTO sessions (id, agent_id, label, status, project_id, runtime)
-      SELECT ?, id, ?, 'idle', ?, 'webhook' FROM api_keys WHERE id = ?`).bind(sessionId, slug, projectId, agentId),
+    db.prepare(`INSERT INTO sessions (id, agent_id, label, status, runtime)
+      SELECT ?, id, ?, 'idle', 'webhook' FROM api_keys WHERE id = ?`).bind(sessionId, name, agentId),
     statement,
     audit(db, actor, 'integration.create', issued.id, { agent_id: agentId, name }),
   ]);
