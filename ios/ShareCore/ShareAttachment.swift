@@ -63,7 +63,8 @@ enum SharePolicy {
 }
 
 enum ShareError: Error, LocalizedError {
-    case unsupported, tooMany, imageTooLarge, videoTooLarge, fileTooLarge, textTooLarge, preparation
+    case unsupported, tooMany, imageTooLarge, videoTooLarge, fileTooLarge, textTooLarge, linkTooLarge
+    case emptyText, preparation
 
     var errorDescription: String? {
         switch self {
@@ -74,6 +75,8 @@ enum ShareError: Error, LocalizedError {
             String(localized: "This video is still over 50 MB. Trim the clip and share it again.")
         case .fileTooLarge: String(localized: "Files must be 50 MB or smaller. Choose a smaller file.")
         case .textTooLarge: String(localized: "This text or note is too long. Keep it within 16 KB.")
+        case .linkTooLarge: String(localized: "This link is too long. Keep it within 8 KB.")
+        case .emptyText: String(localized: "Paste a link or text to save.")
         case .preparation: String(localized: "Could not prepare this attachment. Try sharing it again.")
         }
     }

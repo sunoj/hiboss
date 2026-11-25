@@ -30,3 +30,7 @@
 "Video" = "视频";
 "File" = "文件";
 "Files must be 50 MB or smaller. Choose a smaller file." = "文件不能超过 50 MB。请选择较小的文件。";
+"This link is too long. Keep it within 8 KB." = "链接过长。请保持在 8 KB 以内。";
+"Paste a link or text to save." = "请粘贴要保存的链接或文本。";
+"Paste a link or text" = "粘贴链接或文本";
+"The app shared empty text. Paste what to save." = "该应用分享的文本为空。请粘贴要保存的内容。";

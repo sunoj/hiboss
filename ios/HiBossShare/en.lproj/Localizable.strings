@@ -38,3 +38,7 @@
 "Video" = "Video";
 "File" = "File";
 "Files must be 50 MB or smaller. Choose a smaller file." = "Files must be 50 MB or smaller. Choose a smaller file.";
+"This link is too long. Keep it within 8 KB." = "This link is too long. Keep it within 8 KB.";
+"Paste a link or text to save." = "Paste a link or text to save.";
+"Paste a link or text" = "Paste a link or text";
+"The app shared empty text. Paste what to save." = "The app shared empty text. Paste what to save.";

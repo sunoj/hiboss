@@ -19,8 +19,18 @@ struct ShareSheet: View {
                 if model.state == .disconnected {
                     Section { Text("Open HiBoss to connect") }
                 } else {
-                    Section("Preview") {
-                        ForEach(model.attachments) { SharePreviewRow(item: $0) }
+                    if model.needsText {
+                        Section {
+                            TextField("Paste a link or text", text: $model.typedText, axis: .vertical)
+                                .lineLimit(2...6).disabled(model.typedTextSent)
+                                .accessibilityIdentifier("share-typed-text")
+                        } header: { Text("Preview") } footer: {
+                            Text("The app shared empty text. Paste what to save.")
+                        }
+                    } else {
+                        Section("Preview") {
+                            ForEach(model.attachments) { SharePreviewRow(item: $0) }
+                        }
                     }
                     Section("Note") {
                         TextField("Optional note", text: $model.note, axis: .vertical)
@@ -99,7 +109,8 @@ struct ShareSheet: View {
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
             .frame(maxWidth: .infinity).padding()
-            .disabled(model.isBusy || model.attachments.isEmpty && model.state != .failure)
+            .disabled(model.isBusy
+                || model.attachments.isEmpty && !model.needsText && model.state != .failure)
             .accessibilityIdentifier("share-save")
         }
     }
@@ -109,7 +120,7 @@ struct ShareSheet: View {
     }
 
     private func startSave() {
-        if model.attachments.isEmpty { reload() }
+        if model.attachments.isEmpty && !model.needsText { reload() }
         else { saveTask = Task { await model.save() } }
     }
 

@@ -144,6 +144,17 @@ final class ShareAttachmentLoaderTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["Oversized.pdf"])
     }
 
+    func testEmptyTextFromHostIsSkippedSoTheSharedLinkStillLoads() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let empty = NSItemProvider(item: NSString(string: " \n"), typeIdentifier: UTType.plainText.identifier)
+        let link = NSItemProvider(item: try XCTUnwrap(NSURL(string: "https://maps.app.goo.gl/abc123")),
+            typeIdentifier: UTType.url.identifier)
+        let loaded = try await ShareAttachmentLoader.load([empty, link], directory: directory)
+        XCTAssertEqual(loaded.map(\.kind), [.link])
+        XCTAssertEqual(loaded.first?.url, "https://maps.app.goo.gl/abc123")
+    }
+
     private func temporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

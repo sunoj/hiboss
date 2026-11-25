@@ -1,5 +1,5 @@
 // Drives the debug host's exact share form and retains simulator sheet screenshots.
-// Exports ShareSheetUITests for preview, retained-note retry and missing-token cancellation.
+// Exports ShareSheetUITests for preview, retained-note retry, empty host text and missing token.
 // Dependencies: XCTest and the app's configured demo launch helper.
 
 import XCTest
@@ -21,6 +21,19 @@ final class ShareSheetUITests: XCTestCase {
         XCTAssertEqual(editor.value as? String, "Use this reference")
         attach(app, name: "hiboss-share-retry")
         save.tap()
+        XCTAssertTrue(app.staticTexts["Saved to Box"].appears(timeout: 10))
+    }
+
+    func testEmptyHostTextAcceptsAPastedLinkAndSaves() {
+        let app = launch("empty")
+        let field = app.textFields["share-typed-text"]
+        let editor = field.appears(timeout: 10) ? field : app.textViews["share-typed-text"]
+        XCTAssertTrue(app.staticTexts["The app shared empty text. Paste what to save."].exists)
+        editor.tap()
+        editor.typeText("https://maps.app.goo.gl/abc123")
+        app.navigationBars["Save to Box"].tap()
+        attach(app, name: "hiboss-share-empty-text")
+        app.buttons["share-save"].tap()
         XCTAssertTrue(app.staticTexts["Saved to Box"].appears(timeout: 10))
     }
 

@@ -38,3 +38,7 @@
 "Video" = "Vidéo";
 "File" = "Fichier";
 "Files must be 50 MB or smaller. Choose a smaller file." = "Les fichiers ne doivent pas dépasser 50 MB. Choisissez un fichier plus petit.";
+"This link is too long. Keep it within 8 KB." = "Ce lien est trop long. Limitez-le à 8 Ko.";
+"Paste a link or text to save." = "Collez un lien ou du texte à enregistrer.";
+"Paste a link or text" = "Collez un lien ou du texte";
+"The app shared empty text. Paste what to save." = "L’app a partagé un texte vide. Collez ce que vous voulez enregistrer.";

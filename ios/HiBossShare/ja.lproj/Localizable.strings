@@ -30,3 +30,7 @@
 "Video" = "動画";
 "File" = "ファイル";
 "Files must be 50 MB or smaller. Choose a smaller file." = "ファイルは50 MB以下にしてください。小さいファイルを選んでください。";
+"This link is too long. Keep it within 8 KB." = "リンクが長すぎます。8 KB以内にしてください。";
+"Paste a link or text to save." = "保存するリンクまたはテキストを貼り付けてください。";
+"Paste a link or text" = "リンクまたはテキストを貼り付け";
+"The app shared empty text. Paste what to save." = "アプリが空のテキストを共有しました。保存する内容を貼り付けてください。";

@@ -1,5 +1,6 @@
 // Copies host-provided attachments while their temporary URLs are valid.
-// Exports ShareAttachmentLoader, bounded to the activation rule's four items.
+// Exports ShareAttachmentLoader, bounded to the activation rule's four items; empty text and
+// links some hosts register (Google Maps) are skipped rather than shown as blank rows.
 // Dependencies: UIKit item providers, UTType and HibossKit upload models.
 
 import HibossKit
@@ -19,6 +20,7 @@ enum ShareAttachmentLoader {
             }
             if type == .fileURL || type == .url || type == .plainText {
                 let value = try await loadText(provider, type: type)
+                if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
                 if let source = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines)),
                    source.isFileURL {
                     let file = try copySource(source, type: .item,

@@ -35,3 +35,7 @@
 "Video" = "فيديو";
 "File" = "ملف";
 "Files must be 50 MB or smaller. Choose a smaller file." = "يجب ألا يتجاوز حجم الملفات 50 MB. اختر ملفًا أصغر.";
+"This link is too long. Keep it within 8 KB." = "هذا الرابط طويل جدًا. اجعله ضمن 8 KB.";
+"Paste a link or text to save." = "الصق رابطًا أو نصًا لحفظه.";
+"Paste a link or text" = "الصق رابطًا أو نصًا";
+"The app shared empty text. Paste what to save." = "شارك التطبيق نصًا فارغًا. الصق ما تريد حفظه.";

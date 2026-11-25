@@ -35,3 +35,7 @@
 "Video" = "วิดีโอ";
 "File" = "ไฟล์";
 "Files must be 50 MB or smaller. Choose a smaller file." = "ไฟล์ต้องมีขนาดไม่เกิน 50 MB โปรดเลือกไฟล์ที่เล็กกว่า";
+"This link is too long. Keep it within 8 KB." = "ลิงก์ยาวเกินไป โปรดให้ไม่เกิน 8 KB";
+"Paste a link or text to save." = "วางลิงก์หรือข้อความที่จะบันทึก";
+"Paste a link or text" = "วางลิงก์หรือข้อความ";
+"The app shared empty text. Paste what to save." = "แอปแชร์ข้อความว่างเปล่า วางสิ่งที่จะบันทึก";

@@ -38,3 +38,7 @@
 "Video" = "वीडियो";
 "File" = "फ़ाइल";
 "Files must be 50 MB or smaller. Choose a smaller file." = "फ़ाइलें 50 MB या उससे छोटी होनी चाहिए। कोई छोटी फ़ाइल चुनें।";
+"This link is too long. Keep it within 8 KB." = "यह लिंक बहुत लंबा है। इसे 8 KB के भीतर रखें।";
+"Paste a link or text to save." = "सहेजने के लिए लिंक या टेक्स्ट पेस्ट करें।";
+"Paste a link or text" = "लिंक या टेक्स्ट पेस्ट करें";
+"The app shared empty text. Paste what to save." = "ऐप ने खाली टेक्स्ट शेयर किया। जो सहेजना है उसे पेस्ट करें।";

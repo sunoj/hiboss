@@ -15,6 +15,8 @@ final class ShareViewModel: ObservableObject {
     @Published private(set) var projectFailure = false
     @Published private(set) var progress = 0.0
     @Published private(set) var failure = ""
+    @Published private(set) var needsText = false
+    @Published var typedText = ""
     @Published var note = ""
     @Published var project = ""
 
@@ -43,6 +45,8 @@ final class ShareViewModel: ObservableObject {
     }
 
     var isBusy: Bool { [.loading, .compressing, .uploading].contains(state) }
+    /// Typed text stays editable, and is rebuilt on each save, until a request may have carried it.
+    var typedTextSent: Bool { !pending.isEmpty || !completed.isEmpty }
 
     func load(_ providers: [NSItemProvider], directory: URL) async {
         guard api != nil, !Task.isCancelled else { return }
@@ -50,6 +54,7 @@ final class ShareViewModel: ObservableObject {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             attachments = try await ShareAttachmentLoader.load(providers, directory: directory)
+            needsText = attachments.isEmpty
             state = .ready
         } catch {
             guard !Task.isCancelled else { return }
@@ -67,8 +72,15 @@ final class ShareViewModel: ObservableObject {
     }
 
     func save() async {
-        guard let api, !isBusy, state != .done, !attachments.isEmpty else { return }
+        guard let api, !isBusy, state != .done else { return }
         guard note.utf8.count <= SharePolicy.textBytes else { return fail(ShareError.textTooLarge) }
+        if needsText, !typedTextSent {
+            guard !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return fail(ShareError.emptyText)
+            }
+            attachments = [ShareAttachment.text(typedText)]
+        }
+        guard !attachments.isEmpty else { return }
         progress = Double(completed.count) / Double(attachments.count)
         do {
             for item in attachments where !completed.contains(item.id) {
@@ -102,7 +114,8 @@ final class ShareViewModel: ObservableObject {
         }
         if item.media == nil, let value = item.url ?? item.text,
            SharePolicy.decision(kind: item.kind, bytes: value.utf8.count) == .refuse {
-            throw ShareError.textTooLarge
+            throw value.utf8.isEmpty ? ShareError.emptyText
+                : item.kind == .link ? ShareError.linkTooLarge : ShareError.textTooLarge
         }
         let preview = if let media { await thumbnail(media, item.kind) } else { BoxUpload.Media?.none }
         let upload = BoxUpload(text: item.text, url: item.url, note: note.isEmpty ? nil : note,

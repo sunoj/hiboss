@@ -14,7 +14,8 @@ struct DemoShareHost: View {
         let flags = ProcessInfo.processInfo.environment
         _model = StateObject(wrappedValue: ShareViewModel(
             api: flags["HIBOSS_DEMO_SHARE"] == "disconnected" ? nil : DemoShareUpload(),
-            attachments: [ShareAttachment.text("https://example.com/design-reference"),
+            attachments: flags["HIBOSS_DEMO_SHARE"] == "empty" ? [] : [
+                ShareAttachment.text("https://example.com/design-reference"),
                 ShareAttachment.text("A reference to keep for the next project.")]
         ))
     }
@@ -23,7 +24,17 @@ struct DemoShareHost: View {
         if dismissed { Text("Saved to Box") }
         else {
             ShareSheet(model: model, cancel: { dismissed = true }, complete: { dismissed = true }, reload: {})
+                .task { await loadEmptyHostText() }
         }
+    }
+
+    /// Mirrors a host such as Google Maps that registers plain text with an empty value.
+    private func loadEmptyHostText() async {
+        guard ProcessInfo.processInfo.environment["HIBOSS_DEMO_SHARE"] == "empty",
+              model.state == .loading else { return }
+        let empty = NSItemProvider(item: NSString(string: ""), typeIdentifier: "public.plain-text")
+        await model.load([empty], directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString))
     }
 }
 

@@ -34,6 +34,58 @@ final class ShareViewModelTests: XCTestCase {
         XCTAssertEqual(count, 3)
     }
 
+    func testOnlyEmptySharedTextAsksForPastedTextAndSavesIt() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = ShareUploadRecorder()
+        let model = ShareViewModel(api: api)
+        let empty = NSItemProvider(item: NSString(string: ""), typeIdentifier: "public.plain-text")
+        await model.load([empty], directory: directory)
+        XCTAssertEqual(model.state, .ready)
+        XCTAssertTrue(model.needsText)
+        await model.save()
+        XCTAssertEqual(model.failure, ShareError.emptyText.localizedDescription)
+        let refused = await api.calls.count
+        XCTAssertEqual(refused, 0)
+        model.typedText = "https://maps.app.goo.gl/abc123"
+        await model.save()
+        XCTAssertEqual(model.state, .done)
+        let calls = await api.calls
+        XCTAssertEqual(calls.map { $0.upload.url }, ["https://maps.app.goo.gl/abc123"])
+    }
+
+    func testRefusedTypedTextStaysEditableAndTheEditSaves() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = ShareUploadRecorder()
+        let model = ShareViewModel(api: api)
+        await model.load([NSItemProvider(item: NSString(string: ""), typeIdentifier: "public.plain-text")],
+            directory: directory)
+        model.typedText = String(repeating: "x ", count: 9000)
+        await model.save()
+        XCTAssertEqual(model.failure, ShareError.textTooLarge.localizedDescription)
+        XCTAssertFalse(model.typedTextSent)
+        model.typedText = "Green Hill Place"
+        await model.save()
+        XCTAssertEqual(model.state, .done)
+        XCTAssertTrue(model.typedTextSent)
+        let calls = await api.calls
+        XCTAssertEqual(calls.map { $0.upload.text }, ["Green Hill Place"])
+    }
+
+    func testEmptyAndOversizedLinksGetTheirOwnMessages() async {
+        let empty = ShareAttachment(kind: .text, title: "", text: "", url: nil, media: nil)
+        let link = ShareAttachment.text("https://example.com/" + String(repeating: "a", count: 9000))
+        for (item, error) in [(empty, ShareError.emptyText), (link, .linkTooLarge)] {
+            let api = ShareUploadRecorder()
+            let model = ShareViewModel(api: api, attachments: [item])
+            await model.save()
+            XCTAssertEqual(model.failure, error.localizedDescription)
+            let count = await api.calls.count
+            XCTAssertEqual(count, 0)
+        }
+    }
+
     func testNoConnectionNeverCallsTheUploadAPI() async {
         let model = ShareViewModel(api: nil, attachments: [ShareAttachment.text("reference")])
         XCTAssertEqual(model.state, .disconnected)

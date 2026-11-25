@@ -37,3 +37,7 @@
 "Video" = "Видео";
 "File" = "Файл";
 "Files must be 50 MB or smaller. Choose a smaller file." = "Размер файла не должен превышать 50 MB. Выберите файл меньшего размера.";
+"This link is too long. Keep it within 8 KB." = "Ссылка слишком длинная. Уложитесь в 8 КБ.";
+"Paste a link or text to save." = "Вставьте ссылку или текст для сохранения.";
+"Paste a link or text" = "Вставьте ссылку или текст";
+"The app shared empty text. Paste what to save." = "Приложение передало пустой текст. Вставьте, что нужно сохранить.";
