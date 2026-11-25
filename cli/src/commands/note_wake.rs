@@ -1,6 +1,6 @@
 // Wakes an idle Claude Code session for a boss note (留言) the way a reply does: once per note,
 // with a count and a command only, never a note's text. Polls under the hook's 15 s notes TTL.
-// Exports run and notice; deps: hook_notes, daemon_wake::Inbox, session markers.
+// Exports spawn and notice; deps: hook_notes, daemon_wake::Inbox, session markers.
 
 use super::daemon_wake::{Inbox, is_gone};
 use super::hook_notes;
@@ -12,9 +12,20 @@ const NOTE_WOKEN: &str = "note-woken";
 /// How often the daemon looks at the local idle marker and TTL; the network poll stays at 15 s.
 const NOTE_TICK: Duration = Duration::from_secs(2);
 
-/// The daemon's note task: ticks until the session's process is gone. The session id is read
-/// on every tick, because a SessionStart on the same socket can register a new one.
-pub(crate) async fn run(client: HiBossClient, inbox: Inbox) {
+/// Starts the note poll on its own thread and runtime: the client's futures are not Send, and
+/// the reply stream must never wait on a notes request. It ends with the daemon process.
+pub(crate) fn spawn(client: HiBossClient, inbox: Inbox) {
+    std::thread::spawn(move || {
+        match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+            Ok(runtime) => runtime.block_on(run(client, inbox)),
+            Err(err) => eprintln!("hiboss: note wake disabled: {err}"),
+        }
+    });
+}
+
+/// Ticks until the session's process is gone. The session id is read on every tick, because
+/// a SessionStart on the same socket can register a new one.
+async fn run(client: HiBossClient, inbox: Inbox) {
     let mut tick = tokio::time::interval(NOTE_TICK);
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {

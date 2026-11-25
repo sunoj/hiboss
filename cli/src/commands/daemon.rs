@@ -81,9 +81,9 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
     eprintln!("Daemon SSE connecting to {} (session wake {})", sse_url,
         if inbox.is_some() { "on" } else { "off" });
 
-    // Notes poll in their own task, so a slow request never holds up the reply stream.
+    // Notes poll on their own thread, so a slow request never holds up the reply stream.
     if let Some(inbox) = inbox.clone() {
-        tokio::spawn(note_wake::run(HiBossClient::new(&server, &key), inbox));
+        note_wake::spawn(HiBossClient::new(&server, &key), inbox);
     }
     let mut backoff = RETRY_MIN;
     loop {
