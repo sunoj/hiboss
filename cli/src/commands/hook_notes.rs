@@ -28,17 +28,19 @@ pub(super) fn due(now: u64) -> bool {
 pub(super) fn claim(now: u64) {
     session::stamp_ttl(CHECK, now);
 }
-pub(super) async fn refresh(client: &HiBossClient, sid: &str) {
-    if let Ok(response) = client.session_notes(sid, false).await {
-        let pending = Pending {
-            session: sid.to_owned(),
-            images: response.notes.iter().map(|note| note.images.len()).sum(),
-            ids: response.notes.into_iter().map(|note| note.id).collect(),
-        };
-        if let Ok(content) = serde_json::to_string(&pending) {
-            let _ = session::write_state(PENDING, &content);
-        }
+/// Records the session's pending note ids for the hook and returns them; None when the server
+/// could not be read, so a failed poll is never taken for "no notes".
+pub(super) async fn refresh(client: &HiBossClient, sid: &str) -> Option<Vec<String>> {
+    let response = client.session_notes(sid, false).await.ok()?;
+    let pending = Pending {
+        session: sid.to_owned(),
+        images: response.notes.iter().map(|note| note.images.len()).sum(),
+        ids: response.notes.into_iter().map(|note| note.id).collect(),
+    };
+    if let Ok(content) = serde_json::to_string(&pending) {
+        let _ = session::write_state(PENDING, &content);
     }
+    Some(pending.ids)
 }
 
 fn should_announce(pending: &Pending, previous: &Announcement, now: u64) -> bool {

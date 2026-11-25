@@ -1,11 +1,13 @@
-// Purpose: Background SSE daemon: spools messages for the hook and wakes an idle session.
+// Purpose: Background SSE daemon: spools messages for the hook and wakes an idle session for
+// a reply or a boss note.
 // Exports: DaemonCommand with start/stop/status subcommands.
 // Dependencies: clap, tokio, crate::config, crate::session, crate::sse.
 
 use crate::commands::SubcommandArgs;
 use super::daemon_wake::{Inbox, Probe, deliver};
 use super::hook_helpers::{start_daemon_if_needed, stop_daemon};
-use crate::{config, session, sse};
+use super::note_wake;
+use crate::{client::HiBossClient, config, session, sse};
 use clap::Subcommand;
 use std::error::Error;
 use tokio::time::{Duration, sleep};
@@ -79,6 +81,9 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
     eprintln!("Daemon SSE connecting to {} (session wake {})", sse_url,
         if inbox.is_some() { "on" } else { "off" });
 
+    let notes = HiBossClient::new(&server, &key);
+    let mut tick = tokio::time::interval(note_wake::NOTE_TICK);
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut backoff = RETRY_MIN;
     loop {
         if inbox.as_ref().is_some_and(|inbox| inbox.probe() == Probe::Gone) {
@@ -89,16 +94,47 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
         let stream = tokio::spawn(async move {
             sse::connect_sse(&client, &url, &k, tx).await.map_err(|err| err.to_string())
         });
-        while let Some(event) = rx.recv().await {
-            if event.event_type == "message" && deliver(&event.data, inbox.as_ref(), session_id.as_deref()).await {
-                exit_with_session();
-                return Ok(());
-            }
+        let wake = Wake { inbox: inbox.as_ref(), session_id: session_id.as_deref(), notes: &notes };
+        if wake.pump(&mut rx, &mut tick).await {
+            stream.abort();
+            break;
         }
         sleep(next_delay(stream.await, &mut backoff)).await;
     }
     exit_with_session();
     Ok(())
+}
+
+/// What one stream connection needs to wake the session it serves.
+struct Wake<'a> {
+    inbox: Option<&'a Inbox>,
+    session_id: Option<&'a str>,
+    notes: &'a HiBossClient,
+}
+
+impl Wake<'_> {
+    /// Delivers streamed messages and, between them, checks for boss notes until the stream
+    /// ends. True when the session's process is gone.
+    async fn pump(&self, rx: &mut tokio::sync::mpsc::Receiver<sse::SseEvent>,
+                  tick: &mut tokio::time::Interval) -> bool {
+        loop {
+            tokio::select! {
+                event = rx.recv() => {
+                    let Some(event) = event else { return false };
+                    if event.event_type == "message" && deliver(&event.data, self.inbox, self.session_id).await {
+                        return true;
+                    }
+                }
+                _ = tick.tick() => {
+                    if let (Some(inbox), Some(sid)) = (self.inbox, self.session_id)
+                        && note_wake::check(self.notes, inbox, sid).await
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
 }
 
 const RETRY_MIN: Duration = Duration::from_secs(5);

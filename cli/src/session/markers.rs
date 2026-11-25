@@ -81,6 +81,11 @@ pub fn clear_idle() {
     remove_state(IDLE);
 }
 
+/// Whether the session's last turn ended and no tool call has run since.
+pub fn is_idle() -> bool {
+    read_state(IDLE).is_some()
+}
+
 /// Consume the idle marker; Some only for the first caller in one idle period.
 pub fn take_idle() -> Option<String> {
     take_state(IDLE)
