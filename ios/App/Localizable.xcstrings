@@ -5739,6 +5739,21 @@
         }
       }
     },
+    "Needs you, %@ left": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Needs you, %@ left" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要你，剩余 %@" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "要対応・残り%@" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "확인 필요, %@ 남음" } },
+        "th": { "stringUnit": { "state": "translated", "value": "รอคุณ เหลือ %@" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Te necesita, quedan %@" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "आपकी ज़रूरत, %@ शेष" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "بحاجة إليك، متبقٍ %@" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Precisa de você, faltam %@" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "À traiter, reste %@" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Ждут вас, осталось %@" } }
+      }
+    },
     "Needs you": {
       "localizations": {
         "en": {

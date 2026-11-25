@@ -69,7 +69,8 @@ struct SessionRow: View {
                 .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
                 .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
             Spacer(minLength: Space.xxs)
-            SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
+            SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou,
+                                 window: session.decisionWindow)
         }
     }
 

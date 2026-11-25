@@ -1,7 +1,9 @@
 // Renders a stable session attention/unread slot and provides the list read-state environment.
-// Exports SessionReadIndicator and read-state environments; needs-you takes priority over unread.
+// Exports SessionReadIndicator and read-state environments; needs-you takes priority over unread,
+// and a needs-you session with a live deadline shows DecisionCountdownRing instead of the dot.
 // Dependencies: SwiftUI and Theme semantic attention, blue unread and green working roles.
 
+import HibossKit
 import SwiftUI
 
 enum SessionIndicatorState: Equatable {
@@ -35,6 +37,8 @@ extension EnvironmentValues {
 struct SessionReadIndicator: View {
     let sessionID: String
     let needsYou: Bool
+    /// The open decision's timeout window; a live one turns the needs-you dot into a ring.
+    var window: DecisionWindow? = nil
     @Environment(\.unreadSessionIDs) private var unread
 
     private var state: SessionIndicatorState {
@@ -42,6 +46,15 @@ struct SessionReadIndicator: View {
     }
 
     var body: some View {
+        if state == .needsYou, let window {
+            DecisionCountdownRing(window: window)
+                .accessibilityIdentifier("session-needs-you-\(sessionID)")
+        } else {
+            dot
+        }
+    }
+
+    private var dot: some View {
         ZStack {
             if state != .none {
                 Circle().fill(state == .needsYou ? Theme.warn : Theme.unread)
