@@ -36,6 +36,6 @@ One command per line at any baud rate; each line gets a reply of `ok`, `err` or 
 
 Any line refreshes the 90-second staleness timer. Ctrl-C on the serial console stops
 the program and opens the MicroPython REPL; `import machine; machine.bootloader()` there
-mounts `RPI-RP2` for a firmware update without the BOOT button. A 1200-baud touch does not
-work once `boot.py` has set the lamp identity. Reflashing MicroPython keeps the installed
-`boot.py` and `main.py`.
+mounts `RPI-RP2` for a firmware update without the BOOT button. A 1200-baud touch did not
+enter the bootloader on this firmware with the lamp identity set. Reflashing MicroPython
+keeps the installed `boot.py` and `main.py`.
