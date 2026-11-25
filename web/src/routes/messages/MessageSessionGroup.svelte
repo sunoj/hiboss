@@ -7,10 +7,10 @@
 
 	interface Props {
 		group: SessionGroup;
-		onSelect: (message: MessageResponse) => void;
+		hrefFor: (message: MessageResponse) => string;
 	}
 
-	let { group, onSelect }: Props = $props();
+	let { group, hrefFor }: Props = $props();
 </script>
 
 <section class="session-group">
@@ -25,9 +25,9 @@
 	</header>
 	<div class="feed">
 		{#each group.messages as message (message.id)}
-			<button type="button" class="row-btn" onclick={() => onSelect(message)}>
+			<a class="row-btn" href={hrefFor(message)}>
 				<MessageRow {message} />
-			</button>
+			</a>
 		{/each}
 	</div>
 </section>

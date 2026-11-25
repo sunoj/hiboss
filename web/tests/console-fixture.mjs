@@ -1,0 +1,101 @@
+// Synthetic API responses used by the remote console screenshot suite.
+// No external services or real credentials are involved.
+
+const now = new Date().toISOString();
+const agent = {
+	id: 'builder-01', name: 'Builder One', role: 'builder', project_slugs: ['atlas-api'],
+	created_at: now, last_used_at: now
+};
+const session = {
+	id: 'release-session', agent_id: agent.id, agent_name: agent.name, status: 'working',
+	label: 'atlas-api', project_slug: 'atlas-api', branch: 'release/v2.4', status_text: 'Running deployment checks',
+	started_at: now, last_seen_at: now, cwd: '/workspace/atlas-api'
+};
+const message = {
+	agent_id: agent.id, agent_name: agent.name, session_id: session.id,
+	session_label: session.label, session_branch: session.branch,
+	direction: 'agent_to_boss', created_at: now, updated_at: now,
+	priority: 'normal', status: 'delivered', mode: 'async', channel: 'api'
+};
+const decision = {
+	...message, id: 'decision-fixture', body: 'Deploy migration 0052 to production?',
+	mode: 'blocking',
+	metadata: {
+		options: ['Deploy', 'Not yet'], default_option: 'Not yet', ask_deadline: true,
+		content: '### Changes\nAdds an index needed for the release.\n\n> The staging replay passed.'
+	}
+};
+const card = JSON.stringify({
+	color: 2263842, title: 'Liquidation monitor', description: 'The monitor detected a **price change**.',
+	fields: [{ name: 'Market', value: 'ETH / USDC', inline: true }, { name: 'Severity', value: 'Warning', inline: true }],
+	footer: 'Market alerts', timestamp: now
+});
+
+const result = {
+	...message, id: 'result-fixture', body: 'Market warning on Base',
+	metadata: {
+		integration: true, content: 'Fallback content',
+		rich_content: '\x60\x60\x60hiboss-embed\n' + card
+			+ '\n\x60\x60\x60\n\n\x60\x60\x60copy Market identifier\nbase:ETH-USDC\n\x60\x60\x60'
+	}
+};
+
+const people = [
+	{ id: 'boss', name: 'Robin', role: 'admin', archived_at: null, agent_ids: [] },
+	{ id: 'reviewer', name: 'Morgan', role: 'manager', archived_at: null, agent_ids: [agent.id] },
+	{ id: 'observer', name: 'Taylor', role: 'viewer', archived_at: null, agent_ids: [] }
+];
+
+export async function mockApi(page, { capabilities = false, patches = [] } = {}) {
+	const integration = { ...agent, id: 'monitor-01', name: 'Market monitor', kind: 'integration' };
+	let builder = capabilities ? {
+		...agent, kind: 'agent', admin: true, default_priority: 'high', rate_limit: 12,
+		channel_routing: { high: 'discord' }
+	} : agent;
+	const delivered = capabilities ? { ...result, agent_id: integration.id, agent_name: integration.name, metadata: null } : result;
+	const openDecision = { ...decision, expires_at: new Date(Date.now() + 18 * 60000).toISOString() };
+	const report = { ...message, id: 'report-fixture', body: 'Staging replay passed', metadata: null };
+	await page.route('**/api/**', async (route) => {
+		const path = new URL(route.request().url()).pathname;
+		if (path === '/api/boss/agents/builder-01/config' && route.request().method() === 'PATCH') {
+			const patch = route.request().postDataJSON();
+			patches.push(patch);
+			builder = { ...builder, ...patch };
+			return route.fulfill({ json: builder });
+		}
+		if (path === '/api/boss/stream') {
+			const body = 'event: message\ndata: ' + JSON.stringify(openDecision) + '\n\nevent: ready\ndata: {}\n\n';
+			return route.fulfill({ contentType: 'text/event-stream', body });
+		}
+		const data = {
+			'/api/boss/messages': { messages: [delivered, report, openDecision], total: 3 },
+			'/api/boss/messages/decision-fixture': { ...openDecision, replies: [] },
+			'/api/boss/messages/result-fixture': { ...delivered, replies: [] },
+			'/api/boss/sessions': { sessions: [session] },
+			'/api/boss/sessions/release-session/notes': { notes: [] },
+			'/api/boss/agents': { agents: capabilities ? [builder, integration] : [builder] },
+			'/api/boss/join-requests': { requests: [] },
+			'/api/boss/channels': [],
+			'/api/boss/me': people[0],
+			'/api/boss/audit': { entries: [{
+				id: 'audit-1', created_at: now, actor_type: 'boss', actor_id: 'boss', action: 'agent.update',
+				resource_type: 'agent', resource_id: agent.id, details: '{"fixture":true}'
+			}], total: 1 },
+			'/api/boss/system': {
+				server_time: now, db_ok: true, active_sessions: 1, pending_decisions: 1,
+				channels: [{ channel: 'discord', configured: true }]
+			},
+			'/api/boss/clients': { clients: [{
+				id: 'browser-1', label: 'Fixture browser', kind: 'web', created_at: now, last_seen_at: now,
+				revoked_at: null, has_push_device: false, has_signing_key: false, is_current: true
+			}] },
+			'/api/boss/destinations': { mode: 'off', destinations: [], providers: [] },
+			'/api/boss/routing-rules': { rules: [{
+				id: 'rule-1', owner_id: agent.id, target_agent_id: agent.id, channel: 'discord',
+				pattern: '^release', priority: 42, enabled: 1, created_at: now
+			}] },
+			'/api/bosses': { bosses: people }
+		}[path];
+		return data ? route.fulfill({ json: data }) : route.fulfill({ status: 404, body: 'fixture route absent' });
+	});
+}

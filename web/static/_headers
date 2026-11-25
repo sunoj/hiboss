@@ -1,0 +1,6 @@
+# Served by Workers static assets with every console file. Framing cannot be set in a <meta> CSP.
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin

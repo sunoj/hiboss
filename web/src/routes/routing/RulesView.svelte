@@ -25,6 +25,8 @@
 
 	let rules = $state<RoutingRuleResponse[]>([]);
 	let agents = $state<AgentResponse[]>([]);
+	let { embedded = false }: { embedded?: boolean } = $props();
+	const readOnly = $derived(auth.connection?.boss?.role === 'viewer');
 	const loadState = new LoadState();
 	let creating = $state(false);
 	let deletingId = $state<string | null>(null);
@@ -53,6 +55,7 @@
 	}
 
 	async function onCreate(body: CreateRoutingRuleRequest) {
+		if (readOnly) return;
 		const client = auth.client;
 		if (!client) {
 			toasts.push(t('top.offline'), 'error');
@@ -71,6 +74,7 @@
 	}
 
 	async function onDelete(id: string) {
+		if (readOnly) return;
 		const client = auth.client;
 		if (!client) {
 			toasts.push(t('top.offline'), 'error');
@@ -97,7 +101,7 @@
 <section class="page">
 	<header class="head">
 		<div>
-			<h1>{t('page.routing')}</h1>
+			{#if embedded}<h2>{t('console.rules')}</h2>{:else}<h1>{t('page.routing')}</h1>{/if}
 			<p class="sub">{t('page.routingSub')}</p>
 		</div>
 		<button type="button" class="refresh" onclick={() => load()} disabled={loadState.loading}>
@@ -110,7 +114,8 @@
 	{:else if loadState.loading && rules.length === 0}
 		<div class="panel"><Skeleton rows={6} height="1.35rem" /></div>
 	{:else}
-		<AddRuleForm {agents} busy={creating} {onCreate} />
+		{#if readOnly}<p role="note">{t('console.viewOnly')}</p>
+		{:else}<AddRuleForm {agents} busy={creating} {onCreate} />{/if}
 
 		{#if rules.length === 0}
 			<EmptyState
@@ -124,6 +129,7 @@
 				{sortKey}
 				{sortDir}
 				busyId={deletingId}
+				{readOnly}
 				{onSort}
 				{onDelete}
 			/>
@@ -133,5 +139,6 @@
 
 <style>
 	@import '../../lib/design/page-header.css';
-	@import '../../lib/design/panel.css'
+	@import '../../lib/design/panel.css';
+	h2 { font: var(--t-title); margin: 0; }
 </style>

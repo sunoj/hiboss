@@ -8,14 +8,11 @@
 	import { apiErrorMessage } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
-	import { toasts } from '$lib/stores/toast.svelte';
 	import DoctorMeta from './DoctorMeta.svelte';
 	import StatusBeacon from './StatusBeacon.svelte';
 	import {
 		channelHealthHint,
 		emptyConnectivity,
-		healthLabel,
-		overallHealth,
 		type ConnectivityResult
 	} from './doctor-helpers';
 
@@ -23,6 +20,7 @@
 	let connectivity = $state<ConnectivityResult>(emptyConnectivity());
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let checkedAt = $state('');
 
 	async function probeMe(
 		client: NonNullable<typeof auth.client>
@@ -48,39 +46,25 @@
 		}
 	}
 
-	async function runChecks(notify = false) {
+	async function runChecks() {
 		const client = auth.client;
 		if (!client) {
 			error = t('top.offline');
 			loading = false;
-			if (notify) toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		loading = true;
 		error = null;
-		try {
-			const [sys, meResult] = await Promise.all([client.system(), probeMe(client)]);
-			system = sys;
-			connectivity = meResult;
-			if (notify) {
-				const tone = overallHealth(sys.db_ok, meResult.ok);
-				const label = healthLabel(tone);
-				toasts.push(
-					t('form.doctor', { label }),
-					tone === 'ok' ? 'success' : tone === 'degraded' ? 'warning' : 'error'
-				);
-			}
-		} catch (e) {
-			error = apiErrorMessage(e);
-			connectivity = emptyConnectivity();
-			if (notify) toasts.push(error, 'error');
-		} finally {
-			loading = false;
-		}
+		const [sys, me] = await Promise.allSettled([client.system(), probeMe(client)]);
+		if (sys.status === 'fulfilled') system = sys.value;
+		else error = apiErrorMessage(sys.reason);
+		if (me.status === 'fulfilled') connectivity = me.value;
+		checkedAt = new Date().toISOString();
+		loading = false;
 	}
 
 	onMount(() => {
-		void runChecks(false);
+		void runChecks();
 	});
 </script>
 
@@ -88,21 +72,20 @@
 	<header class="head">
 		<div>
 			<h1>{t('page.system')}</h1>
-			<p class="sub">{t('page.systemSub')}</p>
+
 		</div>
 		<button
 			type="button"
 			class="refresh"
-			onclick={() => runChecks(true)}
+			onclick={() => runChecks()}
 			disabled={loading}
 		>
 			{loading ? t('page.checking') : t('page.rerunChecks')}
 		</button>
 	</header>
 
-	{#if error}
-		<ErrorState message={error} onRetry={() => runChecks(true)} />
-	{:else if loading && !system}
+	{#if error}<ErrorState message={error} onRetry={runChecks} />{/if}
+	{#if loading && !system}
 		<div class="grid hero">
 			<div class="panel"><Skeleton rows={4} height="1.4rem" /></div>
 			<div class="panel"><Skeleton rows={3} height="1.2rem" /></div>
@@ -113,12 +96,26 @@
 			{/each}
 		</div>
 		<div class="panel"><Skeleton rows={5} /></div>
-	{:else if system}
+	{:else if !system}
 		<div class="grid hero">
-			<StatusBeacon dbOk={system.db_ok} meOk={connectivity.ok} />
-			<DoctorMeta serverTime={system.server_time} {connectivity} />
+			<StatusBeacon dbOk={false} meOk={connectivity.ok} {checkedAt} />
+			<DoctorMeta serverTime="" dbOk={false} {connectivity} />
+		</div>
+	{:else}
+		<div class="grid hero">
+			<StatusBeacon dbOk={system.db_ok && !error} meOk={connectivity.ok} {checkedAt} />
+			<DoctorMeta serverTime={system.server_time} dbOk={system.db_ok && !error} {connectivity} />
 		</div>
 
+		<div class="panel">
+			<h2>{t('page.channelHealth')}</h2>
+			<p class="hint">{t('page.configuredPaths')}</p>
+			{#if system.channels.length === 0}
+				<p class="empty">{t('page.noChannelRows')}</p>
+			{:else}
+				<ChannelLights channels={system.channels} />
+			{/if}
+		</div>
 		<div class="grid kpis">
 			<KpiCard
 				label={t('page.activeSessions')}
@@ -140,26 +137,17 @@
 			/>
 		</div>
 
-		<div class="panel">
-			<h2>{t('page.channelHealth')}</h2>
-			<p class="hint">{t('page.configuredPaths')}</p>
-			{#if system.channels.length === 0}
-				<p class="empty">{t('page.noChannelRows')}</p>
-			{:else}
-				<ChannelLights channels={system.channels} />
-			{/if}
-		</div>
 	{/if}
 </section>
 
 <style>
-	@import '../../lib/design/page-header.css';
 	@import '../../lib/design/panel.css';
 	@import '../../lib/design/shared/summary.css';
-	.hero {
-		grid-template-columns: 1.1fr 1.4fr;
-		align-items: stretch;
-	}
+	h1 { font: var(--t-large); margin: 0; }
+	.head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+	.refresh { min-height: var(--hit); }
+	.hero { grid-template-columns: 1fr; }
+	h2 { font: var(--t-title); margin: 0 0 8px; }
 	.kpis {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
@@ -168,8 +156,7 @@
 		color: var(--hb-text-dim);
 		font-size: 12px;
 	}
-	@media (max-width: 1100px) {
-		.hero,
+	@media (max-width: 599px) {
 		.kpis {
 			grid-template-columns: 1fr;
 		}

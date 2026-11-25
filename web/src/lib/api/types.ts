@@ -92,7 +92,8 @@ export interface MessagesQuery {
 
 export type { SessionResponse, SessionsListResponse } from './projects';
 
-export interface AgentResponse {
+export interface AgentResponse extends Partial<AgentConfigResponse> {
+	kind?: 'agent' | 'integration';
 	project_slugs?: string[];
 	id: string;
 	name: string;
@@ -113,6 +114,7 @@ export interface BossRecord {
 	discord_user_id: string | null;
 	agent_id: string | null;
 	preferences: Record<string, unknown> | string | null;
+	archived_at?: string | null;
 	created_at: string;
 	agent_ids?: string[];
 }
@@ -207,12 +209,14 @@ export interface CreateRoutingRuleRequest {
 }
 
 export interface AgentConfigUpdateRequest {
+	admin?: boolean;
 	default_priority?: Priority;
 	rate_limit?: number | null;
 	channel_routing?: Record<string, Channel> | null;
 }
 
 export interface AgentConfigResponse {
+	admin?: boolean;
 	default_priority: Priority;
 	rate_limit: number | null;
 	channel_routing: Record<string, Channel> | null;

@@ -1,32 +1,31 @@
 <!-- Agent detail drawer with profile, config and credential management.
      Depends on agent metadata, auth and the console detail components. -->
 <script lang="ts">
-	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import { formatRelativeTime } from '$lib/api/mappers';
-	import type { AgentConfigResponse, AgentResponse } from '$lib/api/types';
-	import { lastUsedLabel, roleLabel, shortId } from './agent-helpers';
+	import type { AgentResponse } from '$lib/api/types';
+	import { agentConfig, lastUsedLabel, roleLabel, shortId } from './agent-helpers';
 	import AgentConfigForm from './AgentConfigForm.svelte';
 	import AgentKeys from './AgentKeys.svelte';
+	import AgentAdminSwitch from './AgentAdminSwitch.svelte';
+	import { canSetAgentAdmin } from '$lib/api/agent-capabilities';
+	import { agentDirectory } from '$lib/stores/agents.svelte';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 
-	interface Props {
-		agent: AgentResponse;
-		config?: AgentConfigResponse | null;
-		onClose: () => void;
-		onConfigSaved?: (agentId: string, config: AgentConfigResponse) => void;
-	}
+	let { agent }: { agent: AgentResponse } = $props();
+	const config = $derived(agentConfig(agent));
+	const role = $derived(auth.connection?.boss?.role);
 
-	let { agent, config = null, onClose, onConfigSaved }: Props = $props();
 </script>
 
-<div class="drawer" role="dialog" aria-modal="true" aria-label={t('form.agentDetail')}>
+<div class="panel">
 	<header class="head">
 		<div class="titles">
-			<h2>{t('nav.agents')}</h2>
-			<AgentIdentity name={agent.name} size="md" />
+			<h1>{agent.name}</h1>
+			{#if agent.kind === 'integration'}<span class="badge live">{t('console.integration')}</span>{/if}
+			{#if agent.admin}<span class="badge settled">{t('console.adminCapability')}</span>{/if}
 		</div>
-		<button type="button" class="close" onclick={onClose} aria-label={t('common.close')}>✕</button>
+		<a href="/agents">← {t('nav.agents')}</a>
 	</header>
 
 	<div class="body">
@@ -49,39 +48,32 @@
 			</div>
 		</section>
 
-		{#if auth.connection?.boss?.role === 'admin' || auth.connection?.boss?.role === 'manager'}
-			{#key agent.id}<AgentKeys agentId={agent.id} />{/key}
+		{#if canSetAgentAdmin(agent, role)}<AgentAdminSwitch {agent} />{/if}
+		{#if agent.kind === 'integration'}
+			<p>{t('console.webhookKeys')}</p>
+		{:else if role === 'admin' || (role === 'manager' && !agent.admin)}
+			<AgentKeys agentId={agent.id} />
+		{:else if role === 'manager' && agent.admin}
+			<p>{t('console.adminKeys')}</p>
 		{/if}
+		{#if role !== 'viewer'}
 		<AgentConfigForm
 			agentId={agent.id}
 			initial={config}
-			onSaved={(next) => onConfigSaved?.(agent.id, next)}
+			onSaved={(next) => { if (auth.client) agentDirectory.update(auth.client, agent.id, next); }}
 		/>
+		{/if}
 	</div>
 </div>
 
 <style>
-	@import '../../lib/design/detail-drawer.css';
-	.titles {
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
-	}
-	h2 {
-		margin: 0;
-		font-size: 11px;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--hb-text-muted);
-	}
-	.body {
-		gap: 1rem;
-	}
-	.k {
-		font-size: 11px;
-		letter-spacing: 0.04em;
-	}
-	.mono {
-		font-size: 11px;
-	}
+	.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-m);
+		padding: 16px; margin-bottom: 16px; overflow-wrap: anywhere; }
+	.head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+	h1 { font: var(--t-large); margin: 0; }
+	a { color: var(--live); text-decoration: underline; }
+	.body { display: grid; gap: 16px; min-width: 0; }
+	.meta { padding-block-start: 12px; }
+	.row { display: flex; gap: 8px; }
+	.k { font: var(--t-caption); color: var(--text-3); }
 </style>

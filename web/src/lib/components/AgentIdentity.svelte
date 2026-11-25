@@ -4,7 +4,7 @@
 
 	interface Props {
 		name: string | null | undefined;
-		size?: 'sm' | 'md';
+		size?: 'sm' | 'md' | 'row';
 		showName?: boolean;
 	}
 
@@ -15,7 +15,7 @@
 	const label = $derived(name?.trim() || t('common.unknown'));
 </script>
 
-<span class="agent" class:sm={size === 'sm'} class:md={size === 'md'} title={label}>
+<span class="agent" class:sm={size === 'sm'} class:md={size === 'md'} class:row={size === 'row'} title={label}>
 	<span class="dot" style:background={color} aria-hidden="true">{initials}</span>
 	{#if showName}
 		<span class="name">{label}</span>
@@ -49,6 +49,8 @@
 		height: 22px;
 		font-size: 10px;
 	}
+	.row .dot { width: var(--tile-row); height: var(--tile-row);
+		border-radius: var(--r-m); font-size: 14px; }
 	.name {
 		overflow: hidden;
 		text-overflow: ellipsis;

@@ -2,14 +2,12 @@
 // Exports BossApiClient and validateConnection; depends on API types and mappers.
 
 import {
-	DEFAULT_BASE_URL,
-	normalizeBaseUrl,
 	type StoredConnection
 } from './auth';
+import { BossTransport } from './transport';
 import type { BossClient, ClientGrant, ClientId, ClientKind } from './clients';
 import { normalizeMessage } from './mappers';
 import {
-	ApiError,
 	type AgentConfigResponse,
 	type AgentConfigUpdateRequest,
 	type AgentsListResponse,
@@ -43,15 +41,15 @@ import {
 	type SessionsListResponse
 } from './types';
 
-export class BossApiClient {
-	readonly baseUrl: string;
-	readonly token: string;
+export interface JoinRequest {
+	id: string;
+	device_label: string;
+	device_host: string;
+	created_at: string;
+	profiles: { profile: string }[];
+}
 
-	constructor(config: { baseUrl?: string; token: string }) {
-		this.baseUrl = normalizeBaseUrl(config.baseUrl ?? DEFAULT_BASE_URL);
-		this.token = config.token;
-	}
-
+export class BossApiClient extends BossTransport {
 	static fromConnection(conn: StoredConnection): BossApiClient {
 		return new BossApiClient(conn);
 	}
@@ -70,6 +68,18 @@ export class BossApiClient {
 
 	async revokeClient(id: ClientId): Promise<OkResponse> {
 		return this.request<OkResponse>('DELETE', `/api/boss/clients/${encodeURIComponent(id)}`);
+	}
+
+	async revokeOwnToken(): Promise<void> {
+		const { token_id } = await this.me();
+		if (token_id) await this.request('DELETE', `/api/boss/tokens/${encodeURIComponent(token_id)}`);
+	}
+
+	async message(id: string): Promise<MessageResponse> {
+		const raw = await this.request<Record<string, unknown>>(
+			'GET', `/api/boss/messages/${encodeURIComponent(id)}`
+		);
+		return normalizeMessage(raw);
 	}
 
 	async overview(): Promise<BossOverview> {
@@ -101,12 +111,40 @@ export class BossApiClient {
 		return this.request<SessionsListResponse>('GET', '/api/boss/sessions');
 	}
 
+	async sessionEvents(id: string): Promise<{ next_after: number | null }> {
+		return this.request('GET', `/api/sessions/${encodeURIComponent(id)}/events?limit=500`);
+	}
+
+	async sessionNotes(id: string): Promise<{ notes: { id: string; body: string }[] }> {
+		return this.request('GET', `/api/boss/sessions/${encodeURIComponent(id)}/notes`);
+	}
+
+	async createSessionNote(id: string, body: string): Promise<void> {
+		await this.request('POST', `/api/boss/sessions/${encodeURIComponent(id)}/notes`, { body });
+	}
+
 	async agents(): Promise<AgentsListResponse> {
 		return this.request<AgentsListResponse>('GET', '/api/boss/agents');
 	}
 
+	async pendingJoins(): Promise<{ requests: JoinRequest[] }> {
+		return this.request('GET', '/api/boss/join-requests?status=pending');
+	}
+
+	async resolveJoin(id: string, action: 'approve' | 'reject'): Promise<void> {
+		await this.request('POST', `/api/boss/join-requests/${encodeURIComponent(id)}/${action}`);
+	}
+
 	async bosses(): Promise<BossesListResponse> {
 		return this.request<BossesListResponse>('GET', '/api/bosses');
+	}
+
+	async setBossArchived(id: string, archived: boolean): Promise<void> {
+		await this.request('POST', `/api/bosses/${encodeURIComponent(id)}/${archived ? 'archive' : 'restore'}`);
+	}
+
+	async createPairing(): Promise<{ code: string; expires_at: string }> {
+		return await this.request('POST', '/api/boss/pairing');
 	}
 
 	async createBoss(body: BossCreateRequest): Promise<BossRecord> {
@@ -236,8 +274,8 @@ export class BossApiClient {
 	}
 
 	/** SSE URL helpers — wiring optional this task. */
-	streamUrl(kind: 'options' | 'feed' = 'feed'): string {
-		const q = kind === 'options' ? 'options=true' : 'feed=true';
+	streamUrl(kind: 'options' | 'feed' | 'inputs' = 'feed'): string {
+		const q = kind + '=true';
 		return `${this.baseUrl}/api/boss/stream?${q}`;
 	}
 
@@ -245,25 +283,6 @@ export class BossApiClient {
 		return { Authorization: `Bearer ${this.token}`, Accept: 'text/event-stream' };
 	}
 
-	private async request<T>(
-		method: string,
-		path: string,
-		body?: unknown
-	): Promise<T> {
-		const res = await fetch(`${this.baseUrl}${path}`, {
-			method,
-			headers: {
-				Authorization: `Bearer ${this.token}`,
-				Accept: 'application/json',
-				...(body !== undefined ? { 'Content-Type': 'application/json' } : {})
-			},
-			body: body !== undefined ? JSON.stringify(body) : undefined
-		});
-		const text = await res.text();
-		if (!res.ok) throw new ApiError(res.status, text || res.statusText);
-		if (!text) return undefined as T;
-		return JSON.parse(text) as T;
-	}
 }
 
 export async function validateConnection(

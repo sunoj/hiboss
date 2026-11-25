@@ -7,12 +7,32 @@
 	import type { BossClient } from '$lib/api/clients';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import { ApiError } from '$lib/api/types';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import CopyBlock from '$lib/message/CopyBlock.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 
 	let clients = $state<BossClient[]>([]);
 	let loading = $state(true);
 	let pending = $state<string | null>(null);
 	let error = $state<string | null>(null);
+	let confirm = $state<BossClient | null>(null);
+	let pairing = $state<{ code: string; expires_at: string } | null>(null);
+	let pairingAvailable = $state(true);
+	let pairingBusy = $state(false);
+	let pairingError = $state('');
+
+	async function addDevice() {
+		const client = auth.client;
+		if (!client || pairingBusy) return;
+		pairingBusy = true;
+		pairingError = '';
+		try { pairing = await client.createPairing(); }
+		catch (failure) {
+			if (failure instanceof ApiError && [404, 405].includes(failure.status)) pairingAvailable = false;
+			else pairingError = failure instanceof Error ? failure.message : String(failure);
+		} finally { pairingBusy = false; }
+	}
 
 	async function load(): Promise<void> {
 		if (pending) return;
@@ -30,7 +50,6 @@
 
 	async function revoke(client: BossClient): Promise<void> {
 		if (pending || client.is_current || client.revoked_at || !auth.client) return;
-		if (!window.confirm(t('devices.confirm', { name: client.label }))) return;
 		pending = client.id;
 		error = null;
 		try {
@@ -52,9 +71,21 @@
 
 <section class="page">
 	<header>
-		<div><h1>{t('page.devices')}</h1><p>{t('page.devicesSub')}</p></div>
+		<h1>{t('page.devices')}</h1>
+		{#if pairingAvailable && auth.connection?.boss?.role !== 'viewer'}
+			<button onclick={addDevice} disabled={pairingBusy}>{t('console.addDevice')}</button>
+		{/if}
 		<button onclick={load} disabled={loading || pending !== null}>{t('common.refresh')}</button>
 	</header>
+	{#if pairing}
+		<CopyBlock text={pairing.code} label={t('console.pairExpires', { time: formatDateTime(pairing.expires_at) })} />
+	{/if}
+	{#if pairingError}<p role="alert">{pairingError}</p>{/if}
+	{#if confirm}
+		{@const current = confirm}
+		<ConfirmDialog action={t('devices.revoke')} message={t('devices.confirm', { name: current.label })}
+			onConfirm={() => revoke(current)} onClose={() => { confirm = null; }} />
+	{/if}
 	{#if error}<ErrorState message={error} onRetry={load} />{/if}
 	{#if loading && clients.length === 0}
 		<Skeleton rows={4} />
@@ -63,9 +94,9 @@
 	{:else}
 		<ul>
 			{#each clients as client (client.id)}
-				<li>
+				<li class:revoked={!!client.revoked_at}>
 					<div class="identity"><strong>{client.label}</strong>
-						{#if client.is_current}<span class="badge">{t('devices.thisBrowser')}</span>{/if}
+						{#if client.is_current}<span class="badge live">{t('devices.thisBrowser')}</span>{/if}
 						{#if client.revoked_at}<span>{t('devices.revoked')} · {date(client.revoked_at)}</span>{/if}
 					</div>
 					<dl>
@@ -76,7 +107,7 @@
 						<div><dt>{t('devices.signing')}</dt><dd>{t(client.has_signing_key ? 'devices.attached' : 'devices.none')}</dd></div>
 					</dl>
 					{#if !client.is_current && !client.revoked_at}
-						<button class="revoke" onclick={() => revoke(client)} disabled={pending !== null || loading}>
+						<button class="revoke" onclick={() => { confirm = client; }} disabled={pending !== null || loading}>
 							{t(pending === client.id ? 'devices.revoking' : 'devices.revoke')}
 						</button>
 					{/if}
@@ -87,21 +118,27 @@
 </section>
 
 <style>
-	.page { padding: 1.5rem; max-width: 80rem; margin: 0 auto; }
-	header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
-	h1 { font-size: 1.3rem; margin: 0; }
+	.page { max-width: 80rem; margin: 0 auto; }
+	header { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 1.5rem; }
+	h1 { font: var(--t-large); margin: 0 auto 0 0; }
 	p, dt { color: var(--hb-text-muted); }
 	p { font-size: 0.8rem; margin: 0.4rem 0 0; }
-	ul { list-style: none; padding: 0; margin: 0; }
-	li { padding: 1.2rem 0; border-top: 1px solid var(--hb-border); }
+	ul { list-style: none; padding: 0; margin: 0; background: var(--surface);
+		border: 1px solid var(--border); border-radius: var(--r-l); container-type: inline-size; }
+	li { padding: 12px 16px; }
+	li + li { border-block-start: 1px solid var(--hairline); }
+	.revoked { color: var(--text-3); }
 	.identity { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; overflow-wrap: anywhere; }
 	.identity span { font-size: 0.75rem; color: var(--hb-text-muted); }
-	.identity .badge { color: var(--hb-accent); }
+	.identity .badge { color: var(--live); }
 	dl { display: flex; flex-wrap: wrap; gap: 1rem 2rem; font-size: 0.8rem; }
 	dt { margin-bottom: 0.35rem; }
 	dd { margin: 0; }
-	button { border: 1px solid var(--hb-border); background: var(--hb-bg-elevated); color: var(--hb-text); padding: 0.5rem 0.8rem; border-radius: var(--hb-radius-sm); cursor: pointer; }
+	button { min-height: var(--hit); border: 1px solid var(--hb-border); background: var(--hb-bg-elevated); color: var(--hb-text); padding: 0.5rem 0.8rem; border-radius: var(--hb-radius-sm); cursor: pointer; }
 	button:disabled { opacity: 0.5; cursor: not-allowed; }
-	.revoke { color: var(--hb-priority-critical, tomato); }
-	@media (max-width: 600px) { .page { padding: 1rem; } dl { gap: 1rem; } dl div { min-width: 44%; } }
+	.revoke { color: var(--danger); }
+	@container (width < 600px) {
+		dl, dl div { display: grid; gap: 4px 12px; }
+		dl div { grid-template-columns: minmax(96px, 35%) minmax(0, 1fr); }
+	}
 </style>

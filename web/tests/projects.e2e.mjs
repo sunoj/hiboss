@@ -24,6 +24,9 @@ async function setup(role = 'admin', viewport = { width: 1280, height: 900 }) {
     localStorage.setItem('hiboss.web.connection', JSON.stringify({ baseUrl: baseURL, token: 'fixture', boss: { id: 'boss', name: 'Boss', role } }));
     localStorage.setItem('hiboss.locale', 'en');
   }, { baseURL, role });
+  await page.route('**/api/boss/stream?inputs=true', route => route.fulfill({
+    contentType: 'text/event-stream', body: 'event: ready\ndata: {}\n\n'
+  }));
   await page.route('**/api/boss/projects**', async route => {
     if (route.request().method() === 'PATCH') {
       const id = route.request().url().split('/').at(-1);
@@ -48,20 +51,20 @@ async function setup(role = 'admin', viewport = { width: 1280, height: 900 }) {
 test('rename persists, cancelled merge sends nothing, confirmed merge moves source to target', async () => {
   const { page, patches } = await setup();
   try {
-    const source = page.locator('li').filter({ has: page.getByRole('heading', { name: 'source', exact: true }) });
+    const source = page.locator('li').filter({ has: page.locator('code').filter({ hasText: /^source$/ }) });
+    await source.locator('summary').click();
     await source.getByLabel('Display name', { exact: true }).fill('Source Display');
     await source.getByRole('button', { name: 'Save name', exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('input')?.value === 'Source Display');
+    await page.getByRole('heading', { name: 'Source Display', exact: true }).waitFor();
     await source.getByRole('combobox', { name: 'Merge into', exact: true }).selectOption('target');
-    page.once('dialog', dialog => dialog.dismiss());
     await source.getByRole('button', { name: 'Merge', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
     assert.equal(patches.length, 1);
-    page.once('dialog', async dialog => {
-      assert.match(dialog.message(), /source.*target/);
-      await dialog.accept();
-    });
     await source.getByRole('button', { name: 'Merge', exact: true }).click();
-    await page.getByRole('heading', { name: 'source', exact: true }).waitFor({ state: 'detached' });
+    const dialog = page.getByRole('dialog');
+    assert.match(await dialog.innerText(), /source.*target/);
+    await dialog.getByRole('button', { name: 'Merge', exact: true }).click();
+    await page.getByRole('heading', { name: 'Source Display', exact: true }).waitFor({ state: 'detached' });
     assert.deepEqual(patches, [{ id: 'source', display_name: 'Source Display' }, { id: 'source', merge_into: 'target' }]);
     await page.reload();
     await page.getByRole('heading', { name: 'target', exact: true }).waitFor();
@@ -78,7 +81,11 @@ test('four locales render project management labels', async () => {
       ['en', 'Projects', 'Display name'], ['zh-CN', '项目', '显示名称'],
       ['ja', 'プロジェクト', '表示名'], ['ko', '프로젝트', '표시 이름']
     ]) {
-      await page.locator('.language select').selectOption(locale);
+      const account = page.getByRole('button', { name: 'Account: Boss' });
+      if (await account.count()) await account.click();
+      else await page.locator('.account summary').click();
+      await page.locator('.account select').first().selectOption(locale);
+      await page.locator('.account summary').click();
       await page.getByRole('heading', { name: title, exact: true }).waitFor();
       assert.equal(await page.getByLabel(displayName, { exact: true }).count(), 2);
     }
@@ -88,6 +95,7 @@ test('four locales render project management labels', async () => {
 test('mobile controls stay reachable without horizontal overflow', async () => {
   const { page } = await setup('admin', { width: 390, height: 844 });
   try {
+    await page.locator('li summary').last().click();
     await page.getByRole('button', { name: 'Merge', exact: true }).last().scrollIntoViewIfNeeded();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await mkdir('output/playwright', { recursive: true });

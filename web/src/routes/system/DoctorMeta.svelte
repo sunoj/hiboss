@@ -6,21 +6,22 @@
 
 	interface Props {
 		serverTime: string;
+		dbOk: boolean;
 		connectivity: ConnectivityResult;
 	}
 
-	let { serverTime, connectivity }: Props = $props();
+	let { serverTime, connectivity, dbOk }: Props = $props();
 </script>
 
 <div class="meta panel">
 	<div class="cell">
-		<div class="label">{t('form.serverTime')}</div>
-		<div class="value mono">{formatServerTime(serverTime)}</div>
+		<div class="label">{t('form.database')}</div>
+		<div class="value" class:fail={!dbOk}>{t(dbOk ? 'status.dbOk' : 'status.dbFail')}</div>
 	</div>
 	<div class="cell">
-		<div class="label">{t('form.apiLatency')}</div>
+		<div class="label">{t('form.apiMe')}</div>
 		<div class="value mono" class:fail={!connectivity.ok}>
-			{formatLatency(connectivity.latencyMs)}
+			{t(connectivity.ok ? 'status.apiOk' : 'status.apiFail')} · {formatLatency(connectivity.latencyMs)}
 		</div>
 		{#if connectivity.error}
 			<div class="err">{connectivity.error}</div>
@@ -39,27 +40,23 @@
 			<div class="value muted">{t('form.notVerified')}</div>
 		{/if}
 	</div>
+	{#if serverTime}
+		<div class="cell">
+			<div class="label">{t('form.serverTime')}</div>
+			<div class="value mono">{formatServerTime(serverTime)}</div>
+		</div>
+	{/if}
 </div>
 
 <style>
 	@import '../../lib/design/panel.css';
-	.meta {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.85rem;
-	}
-	.cell {
-		min-width: 0;
-	}
-	.label {
-		color: var(--hb-text-muted);
-		font-size: 11px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-	}
+	.meta { padding: 0; border-color: var(--border); box-shadow: none; }
+	.cell { display: grid; grid-template-columns: minmax(96px, 28%) minmax(0, 1fr);
+		gap: 4px 12px; padding: 12px 16px; align-items: baseline; overflow-wrap: anywhere; }
+	.cell + .cell { border-block-start: 1px solid var(--hairline); }
+	.label { color: var(--text-2); font: var(--t-footnote); }
 	.value {
-		margin-top: 0.35rem;
+
 		font-size: 0.95rem;
 		font-weight: 600;
 	}
@@ -78,12 +75,10 @@
 		margin-top: 0.25rem;
 		color: var(--hb-danger);
 		font-size: 11px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		grid-column: 2;
 	}
 	.boss {
-		margin-top: 0.35rem;
+
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -100,10 +95,5 @@
 		color: var(--hb-accent);
 		background: color-mix(in srgb, var(--hb-accent) 14%, transparent);
 		border: 1px solid transparent;
-	}
-	@media (max-width: 720px) {
-		.meta {
-			grid-template-columns: 1fr;
-		}
 	}
 </style>

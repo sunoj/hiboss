@@ -9,8 +9,7 @@
 }
 h1 {
 	margin: 0;
-	font-size: 1.25rem;
-	font-weight: 700;
+	font: var(--t-large);
 	letter-spacing: -0.02em;
 }
 .sub {

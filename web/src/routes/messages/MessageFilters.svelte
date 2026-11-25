@@ -3,7 +3,7 @@
 		DIRECTIONS,
 		MESSAGE_STATUSES,
 		PRIORITIES,
-		directionLabel,
+		directionLabel, priorityLabel, statusLabel,
 		type Direction,
 		type MessageStatus,
 		type Priority
@@ -58,6 +58,17 @@
 </script>
 
 <form class="filters" onsubmit={handleSubmit}>
+
+		<label class="field grow wide">
+			<span class="label">{t('form.searchPage')}</span>
+			<input
+				type="search"
+				placeholder={t('form.searchBody')}
+				value={filters.search}
+				oninput={(e) => setSearch(e.currentTarget.value)}
+			/>
+		</label>
+	<details><summary>{t('console.moreFilters')}</summary>
 	<div class="row">
 		<label class="field">
 			<span class="label">{t('form.direction')}</span>
@@ -80,7 +91,7 @@
 			>
 				<option value="all">{t('common.all')}</option>
 				{#each MESSAGE_STATUSES as st (st)}
-					<option value={st}>{st as MessageStatus}</option>
+					<option value={st}>{statusLabel(st as MessageStatus)}</option>
 				{/each}
 			</select>
 		</label>
@@ -105,15 +116,6 @@
 			/>
 		</label>
 
-		<label class="field grow wide">
-			<span class="label">{t('form.searchPage')}</span>
-			<input
-				type="search"
-				placeholder={t('form.searchBody')}
-				value={filters.search}
-				oninput={(e) => setSearch(e.currentTarget.value)}
-			/>
-		</label>
 	</div>
 
 	<div class="row priorities">
@@ -126,7 +128,7 @@
 					class:active={filters.priorities.includes(p)}
 					onclick={() => flipPriority(p)}
 				>
-					{p}
+					{priorityLabel(p)}
 				</button>
 			{/each}
 		</div>
@@ -151,6 +153,7 @@
 		</div>
 		<button type="submit" class="apply">{t('common.apply')}</button>
 	</div>
+</details>
 </form>
 
 <style>
@@ -192,4 +195,6 @@
 	.apply:hover {
 		background: color-mix(in srgb, var(--hb-accent) 35%, var(--hb-bg-elevated));
 	}
+	summary { min-height: var(--hit); cursor: pointer; padding-block: 10px; }
+	input, select { min-height: var(--hit); }
 </style>

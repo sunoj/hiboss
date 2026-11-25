@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentResponse } from '$lib/api/types';
 import {
+	agentConfig,
 	buildConfigUpdate,
 	compareLastUsedDesc,
 	defaultAgentConfig,
@@ -149,5 +150,18 @@ describe('defaultAgentConfig / isAgentChannel', () => {
 		});
 		expect(isAgentChannel('discord')).toBe(true);
 		expect(isAgentChannel('sms')).toBe(false);
+	});
+});
+
+describe('agent sending defaults from the inventory', () => {
+	const row: AgentResponse = {
+		id: 'fixture', name: 'Builder', role: 'builder', last_used_at: null, created_at: '2026-09-12T00:00:00Z'
+	};
+	it('preserves the legacy blank defaults', () => {
+		expect(agentConfig(row)).toEqual(defaultAgentConfig());
+	});
+	it('uses all supported server fields and preserves a zero rate limit', () => {
+		const config = { default_priority: 'high', rate_limit: 0, channel_routing: { high: 'discord' } } as const;
+		expect(agentConfig({ ...row, ...config })).toEqual(config);
 	});
 });

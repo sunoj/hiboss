@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connect · HiBoss console mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="console.css">
+</head>
+<body>
+<main class="center">
+<div class="card">
+<div class="line"><span class="brand" style="padding:0"><span class="mark" aria-hidden="true">hb</span>HiBoss</span>
+<span class="grow"></span>
+<label><span class="sr">Language</span><select class="select" style="min-height:36px;width:auto"><option>English</option><option>简体中文</option><option>日本語</option><option>한국어</option></select></label>
+<button class="iconbtn" type="button" data-theme-toggle aria-label="Switch between light and dark" style="background:var(--neutral-soft)"><span class="ic theme" aria-hidden="true"></span></button></div>
+<div class="scene" role="img" aria-label="A small island with a palm tree and an empty deck chair"><img class="art light" src="../design-v4/scenes/island-day.svg" alt=""><img class="art dark" src="../design-v4/scenes/island-night.svg" alt=""></div>
+<div class="stack">
+<h1 style="font:var(--t-title)">Connect this browser</h1>
+<p class="line fn"><span class="dot settled" aria-hidden="true"></span><span>hiboss.example.net is reachable</span></p>
+</div>
+<form class="stack" action="overview.html">
+<label class="field" for="code">Pairing code
+<input class="input mono" id="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" placeholder="hb_pair_…" aria-describedby="code-help"></label>
+<p class="help" id="code-help">Create a code in a paired iPhone or Mac app, or paste the pairing link that setup printed. A code lasts five minutes and works once.</p>
+<button class="btn primary" type="submit">Connect</button>
+</form>
+<details><summary>Use a boss token instead</summary>
+<form class="stack" action="overview.html"><label class="field">Boss token<input class="input mono" type="password" autocomplete="off" placeholder="hb_boss_…"></label><button class="btn" type="submit">Connect with token</button></form></details>
+<details><summary>Nothing is paired with this server yet</summary>
+<div class="md"><p>Create the first boss from the machine that deployed the server. The command prints a pairing code for this screen.</p>
+<div class="copyblock"><header>First boss<button class="btn small quiet" type="button">Copy</button></header><pre>hiboss setup --server https://hiboss.example.net --bootstrap-secret &lt;secret&gt;</pre></div></div></details>
+<details><summary>Connect to a different server</summary>
+<label class="field">Server URL<input class="input" type="url" value="https://hiboss.example.net"></label></details>
+<p class="help">This browser is listed as its own device, and its token is kept in this browser until you sign out. Revoke it at any time from Devices, here or in the apps.</p>
+</div>
+</main>
+<script src="theme.js"></script>
+</body>
+</html>

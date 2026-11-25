@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { AgentConfigResponse } from '$lib/api/types';
 	import { apiErrorMessage } from '$lib/api/types';
-	import { PRIORITIES, type Priority } from '$lib/design/semantics';
+	import { priorityLabel, PRIORITIES, type Priority } from '$lib/design/semantics';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { t } from '$lib/i18n';
@@ -28,8 +28,13 @@
 	let rateLimitRaw = $state('');
 	let routing = $state<RoutingEntry[]>([]);
 	let saving = $state(false);
+	let baseline = $state<AgentConfigResponse>(defaultAgentConfig());
+	const dirty = $derived(priority !== baseline.default_priority
+		|| rateLimitRaw !== rateLimitToInput(baseline.rate_limit)
+		|| JSON.stringify(routing) !== JSON.stringify(routingEntriesFromMap(baseline.channel_routing)));
 
 	function applyConfig(config: AgentConfigResponse) {
+		baseline = config;
 		priority = config.default_priority;
 		rateLimitRaw = rateLimitToInput(config.rate_limit);
 		routing = routingEntriesFromMap(config.channel_routing);
@@ -72,10 +77,16 @@
 			toasts.push(built.error, 'error');
 			return;
 		}
-		if (saving) return;
+		if (saving || !dirty) return;
 		saving = true;
 		try {
-			const updated = await client.updateAgentConfig(agentId, built.body);
+			const updated = await client.updateAgentConfig(agentId, {
+				...(built.body.default_priority !== baseline.default_priority
+					? { default_priority: built.body.default_priority } : {}),
+				...(built.body.rate_limit !== baseline.rate_limit ? { rate_limit: built.body.rate_limit } : {}),
+				...(JSON.stringify(routing) !== JSON.stringify(routingEntriesFromMap(baseline.channel_routing))
+					? { channel_routing: built.body.channel_routing } : {})
+			});
 			applyConfig(updated);
 			onSaved?.(updated);
 			toasts.push(t('form.agentConfigSaved'), 'success');
@@ -96,7 +107,7 @@
 			<span class="label">{t('form.defaultPriority')}</span>
 			<select bind:value={priority} disabled={saving}>
 				{#each PRIORITIES as p (p)}
-					<option value={p}>{p}</option>
+					<option value={p}>{priorityLabel(p)}</option>
 				{/each}
 			</select>
 		</label>
@@ -153,7 +164,7 @@
 		</div>
 	</div>
 
-	<button type="button" class="save" disabled={saving} onclick={() => void save()}>
+	<button type="button" class="save" disabled={saving || !dirty} onclick={() => void save()}>
 		{saving ? t('common.saving') : t('form.saveConfig')}
 	</button>
 </section>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { apiErrorMessage, type MessageResponse, type OptionMedia } from '$lib/api/types';
+	import { ApiError, apiErrorMessage, type MessageResponse, type OptionMedia } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { t } from '$lib/i18n';
@@ -9,12 +9,14 @@
 		options: string[];
 		optionMedia: OptionMedia[];
 		optionsExpired: boolean;
+		replyDisabled?: boolean;
 		onUpdated?: (message: MessageResponse) => void;
 	}
 
-	let { messageId, options, optionMedia, optionsExpired, onUpdated }: Props = $props();
+	let { messageId, options, optionMedia, optionsExpired, replyDisabled = false, onUpdated }: Props = $props();
 
 	let replyText = $state('');
+	let replyError = $state<string | null>(null);
 	let busy = $state(false);
 	let forwardChannel = $state<'discord' | 'telegram'>('discord');
 
@@ -43,12 +45,20 @@
 			toasts.push(t('form.replyEmpty'), 'warning');
 			return;
 		}
-		await withBusy(async () => {
-			const updated = await auth.client!.reply(messageId, { body: text });
-			toasts.push(t('form.sendReply'), 'success');
+		if (busy || !auth.client || replyDisabled) return;
+		busy = true;
+		replyError = null;
+		try {
+			const updated = await auth.client.reply(messageId, { body: text });
 			replyText = '';
 			onUpdated?.(updated);
-		});
+		} catch (failure) {
+			replyError = failure instanceof ApiError && failure.status === 409
+				? t('console.integrationReply') : apiErrorMessage(failure);
+		} finally {
+			busy = false;
+		}
+
 	}
 
 	async function sendReact(emoji: string) {
@@ -106,13 +116,16 @@
 	</section>
 {/if}
 
+{#if !replyDisabled}
 <section class="block">
 	<h3>{t('form.sendReply')}</h3>
-	<textarea rows="3" placeholder={t('form.writeReply')} bind:value={replyText} disabled={busy}></textarea>
+	<textarea aria-label={t('form.writeReply')} rows="3" placeholder={t('form.writeReply')} bind:value={replyText} disabled={busy}></textarea>
 	<button type="button" class="btn primary" disabled={busy} onclick={() => sendReply(replyText)}>
 		{t('form.sendReply')}
 	</button>
+	{#if replyError}<p role="alert">{replyError}</p>{/if}
 </section>
+{/if}
 
 <section class="block">
 	<h3>{t('form.react')}</h3>

@@ -1,0 +1,10 @@
+/* Shared addressable list and detail layout.
+   Phone navigation gives each pane the full width. */
+.console-split { display: grid; gap: 16px; align-items: start; }
+.console-split > * { min-width: 0; }
+@media (max-width: 767px) {
+	.console-split[data-detail] > .console-list { display: none; }
+}
+@media (min-width: 768px) {
+	.console-split[data-detail] { grid-template-columns: minmax(260px, min(360px, 36%)) minmax(0, 1fr); }
+}

@@ -1,87 +1,131 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { DEFAULT_BASE_URL } from '$lib/api/auth';
-	import { i18n, LOCALES, t, type Locale } from '$lib/i18n';
+	import { onMount } from 'svelte';
+	import { normalizeBaseUrl } from '$lib/api/auth';
+	import { pairingCode } from '$lib/api/pairing';
+	import ConsolePreferences from '$lib/components/ConsolePreferences.svelte';
+	import IslandScene from '$lib/components/IslandScene.svelte';
+	import CopyBlock from '$lib/message/CopyBlock.svelte';
+	import { t } from '$lib/i18n';
 
-	let baseUrl = $state(DEFAULT_BASE_URL);
+	let baseUrl = $state(location.origin);
+	let code = $state('');
+	let reachable = $state<boolean | 'unprobed' | null>(null);
+	let pairingMissing = $state(false);
+	let host = $state(location.host);
+	let probeVersion = 0;
+
+	onMount(() => { void probe(); });
+
+	async function probe(): Promise<void> {
+		const version = ++probeVersion;
+		reachable = null;
+		pairingMissing = false;
+		try {
+			const url = new URL(baseUrl);
+			host = url.host;
+			if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) {
+				reachable = false;
+				return;
+			}
+			if (url.origin !== location.origin) {
+				// The public root is outside the server's CORS middleware.
+				reachable = 'unprobed';
+				return;
+			}
+			const response = await fetch(url.origin, { signal: AbortSignal.timeout(5000) });
+			if (version === probeVersion) reachable = response.status === 404 ? 'unprobed' : response.ok;
+		} catch {
+			if (version === probeVersion) reachable = false;
+		}
+	}
 	let token = $state('');
 	let connecting = $state(false);
 	let error = $state<string | null>(null);
 
-	async function submit(event: Event): Promise<void> {
+	async function submit(event: Event, method: 'pair' | 'token'): Promise<void> {
 		event.preventDefault();
 		if (connecting) return;
 		connecting = true;
 		error = null;
 		try {
-			await auth.connect(baseUrl.trim(), token.trim());
+			const origin = normalizeBaseUrl(baseUrl);
+			if (method === 'pair') {
+				const value = pairingCode(code);
+				if (!/^hb_pair_[0-9a-f]{64}$/i.test(value)) throw new Error(t('console.invalidPair'));
+				await auth.pair(origin, value);
+			} else await auth.connect(origin, token.trim());
 			await goto('/');
 		} catch (err) {
-			error = err instanceof Error ? err.message : String(err);
+			if (method === 'pair' && err && typeof err === 'object' && 'status' in err) {
+				pairingMissing = err.status === 404 || err.status === 405;
+				error = err.status === 400 ? t('console.invalidPair') : String(err);
+			} else error = err instanceof Error ? err.message : String(err);
 		} finally {
 			connecting = false;
 		}
 	}
 
-	function selectLocale(event: Event): void {
-		const value = (event.currentTarget as HTMLSelectElement).value;
-		if ((LOCALES as readonly string[]).includes(value)) i18n.setLocale(value as Locale);
-	}
 </script>
 
-<div class="screen">
-	<form class="card" onsubmit={submit}>
+<main class="screen">
+	<div class="card">
 		<div class="brand">
-			<span class="mark">hb</span>
-			<div>
-				<div class="name">{t('app.title')}</div>
-				<div class="sub">{t('brand.subtitle')}</div>
-			</div>
-			<label class="language">
-				<span class="sr-only">{t('language.label')}</span>
-				<select value={i18n.locale} onchange={selectLocale} aria-label={t('language.label')}>
-					<option value="en">{t('language.en')}</option>
-					<option value="zh-CN">{t('language.zh')}</option>
-					<option value="ja">{t('language.ja')}</option>
-					<option value="ko">{t('language.ko')}</option>
-				</select>
-			</label>
+			<span class="mark" aria-hidden="true">hb</span>
+			<span class="name">HiBoss</span>
 		</div>
-
-		<label>
-			<span>{t('connect.serverUrl')}</span>
-			<input
-				type="url"
-				bind:value={baseUrl}
-				placeholder="https://your-hiboss-server.workers.dev"
-				autocomplete="off"
-				required
-			/>
-		</label>
-
-		<label>
-			<span>{t('connect.bossToken')}</span>
-			<input
-				type="password"
-				bind:value={token}
-				placeholder="hb_boss_…"
-				autocomplete="off"
-				required
-			/>
-		</label>
-
-		{#if error}
-			<p class="error" role="alert">{error}</p>
+		<ConsolePreferences />
+		<IslandScene />
+		<h1>{t('console.connectBrowser')}</h1>
+		{#if typeof reachable === 'boolean'}
+			<p role="status" class:reachable={reachable === true}>{t(reachable ? 'console.reachable' : 'console.unreachable', { host })}</p>
 		{/if}
-
-		<button type="submit" disabled={connecting || !token.trim()}>
-			{connecting ? t('connect.connecting') : t('connect.connect')}
-		</button>
-
+		{#if reachable === false}
+			<button type="button" onclick={probe}>{t('common.refresh')}</button>
+		{:else if reachable}
+			{#if !pairingMissing}
+				<form onsubmit={(event) => submit(event, 'pair')}>
+					<label>
+						<span>{t('console.pairCode')}</span>
+						<input bind:value={code} autocomplete="one-time-code" spellcheck="false"
+							placeholder="hb_pair_…" aria-describedby="pair-help" required />
+					</label>
+					<p class="hint" id="pair-help">{t('console.pairHelp')}</p>
+					<button class="primary" disabled={connecting || !code.trim()}>
+						{t(connecting ? 'connect.connecting' : 'connect.connect')}
+					</button>
+				</form>
+			{/if}
+			<details open={pairingMissing}>
+				<summary>{t('console.useToken')}</summary>
+				<form onsubmit={(event) => submit(event, 'token')}>
+					<label>
+						<span>{t('connect.bossToken')}</span>
+						<input type="password" bind:value={token} placeholder="hb_boss_…" required />
+					</label>
+					<button disabled={connecting || !token.trim()}>{t('connect.connect')}</button>
+				</form>
+			</details>
+			<details>
+				<summary>{t('console.pairSetup')}</summary>
+				<p>{t('console.firstBoss')}</p>
+				<CopyBlock text={`hiboss setup --server ${baseUrl.trim()} --bootstrap-secret <secret>`} />
+			</details>
+		{:else}
+			<p role="status">{t('console.checking')}</p>
+		{/if}
+		{#if error}<p class="error" role="alert">{error}</p>{/if}
+		<details>
+			<summary>{t('console.differentServer')}</summary>
+			<label>
+				<span>{t('connect.serverUrl')}</span>
+				<input type="url" bind:value={baseUrl} onchange={probe} required />
+			</label>
+		</details>
 		<p class="hint">{t('connect.storedHint')}</p>
-	</form>
-</div>
+	</div>
+</main>
 
 <style>
 	.screen {
@@ -108,29 +152,6 @@
 		gap: 0.65rem;
 		margin-bottom: 0.25rem;
 	}
-	.language {
-		margin-left: auto;
-	}
-	.language select {
-		border: 1px solid var(--hb-border);
-		background: var(--hb-bg);
-		border-radius: var(--hb-radius-sm);
-		padding: 0.25rem 0.35rem;
-		color: var(--hb-text-muted);
-		font: inherit;
-		font-size: 11px;
-	}
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 	.mark {
 		width: 32px;
 		height: 32px;
@@ -145,10 +166,6 @@
 	}
 	.name {
 		font-weight: 700;
-	}
-	.sub {
-		font-size: 12px;
-		color: var(--hb-text-dim);
 	}
 	label {
 		display: flex;
@@ -194,4 +211,11 @@
 		font-size: 11px;
 		color: var(--hb-text-dim);
 	}
+	h1 { font: var(--t-large); margin: 0; }
+	p { margin: 0; }
+	form { display: grid; gap: 8px; }
+	input, button, summary { min-height: var(--hit); }
+	summary { cursor: pointer; padding-block: 10px; }
+	.reachable { color: var(--settled); }
+	button.primary { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
 </style>

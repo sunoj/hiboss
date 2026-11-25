@@ -1,6 +1,7 @@
 // Source dictionary for the web console.
 // Exports enMessages, the key source for all locale dictionaries.
 // Depends on feature dictionaries and the plural helper for count-sensitive messages.
+import { enConsole } from './console';
 import { enNotifications } from './notifications';
 import { enProjects } from './projects';
 import { enAgentKeys } from './agent-keys';
@@ -8,7 +9,7 @@ import { enDevices } from './devices';
 import { plural } from './plural';
 import type { MessageParams } from './types';
 const count = (params: MessageParams): number => Number(params.count ?? 0);
-export const enMessages = { ...enProjects, ...enAgentKeys, ...enDevices, ...enNotifications,
+export const enMessages = { ...enProjects, ...enAgentKeys, ...enDevices, ...enNotifications, ...enConsole,
 	'form.noDescription': 'No description', 'form.copy': 'Copy', 'form.copied': 'Copied',
 	'app.title': 'hiboss console',
 	'brand.console': 'Console',
@@ -20,17 +21,17 @@ export const enMessages = { ...enProjects, ...enAgentKeys, ...enDevices, ...enNo
 	'language.ja': '日本語',
 	'language.ko': '한국어',
 	'nav.aria': 'Console modules',
-	'nav.dashboard': 'Dashboard',
+	'nav.dashboard': 'Today',
 	'nav.messages': 'Messages',
 	'nav.sessions': 'Sessions',
 	'nav.agents': 'Agents',
 	'nav.groups': 'Groups',
-	'nav.bosses': 'Bosses & Access',
+	'nav.bosses': 'People & access',
 	'nav.routing': 'Routing',
 	'nav.channels': 'Channels',
 	'nav.audit': 'Audit',
-	'nav.system': 'System / Doctor',
-	'nav.short.dashboard': 'Overview', 'nav.short.messages': 'Messages',
+	'nav.system': 'Server',
+	'nav.short.dashboard': 'Today', 'nav.short.messages': 'Messages',
 	'nav.short.sessions': 'Sessions', 'nav.short.agents': 'Agents',
 	'nav.short.groups': 'Groups', 'nav.short.bosses': 'Access',
 	'nav.short.routing': 'Routing', 'nav.short.channels': 'Channels',
@@ -67,7 +68,7 @@ export const enMessages = { ...enProjects, ...enAgentKeys, ...enDevices, ...enNo
 	'common.channels': (p: MessageParams) => plural(count(p), 'en', { one: '1 channel', other: `${count(p)} channels` }),
 	'common.loaded': (p: MessageParams) => `Loaded ${p.loaded ?? 0} of ${p.total ?? 0}`, 'common.messageSummary': (p: MessageParams) => `Loaded ${p.loaded ?? 0} of ${p.total ?? 0} · filtered ${p.filtered ?? 0} · ${p.mode ?? ''}`,
 	'common.filtered': (p: MessageParams) => `filtered ${p.count ?? 0}`, 'common.latestDirections': 'Latest 10 · all directions',
-	'page.dashboard': 'Dashboard',
+	'page.dashboard': 'Today',
 	'page.dashboardSub': 'Overview — live KPIs, channel health, recent traffic',
 	'page.priorityDistribution': 'Priority distribution', 'page.last24h': 'Last 24h',
 	'page.sessionStatus': 'Session status',
@@ -91,7 +92,7 @@ export const enMessages = { ...enProjects, ...enAgentKeys, ...enDevices, ...enNo
 	'page.groupsSub': 'Agent groups — group list and whole-group broadcast',
 	'page.noGroups': 'No groups yet',
 	'page.noGroupsDetail': 'Create a group owned by an accessible agent to get started.',
-	'page.bosses': 'Bosses & Access',
+	'page.bosses': 'People & access',
 	'page.bossesSub': 'Access — boss roles, channel bindings, and agent access matrix',
 	'page.noBosses': 'No bosses yet',
 	'page.noBossesDetail': 'Create a boss to manage roles, bindings, and agent access.',
@@ -123,7 +124,7 @@ export const enMessages = { ...enProjects, ...enAgentKeys, ...enDevices, ...enNo
 	'page.flat': 'flat',
 	'page.checking': 'Checking…',
 	'page.rerunChecks': 'Re-run checks',
-	'page.system': 'System / Doctor',
+	'page.system': 'Server',
 	'page.systemSub': 'System — connectivity self-check, channel health, live stats',
 	'page.seenRecently': 'seen recently',
 	'page.noChannelRows': 'No channel rows returned.',

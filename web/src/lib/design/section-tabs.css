@@ -1,0 +1,7 @@
+/* Underlined, horizontally scrollable workspace tabs.
+   Imported into each route's scoped style sheet. */
+.section-tabs { display: flex; gap: 16px; margin-block-end: 16px; overflow-x: auto;
+	border-block-end: 1px solid var(--hairline); }
+.section-tabs a { display: flex; align-items: center; min-height: var(--hit); white-space: nowrap;
+	padding-inline: 4px; border-block-end: 2px solid transparent; color: var(--text-2); }
+.section-tabs a[aria-current="page"] { border-color: var(--ink); color: var(--ink); font-weight: 600; }

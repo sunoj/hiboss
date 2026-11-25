@@ -45,7 +45,8 @@ it.each(['en', 'zh-CN', 'ja', 'ko'] as const)('translates notification controls 
   for (const key of ['notifications.title', 'notifications.testHint', 'notifications.priority', 'notifications.credentials'] as const) expect(t(key)).not.toBe(key);
   expect(t('notifications.routes', { count: 2 })).toContain('2');
 });
-it('lists Notifications in navigation and leaves Channels unlisted', () => {
-  expect(NAV_MODULES.some(row => row.href === '/notifications')).toBe(true);
+it('lists Delivery in navigation and keeps legacy Notifications and Channels unlisted', () => {
+  expect(NAV_MODULES.some(row => row.href === '/delivery')).toBe(true);
+  expect(NAV_MODULES.some(row => row.href === '/notifications')).toBe(false);
   expect(NAV_MODULES.some(row => row.href === '/channels')).toBe(false);
 });

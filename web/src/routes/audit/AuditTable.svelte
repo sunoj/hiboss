@@ -1,11 +1,10 @@
 <script lang="ts">
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
-	import { formatRelativeTime } from '$lib/api/mappers';
+	import { formatDateTime } from '$lib/i18n';
 	import type { AuditActorType, AuditEntry } from '$lib/api/types';
 	import {
 		actorTypeLabel,
-		formatResource,
-		truncateDetails
+		formatResource
 	} from './audit-helpers';
 	import { t } from '$lib/i18n';
 
@@ -27,7 +26,7 @@
 	}
 </script>
 
-<div class="wrap" role="region" aria-label={t('form.auditLog')}>
+<div class="wrap table-region audit-table" role="region" aria-label={t('form.auditLog')}>
 	<table class="table">
 		<thead>
 			<tr>
@@ -41,10 +40,10 @@
 		<tbody>
 			{#each entries as row (row.id)}
 				<tr>
-					<td class="when" title={row.created_at}>
-						{formatRelativeTime(row.created_at)}
+					<td class="when" data-label={t('form.when')} title={row.created_at}>
+						<time datetime={row.created_at}>{formatDateTime(row.created_at)}</time>
 					</td>
-					<td class="actor">
+					<td class="actor" data-label={t('form.actor')}><div class="actor-label">
 						<span
 							class="type"
 							style:color={actorTone(row.actor_type)}
@@ -52,16 +51,18 @@
 						>
 							{actorTypeLabel(row.actor_type)}
 						</span>
-						<AgentIdentity name={row.actor_id} size="sm" />
+						<AgentIdentity name={row.actor_id} size="sm" /></div>
 					</td>
-					<td class="action">
+					<td class="action" data-label={t('form.action')}>
 						<code>{row.action}</code>
 					</td>
-					<td class="resource" title={row.resource_id ?? undefined}>
+					<td class="resource" data-label={t('form.resource')} title={row.resource_id ?? undefined}>
 						{formatResource(row.resource_type, row.resource_id)}
 					</td>
-					<td class="details" title={row.details ?? undefined}>
-						{truncateDetails(row.details)}
+					<td class="details" data-label={t('form.details')} title={row.details ?? undefined}>
+						{#if row.details}
+							<details><summary>{t('form.details')}</summary><pre>{row.details}</pre></details>
+						{/if}
 					</td>
 				</tr>
 			{/each}
@@ -105,7 +106,7 @@
 		font-family: var(--hb-font-mono);
 		font-size: 11px;
 	}
-	.actor {
+	.actor-label {
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
@@ -137,5 +138,9 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+	@media (max-width: 767px) {
+		.resource, .details { white-space: normal; overflow-wrap: anywhere; max-width: none; }
 	}
 </style>
