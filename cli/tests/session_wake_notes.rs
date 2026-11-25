@@ -93,9 +93,14 @@ fn a_note_left_while_the_session_works_wakes_it_only_after_the_turn_ends() {
 }
 
 #[test]
-fn a_note_read_before_the_poll_does_not_wake_the_session() {
+fn a_note_read_before_the_turn_ends_does_not_wake_the_session() {
     let pending: Pending = Arc::default();
     let (http, fixture, dir, socket) = idle_session("note-read", &pending);
+    // Left while the session works; the agent reads it (the server drops it from pending).
+    pending.lock().unwrap().push("note-read-1");
+    lift_poll_limit(&dir);
+    settle();
+    pending.lock().unwrap().clear();
     claude(&fixture, &["hook", "stop"], Some(&socket));
     lift_poll_limit(&dir);
     settle();
