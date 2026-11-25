@@ -48,8 +48,10 @@ test('explicit integration kind hides replies without message metadata', async (
 	const { page } = await setup();
 	try {
 		await page.goto(baseURL + '/messages/result-fixture');
-		await page.getByText('Integration', { exact: true }).waitFor({ state: 'visible' });
-		assert.equal(await page.getByRole('textbox', { name: /reply/i }).count(), 0);
+		const detail = page.locator('.message-detail');
+		await detail.getByText('Integration', { exact: true }).waitFor({ state: 'visible' });
+		await detail.getByText('Replies are off for this sender', { exact: true }).waitFor();
+		assert.equal(await detail.getByRole('textbox', { name: /reply/i }).count(), 0);
 	} finally { await page.close(); }
 });
 
