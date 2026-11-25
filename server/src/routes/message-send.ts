@@ -106,7 +106,7 @@ routes.post('/resolve-target', async (c) => {
   return c.json({ agent_id: target.targetAgentId, session_id: target.targetSessionId, target: target.targetSession });
 });
 
-async function persistSend(c: Context<{ Bindings: Env }>, input: SendInput, target: SendTarget): Promise<Response | MessageRow> {
+export async function persistSend(c: Context<{ Bindings: Env }>, input: SendInput, target: SendTarget): Promise<Response | MessageRow> {
   const { agentId, channelConfigs, requestedChannel, metadata, idempotencyKey, mode, body, priority, messageType, sessionId } = input;
   const { targetAgentId, targetSessionId, direction, targetSession } = target;
   // Agent-to-agent messages use 'api' channel; others use resolved channel config
@@ -144,7 +144,7 @@ async function persistSend(c: Context<{ Bindings: Env }>, input: SendInput, targ
   return inserted;
 }
 
-async function finishSend(c: Context<{ Bindings: Env }>, input: SendInput, target: SendTarget, inserted: MessageRow): Promise<Response> {
+export async function finishSend(c: Context<{ Bindings: Env }>, input: SendInput, target: SendTarget, inserted: MessageRow): Promise<Response> {
   const { agentId, payload, mode, priority, body, sessionId, options, channelConfigs, optionMediaResult, fileUrl, agentConfig } = input;
   const { direction, targetAgentId, targetSession, targetWarning } = target;
   // Options retain their cron lifetime; explicit blocking timeouts also cover text asks.
@@ -159,7 +159,8 @@ async function finishSend(c: Context<{ Bindings: Env }>, input: SendInput, targe
     await c.env.DB.prepare('UPDATE messages SET expires_at = ? WHERE id = ?').bind(expiresAt, inserted.id).run();
   }
   // Auto-update session status based on message characteristics
-  if (sessionId && direction === 'agent_to_boss') {
+  // An integration's session stays idle: an alert is not an agent working or waiting.
+  if (sessionId && direction === 'agent_to_boss' && !input.integration) {
     c.executionCtx.waitUntil(inferSessionStatus(c.env, agentId, sessionId, mode, priority as string, body));
   }
   await dispatchDestinations(c.env, inserted, channelConfigs);

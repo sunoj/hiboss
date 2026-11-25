@@ -2,9 +2,14 @@
 // Uses @cloudflare/vitest-pool-workers for real D1 + workerd runtime.
 // Depends on wrangler.toml for D1 binding definition.
 
+import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { cloudflarePool, cloudflareTest } from '@cloudflare/vitest-pool-workers';
+
+// wrangler.toml serves the built console from ../web/build; tests never read it, but the
+// runtime refuses to start when the directory is missing.
+mkdirSync(fileURLToPath(new URL('../web/build', import.meta.url)), { recursive: true });
 
 const workerOptions = {
   main: './src/middleware/deployment-test-worker.ts',

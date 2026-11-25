@@ -101,6 +101,15 @@ describe('GET /api/boss/agents', () => {
     const names = data.agents.map((a) => a.name);
     expect(names).toContain('test-agent');
   });
+
+  it('reports each agent kind, admin capability and sending defaults', async () => {
+    const res = await SELF.fetch('http://localhost/api/boss/agents', { headers: bossHeaders() });
+    const data = await res.json() as { agents: Record<string, unknown>[] };
+    const agent = data.agents.find((a) => a.name === 'test-agent');
+    expect(agent).toMatchObject({ kind: 'agent', default_priority: 'normal' });
+    expect(typeof agent?.admin).toBe('boolean');
+    expect(agent).not.toHaveProperty('is_admin');
+  });
 });
 
 describe('GET /api/boss/groups', () => {

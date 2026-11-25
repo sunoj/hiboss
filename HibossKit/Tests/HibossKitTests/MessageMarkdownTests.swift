@@ -39,6 +39,9 @@ final class MessageMarkdownTests: XCTestCase {
         XCTAssertEqual(links(in: MessageMarkdown.plainLinks("See https://hiboss.org/docs.")), ["https://hiboss.org/docs"])
         let wiki = "https://en.wikipedia.org/wiki/Swift_(programming_language)"
         XCTAssertEqual(links(in: MessageMarkdown.plainLinks("(see \(wiki))")), [wiki])
+        XCTAssertEqual(links(in: MessageMarkdown.plainLinks("[https://example.com/a[b]]")), ["https://example.com/a[b]"])
+        let long = "https://example.com/a" + String(repeating: ")", count: 20_000)
+        XCTAssertEqual(links(in: MessageMarkdown.plainLinks(long)), ["https://example.com/a"])
     }
 
     func testEveryLinkIsUnderlined() {
@@ -46,6 +49,8 @@ final class MessageMarkdownTests: XCTestCase {
         let linked = text.runs.filter { $0.link != nil }
         XCTAssertEqual(linked.count, 2)
         XCTAssertTrue(linked.allSatisfy { $0.swiftUI.underlineStyle == .single })
+        let labelled = MessageMarkdown.inline("[executor txs](https://bscscan.com/address/0x1)")
+        XCTAssertTrue(labelled.runs.contains { $0.link != nil && $0.swiftUI.underlineStyle == .single })
     }
 
     func testCodeSpansAndSchemelessNamesStayText() {

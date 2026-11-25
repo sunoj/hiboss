@@ -52,6 +52,20 @@ export function agentApiMetadata(agentId: string): Record<string, unknown> {
   };
 }
 
+/** A Discord-compatible webhook post: authorship rests on the URL's send-only token. */
+export function webhookProvenance(agentId: string, webhookId: string): Record<string, unknown> {
+  return {
+    source: 'webhook',
+    provenance: {
+      version: 1,
+      source: 'webhook',
+      actor: { kind: 'agent', id: agentId },
+      authentication: { kind: 'webhook_token', credential_id: webhookId },
+      signature: { status: 'not_applicable' },
+    },
+  };
+}
+
 /** Unsigned agent write: authorship rests on the bearer credential alone. */
 export function agentBearerProvenance(agentId: string, agentKeyId: string | null): Record<string, unknown> {
   return {

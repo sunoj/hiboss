@@ -2,6 +2,13 @@ name = "hiboss-server"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
+# The web console (web/, built by `npm run deploy`) is served from the root of this domain.
+# /api/* and /s/* always reach the Worker; any other unknown path falls back to the console.
+[assets]
+directory = "../web/build"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/s/*"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "hiboss-db"

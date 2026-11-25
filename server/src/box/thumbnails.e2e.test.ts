@@ -70,6 +70,7 @@ it('creates an item with a thumbnail part and serves it with private cache heade
   expect(got.status).toBe(200);
   expect(got.headers.get('content-type')).toBe('image/jpeg');
   expect(got.headers.get('x-content-type-options')).toBe('nosniff');
+  expect(got.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'");
   expect(got.headers.get('cache-control')).toBe('private, max-age=86400');
   const etag = got.headers.get('etag');
   expect(etag).toBeTruthy();

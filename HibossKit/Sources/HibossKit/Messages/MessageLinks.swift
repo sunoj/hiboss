@@ -26,8 +26,8 @@ extension MessageMarkdown {
             }
         }
         let string = String(text.characters)
-        guard string.localizedCaseInsensitiveContains("http"), let detector = linkDetector else { return }
-        let matches = detector.matches(in: string, range: NSRange(string.startIndex..., in: string))
+        let matches = string.localizedCaseInsensitiveContains("http")
+            ? linkDetector?.matches(in: string, range: NSRange(string.startIndex..., in: string)) ?? [] : []
         for match in matches {
             guard let detected = Range(match.range, in: string),
                   let found = webURLRange(in: string, detected),
@@ -55,11 +55,24 @@ extension MessageMarkdown {
         let lowered = candidate.lowercased()
         guard lowered.hasPrefix("http://") || lowered.hasPrefix("https://") else { return nil }
         var end = candidate.firstIndex { !$0.isASCII } ?? candidate.endIndex
+        // A closing bracket is trimmed only while unbalanced; counts are taken once, so this is linear.
+        var unmatched: [Character: Int] = [")": 0, "]": 0]
+        for character in candidate[..<end] {
+            switch character {
+            case "(": unmatched[")", default: 0] -= 1
+            case "[": unmatched["]", default: 0] -= 1
+            case ")", "]": unmatched[character, default: 0] += 1
+            default: break
+            }
+        }
         while end > candidate.startIndex {
             let last = candidate[candidate.index(before: end)]
-            let open = candidate[..<end].filter { $0 == "(" }.count
-            let close = candidate[..<end].filter { $0 == ")" }.count
-            guard ".,;:!?'\"]".contains(last) || (last == ")" && close > open) else { break }
+            if let excess = unmatched[last] {
+                guard excess > 0 else { break }
+                unmatched[last] = excess - 1
+            } else if !".,;:!?'\"".contains(last) {
+                break
+            }
             end = candidate.index(before: end)
         }
         let scheme = lowered.hasPrefix("https://") ? 8 : 7

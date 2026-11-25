@@ -47,6 +47,8 @@ it('creates image-only notes, returns ordered metadata and serves private bytes 
     expect(image.status).toBe(200);
     expect(image.headers.get('content-type')).toBe('image/png');
     expect(image.headers.get('cache-control')).toBe('private, max-age=3600');
+    expect(image.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'");
+    expect(image.headers.get('x-content-type-options')).toBe('nosniff');
     expect(new Uint8Array(await image.arrayBuffer())).toEqual(png);
   }
   const agent = await SELF.fetch(`https://test/api/sessions/image-session/notes/${note.id}/images/0`,

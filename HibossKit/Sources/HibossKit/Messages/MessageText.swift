@@ -28,5 +28,8 @@ public extension OptionMessage {
 }
 
 public extension SessionEvent {
-    var messageContent: String? { payload?.objectValue?["metadata"]?.objectValue?["content"]?.stringValue }
+    var messageContent: String? {
+        let metadata = payload?.objectValue?["metadata"]?.objectValue
+        return metadata?["rich_content"]?.stringValue ?? metadata?["content"]?.stringValue
+    }
 }

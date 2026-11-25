@@ -37,12 +37,12 @@ export async function resolveSendTarget(
   };
   // An agent name always wins, so no label or nickname can redirect it; exact session
   // names then beat id prefixes, which a short nickname could otherwise collide with.
-  const named = await c.env.DB.prepare('SELECT id FROM api_keys WHERE name = ?')
+  const named = await c.env.DB.prepare("SELECT id FROM api_keys WHERE name = ? AND kind = 'agent'")
     .bind(toAgent).first<{ id: string }>();
   const exact = named ? null : await findExactSessionTarget(c.env.DB, toAgent, sessionId);
   if (exact) return sessionSendTarget(exact, toAgent);
   const agentTarget = named
-    ?? await c.env.DB.prepare("SELECT id FROM api_keys WHERE id LIKE ? ESCAPE '\\' LIMIT 1")
+    ?? await c.env.DB.prepare("SELECT id FROM api_keys WHERE id LIKE ? ESCAPE '\\' AND kind = 'agent' LIMIT 1")
       .bind(`${escapeLike(toAgent)}%`).first<{ id: string }>();
   if (agentTarget) return {
     targetAgentId: agentTarget.id, targetSessionId: null, direction: 'agent_to_agent',
@@ -68,7 +68,8 @@ interface SessionTarget {
 
 const TARGET_SELECT = `SELECT s.id, s.agent_id, s.label AS stored_label, s.nickname,
   ${SESSION_LABEL_SQL} AS label, s.status, s.last_seen_at
-  FROM sessions s LEFT JOIN projects p ON p.id = s.project_id`;
+  FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
+  JOIN api_keys peer ON peer.id = s.agent_id AND peer.kind = 'agent'`;
 
 async function findExactSessionTarget(
   db: D1Database, target: string, self: string | null,
@@ -114,6 +115,7 @@ async function missingTarget(
     .prepare(`SELECT id, label, last_seen_at, COUNT(*) OVER () AS total_count FROM sessions
       WHERE status != 'completed'
         AND last_seen_at > datetime('now', '-${REACHABLE_TARGET_MAX_AGE_HOURS} hours')${excludeSelf}
+        AND agent_id IN (SELECT id FROM api_keys WHERE kind = 'agent')
       ORDER BY CASE WHEN last_seen_at > datetime('now', '-15 minutes') THEN 0 ELSE 1 END,
         last_seen_at DESC LIMIT ?`)
     .bind(...(sessionId ? [sessionId, MAX_TARGET_CANDIDATES] : [MAX_TARGET_CANDIDATES]))

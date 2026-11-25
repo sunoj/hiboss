@@ -44,6 +44,7 @@ mod hook_start;
 pub(crate) mod hook_helpers;
 pub(crate) mod hook_unacked;
 pub mod inbox;
+pub mod integration;
 pub mod key;
 pub mod onboarding;
 pub mod react;

@@ -31,6 +31,7 @@ async function handleReply(c: BossContext): Promise<Response> {
   if (role === 'viewer') return c.text('viewer cannot send messages', 403);
   const parent = await findParent(c);
   if (!parent) return c.text('not found', 404);
+  if (isWebhookMessage(parent)) return c.text('a webhook integration does not read replies', 409);
   const payload = await parsePayload(c);
   if (!payload?.body) return c.text('body is required', 400);
   const bossId = getBossId(c);
@@ -49,6 +50,13 @@ async function handleReply(c: BossContext): Promise<Response> {
   if (optionClaim.kind === 'failed' || optionClaim.kind === 'invalid_choice') return c.text('failed to persist', 500);
   finishReply(c, parent, optionClaim.reply, optionClaim.kind, bossId, getBossName(c));
   return c.json(mapMessageRow(optionClaim.reply), 201);
+}
+
+/** Webhook posts come from a key-less integration, so a reply would never be read. */
+function isWebhookMessage(message: MessageRow): boolean {
+  try {
+    return (JSON.parse(message.metadata ?? 'null') as { source?: unknown } | null)?.source === 'webhook';
+  } catch { return false; }
 }
 
 async function findParent(c: BossContext): Promise<MessageRow | null> {

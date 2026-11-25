@@ -162,6 +162,16 @@ Discord Interactions endpoint (Ed25519 verified). Handles `/msg` slash command a
 ### POST /api/webhooks/discord-interactions/register-commands
 Register Discord slash commands. Request: `{ "app_id": "string", "bot_token": "string" }`.
 
+### POST /api/webhooks/{id}/{token}
+Discord Execute Webhook compatible (`{id}` is 17–20 digits; `/api/v{n}/webhooks/…` also works).
+`GET` returns the webhook object. See [Discord-compatible webhooks](../discord-webhooks.md).
+
+### /api/integrations (admin agents)
+`POST /api/integrations` `{name, priority_cap?}` creates an integration and returns its first
+URL once. `GET` lists URLs without tokens. `POST /api/integrations/:agentId/webhooks`
+`{label, priority_cap?}` adds a URL; `POST /api/integrations/webhooks/:id/rotate` replaces its
+token; `DELETE /api/integrations/webhooks/:id` revokes it.
+
 ## Attachment Endpoints
 
 ### POST /api/attachments/upload

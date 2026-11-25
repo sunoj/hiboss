@@ -2,6 +2,7 @@
 // Exports groupsRouter mounted at /api/groups.
 // Depends on Hono, auth middleware, and D1 bindings.
 
+import { isIntegration } from '../integrations/credentials';
 import { Hono } from 'hono';
 import type { Env, Priority } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
@@ -98,6 +99,9 @@ routes.post('/:id/members', async (c) => {
   if (!agentId) {
     return c.text('agent_id is required', 400);
   }
+  if (await isIntegration(c.env, agentId)) {
+    return c.text('a webhook integration cannot join a group: it reads no messages', 400);
+  }
   await c.env.DB
     .prepare('INSERT OR IGNORE INTO agent_group_members (group_id, agent_id) VALUES (?, ?)')
     .bind(group.id, agentId)
@@ -146,7 +150,8 @@ routes.post('/:id/broadcast', async (c) => {
     return c.text('group broadcast is unavailable to a signing agent; send to each member with --to', 409);
   }
   const members = await c.env.DB
-    .prepare('SELECT agent_id FROM agent_group_members WHERE group_id = ?')
+    .prepare(`SELECT m.agent_id FROM agent_group_members m JOIN api_keys k ON k.id = m.agent_id
+      WHERE m.group_id = ? AND k.kind = 'agent'`)
     .bind(group.id)
     .all<{ agent_id: string }>();
   const agentIds = (members.results ?? []).map((m) => m.agent_id);
