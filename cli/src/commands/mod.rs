@@ -32,6 +32,7 @@ pub mod forward;
 pub mod group;
 pub mod hook;
 mod hook_notes;
+mod note_wake;
 pub mod note;
 mod codex_hook;
 mod setup_hook_files;

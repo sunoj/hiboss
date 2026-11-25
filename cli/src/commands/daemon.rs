@@ -1,11 +1,13 @@
-// Purpose: Background SSE daemon: spools messages for the hook and wakes an idle session.
+// Purpose: Background SSE daemon: spools messages for the hook and wakes an idle session for
+// a reply, and a separate task wakes it for a boss note.
 // Exports: DaemonCommand with start/stop/status subcommands.
 // Dependencies: clap, tokio, crate::config, crate::session, crate::sse.
 
 use crate::commands::SubcommandArgs;
 use super::daemon_wake::{Inbox, Probe, deliver};
 use super::hook_helpers::{start_daemon_if_needed, stop_daemon};
-use crate::{config, session, sse};
+use super::note_wake;
+use crate::{client::HiBossClient, config, session, sse};
 use clap::Subcommand;
 use std::error::Error;
 use tokio::time::{Duration, sleep};
@@ -79,6 +81,10 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
     eprintln!("Daemon SSE connecting to {} (session wake {})", sse_url,
         if inbox.is_some() { "on" } else { "off" });
 
+    // Notes poll on their own thread, so a slow request never holds up the reply stream.
+    if let Some(inbox) = inbox.clone() {
+        note_wake::spawn(HiBossClient::new(&server, &key), inbox);
+    }
     let mut backoff = RETRY_MIN;
     loop {
         if inbox.as_ref().is_some_and(|inbox| inbox.probe() == Probe::Gone) {
@@ -126,7 +132,7 @@ fn next_delay(outcome: Result<Result<bool, String>, tokio::task::JoinError>, bac
 }
 
 /// The Claude Code process this daemon served has exited; release its pid file if still ours.
-fn exit_with_session() {
+pub(super) fn exit_with_session() {
     eprintln!("Session socket is gone; daemon exiting");
     let own = std::process::id().to_string();
     if session::read_state(session::DAEMON_PID).is_some_and(|pid| pid.trim() == own) {
