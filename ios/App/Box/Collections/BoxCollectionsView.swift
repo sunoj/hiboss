@@ -39,6 +39,11 @@ struct BoxCollectionsView: View {
         .task { await store.loadCollections() }
         .sheet(isPresented: $creating) { BoxCollectionEditor(store: store) }
         .sheet(item: $editing) { BoxCollectionEditor(store: store, existing: $0) }
+        .closesOnRouteTakeover {
+            creating = false
+            editing = nil
+            deleting = nil
+        }
         .alert("Delete Collection", isPresented: Binding(
             get: { deleting != nil }, set: { if !$0 { deleting = nil } }
         )) {
@@ -95,6 +100,10 @@ struct BoxCollectionList: View {
                 }
             }
             .sheet(isPresented: $editing) { BoxCollectionEditor(store: store, existing: current) }
+            .closesOnRouteTakeover {
+                editing = false
+                deleting = false
+            }
             .alert("Delete Collection", isPresented: $deleting) {
                 Button("Cancel", role: .cancel) { }
                 Button("Delete Collection", role: .destructive) {

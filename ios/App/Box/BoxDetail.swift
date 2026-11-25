@@ -54,6 +54,16 @@ struct BoxDetail: View {
             await store.loadCollections()
         }
         .quickLookPreview($previewURL)
+        .closesOnRouteTakeover {
+            previewURL = nil
+            openedMedia = nil
+            shareURL = nil
+            sharing = false
+            choosingCollection = false
+            editing = false
+            pendingDelete = nil
+            viewerDelete = nil
+        }
         .fullScreenCover(item: $openedMedia) { session in
             MediaViewer(items: session.items, startIndex: session.index, itemActions: viewerActions)
                 .modifier(BoxDeleteConfirmation(item: $viewerDelete, store: store, media: media,

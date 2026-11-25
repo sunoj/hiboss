@@ -1,9 +1,10 @@
 // Deep-link router: carries a tapped notification's message or join request into the UI.
-// Exports: AppRouter.shared and JoinRequestTarget, observed by the shell on launch/tap.
-// Dependencies: HibossKit MessageID and PushPanelRequest.
+// Exports: AppRouter.shared, JoinRequestTarget and closesOnRouteTakeover for presenters.
+// Dependencies: SwiftUI, Combine, HibossKit MessageID and PushPanelRequest.
 
 import Combine
 import HibossKit
+import SwiftUI
 
 struct JoinRequestTarget: Identifiable, Equatable, Sendable {
     let id: String
@@ -26,9 +27,14 @@ final class AppRouter: ObservableObject {
 
     var pendingMessageID: MessageID? { pendingMessage?.messageID }
 
+    /// Fires when a tapped notification takes over the screen. A sheet or full-screen cover
+    /// stays above the tab bar, so every presenter closes its own (`closesOnRouteTakeover`).
+    let takeover = PassthroughSubject<Void, Never>()
+
     private init() {}
 
     func open(panel: PushPanelRequest) {
+        takeover.send()
         pendingPanel = panel
     }
 
@@ -39,10 +45,12 @@ final class AppRouter: ObservableObject {
 
     func open(messageID: String) {
         let id = MessageID(rawValue: messageID)
+        takeover.send()
         pendingMessage = PendingMessageRoute(messageID: id)
     }
 
     func openJoinRequest(id: String) {
+        takeover.send()
         pendingJoinRequest = JoinRequestTarget(id: id)
     }
 
@@ -55,5 +63,12 @@ final class AppRouter: ObservableObject {
     func finishOpening(_ messageID: MessageID) {
         guard pendingMessage?.messageID == messageID else { return }
         pendingMessage = nil
+    }
+}
+
+extension View {
+    /// Closes this view's sheet or cover when a notification route takes over the screen.
+    @MainActor func closesOnRouteTakeover(_ close: @escaping () -> Void) -> some View {
+        onReceive(AppRouter.shared.takeover) { close() }
     }
 }

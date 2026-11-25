@@ -55,6 +55,12 @@ struct BoxListView: View {
             await store.loadCollections()
             if !search.isEmpty || filter != .all || author != .all || liked { await store.loadSearchPages() }
         }
+        .closesOnRouteTakeover {
+            openedMedia = nil
+            collectionItem = nil
+            shareItem = nil
+            pendingDelete = nil
+        }
         .fullScreenCover(item: $openedMedia) { selection in
             BoxMediaDetail(item: selection.item, items: selection.items, store: store, media: media)
         }

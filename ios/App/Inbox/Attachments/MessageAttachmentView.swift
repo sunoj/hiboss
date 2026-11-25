@@ -21,6 +21,10 @@ struct MessageAttachmentView: View {
             else if mediaKind == .video { videoButton }
             else { document }
         }
+        .closesOnRouteTakeover {
+            viewingMedia = false
+            viewingMarkdown = false
+        }
         .fullScreenCover(isPresented: $viewingMedia) {
             if let url = URL(string: mediaResource), let mediaKind {
                 MediaViewer(items: [MediaItem(url: url, kind: mediaKind, previewURL: previewResource,

@@ -280,7 +280,7 @@ struct RootTabView: View {
             activitySection = .messages
             activityPath = NavigationPath([id])
         case .notification(let id), .notificationPreview(let id):
-            router.open(messageID: id.rawValue)
+            router.openDemoNotification(id)
         case .session(let id, let label):
             tab = Self.activityTab
             activitySection = .sessions

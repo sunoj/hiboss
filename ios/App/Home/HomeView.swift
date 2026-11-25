@@ -55,6 +55,7 @@ struct HomeView: View {
                 SessionMessagesView(route: $0, api: sessionAPI, store: inbox, panels: panels)
             }
             .sheet(isPresented: presentsSheet) { decisionSheet }
+            .closesOnRouteTakeover { showingDecision = false }
             .alert(
                 "Heads up",
                 isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),

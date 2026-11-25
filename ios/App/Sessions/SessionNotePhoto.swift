@@ -28,6 +28,7 @@ struct SessionNotePhoto: View {
             } else { ProgressView().frame(width: 180, height: 100) }
         }
         .task { await load() }
+        .closesOnRouteTakeover { viewing = false }
         .fullScreenCover(isPresented: $viewing) {
             if let resource {
                 MediaViewer(items: [MediaItem(url: resource.url, kind: .image)], startIndex: 0)

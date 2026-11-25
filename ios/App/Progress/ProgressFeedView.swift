@@ -35,6 +35,7 @@ struct ProgressFeedView: View {
         }
         .onAppear { ProgressVideoPlayback.shared.feedVisible = true }
         .onDisappear { ProgressVideoPlayback.shared.feedVisible = false }
+        .closesOnRouteTakeover { opened = nil }
         .fullScreenCover(item: $opened) { session in
             MediaViewer(items: session.items, startIndex: session.index)
                 .onAppear { ProgressVideoPlayback.shared.feedVisible = false }

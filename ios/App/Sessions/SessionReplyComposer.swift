@@ -62,6 +62,7 @@ struct SessionReplyComposer: View {
             .toolbar {
                 if drawsRail { ToolbarItem(placement: .topBarTrailing) { modePicker } }
             }
+            .closesOnRouteTakeover { picking = false }
             .sheet(isPresented: $picking) {
                 NavigationStack {
                     BoxListView(api: boxAPI, onSelect: attach)

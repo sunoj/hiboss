@@ -1,5 +1,5 @@
 // Resolves HIBOSS_DEMO_* launch flags into a single exclusive deep-link.
-// Exports: DemoLaunchRoute and its env parser (used by RootTabView + tests).
+// Exports: DemoLaunchRoute, its env parser, and the demo notification tap (RootTabView + tests).
 // Dependencies: Foundation, HibossKit MessageID.
 
 import Foundation
@@ -39,5 +39,17 @@ enum DemoLaunchRoute: Equatable {
             return .session(id: "sess-deploy", label: "prod-release")
         }
         return .none
+    }
+}
+
+extension AppRouter {
+    /// Demo notification tap; `HIBOSS_DEMO_NOTIFICATION_DELAY_MS` lets a test open a cover first.
+    func openDemoNotification(_ id: MessageID) {
+        let delay = Int(ProcessInfo.processInfo.environment["HIBOSS_DEMO_NOTIFICATION_DELAY_MS"] ?? "") ?? 0
+        guard delay > 0 else { return open(messageID: id.rawValue) }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(delay))
+            open(messageID: id.rawValue)
+        }
     }
 }

@@ -31,6 +31,7 @@ struct OptionMediaComparison: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .closesOnRouteTakeover { selectedMedia = nil }
             .fullScreenCover(item: $selectedMedia) { session in
                 MediaViewer(items: session.items, startIndex: session.index)
             }

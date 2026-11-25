@@ -22,6 +22,7 @@ struct ProjectPeersView: View {
                 Text("Recent peers").accessibilityIdentifier("project-peers")
             }
             .hbCard()
+            .closesOnRouteTakeover { showsAll = false }
             .sheet(isPresented: $showsAll) {
                 NavigationStack {
                     List(peers) { peer in row(peer) }.listStyle(.insetGrouped)

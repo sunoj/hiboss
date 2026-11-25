@@ -52,6 +52,7 @@ struct MediaMarkdownView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
+        .closesOnRouteTakeover { opened = nil }
         .fullScreenCover(item: $opened) { session in
             MediaViewer(items: session.items, startIndex: session.index)
         }
