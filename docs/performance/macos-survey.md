@@ -172,9 +172,36 @@ they demonstrate settling sensitivity, not confidence intervals or isolated time
 Stack symbol/count excerpts are retained in [macos-survey-samples.txt](macos-survey-samples.txt).
 These findings identify measured contributors; none is an optimization claim.
 
+## Whole-app idle (2026-11-26)
+
+The survey above hosts one surface per window. The installed app runs every surface, stream
+and timer at once, so it was measured separately: process user + system CPU from `ps` over
+60-second windows, after 30 seconds of settling, signed with the same identity and account,
+main window on Today. `before` is release 1.0.7 (`202611251136`); `after` is `7d99131a`.
+
+| Build | Main window visible | Main window closed |
+|---|---:|---:|
+| before | 5.1% (5.33, 4.72, 5.30) | 4.7% (4.80, 4.50) |
+| `0ad2b9d9` | 2.6% (2.07, 2.77, 2.92) | 3.1% (3.55, 2.62) |
+| after | 2.1% (1.85, 2.15, 2.25) | 1.6% (1.93, 1.48, 1.38) |
+
+Closing the window barely lowered the 1.0.7 figure: a closed SwiftUI `Window` keeps its hosting
+view, and its one-second schedules kept laying out the hidden window. `sample` attributed the
+rest to `PanelsModel.load` (a full panel list and decode every ten seconds although the wall
+socket signals each change), icon file reads in `OverviewSidebar.brand` and the status item,
+and status-button writes on every snapshot. The fixes, in order:
+
+- The lost-signal panel reconciliation runs every 60 seconds while the wall is connected.
+- Age labels ("updated … ago") use `ElapsedLabelSchedule`: one tick a second in the first minute,
+  then one at each minute boundary where the text changes. Static labels never tick.
+- App icons load once; the status item writes only changed values.
+- `MainView` publishes `surfaceIsVisible` from the window's occlusion state; every schedule in the
+  table below is `.paused(!isVisible)` and yields a single entry while the window is hidden.
+
 ## Timer scope
 
-The following are one-second SwiftUI schedules. Scope describes the closure in source, not a
+The following were one-second SwiftUI schedules when the survey ran; since 2026-11-26 the
+main-window ones pause while the window is hidden, and age labels tick at most once a minute. Scope describes the closure in source, not a
 guarantee that native ancestor layout is avoided. Sampling cannot prove the absence of a parent
 body evaluation; unsampled or optimized frames remain ambiguous.
 

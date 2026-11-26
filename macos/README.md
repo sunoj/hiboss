@@ -47,6 +47,9 @@ Counts reflect loaded recent messages; overlapping filters are not additive.
 Below 760 points, **Overview** switches between navigation and content. Dashboard
 details use the full content area below 900 points of content width and an inspector
 above it. The minimum window is 480 × 400. Command-R refreshes the current surface.
+**Progress** refreshes each time it opens and, while its window is on screen, re-reads the
+newest page every 60 seconds; older loaded pages stay. Clock-driven labels in the main
+window pause while the window is closed, minimized or covered, and resume when it shows.
 
 Question text wraps and scrolls above a persistent reply composer. Use **Send reply**
 or Command-Return to submit custom instructions. Drafts stay with their question
@@ -59,8 +62,9 @@ On first launch, open **Settings → Connection** and choose **Pair with Code…
 Paste a `hiboss://pair?server=…&code=…` link, or type the server and the one-time
 code, then confirm with the button that names the server host. **Use a Boss Token**
 stays available as the secondary path: enter the server root URL and token, then
-select **Save & Connect**. Presentation settings let users choose Island or Window mode
-and independently show or hide the menu bar icon. Closing the main window keeps
+select **Save & Connect**. Notification settings choose Island or Window mode for options.
+**Settings → General** shows or hides the Dock icon and the menu bar icon; one of the two
+always stays on, so the app stays reachable. Closing the main window keeps
 the listener running; clicking the Dock icon opens it again. The menu bar icon uses
 a native status item so hiding it does not remove the app's SwiftUI scene. Keychain
 loading happens after launch and never blocks window creation. The app reconnects to
