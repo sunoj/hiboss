@@ -90,13 +90,14 @@ public struct PanelDashboardCard: View {
 
 public struct PanelFreshnessLabel: View {
     private let freshness: () -> PanelFreshness
+    @Environment(\.surfaceIsVisible) private var isVisible
 
     public init(freshness: @autoclosure @escaping () -> PanelFreshness) {
         self.freshness = freshness
     }
 
     public var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { _ in
+        TimelineView(.periodic(from: .now, by: 1).paused(!isVisible)) { _ in
             let value = freshness()
             Label(value.title, systemImage: value.symbol).foregroundStyle(value.color)
         }

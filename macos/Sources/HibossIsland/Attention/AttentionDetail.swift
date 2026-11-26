@@ -6,6 +6,7 @@ import HibossKit
 import SwiftUI
 
 struct AttentionDetail: View {
+    @Environment(\.surfaceIsVisible) private var isVisible
     @Environment(\.projectSessions) private var inventory
     let item: AttentionItem
     let now: Date
@@ -96,7 +97,7 @@ struct AttentionDetail: View {
                     metadataRow(L("Session"), value: session)
                 }
                 metadataRow(L("From"), value: item.asker)
-                TimelineView(.periodic(from: now, by: 1)) { context in
+                TimelineView(.periodic(from: now, by: 1).paused(!isVisible)) { context in
                     timingMetadata(at: context.date)
                 }
             }

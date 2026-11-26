@@ -31,6 +31,7 @@ extension AttentionGroup {
 }
 
 struct DecisionDefaultLine: View {
+    @Environment(\.surfaceIsVisible) private var isVisible
     let option: String
     let expiresAt: Date?
     let now: Date
@@ -44,7 +45,7 @@ struct DecisionDefaultLine: View {
     }
 
     var body: some View {
-        TimelineView(.periodic(from: now, by: 1)) { context in
+        TimelineView(.periodic(from: now, by: 1).paused(!isVisible)) { context in
             Text(Self.text(option: option, expiresAt: expiresAt, now: context.date))
                 .font(.caption).foregroundStyle(TodayStyle.secondary)
                 .fixedSize(horizontal: false, vertical: true)

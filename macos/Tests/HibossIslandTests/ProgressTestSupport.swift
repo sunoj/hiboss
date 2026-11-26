@@ -14,6 +14,7 @@ final class ScriptedProgressAPI: ProgressServing {
     var pages: [ProgressFeedPage]
     var projects: [ProgressProject] = []
     var reads: [Read] = []
+    var projectReads = 0
     var writes: [String] = []
     var failsRead = false
     var failsWrite = false
@@ -35,7 +36,10 @@ final class ScriptedProgressAPI: ProgressServing {
         return page
     }
 
-    func progressProjects() async throws -> [ProgressProject] { projects }
+    func progressProjects() async throws -> [ProgressProject] {
+        projectReads += 1
+        return projects
+    }
 
     func deleteProgressPost(id: String) async throws { try await write("delete:\(id)") }
 

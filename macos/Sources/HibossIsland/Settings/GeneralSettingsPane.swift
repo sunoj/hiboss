@@ -1,4 +1,4 @@
-// General pane for this Mac's app-level startup and Dock visibility preferences.
+// General pane for this Mac's app-level startup, Dock and menu bar visibility preferences.
 // Exports: GeneralSettingsPane.
 // Dependencies: AppKit, SwiftUI, AppSettings, and LaunchAtLoginController.
 
@@ -30,6 +30,12 @@ struct GeneralSettingsPane: View {
             }
             Section {
                 Toggle(L("Show in Dock"), isOn: $settings.showsInDock)
+                    .disabled(!settings.showsStatusItem)
+                Toggle(L("Show menu bar icon"), isOn: $settings.showsStatusItem)
+                    .disabled(!settings.showsInDock)
+            } footer: {
+                Text(L("HiBoss stays reachable from the Dock or the menu bar, so one of them stays on."))
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

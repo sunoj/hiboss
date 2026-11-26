@@ -7,6 +7,7 @@ import SwiftUI
 import AppKit
 
 struct TodaySummary: View {
+    @Environment(\.surfaceIsVisible) private var isVisible
     let snapshot: TodaySnapshot
     let now: Date
     var isRefreshing = false
@@ -27,8 +28,8 @@ struct TodaySummary: View {
                 }
             }.font(.callout)
             if case let .live(checkedAt) = snapshot.health {
-                TimelineView(.periodic(from: now, by: 1)) { context in
-                    let age = AttentionClock.elapsed(since: checkedAt, now: context.date)
+                TimelineView(ElapsedLabelSchedule(since: checkedAt).paused(!isVisible)) { context in
+                    let age = AttentionClock.elapsed(since: checkedAt, now: context.date, coarse: true)
                     Label(refreshStatus.showsUpdating ? L("Updating…") : L("Live · updated \(age) ago"),
                         systemImage: "checkmark.circle.fill")
                         .font(.caption).foregroundStyle(TodayStyle.settled)

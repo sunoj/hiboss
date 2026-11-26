@@ -38,11 +38,10 @@ struct NotificationsSettingsPane: View {
                 }
                 Toggle(L("Critical bypasses Do Not Disturb"), isOn: criticalBypassBinding)
                     .disabled(preferencesStore.authorizationRejected)
-                Toggle(L("Show menu bar icon"), isOn: $settings.showsStatusItem)
             } header: {
                 Text(L("Delivery"))
             } footer: {
-                Text(L("Critical questions can still alert; the menu bar icon keeps HiBoss visible."))
+                Text(L("Critical questions can still alert during Do Not Disturb."))
                     .foregroundStyle(.secondary)
             }
         }

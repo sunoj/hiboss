@@ -195,10 +195,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             .store(in: &cancellables)
 
         overview.$snapshot
-            .sink { [weak self] snapshot in
-                let count = snapshot.answerability.isLoaded ? snapshot.today.decisions.count : nil
-                self?.updateStatusCount(count)
-            }
+            .map { $0.answerability.isLoaded ? $0.today.decisions.count : nil }
+            .removeDuplicates()
+            .sink { [weak self] count in self?.updateStatusCount(count) }
             .store(in: &cancellables)
     }
 
