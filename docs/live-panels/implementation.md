@@ -30,7 +30,8 @@ and the remaining scope.
   after a timed card leaves Active.
 - Native Active/Needs input/Results/Archived filters, result presentation, placement actions,
   version reconciliation, and preservation of selection and stores during refresh.
-- Paginated discovery polling every ten seconds, plus per-panel metadata hints.
+- Paginated discovery reconciliation, plus per-panel metadata hints: every ten seconds
+  without a wall connection, and every 60 seconds as a lost-signal fallback with one.
   Newly discovered panels append without sorting by observation time.
 - Server clock anchors and monotonic progression for native freshness/retirement.
   A terminal or paused task never degrades into an Offline task status.
@@ -151,7 +152,8 @@ have that scope. Expiry uses DO storage and alarms, shared with lifecycle recove
 Each signal costs **zero D1 reads**, independent of subscriber count. Ticket auth
 has its normal reads (plus one access lookup for agent wall tickets); the triggered
 REST reconciliation retains normal scoped list/detail/state reads. There is no
-additional idle D1 polling; the existing 10-second reconciliation remains a fallback.
+additional idle D1 polling. While the wall is connected, a 60-second reconciliation recovers a
+lost signal; a disconnected wall reconciles every ten seconds.
 Signals contain no identifiers or metadata, and REST rechecks access after revocation.
 
 HibossKit coalesces signals for 50 ms and retains a pending reconciliation if a load

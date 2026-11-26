@@ -1,6 +1,148 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Critical questions can still alert during Do Not Disturb.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Critical questions can still alert during Do Not Disturb."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勿扰模式下，紧急问题仍会提醒。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "おやすみモード中も、緊急の質問は通知されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방해 금지 모드에서도 긴급 질문은 알림을 보냅니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คำถามเร่งด่วนยังแจ้งเตือนได้ระหว่างโหมดห้ามรบกวน"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las preguntas críticas pueden avisar incluso en No molestar."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "परेशान न करें के दौरान भी गंभीर प्रश्न सूचित कर सकते हैं।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يمكن للأسئلة الحرجة أن تنبّه حتى أثناء وضع عدم الإزعاج."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perguntas críticas ainda podem alertar durante o Não Perturbe."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les questions critiques peuvent toujours alerter en mode Ne pas déranger."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Критические вопросы могут оповещать даже в режиме «Не беспокоить»."
+          }
+        }
+      }
+    },
+    "HiBoss stays reachable from the Dock or the menu bar, so one of them stays on.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss stays reachable from the Dock or the menu bar, so one of them stays on."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss 需要从 Dock 或菜单栏打开，因此两者至少保留一个。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss は Dock またはメニューバーから開くため、少なくとも一方は表示されたままです。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss는 Dock이나 메뉴 막대에서 열 수 있어야 하므로 둘 중 하나는 항상 켜져 있습니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss ต้องเปิดได้จาก Dock หรือแถบเมนู จึงต้องเปิดไว้อย่างน้อยหนึ่งอย่าง"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss debe poder abrirse desde el Dock o la barra de menús, así que uno de los dos sigue activo."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss को Dock या मेनू बार से खोला जा सकना चाहिए, इसलिए इनमें से एक चालू रहता है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يجب أن يبقى HiBoss متاحًا من Dock أو شريط القائمة، لذا يبقى أحدهما مفعّلًا."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O HiBoss precisa abrir pelo Dock ou pela barra de menus, então um dos dois continua ativo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss doit rester accessible depuis le Dock ou la barre des menus : l’un des deux reste activé."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss должен открываться из Dock или строки меню, поэтому один из них остаётся включённым."
+          }
+        }
+      }
+    },
     "Save to…": {
       "extractionState": "manual",
       "localizations": {
@@ -17700,70 +17842,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Доставка"
-          }
-        }
-      }
-    },
-    "Critical questions can still alert; the menu bar icon keeps HiBoss visible.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "紧急问题仍会提醒；菜单栏图标让 HiBoss 保持可见。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "緊急の質問は引き続き通知されます。メニューバーのアイコンで HiBoss をいつでも確認できます。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "긴급 질문은 계속 알려요. 메뉴 막대 아이콘으로 HiBoss를 언제든 확인할 수 있어요."
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "คำถามระดับวิกฤตยังแจ้งเตือนได้ ไอคอนในแถบเมนูช่วยให้ยังเห็น HiBoss อยู่เสมอ"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Las preguntas críticas aún pueden avisar; el icono de la barra de menús mantiene HiBoss visible."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "गंभीर प्रश्न फिर भी अलर्ट कर सकते हैं; मेनू बार आइकन से HiBoss दिखता रहता है।"
-          }
-        },
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "لا تزال الأسئلة الحرجة تُنبّهك؛ وتُبقي أيقونة شريط القائمة HiBoss ظاهرًا."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Perguntas críticas ainda podem alertar; o ícone na barra de menus mantém o HiBoss visível."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les questions critiques peuvent toujours alerter ; l’icône de la barre des menus garde HiBoss visible."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Критические вопросы всё равно оповещают; значок в строке меню оставляет HiBoss на виду."
           }
         }
       }

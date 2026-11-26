@@ -1,5 +1,5 @@
 // Serializes progress reads and mutations while preserving the server's timeline order.
-// Exports: ProgressFeedStore with project filtering, cursor paging, likes and deletion.
+// Exports: ProgressFeedStore with project filtering, cursor paging, following, likes and deletion.
 // Dependencies: Combine, HibossKit ProgressServing and the macOS localization catalog.
 
 import Combine
@@ -9,6 +9,8 @@ import HibossKit
 @MainActor
 final class ProgressFeedStore: ObservableObject {
     typealias Provider = @MainActor () -> (any ProgressServing)?
+    static let pageSize = 20
+    static let followInterval: TimeInterval = 60
     @Published private(set) var posts: [ProgressPost] = []
     @Published private(set) var projects: [ProgressProject] = []
     @Published private(set) var selectedProject: String?
@@ -27,6 +29,7 @@ final class ProgressFeedStore: ObservableObject {
     private var generation = 0
     private var accountGeneration = 0
     private var deletedIDs: Set<String> = []
+    private var lastLatestRead: Date?
 
     private var authorizationObservation: AnyCancellable?
 
@@ -56,6 +59,7 @@ final class ProgressFeedStore: ObservableObject {
         deletingIDs = []
         actionErrors = [:]
         deletedIDs = []
+        lastLatestRead = nil
     }
 
     static func groupProjects(_ rows: [ProgressProject]) -> [ProgressProject] {
@@ -76,6 +80,22 @@ final class ProgressFeedStore: ObservableObject {
 
     func refresh() async {
         await enqueue { store, current in await store.fetchPage(cursor: nil, generation: current) }
+    }
+
+    /// The server sends no signal for a new post, so a visible timeline re-reads its newest page.
+    /// A follow reads only that page, never the project list, and keeps older loaded pages.
+    func follow(every interval: TimeInterval = followInterval) async {
+        while !Task.isCancelled {
+            let age = lastLatestRead.map { Date().timeIntervalSince($0) } ?? 0
+            if age >= interval { await pollLatest(); continue }
+            do { try await Task.sleep(for: .seconds(interval - age)) } catch { return }
+        }
+    }
+
+    func pollLatest() async {
+        lastLatestRead = .now
+        guard hasResult else { return await refresh() }
+        await enqueue { store, current in await store.fetchLatest(generation: current) }
     }
 
     func loadMore() async {
@@ -100,7 +120,7 @@ final class ProgressFeedStore: ObservableObject {
     }
 
     private func fetchPage(cursor: ProgressCursor?, generation current: Int) async {
-        if cursor == nil { isRefreshing = true } else { isLoadingMore = true }
+        if cursor == nil { isRefreshing = true; lastLatestRead = .now } else { isLoadingMore = true }
         defer {
             if current == generation {
                 isRefreshing = false
@@ -109,12 +129,13 @@ final class ProgressFeedStore: ObservableObject {
         }
         do {
             guard let api = apiProvider() else { throw ProgressFeedError.notConfigured }
-            let page = try await api.progressFeed(project: selectedProject, limit: 20, before: cursor)
+            let page = try await api.progressFeed(project: selectedProject, limit: Self.pageSize, before: cursor)
             guard current == generation, !Task.isCancelled else { return }
             var ids = cursor == nil ? Set<String>() : Set(posts.map(\.id))
             let rows = page.posts.filter { !deletedIDs.contains($0.id) && ids.insert($0.id).inserted }
-            posts = cursor == nil ? rows : posts + rows
-            nextCursor = page.nextCursor
+            let merged = cursor == nil ? rows : posts + rows
+            if merged != posts { posts = merged }
+            if page.nextCursor != nextCursor { nextCursor = page.nextCursor }
             loadError = nil
             pageError = nil
             didLoad = true
@@ -128,6 +149,34 @@ final class ProgressFeedStore: ObservableObject {
             else { pageError = error.localizedDescription }
             didLoad = true
         }
+    }
+
+    /// A failed follow keeps the cached timeline silently; the next interval retries it.
+    private func fetchLatest(generation current: Int) async {
+        guard let api = apiProvider(),
+              let page = try? await api.progressFeed(project: selectedProject, limit: Self.pageSize, before: nil),
+              current == generation, !Task.isCancelled else { return }
+        let rows = page.posts.filter { !deletedIDs.contains($0.id) }
+        let merged = Self.mergeLatest(rows, nextCursor: page.nextCursor, into: posts, cursor: nextCursor)
+        if merged.posts != posts { posts = merged.posts }
+        if merged.cursor != nextCursor { nextCursor = merged.cursor }
+        if loadError != nil { loadError = nil }
+        let known = Set(projects.map(\.slug))
+        guard rows.contains(where: { !known.contains($0.project) }),
+              let projects = try? await api.progressProjects(), current == generation else { return }
+        self.projects = Self.groupProjects(projects)
+    }
+
+    /// The newest page replaces the head of the timeline. Older loaded pages stay when the
+    /// page reaches into them; otherwise the timeline restarts from this page.
+    static func mergeLatest(_ page: [ProgressPost], nextCursor: ProgressCursor?,
+                            into posts: [ProgressPost], cursor: ProgressCursor?)
+        -> (posts: [ProgressPost], cursor: ProgressCursor?) {
+        guard let last = page.last, let index = posts.firstIndex(where: { $0.id == last.id })
+        else { return (page, nextCursor) }
+        let ids = Set(page.map(\.id))
+        let tail = posts[(index + 1)...].filter { !ids.contains($0.id) }
+        return (page + tail, tail.isEmpty ? nextCursor : cursor)
     }
 
     func toggleLike(id: String) async {

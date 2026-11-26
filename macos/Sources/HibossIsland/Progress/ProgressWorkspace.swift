@@ -1,4 +1,4 @@
-// Quiet progress timeline with native filters, explicit read states and confirmed deletion.
+// Quiet progress timeline that follows new posts while visible, with filters and confirmed deletion.
 // Exports: ProgressWorkspace for the main window's Progress destination.
 // Dependencies: SwiftUI, HibossKit, ProgressFeedStore and progress media views.
 
@@ -11,6 +11,7 @@ struct ProgressWorkspace: View {
     @Environment(\.displayScale) private var displayScale
     @State private var opened: ProgressMedia?
     @State private var pendingDelete: ProgressPost?
+    @State private var isWindowVisible = false
     @StateObject private var avatarCache = ProjectAvatarRendererCache()
 
     var body: some View {
@@ -31,7 +32,9 @@ struct ProgressWorkspace: View {
             .quietStatusBackground()
             filter
         }
-        .task { if !store.didLoad { await store.refresh() } }
+        .background(WindowVisibilityReader(isVisible: $isWindowVisible).frame(width: 0, height: 0))
+        .task { await store.refresh() }
+        .task(id: isWindowVisible) { if isWindowVisible { await store.follow() } }
         .sheet(item: $opened) { ProgressMediaViewer(media: $0) }
         .alert(L("Delete progress post?"), isPresented: Binding(
             get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }

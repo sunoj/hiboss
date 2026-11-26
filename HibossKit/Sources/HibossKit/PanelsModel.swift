@@ -182,12 +182,21 @@ public final class PanelsModel: ObservableObject {
                     self?.objectWillChange.send()
                     signature = current
                 }
-                guard let self, !self.isDemoMode, !self.isFetching,
-                    Date().timeIntervalSince(self.lastReconciled) > 10
-                else { continue }
+                guard let self, self.needsFallbackReconcile(at: Date()) else { continue }
                 await self.load()
             }
         }
+    }
+
+    /// Reconciliation that recovers a lost wall signal. A connected wall signals every change,
+    /// so its fallback runs rarely; a disconnected wall polls at the discovery rate.
+    static let disconnectedReconcileInterval: TimeInterval = 10
+    static let connectedReconcileInterval: TimeInterval = 60
+
+    func needsFallbackReconcile(at now: Date) -> Bool {
+        guard !isDemoMode, !isFetching else { return false }
+        let interval = isWallConnected ? Self.connectedReconcileInterval : Self.disconnectedReconcileInterval
+        return now.timeIntervalSince(lastReconciled) > interval
     }
 
     func runProducer(at index: Int) async {
