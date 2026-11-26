@@ -6,6 +6,7 @@ import HibossKit
 import SwiftUI
 
 struct AttentionRow: View {
+    @Environment(\.surfaceIsVisible) private var isVisible
     let item: AttentionItem
     let now: Date
 
@@ -17,7 +18,7 @@ struct AttentionRow: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Spacer(minLength: 8)
-                TimelineView(.periodic(from: now, by: 1)) { context in
+                TimelineView(.periodic(from: now, by: 1).paused(!isVisible)) { context in
                     trailing(at: context.date)
                 }
             }

@@ -81,12 +81,13 @@ struct TodayDecisionCard: View {
 }
 
 struct DecisionDeadline: View {
+    @Environment(\.surfaceIsVisible) private var isVisible
     let expiresAt: Date?
     let now: Date
 
     var body: some View {
         if let expiresAt {
-            TimelineView(.periodic(from: now, by: 1)) { context in
+            TimelineView(.periodic(from: now, by: 1).paused(!isVisible)) { context in
                 Text(AttentionClock.remaining(until: expiresAt, now: context.date))
                     .font(.caption.monospacedDigit()).foregroundStyle(TodayStyle.signal)
             }

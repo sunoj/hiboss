@@ -11,11 +11,12 @@ struct CachedReadStatus: View {
     var failure: String?
     var retry: (() -> Void)?
     @StateObject private var refreshStatus = RefreshStatus()
+    @Environment(\.surfaceIsVisible) private var isVisible
 
     var body: some View {
         HStack(spacing: 6) {
             if let updatedAt, failure == nil, !refreshStatus.showsUpdating {
-                TimelineView(ElapsedLabelSchedule(since: updatedAt)) { tick in
+                TimelineView(ElapsedLabelSchedule(since: updatedAt).paused(!isVisible)) { tick in
                     label(status(at: tick.date))
                 }
             } else {

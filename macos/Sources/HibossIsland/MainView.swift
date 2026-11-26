@@ -29,6 +29,7 @@ struct MainView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showsCompactOverview = false
     @State private var previewHistory = AttentionPreview.historyIfRequested()
+    @State private var isWindowVisible = true
 
     private static let sidebarMinimumWidth: CGFloat = 760
 
@@ -138,6 +139,8 @@ struct MainView: View {
             }
         }
         .task { if flow.historyState == .idle { await flow.refreshHistory() } }
+        .background(WindowVisibilityReader(isVisible: $isWindowVisible).frame(width: 0, height: 0))
+        .environment(\.surfaceIsVisible, isWindowVisible)
         .columnChrome()
     }
     private var observedContent: some View {

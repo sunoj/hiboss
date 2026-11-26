@@ -6,6 +6,7 @@ import HibossKit
 import SwiftUI
 
 struct TodayActivity: View {
+    @Environment(\.surfaceIsVisible) private var isVisible
     @Environment(\.projectSessions) private var inventory
     let snapshot: TodaySnapshot
     let now: Date
@@ -78,8 +79,8 @@ struct TodayActivity: View {
                     Text(agent).font(.caption).foregroundStyle(TodayStyle.live)
                 }
                 if let updated = session.lastActivityDate {
-                    TimelineView(.periodic(from: now, by: 1)) { context in
-                        let age = AttentionClock.elapsed(since: updated, now: context.date)
+                    TimelineView(ElapsedLabelSchedule(since: updated).paused(!isVisible)) { context in
+                        let age = AttentionClock.elapsed(since: updated, now: context.date, coarse: true)
                         Text(L("updated \(age) ago")).font(.caption).foregroundStyle(TodayStyle.tertiary)
                     }
                 }

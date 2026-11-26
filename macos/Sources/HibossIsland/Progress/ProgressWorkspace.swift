@@ -11,7 +11,7 @@ struct ProgressWorkspace: View {
     @Environment(\.displayScale) private var displayScale
     @State private var opened: ProgressMedia?
     @State private var pendingDelete: ProgressPost?
-    @State private var isWindowVisible = false
+    @Environment(\.surfaceIsVisible) private var isWindowVisible
     @StateObject private var avatarCache = ProjectAvatarRendererCache()
 
     var body: some View {
@@ -32,7 +32,6 @@ struct ProgressWorkspace: View {
             .quietStatusBackground()
             filter
         }
-        .background(WindowVisibilityReader(isVisible: $isWindowVisible).frame(width: 0, height: 0))
         .task { await store.refresh() }
         .task(id: isWindowVisible) { if isWindowVisible { await store.follow() } }
         .sheet(item: $opened) { ProgressMediaViewer(media: $0) }
