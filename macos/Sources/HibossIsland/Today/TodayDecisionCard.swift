@@ -1,5 +1,5 @@
 // Answerable decision card and native option buttons using design-v4 role colours.
-// Exports: TodayDecisionCard and DecisionChoices; no ranking takes place here.
+// Exports: TodayDecisionCard (long details collapse to a preview); no ranking takes place here.
 // Dependencies: SwiftUI, HibossKit AttentionItem, and TodayStyle.
 
 import HibossKit
@@ -9,18 +9,25 @@ struct TodayDecisionCard: View {
     @Environment(\.projectSessions) private var inventory
     let item: AttentionItem
     let now: Date
-    let isSelected: Bool
     let isSubmitting: Bool
     let error: String?
     /// Session text stays selectable. Today still opens the decision from the summary.
     var copyable = false
     let onSelect: () -> Void
     let onChoose: (String) -> Void
+    @State private var detailsExpanded = false
 
     var body: some View {
         let project = item.project(in: inventory)
         VStack(alignment: .leading, spacing: 12) {
             summary(project: project)
+            if let content = item.message.messageText.content {
+                // Outside the summary button, so the toggle is not a button inside a button.
+                OptionMessageDetails(text: content, isExpanded: $detailsExpanded,
+                    unitsPerLine: Self.detailsUnitsPerLine, textColor: TodayStyle.secondary,
+                    toggleColor: TodayStyle.secondary, identifier: "decision.details")
+                    .textSelection(.enabled)
+            }
             DecisionChoices(item: item, isSubmitting: isSubmitting, onChoose: onChoose)
             if let option = item.defaultOption {
                 DecisionDefaultLine(option: option, expiresAt: item.expiresAt, now: now)
@@ -29,15 +36,11 @@ struct TodayDecisionCard: View {
         }
         .padding(16)
         .background(TodayStyle.surface, in: cardShape)
-        .overlay {
-            cardShape.strokeBorder(isSelected ? Color.primary.opacity(0.55) : .clear, lineWidth: isSelected ? 1.5 : 0)
-        }
         .accessibilityIdentifier("today.decision.\(item.id.rawValue)")
         .layoutProbe("today.decision.\(item.id.rawValue)")
     }
 
-    /// Surface on Ground already separates a resting card. Signal stays on the
-    /// deadline and the count, so selection uses a quiet primary stroke.
+    /// Surface on Ground already separates the card; Signal stays on the deadline and the count.
     private var cardShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 10, style: .continuous)
     }
@@ -71,12 +74,12 @@ struct TodayDecisionCard: View {
             }
             Text(verbatim: item.message.messageText.title).font(.headline).foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if let content = item.message.messageText.content {
-                MessageMarkdownView(content).font(.callout).foregroundStyle(TodayStyle.secondary)
-            }
         }
         .fixedSize(horizontal: false, vertical: true)
     }
+
+    /// A card column is wider than the Island's, so a "line" holds more characters.
+    static let detailsUnitsPerLine = 96
 
 }
 

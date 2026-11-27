@@ -62,8 +62,7 @@ struct HistoryThreadRow: View {
         switch section {
         case .message:
             if usesV4, let decision, answerability.state(for: message.id) == .open {
-                TodayDecisionCard(item: decision, now: now, isSelected: false,
-                    isSubmitting: reply.submitting.contains(message.id),
+                TodayDecisionCard(item: decision, now: now, isSubmitting: reply.submitting.contains(message.id),
                     error: reply.errors[message.id]?.choiceText, copyable: true,
                     onSelect: { showsMetadata.toggle() }, onChoose: { text in
                         Task { await reply.send(text, for: message.id) { choice, _ in

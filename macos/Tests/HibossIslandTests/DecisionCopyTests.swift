@@ -36,7 +36,7 @@ final class DecisionCopyTests: XCTestCase {
 
     private func todayCard() -> some View {
         TodayDecisionCard(item: AttentionItem(message: Self.message, group: .priority),
-            now: .now, isSelected: false, isSubmitting: false, error: nil,
+            now: .now, isSubmitting: false, error: nil,
             onSelect: {}, onChoose: { _ in })
             .frame(width: 640)
     }
