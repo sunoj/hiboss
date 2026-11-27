@@ -14,6 +14,15 @@ enum RankedChoiceOrder {
         return stored + ids.filter { !stored.contains($0) }
     }
 
+    /// The control's own full order while it still agrees with the stored ranking, else the derived one.
+    /// Keeping the tail lets a `topK` ranking pull any unranked option up into the ranked rows.
+    static func shown(full: [String]?, stored: [String]?, options: [PanelOption], ranked: Int) -> [String] {
+        let derived = order(stored: stored, options: options)
+        guard let full, Set(full) == Set(options.map(\.id)), full.count == options.count,
+              Array(full.prefix(ranked)) == Array(derived.prefix(ranked)) else { return derived }
+        return full
+    }
+
     static func moved(_ order: [String], from index: Int, by offset: Int) -> [String] {
         let target = index + offset
         guard order.indices.contains(index), order.indices.contains(target) else { return order }
@@ -34,9 +43,13 @@ struct PanelRankedChoice: View {
     @Binding var value: PanelValue
     /// A questionnaire needs an explicit answer before Next; an ask's Submit sends the shown order.
     var confirmsOrder = true
+    /// The whole order including the unranked tail, so a `topK` ranking can move any option up.
+    @State private var fullOrder: [String]?
 
     private var stored: [String]? { value.array?.compactMap(\.string) }
-    private var order: [String] { RankedChoiceOrder.order(stored: stored, options: options) }
+    private var order: [String] {
+        RankedChoiceOrder.shown(full: fullOrder, stored: stored, options: options, ranked: ranked)
+    }
     private var ranked: Int { topK ?? options.count }
 
     var body: some View {
@@ -112,8 +125,9 @@ struct PanelRankedChoice: View {
         write(RankedChoiceOrder.moved(order, from: index, by: offset))
     }
 
-    /// Stores only the ranked prefix, which is the answer; the unranked tail follows the options' order.
+    /// Stores only the ranked prefix, which is the answer; the full order stays local to the control.
     private func write(_ order: [String]) {
+        fullOrder = order
         value = .array(RankedChoiceOrder.answer(order, topK: topK).map(PanelValue.string))
     }
 }

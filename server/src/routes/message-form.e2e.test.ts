@@ -69,6 +69,12 @@ describe('sending a form ask', () => {
     expect((await send({ metadata: { form: loose } })).status).toBe(400);
   });
 
+  it('refuses a form ask to another agent, whose text reply would close it', async () => {
+    const res = await send({ metadata: { form: ranked }, to: 'some-peer' });
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain('goes to the boss');
+  });
+
   it('rejects catalog v1, a v1 input and two inputs', async () => {
     expect((await send({ metadata: { form: { ...ranked, catalogVersion: 1 } } })).status).toBe(400);
     const select = { catalogVersion: 2, input: { type: 'Select', props: { label: 'x', value: { $bindState: '/form/answer' }, options: [{ id: 'a', label: 'A' }] } } };
@@ -109,6 +115,12 @@ describe('answering a form ask', () => {
     const id = await askWith(review);
     const answers = { changelog: { verdict: 'confirmed' }, rollback: { verdict: 'not_confirmed' } };
     expect((await reply(id, { body: 'Checks', answers })).status).toBe(400);
+  });
+
+  it('keeps buttons on an older option ask whose metadata happens to hold a form', async () => {
+    await env.DB.prepare("INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'api', 'Pick', 'sent', 'normal', ?)")
+      .bind('legacy-form-options', getTestAgentId(), JSON.stringify({ options: ['A', 'B'], form: ranked })).run();
+    expect((await reply('legacy-form-options', { body: 'A' })).status).toBe(201);
   });
 
   it('refuses answers on an ordinary message and strips answers an agent sends', async () => {

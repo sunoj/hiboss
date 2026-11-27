@@ -1,6 +1,77 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Shorten the notes to send this answer.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shorten the notes to send this answer."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请缩短备注后再发送此回答。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この回答を送信するにはメモを短くしてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 답변을 보내려면 메모를 줄이세요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ย่อหมายเหตุให้สั้นลงเพื่อส่งคำตอบนี้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acorta las notas para enviar esta respuesta."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह उत्तर भेजने के लिए टिप्पणियाँ छोटी करें।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختصر الملاحظات لإرسال هذه الإجابة."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encurte as notas para enviar esta resposta."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raccourcissez les notes pour envoyer cette réponse."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сократите примечания, чтобы отправить этот ответ."
+          }
+        }
+      }
+    },
     "Submit answer": {
       "extractionState": "manual",
       "localizations": {

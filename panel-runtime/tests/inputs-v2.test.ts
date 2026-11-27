@@ -49,6 +49,12 @@ describe('catalog v2 identity', () => {
     expect(validatePanelSpec(spec('RankedChoice', ranked), { declaredPaths, catalogVersion: 2 }).ok).toBe(true);
   });
 
+  it('accepts only ASCII ids, so no two can collide under Unicode normalization', () => {
+    const accented = { ...ranked, options: [{ id: '\u00e9', label: 'One' }, { id: 'e\u0301', label: 'Two' }] };
+    expect(answerSchemaFor('RankedChoice', accented).ok).toBe(false);
+    expect(answerSchemaFor('RankedChoice', { ...ranked, options: [{ id: 'a.b-c_1', label: 'A' }, { id: 'B', label: 'B' }] }).ok).toBe(true);
+  });
+
   it('rejects duplicate ids, a topK above the option count, and a read-only value', () => {
     const dup = { ...ranked, options: [ranked.options[0], ranked.options[0]] };
     expect(answerSchemaFor('RankedChoice', dup).ok).toBe(false);
@@ -107,6 +113,20 @@ describe('ItemReview answers', () => {
 });
 
 describe('questionnaire consistency', () => {
+  it('requires the v2 field in the root required list', () => {
+    const elements = { main: { type: 'RankedChoice', props: ranked } };
+    const derived = answerSchemaFor('RankedChoice', ranked);
+    const optional = derived.ok ? { ...formSchema('order', derived.value), required: [] } : {};
+    expect(validateInputAnswerSchemas(elements, optional).ok).toBe(false);
+  });
+
+  it('decodes an escaped pointer before looking up the declared schema', () => {
+    const props = { ...ranked, value: { $bindState: '/form/a~1b' } };
+    const derived = answerSchemaFor('RankedChoice', props);
+    const schema = derived.ok ? formSchema('a/b', derived.value) : {};
+    expect(validateInputAnswerSchemas({ main: { type: 'RankedChoice', props } }, schema).ok).toBe(true);
+  });
+
   it('requires the declared schema at a v2 input to equal the derived one', () => {
     const elements = { main: { type: 'RankedChoice', props: ranked } };
     const derived = answerSchemaFor('RankedChoice', ranked);

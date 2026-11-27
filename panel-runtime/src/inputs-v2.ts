@@ -7,7 +7,8 @@ import { failure, type ValidationResult } from './errors.js';
 
 const pointer = z.string().min(1).refine((value) => value.startsWith('/'), 'must be a JSON Pointer');
 const writable = z.strictObject({ $bindState: pointer });
-const id = z.string().min(1).max(64);
+/** ASCII ids, so no two ids can collide under Unicode normalization on a client. */
+const id = z.string().regex(/^[A-Za-z0-9_.-]{1,64}$/, 'ids use only letters, digits, "_", "." and "-"');
 const entry = z.strictObject({ id, label: z.string().min(1).max(200), description: z.string().max(400).optional() });
 
 function uniqueIds(list: readonly { id: string }[]): boolean {
@@ -99,11 +100,21 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function schemaAt(answerSchema: unknown, formPointer: string): unknown {
-  const key = formPointer.replace(/^\/form\//, '');
-  if (key === formPointer || key.includes('/')) return undefined;
+/** The decoded `/form/<key>` property name, or undefined for any other pointer. */
+function formKey(formPointer: string): string | undefined {
+  const raw = formPointer.replace(/^\/form\//, '');
+  if (raw === formPointer || raw.includes('/')) return undefined;
+  return raw.replaceAll('~1', '/').replaceAll('~0', '~');
+}
+
+function schemaAt(answerSchema: unknown, key: string): unknown {
   const properties = (answerSchema as { properties?: Record<string, unknown> } | null)?.properties;
-  return properties?.[key];
+  return properties !== undefined && Object.prototype.hasOwnProperty.call(properties, key) ? properties[key] : undefined;
+}
+
+function isRequired(answerSchema: unknown, key: string): boolean {
+  const required = (answerSchema as { required?: unknown } | null)?.required;
+  return Array.isArray(required) && required.includes(key);
 }
 
 /**
@@ -119,7 +130,12 @@ export function validateInputAnswerSchemas(
     const derived = answerSchemaFor(element.type, element.props);
     if (!derived.ok) return derived;
     const binding = (element.props.value as { $bindState?: string } | undefined)?.$bindState ?? '';
-    const declared = schemaAt(answerSchema, binding);
+    const key = formKey(binding);
+    const declared = key === undefined ? undefined : schemaAt(answerSchema, key);
+    if (key === undefined || !isRequired(answerSchema, key)) {
+      return failure('invalid_spec', `/formSpec/elements/${elementId}/props/value`,
+        `${element.type} must bind to a /form/<field> listed in the answer schema's root "required"`);
+    }
     if (declared === undefined || canonical(declared) !== canonical(derived.value)) {
       return failure('invalid_spec', `/formSpec/elements/${elementId}/props/value`,
         `The answer schema at ${binding} must equal the one derived from this ${element.type}: ${canonical(derived.value)}`);

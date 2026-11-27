@@ -85,6 +85,10 @@ fn entries(value: &Value, name: &str, min: usize, max: usize) -> Result<usize, S
         let path = format!("{name}[{index}]");
         let entry = fields(entry, &["id", "label"], &[optional], &path)?;
         let id = validate_string(&entry["id"], 1, 64, &format!("{path}.id"))?;
+        // ASCII only, as the server requires, so no two ids collide under Unicode normalization.
+        if !id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-')) {
+            return Err(format!("{path}.id uses only letters, digits, \"_\", \".\" and \"-\""));
+        }
         if !ids.insert(id) {
             return Err(format!("{name} ids must be unique (duplicate {id:?})"));
         }

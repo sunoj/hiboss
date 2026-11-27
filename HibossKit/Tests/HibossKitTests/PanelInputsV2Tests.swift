@@ -22,6 +22,27 @@ final class PanelInputsV2Tests: XCTestCase {
         XCTAssertEqual(RankedChoiceOrder.moved(order, from: 2, by: 1), order)
     }
 
+    func testATopKRankingCanPullTheLastOptionIntoTheRankedRows() {
+        var full: [String]? = nil
+        var stored: [String]? = nil
+        func move(_ index: Int, by offset: Int) {
+            let order = RankedChoiceOrder.shown(full: full, stored: stored, options: options, ranked: 1)
+            full = RankedChoiceOrder.moved(order, from: index, by: offset)
+            stored = RankedChoiceOrder.answer(full!, topK: 1)
+        }
+        move(2, by: -1)
+        move(1, by: -1)
+        XCTAssertEqual(stored, ["flag"], "the last option reached rank 1")
+        XCTAssertEqual(RankedChoiceOrder.shown(full: full, stored: ["sync"], options: options, ranked: 1).first, "sync",
+            "a stored ranking that disagrees with the local order wins")
+    }
+
+    func testNotesAreClippedToTheServerLimit() {
+        let long = String(repeating: "é", count: 1_200)
+        XCTAssertEqual(ItemReviewAnswer.clipped(long).utf16.count, ItemReviewAnswer.noteLimit)
+        XCTAssertEqual(ItemReviewAnswer.clipped("short"), "short")
+    }
+
     func testTheAnswerIsTheRankedPrefix() {
         XCTAssertEqual(RankedChoiceOrder.answer(["flag", "sync", "settings"], topK: 2), ["flag", "sync"])
         XCTAssertEqual(RankedChoiceOrder.answer(["flag", "sync", "settings"], topK: nil).count, 3)

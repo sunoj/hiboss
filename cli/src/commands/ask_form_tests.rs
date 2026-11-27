@@ -168,3 +168,23 @@ fn form_file_preserves_props_and_rejects_duplicate_ids() {
     );
     assert!(duplicate.unwrap_err().to_string().contains("duplicate"));
 }
+
+#[test]
+fn a_form_ask_cannot_go_to_another_agent() {
+    let error = Command::try_parse_from(["ask", "Rank", "--rank", "a=A", "--rank", "b=B", "--to", "peer"])
+        .expect_err("--to conflicts with a form");
+    assert_eq!(error.kind(), clap::error::ErrorKind::ArgumentConflict);
+}
+
+#[test]
+fn ids_are_ascii_only() {
+    let props = json!({"label": "Rank", "value": {"$bindState": "/form/answer"},
+        "options": [{"id": "\u{e9}", "label": "One"}, {"id": "b", "label": "Two"}]});
+    assert!(super::input_v2::validate_props("RankedChoice", &props).is_err());
+}
+
+#[test]
+fn whole_number_floats_count_as_javascript_prints_them() {
+    let form = super::ask_form::normalized_for_tests(json!({"topK": 1.0, "nested": [2.0, 2.5]}));
+    assert_eq!(form.to_string(), r#"{"nested":[2,2.5],"topK":1}"#);
+}

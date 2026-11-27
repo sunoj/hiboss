@@ -68,7 +68,7 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   const descriptions = parseOptionDescriptions(rawMetadata['option_descriptions'], options);
   if (!descriptions.ok) return c.text(descriptions.error, 400);
   if (descriptions.value) rawMetadata['option_descriptions'] = descriptions.value;
-  const formError = askFormError(rawMetadata, options, mode);
+  const formError = askFormError(rawMetadata, options, mode, toAgent);
   if (formError) return c.text(formError, 400);
   const timeout = typeof payload.timeout === 'number' ? payload.timeout : null;
   // Only the send timeout can grant a blocking caller its own deadline.
@@ -90,8 +90,11 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
  * A form ask's question is its one v2 input: it offers no options, has no timeout default
  * (expiry never fills in a structured answer), and is always a blocking ask.
  */
-function askFormError(metadata: Record<string, unknown>, options: string[] | undefined, mode: Mode): string | null {
+function askFormError(metadata: Record<string, unknown>, options: string[] | undefined, mode: Mode,
+  toAgent: string | null): string | null {
   if (metadata['form'] === undefined) return null;
+  // Only the boss's apps validate and sign a form answer; an agent reply would close it with text.
+  if (toAgent) return 'a form ask goes to the boss, not to another agent';
   const form = parseAskForm(metadata['form']);
   if (!form.ok) return form.error;
   if (options) return 'a form ask cannot also offer options';

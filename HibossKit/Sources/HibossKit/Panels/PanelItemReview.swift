@@ -28,13 +28,25 @@ enum ItemReviewAnswer {
         value.object?[item]?.object?["note"]?.string ?? ""
     }
 
+    /// The server's per-note limit, counted in UTF-16 code units like JavaScript.
+    static let noteLimit = 1000
+
     static func setting(_ value: PanelValue, item: String, verdict: String?, note: String?) -> PanelValue {
         var answers = value.object ?? [:]
         var entry = answers[item]?.object ?? [:]
         if let verdict { entry["verdict"] = .string(verdict) }
-        if let note { entry["note"] = note.isEmpty ? nil : .string(note) }
+        if let note { entry["note"] = note.isEmpty ? nil : .string(clipped(note)) }
         answers[item] = .object(entry)
         return .object(answers)
+    }
+
+    static func clipped(_ note: String) -> String {
+        guard note.utf16.count > noteLimit else { return note }
+        var result = ""
+        for character in note where result.utf16.count + String(character).utf16.count <= noteLimit {
+            result.append(character)
+        }
+        return result
     }
 
     /// An item counts as answered when it has a verdict and, if that verdict needs one, a note.

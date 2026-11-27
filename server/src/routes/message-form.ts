@@ -47,12 +47,17 @@ export function parseAskForm(value: unknown): Result<AskForm> {
   return { ok: true, value: { catalogVersion: 2, input: { type: input.type, props: input.props } } };
 }
 
-/** The parent's form, when the parent is a form ask; malformed or absent metadata is null. */
+/**
+ * The parent's form, when the parent is a form ask; malformed or absent metadata is null.
+ * A message that offers options is never a form ask, so rows stored before form asks existed
+ * (with a coincidental `form` key) keep their buttons and their timeout default.
+ */
 export function askFormOf(metadata: string | null): AskForm | null {
   if (!metadata) return null;
   try {
     const parsed = JSON.parse(metadata) as unknown;
     if (!isRecord(parsed) || parsed.form === undefined) return null;
+    if (Array.isArray(parsed.options) && parsed.options.length > 0) return null;
     const form = parseAskForm(parsed.form);
     return form.ok ? form.value : null;
   } catch {

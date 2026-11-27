@@ -51,13 +51,21 @@ public struct AskForm: Equatable, Sendable {
         }
     }
 
-    /// Submit is enabled only when the server's derived schema would accept the answer.
+    /// The server refuses answers above 16 KiB of JSON.
+    static let answerByteLimit = 16_384
+
+    /// Submit is enabled only when the server's derived schema and size limit would accept the answer.
     public func isComplete(_ value: PanelValue) -> Bool {
+        guard fitsSizeLimit(answer(from: value)) else { return false }
         switch kind {
         case .rankedChoice: return true
         case .itemReview:
             return ItemReviewAnswer.answeredCount(value, items: items, verdicts: verdicts) == items.count
         }
+    }
+
+    public func fitsSizeLimit(_ answer: PanelValue) -> Bool {
+        ((try? JSONEncoder().encode(answer))?.count ?? Int.max) <= Self.answerByteLimit
     }
 
     /// The reply's readable body for the thread, Discord and older clients; agents read `answers`.

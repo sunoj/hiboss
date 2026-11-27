@@ -32,6 +32,10 @@ public struct AskFormView: View {
                 if isSubmitting { ProgressView().controlSize(.small) }
                 Spacer(minLength: 0)
             }
+            if !form.fitsSizeLimit(form.answer(from: value)) {
+                Text(kitL("Shorten the notes to send this answer."))
+                    .font(.caption).foregroundStyle(.red)
+            }
             Text(kitL("The agent receives this as input. It does not approve any action."))
                 .font(.caption).foregroundStyle(.secondary)
         }
