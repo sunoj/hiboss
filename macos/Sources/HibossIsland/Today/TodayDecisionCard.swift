@@ -33,7 +33,8 @@ struct TodayDecisionCard: View {
             }
             if let form = item.message.metadata?.form {
                 AskFormView(form: form, isSubmitting: isSubmitting) { answers, summary in
-                    if let reply { answerForm?(answers, summary: summary, for: item.id, reply: reply) }
+                    guard let reply, let answerForm else { return false }
+                    return await answerForm(answers, summary: summary, for: item.id, reply: reply)
                 }
                 .disabled(reply == nil || answerForm == nil)
             } else {

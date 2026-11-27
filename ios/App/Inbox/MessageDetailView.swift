@@ -148,9 +148,9 @@ struct MessageDetailView: View {
             )
             if let form = message.metadata?.form {
                 // A form ask takes only its structured answer; a text reply would be refused.
-                AskFormView(form: form, isSubmitting: submitting != nil) { answers, summary in
-                    submit(summary, answers: answers, for: message.id)
-                }
+                AskFormView(form: form, isSubmitting: submitting != nil, onSubmit: { answers, summary in
+                    await submitForm(summary, answers: answers, for: message.id)
+                }, onAnswered: { dismiss() })
             } else {
                 if !message.options.isEmpty {
                     DecisionOptions(options: message.options, metadata: message.metadata, timing: timing,
@@ -220,6 +220,26 @@ struct MessageDetailView: View {
             return Text("Expired — no response")
         }
         return Text("No longer open")
+    }
+
+    /// A form answer: true when accepted, so the form shows "Answer sent" before the view closes.
+    private func submitForm(_ summary: String, answers: PanelValue, for id: MessageID) async -> Bool {
+        actionNote = nil
+        switch await store.reply(summary, answers: answers, to: id) {
+        case .sent:
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            return true
+        case .alreadyResolved:
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            actionNote = String(localized: "No longer open")
+        case .failed:
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            actionNote = store.replyFeedback[id] ?? store.loadError
+                ?? String(localized: "Couldn't send your reply. Try again.")
+        case .busy:
+            break
+        }
+        return false
     }
 
     private func submit(_ choice: String, answers: PanelValue? = nil, for id: MessageID) {
