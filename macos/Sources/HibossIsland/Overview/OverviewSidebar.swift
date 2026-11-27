@@ -1,6 +1,6 @@
-// Native workspace navigation with decision filters and searchable session history.
+// Native workspace navigation: destinations, sessions grouped by state, and history filters.
 // Exports: OverviewSidebar with shared snapshot counts and connection recovery.
-// Dependencies: SwiftUI, HibossKit, OverviewSnapshot.
+// Dependencies: SwiftUI, HibossKit, OverviewSnapshot, SidebarSessionGroup.
 
 import HibossKit
 import SwiftUI
@@ -38,19 +38,18 @@ struct OverviewSidebar: View {
                     Label(L("Progress"), systemImage: "play.rectangle")
                         .tag(BoxSidebarSelection.workspace(.progress))
                 }
-                Section(L("Sessions")) { sessions }
-                Section(L("More")) {
+                sessions
+                Section(L("History")) {
+                    categoryRow(.all)
+                    categoryRow(.completed)
                     Label(L("Device Requests"), systemImage: "desktopcomputer.and.arrow.down")
                         .badge(deviceRequestCount)
                         .tag(BoxSidebarSelection.workspace(.deviceRequests))
                         .accessibilityIdentifier("overview.deviceRequests")
-                    categoryRow(.all)
-                    categoryRow(.completed)
                 }
                 if let notice { connectionNotice(notice).selectionDisabled() }
             }
             .listStyle(.sidebar)
-            footer
         }
         .accessibilityIdentifier("overview.sidebar")
     }
@@ -90,31 +89,37 @@ struct OverviewSidebar: View {
         .accessibilityIdentifier("overview.\(category.rawValue)")
     }
 
+    /// One search field over every session, then a header row per state in the server's order.
+    /// Headers are rows, not `Section`s: see `SidebarSessionRow`.
     private var sessions: some View {
-        Group {
+        let groups = sessionGroups
+        return Section {
             SessionSearchField(text: $sessionSearch)
                 .accessibilityIdentifier("overview.sessionSearch")
                 .selectionDisabled()
-            if filteredSessions.isEmpty {
+            if groups.isEmpty {
                 Text(sessionSearch.isEmpty ? L("Your sessions will appear here.") : L("No matching sessions"))
                     .font(.callout).foregroundStyle(.secondary).selectionDisabled()
             }
-            ForEach(filteredSessions) { session in
-                sessionRow(session).tag(BoxSidebarSelection.workspace(.session(session.id)))
+            ForEach(SidebarSessionRow.rows(groups)) { row in
+                switch row {
+                case let .header(group):
+                    Text(verbatim: group.title)
+                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        .padding(.top, 6)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("overview.sessions.\(group.id)")
+                        .selectionDisabled()
+                case let .session(session):
+                    sessionRow(session).tag(BoxSidebarSelection.workspace(.session(session.id)))
+                }
             }
         }
     }
 
-    private var filteredSessions: [TodaySession] {
-        let query = sessionSearch.trimmingCharacters(in: .whitespacesAndNewlines)
-        let directory = snapshot.today.sessionDirectory
-        let sessions = directory.needsYou + directory.working + directory.idle
-        guard !query.isEmpty else { return sessions }
-        return sessions.filter { session in
-            (inventory.first { $0.id == session.id }?.namedLabel ?? session.projectLabel)
-                .localizedStandardContains(query)
-                || (session.agentName?.localizedStandardContains(query) ?? false)
-                || (session.branch?.localizedStandardContains(query) ?? false)
+    private var sessionGroups: [SidebarSessionGroup] {
+        SidebarSessionGroup.groups(snapshot.today.sessionDirectory, query: sessionSearch) { session in
+            inventory.first { $0.id == session.id }?.namedLabel ?? session.projectLabel
         }
     }
 
@@ -185,21 +190,5 @@ struct OverviewSidebar: View {
                 unread: unreadSessionIDs.contains(session.id)).label,
             session.hasLiveWork(now: snapshot.now) ? L("Working now") : ""]
             .filter { !$0.isEmpty }.joined(separator: ", "))
-    }
-
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Divider()
-            Label(connectionState == .connected ? L("Live") : L("Connecting…"),
-                systemImage: connectionState == .connected
-                ? "checkmark.circle.fill" : "antenna.radiowaves.left.and.right.slash")
-                .font(.caption).foregroundStyle(connectionState == .connected
-                    ? TodayStyle.settled : TodayStyle.secondary)
-            HStack {
-                Button(action: onSettings) { Label(L("Settings"), systemImage: "gearshape") }
-                    .buttonStyle(.plain)
-                Spacer()
-            }.layoutProbe("sidebar.settingsRow")
-        }.padding(16)
     }
 }

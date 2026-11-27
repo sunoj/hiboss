@@ -10,7 +10,7 @@ import XCTest
 
 @MainActor
 final class SidebarFormattingTests: XCTestCase {
-    func testSearchIsNativeAndSettingsHasNoTrailingCaptionInBothAppearances() async throws {
+    func testSearchIsNativeAndSettingsLeftTheSidebarInBothAppearances() async throws {
         _ = NSApplication.shared
         for scheme in [ColorScheme.light, .dark] {
             let sidebar = OverviewSidebar(snapshot: OverviewSnapshot(history: [], live: nil, now: .now),
@@ -38,33 +38,13 @@ final class SidebarFormattingTests: XCTestCase {
             let placeholder = try XCTUnwrap(search?.placeholderAttributedString)
             XCTAssertEqual(placeholder.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor,
                 .secondaryLabelColor, "The native placeholder must use readable semantic label contrast")
-            try assertSettingsRowHasNoTrailingCaption(host: host, probe: probe)
+            // Settings lives in the toolbar; the sidebar no longer carries a footer row.
+            XCTAssertNil(probe.anchors["sidebar.settingsRow"])
         }
     }
 
     private func descendants(_ view: NSView) -> [NSView] {
         view.subviews.flatMap { [$0] + descendants($0) }
-    }
-
-    private func assertSettingsRowHasNoTrailingCaption(host: NSView, probe: LayoutProbe) throws {
-        let row = try XCTUnwrap(probe.anchors["sidebar.settingsRow"])
-        let frame = row.convert(row.bounds, to: host)
-        let trailing = NSRect(x: frame.midX, y: frame.minY, width: frame.width / 2, height: frame.height)
-        let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: trailing))
-        host.effectiveAppearance.performAsCurrentDrawingAppearance {
-            host.cacheDisplay(in: trailing, to: bitmap)
-        }
-        var brightness: [Double] = []
-        for y in 0..<bitmap.pixelsHigh {
-            for x in 0..<bitmap.pixelsWide {
-                if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) {
-                    brightness.append((color.redComponent + color.greenComponent + color.blueComponent) / 3)
-                }
-            }
-        }
-        let minimum = try XCTUnwrap(brightness.min())
-        let maximum = try XCTUnwrap(brightness.max())
-        XCTAssertLessThan(maximum - minimum, 0.08, "Settings has an unattached trailing caption")
     }
 
     func testNativeSearchTypingAndClearingUpdateTheBinding() {
