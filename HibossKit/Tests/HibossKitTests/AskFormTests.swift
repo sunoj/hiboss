@@ -36,11 +36,14 @@ final class AskFormTests: XCTestCase {
     }
 
     func testSizeLimitCountsSlashesAsJavaScriptDoes() throws {
-        let meta = try metadata(#"{"options":[],"form":{"catalogVersion":2,"input":{"type":"ItemReview","props":{"label":"Checks","value":{"$bindState":"/form/answer"},"items":[{"id":"c","label":"C"}],"verdicts":[{"id":"ok","label":"OK"},{"id":"no","label":"No"}]}}}}"#)
-        let form = try XCTUnwrap(meta.form)
-        let slashes = String(repeating: "/", count: 9_000)
-        let value = PanelValue.object(["c": .object(["verdict": .string("ok"), "note": .string(slashes)])])
-        XCTAssertTrue(form.fitsSizeLimit(value), "9,000 slashes are about 9 KiB, not 18 KiB")
+        let items = (0..<10).map { #"{"id":"i\#($0)","label":"Item \#($0)"}"# }.joined(separator: ",")
+        let json = #"{"options":[],"form":{"catalogVersion":2,"input":{"type":"ItemReview","props":{"label":"Checks","value":{"$bindState":"/form/answer"},"items":["# + items + #"],"verdicts":[{"id":"ok","label":"OK"},{"id":"no","label":"No"}]}}}}"#
+        let form = try XCTUnwrap(try metadata(json).form)
+        let note = String(repeating: "/", count: 900)
+        let value = PanelValue.object(Dictionary(uniqueKeysWithValues: (0..<10).map {
+            ("i\($0)", PanelValue.object(["verdict": .string("ok"), "note": .string(note)]))
+        }))
+        XCTAssertTrue(form.fitsSizeLimit(value), "ten valid 900-slash notes are about 9.3 KB, not 18.3 KB")
     }
 
     func testIgnoresCatalogV1AndReadsReplyAnswers() throws {
