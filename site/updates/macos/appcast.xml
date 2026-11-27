@@ -4,12 +4,12 @@
     <title>HiBoss Island</title>
     <item>
       <title>Version 1.1.0</title>
-      <pubDate>Fri, 27 Nov 2026 07:21:05 +0000</pubDate>
+      <pubDate>Fri, 27 Nov 2026 07:47:30 +0000</pubDate>
       <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
-      <sparkle:version>202611271419</sparkle:version>
+      <sparkle:version>202611271446</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[ New main window layout. Sessions in the sidebar are grouped into Needs you, Working and Idle, with a History section; Settings moved to the toolbar. Live panels have their own Watching page, and Today shows up to two running panels. Today shows the top decision as a full card with collapsible details, the other decisions as one-line rows, and context beside them. A session thread shows how each decision ended in one line. The Island card can expand the full message. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.1.0/HiBoss-Island-1.1.0.zip" sparkle:edSignature="ncBbL7/LPgFuK1yOrCGaF+WoIoWewO7y6MpWPEJIOEMNhKBq6hYYz14XCIFtXQziMHh+Wfwoid/Vg+oMIkLcAQ==" length="8229337" type="application/zip" />
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.1.0/HiBoss-Island-1.1.0.zip" sparkle:edSignature="7Htyb9kZ7Egt206vO/d5ZcULapqOxx/r9aY3ibZUv9ZaiZmVp4l7AinxasDGXTe5GZT407B0WSIS1m5r+cNeBw==" length="8256614" type="application/zip" />
     </item>
   </channel>
 </rss>
