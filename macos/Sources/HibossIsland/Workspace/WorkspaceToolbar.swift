@@ -1,4 +1,4 @@
-// Gives the split-view window one native refresh action and compact history status.
+// Gives the split-view window native refresh and settings actions and compact history status.
 // Exports WorkspaceToolbar; read progress never disables the workspace action.
 // Dependencies: SwiftUI, HibossKit OptionFlowStore, and CachedReadStatus.
 
@@ -12,6 +12,7 @@ struct WorkspaceToolbar: ViewModifier {
     /// toolbar matches the sidebar instead of the idle flow.
     var connection: ConnectionState
     let onRefresh: () -> Void
+    let onSettings: () -> Void
 
     func body(content: Content) -> some View {
         content.toolbar {
@@ -30,6 +31,11 @@ struct WorkspaceToolbar: ViewModifier {
                     .help(refreshHelp)
                     .keyboardShortcut("r", modifiers: .command)
                     .layoutProbe("workspace.refresh")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: onSettings) { Label(L("Settings"), systemImage: "gearshape") }
+                    .help(L("Settings"))
+                    .layoutProbe("workspace.settings")
             }
         }
     }

@@ -171,7 +171,7 @@ struct MainView: View {
                 onSettings: { openWindow(id: "settings") }))
             .modifier(WorkspaceToolbar(flow: flow, destination: destination,
                 connection: previewHistory == nil ? flow.connectionState : .connected,
-                onRefresh: refresh))
+                onRefresh: refresh, onSettings: { openWindow(id: "settings") }))
     }
 
     private func messageShell(snapshot: OverviewSnapshot, compact: Bool) -> some View {

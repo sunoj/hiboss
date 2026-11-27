@@ -82,11 +82,9 @@ final class BoxMainWindowLayoutTests: XCTestCase {
         let window = try await BoxMainWindowLayoutSupport.show(store: store, media: media,
             probe: probe, width: width, scheme: scheme, height: 820)
         defer { window.close() }
-        let settings = try frame("sidebar.settingsRow", probe: probe)
-        XCTAssertEqual(settings.minY, window.contentLayoutRect.minY + 16, accuracy: 1)
         let collection = try frame("box.collection.design", probe: probe)
         let liked = try frame("box.scope.liked", probe: probe)
-        XCTAssertGreaterThan(collection.minY, settings.maxY)
+        XCTAssertTrue(window.contentLayoutRect.contains(collection))
         XCTAssertGreaterThan(liked.minY, collection.maxY)
         let actions = try frame("box.actions", probe: probe)
         let like = try frame("box.like.image", probe: probe)
@@ -125,8 +123,8 @@ final class BoxMainWindowLayoutTests: XCTestCase {
     private func checkToolbar(_ window: NSWindow, probe: LayoutProbe, compact: Bool) throws {
         let toolbar = try XCTUnwrap(window.toolbar)
         let visibleItems = try XCTUnwrap(toolbar.visibleItems)
-        let ids = compact ? ["box.compact-filters", "workspace.live", "workspace.refresh"]
-            : ["box.filters", "box.source", "workspace.live", "workspace.refresh"]
+        let ids = compact ? ["box.compact-filters", "workspace.live", "workspace.refresh", "workspace.settings"]
+            : ["box.filters", "box.source", "workspace.live", "workspace.refresh", "workspace.settings"]
         var controls: [(String, NSRect)] = []
         var anchors: [NSView] = []
         for id in ids {
@@ -147,7 +145,7 @@ final class BoxMainWindowLayoutTests: XCTestCase {
         } else {
             XCTAssertTrue(toolbar.items.contains { $0.label == "Search" })
         }
-        XCTAssertGreaterThanOrEqual(controls.count, compact ? 1 : 5)
+        XCTAssertGreaterThanOrEqual(controls.count, compact ? 1 : 6)
         for item in visibleItems {
             guard let view = item.view, view.window === window, !view.isHiddenOrHasHiddenAncestor,
                   !view.bounds.isEmpty,
