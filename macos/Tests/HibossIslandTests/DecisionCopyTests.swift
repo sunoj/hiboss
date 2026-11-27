@@ -1,4 +1,4 @@
-// Session decisions keep their text selectable. Today still opens from the summary button.
+// Decision details stay readable text in sessions and Today; Today opens from the summary button.
 // Exports: DecisionCopyTests.
 // Dependencies: AppKit, SwiftUI, and the production decision card.
 
@@ -18,9 +18,10 @@ final class DecisionCopyTests: XCTestCase {
             "\(nodes)")
     }
 
-    func testTodayDecisionSummaryStaysAButton() async throws {
+    func testTodayDecisionDetailsAreReadableOutsideTheSummaryButton() async throws {
         let nodes = try await nodes(todayCard())
-        XCTAssertFalse(nodes.contains { $0.label.contains(Self.command) }, "\(nodes)")
+        XCTAssertTrue(nodes.contains { $0.role == "AXStaticText" && $0.label.contains("Run this exactly.") },
+            "\(nodes)")
     }
 
     private func sessionRow() -> some View {

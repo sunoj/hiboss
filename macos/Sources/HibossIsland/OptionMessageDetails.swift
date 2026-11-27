@@ -46,6 +46,8 @@ struct OptionMessageDetails: View {
     var textColor: Color = .white.opacity(0.72)
     var toggleColor: Color = .white.opacity(0.6)
     var identifier = "island.details"
+    /// Embed cards; the Island is itself a card, so only window cards turn them on.
+    var cards = false
 
     var body: some View {
         let isLong = OptionDetailsPolicy.isLong(text, unitsPerLine: unitsPerLine)
@@ -61,7 +63,7 @@ struct OptionMessageDetails: View {
     @ViewBuilder
     private func details(showsAll: Bool) -> some View {
         if showsAll {
-            MessageMarkdownView(text, cards: false)
+            MessageMarkdownView(text, cards: cards)
         } else {
             Text(MessageMarkdown.inline(text))
                 .lineLimit(OptionDetailsPolicy.previewLineCount)

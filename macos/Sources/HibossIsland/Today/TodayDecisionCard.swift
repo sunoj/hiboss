@@ -25,7 +25,7 @@ struct TodayDecisionCard: View {
                 // Outside the summary button, so the toggle is not a button inside a button.
                 OptionMessageDetails(text: content, isExpanded: $detailsExpanded,
                     unitsPerLine: Self.detailsUnitsPerLine, textColor: TodayStyle.secondary,
-                    toggleColor: TodayStyle.secondary, identifier: "decision.details")
+                    toggleColor: TodayStyle.secondary, identifier: "decision.details", cards: true)
                     .textSelection(.enabled)
             }
             DecisionChoices(item: item, isSubmitting: isSubmitting, onChoose: onChoose)
