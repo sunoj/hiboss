@@ -137,9 +137,9 @@ struct AttentionWorkspace: View {
     @ViewBuilder
     private var detail: some View {
         if let selectedItem {
-            AttentionDetail(item: selectedItem, now: now) { choice in
+            AttentionDetail(item: selectedItem, now: now, onChoose: { choice in
                 send(choice, for: selectedItem.id)
-            }
+            })
             .disabled(reply.submitting.contains(selectedItem.id))
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 AttentionReplyComposer(

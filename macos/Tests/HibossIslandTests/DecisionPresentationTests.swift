@@ -85,8 +85,7 @@ final class DecisionPresentationTests: XCTestCase {
             defaultOption: "Hold", now: now)
         let item = AttentionItem(message: message, group: .priority)
         for scheme in [ColorScheme.light, .dark] {
-            let host = NSHostingView(rootView: TodayDecisionCard(item: item, now: now, isSelected: false,
-                isSubmitting: false, error: nil, onSelect: {}, onChoose: { _ in })
+            let host = NSHostingView(rootView: TodayDecisionCard(item: item, now: now, isSubmitting: false, error: nil, onSelect: {}, onChoose: { _ in })
                 .environment(\.colorScheme, scheme))
             let window = makeWindow(host, width: 600, scheme: scheme)
             defer { window.close() }

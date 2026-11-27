@@ -1,4 +1,4 @@
-// Selected attention item: wrapping question, native choices, and supporting metadata.
+// Selected attention item: wrapping question, native choices when answerable here, and metadata.
 // Exports: AttentionDetail.
 // Dependencies: SwiftUI, AttentionItem; reply composer is owned by AttentionWorkspace.
 
@@ -12,7 +12,8 @@ struct AttentionDetail: View {
     let now: Date
     var earlier: [HistoryMessage] = []
     var onOpenSession: (() -> Void)?
-    let onChoose: (String) -> Void
+    /// Without it the detail is context only: Today's focus card already holds the choices.
+    var onChoose: ((String) -> Void)?
 
     var body: some View {
         ScrollView {
@@ -25,8 +26,8 @@ struct AttentionDetail: View {
                     DecisionDeadline(expiresAt: item.expiresAt, now: now)
                 }
                 question
-                if !item.options.isEmpty { choices }
-                if let option = item.defaultOption {
+                if let onChoose, !item.options.isEmpty { choices(onChoose) }
+                if onChoose != nil, let option = item.defaultOption {
                     DecisionDefaultLine(option: option, expiresAt: item.expiresAt, now: now)
                 }
                 metadata
@@ -60,7 +61,7 @@ struct AttentionDetail: View {
         }
     }
 
-    private var choices: some View {
+    private func choices(_ onChoose: @escaping (String) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Choices")).font(.headline)
             DecisionChoices(item: item, onChoose: onChoose)

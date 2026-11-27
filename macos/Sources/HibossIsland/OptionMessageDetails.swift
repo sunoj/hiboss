@@ -11,13 +11,14 @@ enum OptionDetailsPolicy {
     static let previewLineCount = 3
     static let unitsPerLine = 56
 
-    static func isLong(_ text: String) -> Bool {
+    static func isLong(_ text: String, unitsPerLine: Int = OptionDetailsPolicy.unitsPerLine,
+                       lineCount: Int = OptionDetailsPolicy.previewLineCount) -> Bool {
         let lines = text.components(separatedBy: .newlines)
-        guard lines.count <= previewLineCount else { return true }
+        guard lines.count <= lineCount else { return true }
         let visual = lines.reduce(0) { total, line in
             total + max(1, (widthUnits(line) + unitsPerLine - 1) / unitsPerLine)
         }
-        return visual > previewLineCount
+        return visual > lineCount
     }
 
     static func widthUnits(_ line: String) -> Int {
@@ -38,17 +39,25 @@ enum OptionDetailsPolicy {
 
 /// The asker's `--content`, collapsed to a short preview when it is long.
 /// The expanded flag is owned by the caller so both `ViewThatFits` branches agree.
+/// The defaults are the Island's dark surface; window cards pass their own column and colours.
 struct OptionMessageDetails: View {
     let text: String
     @Binding var isExpanded: Bool
+    var unitsPerLine = OptionDetailsPolicy.unitsPerLine
+    var previewLineCount = OptionDetailsPolicy.previewLineCount
+    var textColor: Color = .white.opacity(0.72)
+    var toggleColor: Color = .white.opacity(0.6)
+    var identifier = "island.details"
+    /// Embed cards; the Island is itself a card, so only window cards turn them on.
+    var cards = false
 
     var body: some View {
-        let isLong = OptionDetailsPolicy.isLong(text)
+        let isLong = OptionDetailsPolicy.isLong(text, unitsPerLine: unitsPerLine, lineCount: previewLineCount)
         VStack(alignment: .leading, spacing: 6) {
             details(showsAll: isExpanded || !isLong)
                 .font(.callout)
-                .foregroundStyle(.white.opacity(0.72))
-                .accessibilityIdentifier("island.details")
+                .foregroundStyle(textColor)
+                .accessibilityIdentifier(identifier)
             if isLong { toggle }
         }
     }
@@ -56,10 +65,10 @@ struct OptionMessageDetails: View {
     @ViewBuilder
     private func details(showsAll: Bool) -> some View {
         if showsAll {
-            MessageMarkdownView(text, cards: false)
+            MessageMarkdownView(text, cards: cards)
         } else {
             Text(MessageMarkdown.inline(text))
-                .lineLimit(OptionDetailsPolicy.previewLineCount)
+                .lineLimit(previewLineCount)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -70,10 +79,10 @@ struct OptionMessageDetails: View {
             Label(isExpanded ? L("Collapse message") : L("Show full message"),
                 systemImage: isExpanded ? "chevron.up" : "chevron.down")
                 .font(.caption.weight(.medium))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(toggleColor)
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("island.details.toggle")
+        .accessibilityIdentifier("\(identifier).toggle")
         .accessibilityValue(isExpanded ? L("Expanded") : L("Collapsed"))
     }
 }

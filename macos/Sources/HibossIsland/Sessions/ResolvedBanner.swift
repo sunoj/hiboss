@@ -42,19 +42,33 @@ struct ResolvedBanner: View {
         }
     }
 
+    /// Where the answer came from; this Mac is left unnamed.
+    private var source: String? {
+        guard recorded else { return nil }
+        return thread.newestReply?.metadata?.answeredBy?.displayLabel
+            ?? AnswerSource.visibleLabel(thread.newestReply?.metadata?.source, hiding: "macos")
+    }
+
+    /// One line: how it ended, then where. The time follows in the same line.
+    static func line(title: String, source: String?) -> String {
+        ([title] + [source.map(AnswerAttribution.answeredOn)].compactMap { $0 }).joined(separator: " · ")
+    }
+
     var body: some View {
         if let title = Self.title(for: outcome, message: thread.message) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline) {
-                    Label(title, systemImage: recorded ? "checkmark.circle" : "clock")
-                    Spacer(minLength: 4)
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    Label(Self.line(title: title, source: source),
+                        systemImage: recorded ? "checkmark.circle" : "clock")
                     if let date = thread.newestReply.flatMap({ ISODate.parse($0.createdAt) }) {
                         TimelineView(.periodic(from: .now, by: 60)) { tick in
-                            Text(SharedTimestamp.string(date, now: tick.date))
-                                .frame(width: 180, alignment: .trailing)
+                            Text(verbatim: " · " + SharedTimestamp.string(date, now: tick.date))
                         }
                     }
-                }.font(.callout)
+                    Spacer(minLength: 0)
+                }
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
                 if case let .autoSelected(option) = outcome, let option {
                     Text(option).font(.caption).textSelection(.enabled)
                 }
@@ -62,12 +76,8 @@ struct ResolvedBanner: View {
                     Text(text).font(.body).textSelection(.enabled)
                 }
                 OptionDescriptionText(text: selectedDescription)
-                if recorded, let source = thread.newestReply?.metadata?.answeredBy?.displayLabel
-                    ?? AnswerSource.visibleLabel(thread.newestReply?.metadata?.source, hiding: "macos") {
-                    Text(AnswerAttribution.answeredOn(source)).font(.caption)
-                }
             }
-            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12).padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(recorded ? TodayStyle.settled : TodayStyle.secondary)
             .background(recorded ? TodayStyle.settledSoft : TodayStyle.ground,
                 in: RoundedRectangle(cornerRadius: 6))

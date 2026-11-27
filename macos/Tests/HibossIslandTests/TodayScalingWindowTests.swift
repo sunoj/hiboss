@@ -37,7 +37,8 @@ final class TodayScalingWindowTests: XCTestCase {
         let history = SessionThreadFixtures.history()
         for scheme in [ColorScheme.light, .dark] {
             for (name, destination) in [("today", OverviewDestination.today),
-                ("attention", .category(.needsYou)), ("session", .session("thread-demo"))] {
+                ("attention", .category(.needsYou)), ("session", .session("thread-demo")),
+                ("watching", .watching)] {
                 let window = try PerfSurveyFixtures.window(MainView(settings: PerfSurveyFixtures.settings(),
                     flow: OptionFlowStore(), initialDestination: destination, previewHistory: history,
                     panelsModel: PanelsModel(demoMode: true, autoload: false))

@@ -115,8 +115,7 @@ private struct ChoicePendingFixture: View {
             OptionMediaPicker(options: item.options, media: [], defaultOption: nil,
                 isSubmitting: pending.submitting, choose: choose)
         } else {
-            TodayDecisionCard(item: item, now: .now, isSelected: false,
-                isSubmitting: pending.submitting, error: nil, onSelect: {}, onChoose: choose)
+            TodayDecisionCard(item: item, now: .now, isSubmitting: pending.submitting, error: nil, onSelect: {}, onChoose: choose)
         }
     }
 }

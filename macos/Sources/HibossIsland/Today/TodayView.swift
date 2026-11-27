@@ -1,6 +1,6 @@
-// Today workspace with shared decisions, work, deliveries, and an in-place inspector.
+// Today workspace: one focus decision card, other decisions as rows, and a context inspector.
 // Exports: TodayView; running panels are summarised here and open in Watching.
-// Dependencies: SwiftUI, HibossKit, TodayDecisionCard, TodaySummary, TodayWatchingSummary, AttentionDetail.
+// Dependencies: SwiftUI, HibossKit, TodayDecisionCard/Row, TodaySummary, TodayWatchingSummary, AttentionDetail.
 
 import HibossKit
 import SwiftUI
@@ -17,8 +17,10 @@ struct TodayView: View {
     @State private var selection: MessageID?
     @State private var compactDetail = false
 
+    /// The inspector always describes the focus card's decision.
     private var selected: AttentionItem? {
-        snapshot.today.decisions.first { $0.id == selection }
+        let focus = TodayDecisionFocus.focusID(snapshot.today.decisions, selection: selection)
+        return snapshot.today.decisions.first { $0.id == focus }
     }
 
     /// The inspector column appears only with something to show; an empty "Select a
@@ -50,8 +52,6 @@ struct TodayView: View {
             }
         }
         .background(TodayStyle.ground)
-        .onAppear { syncSelection() }
-        .onChange(of: snapshot.attention.map(\.id)) { syncSelection() }
         .task { if !isPreview { await panels.loadIfNeeded() } }
         .accessibilityIdentifier("today.workspace")
     }
@@ -71,19 +71,31 @@ struct TodayView: View {
     }
 
     private var decisions: some View {
-        LazyVStack(alignment: .leading, spacing: 12) {
-            Text(L("Your call")).font(.headline)
+        let focus = selected?.id
+        return LazyVStack(alignment: .leading, spacing: 8) {
+            Text(L("Your call")).font(.headline).padding(.bottom, 4)
             ForEach(snapshot.today.decisions) { item in
-                TodayDecisionCard(item: item, now: snapshot.now, isSelected: selection == item.id,
-                    isSubmitting: reply.submitting.contains(item.id),
-                    error: reply.errors[item.id]?.choiceText,
-                    onSelect: { selection = item.id; compactDetail = true },
-                    onChoose: { send($0, for: item.id) })
-                    .disabled(snapshot.answerability.state(for: item.id) != .open)
-                if snapshot.answerability.state(for: item.id) == .checking {
-                    Text(L("Checking…")).font(.caption).foregroundStyle(TodayStyle.secondary)
+                if item.id == focus {
+                    focusCard(item)
+                } else {
+                    TodayDecisionRow(item: item, now: snapshot.now) { selection = item.id }
                 }
             }
+        }
+    }
+
+    /// The full card with choices; the inspector beside it shows context only.
+    @ViewBuilder
+    private func focusCard(_ item: AttentionItem) -> some View {
+        TodayDecisionCard(item: item, now: snapshot.now,
+            isSubmitting: reply.submitting.contains(item.id),
+            error: reply.errors[item.id]?.choiceText,
+            onSelect: { selection = item.id; compactDetail = true },
+            onChoose: { send($0, for: item.id) })
+            .disabled(snapshot.answerability.state(for: item.id) != .open)
+            .padding(.bottom, 4)
+        if snapshot.answerability.state(for: item.id) == .checking {
+            Text(L("Checking…")).font(.caption).foregroundStyle(TodayStyle.secondary)
         }
     }
 
@@ -93,7 +105,7 @@ struct TodayView: View {
             AttentionDetail(item: selected, now: snapshot.now,
                 earlier: earlier(for: selected), onOpenSession: {
                     onSession(SessionGrouping.sessionKey(for: selected.message))
-                }, onChoose: { send($0, for: selected.id) })
+                })
                 .disabled(reply.submitting.contains(selected.id)
                     || snapshot.answerability.state(for: selected.id) != .open)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -121,11 +133,6 @@ struct TodayView: View {
                 && (HistoryTimestamp.date(from: $0.createdAt) ?? .distantPast)
                     < (item.createdDate ?? .distantFuture)
         }.prefix(3))
-    }
-
-    private func syncSelection() {
-        if let selection, snapshot.attention.contains(where: { $0.id == selection }) { return }
-        selection = snapshot.attention.first?.id
     }
 
     private func send(_ text: String, for id: MessageID) {

@@ -62,8 +62,7 @@ struct HistoryThreadRow: View {
         switch section {
         case .message:
             if usesV4, let decision, answerability.state(for: message.id) == .open {
-                TodayDecisionCard(item: decision, now: now, isSelected: false,
-                    isSubmitting: reply.submitting.contains(message.id),
+                TodayDecisionCard(item: decision, now: now, isSubmitting: reply.submitting.contains(message.id),
                     error: reply.errors[message.id]?.choiceText, copyable: true,
                     onSelect: { showsMetadata.toggle() }, onChoose: { text in
                         Task { await reply.send(text, for: message.id) { choice, _ in
@@ -95,12 +94,12 @@ struct HistoryThreadRow: View {
         if usesV4 {
             if decision == nil || answerability.state(for: message.id) != .open {
                 let outcome = answerability.outcome(for: thread, at: now)
-                if !sessionEntries || thread.replies.isEmpty {
-                    ResolvedBanner(thread: thread, outcome: outcome)
-                }
+                let showsBanner = !sessionEntries || thread.replies.isEmpty
+                if showsBanner { ResolvedBanner(thread: thread, outcome: outcome) }
                 // A closed decision keeps its options on screen, read-only, never folded away.
                 HistoryDecisionBlock(thread: thread,
-                    reply: reply, answerability: answerability, onChoose: onChoose)
+                    reply: reply, answerability: answerability, onChoose: onChoose,
+                    showsSettlement: !showsBanner)
                     .font(.callout)
             }
         } else {
