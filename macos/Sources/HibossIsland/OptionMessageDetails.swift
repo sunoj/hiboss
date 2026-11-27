@@ -11,13 +11,14 @@ enum OptionDetailsPolicy {
     static let previewLineCount = 3
     static let unitsPerLine = 56
 
-    static func isLong(_ text: String, unitsPerLine: Int = OptionDetailsPolicy.unitsPerLine) -> Bool {
+    static func isLong(_ text: String, unitsPerLine: Int = OptionDetailsPolicy.unitsPerLine,
+                       lineCount: Int = OptionDetailsPolicy.previewLineCount) -> Bool {
         let lines = text.components(separatedBy: .newlines)
-        guard lines.count <= previewLineCount else { return true }
+        guard lines.count <= lineCount else { return true }
         let visual = lines.reduce(0) { total, line in
             total + max(1, (widthUnits(line) + unitsPerLine - 1) / unitsPerLine)
         }
-        return visual > previewLineCount
+        return visual > lineCount
     }
 
     static func widthUnits(_ line: String) -> Int {
@@ -43,6 +44,7 @@ struct OptionMessageDetails: View {
     let text: String
     @Binding var isExpanded: Bool
     var unitsPerLine = OptionDetailsPolicy.unitsPerLine
+    var previewLineCount = OptionDetailsPolicy.previewLineCount
     var textColor: Color = .white.opacity(0.72)
     var toggleColor: Color = .white.opacity(0.6)
     var identifier = "island.details"
@@ -50,7 +52,7 @@ struct OptionMessageDetails: View {
     var cards = false
 
     var body: some View {
-        let isLong = OptionDetailsPolicy.isLong(text, unitsPerLine: unitsPerLine)
+        let isLong = OptionDetailsPolicy.isLong(text, unitsPerLine: unitsPerLine, lineCount: previewLineCount)
         VStack(alignment: .leading, spacing: 6) {
             details(showsAll: isExpanded || !isLong)
                 .font(.callout)
@@ -66,7 +68,7 @@ struct OptionMessageDetails: View {
             MessageMarkdownView(text, cards: cards)
         } else {
             Text(MessageMarkdown.inline(text))
-                .lineLimit(OptionDetailsPolicy.previewLineCount)
+                .lineLimit(previewLineCount)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

@@ -32,6 +32,13 @@ final class TodayDecisionFocusTests: XCTestCase {
             unitsPerLine: TodayDecisionCard.detailsUnitsPerLine))
     }
 
+    func testShortCommandWithACodeFenceStaysWholeInACard() {
+        let command = "Run this exactly.\n\n```\nrailway variable set KEY\n```"
+        XCTAssertTrue(OptionDetailsPolicy.isLong(command))
+        XCTAssertFalse(OptionDetailsPolicy.isLong(command, unitsPerLine: TodayDecisionCard.detailsUnitsPerLine,
+            lineCount: TodayDecisionCard.detailsPreviewLines))
+    }
+
     func testRowIsShorterThanTheFocusCard() throws {
         let item = decisions[0]
         let row = try height(TodayDecisionRow(item: item, now: .now, onAnswer: {}))

@@ -12,9 +12,9 @@ package alone.
 | # | Package | Change | Status |
 |---|---|---|---|
 | 1 | Sidebar | Sessions grouped Needs you / Working / Idle; History section (All messages, Completed, Device requests); Settings moves from the sidebar footer to the toolbar | done |
-| 2 | Watching | Live panels become a sidebar destination; Today keeps a short summary that links to it | done (page screenshot pending) |
-| 3 | Today focus card | The first open decision gets a focus card with collapsible details; the rest are one-line rows; the inspector shows context, not a second copy of the choices | done (window run pending) |
-| 4 | Session outcomes | Every settled decision in a thread states how it ended in one line: the answer, where and when, or "Expired without an answer" | done (window run pending) |
+| 2 | Watching | Live panels become a sidebar destination; Today keeps a short summary that links to it | done |
+| 3 | Today focus card | The first open decision gets a focus card with collapsible details; the rest are one-line rows; the inspector shows context, not a second copy of the choices | done |
+| 4 | Session outcomes | Every settled decision in a thread states how it ended in one line: the answer, where and when, or "Expired without an answer" | done |
 | 5 | Inline failures | A failed refresh keeps the loaded content; Settings › Connection names the state and the server's reason | met by existing behaviour (see below) |
 | 6 | Box | Filter chips, newest item preselected, "Added by" badge, a date on every row | rows already carry a date and "Added by"; chips and preselection wait for `feat/box-v2-macos` |
 

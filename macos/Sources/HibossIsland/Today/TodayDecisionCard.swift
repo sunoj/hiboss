@@ -24,7 +24,7 @@ struct TodayDecisionCard: View {
             if let content = item.message.messageText.content {
                 // Outside the summary button, so the toggle is not a button inside a button.
                 OptionMessageDetails(text: content, isExpanded: $detailsExpanded,
-                    unitsPerLine: Self.detailsUnitsPerLine, textColor: TodayStyle.secondary,
+                    unitsPerLine: Self.detailsUnitsPerLine, previewLineCount: Self.detailsPreviewLines, textColor: TodayStyle.secondary,
                     toggleColor: TodayStyle.secondary, identifier: "decision.details", cards: true)
                     .textSelection(.enabled)
             }
@@ -80,6 +80,8 @@ struct TodayDecisionCard: View {
 
     /// A card column is wider than the Island's, so a "line" holds more characters.
     static let detailsUnitsPerLine = 96
+    /// A short command with its code fence (about five lines) stays whole, copy button included.
+    static let detailsPreviewLines = 6
 
 }
 
