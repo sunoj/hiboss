@@ -48,12 +48,19 @@ struct SessionDecisionBubble: View {
         .accessibilityIdentifier("transcript-decision-\(message.id.rawValue)")
     }
 
+    @ViewBuilder
     private var pendingOptions: some View {
-        DecisionOptions(options: message.options, metadata: message.metadata,
-                        timing: DecisionTiming(message: message),
-                        submitting: store.replying[message.id],
-                        locksControls: store.replyGate.locksControls(for: message.id),
-                        wrapsToFit: true, onChoose: onChoose)
+        if let form = message.metadata?.form {
+            AskFormView(form: form, isSubmitting: store.replying[message.id] != nil) { answers, summary in
+                Task { await store.reply(summary, answers: answers, to: message.id) }
+            }
+        } else {
+            DecisionOptions(options: message.options, metadata: message.metadata,
+                            timing: DecisionTiming(message: message),
+                            submitting: store.replying[message.id],
+                            locksControls: store.replyGate.locksControls(for: message.id),
+                            wrapsToFit: true, onChoose: onChoose)
+        }
     }
 
     private var differingAgent: String? {
