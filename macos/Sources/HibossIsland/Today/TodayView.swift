@@ -108,6 +108,8 @@ struct TodayView: View {
                 .disabled(reply.submitting.contains(selected.id)
                     || snapshot.answerability.state(for: selected.id) != .open)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
+                    // A form ask takes only its form answer; the server refuses a text reply.
+                    if selected.message.metadata?.form == nil {
                     AttentionReplyComposer(text: Binding(
                         get: { reply.drafts[selected.id] ?? "" },
                         set: { reply.drafts[selected.id] = $0 }
@@ -115,6 +117,7 @@ struct TodayView: View {
                         isSubmitting: reply.submitting.contains(selected.id),
                         error: reply.errors[selected.id]?.text,
                         onSend: { send(reply.drafts[selected.id] ?? "", for: selected.id) })
+                    }
                 }
                 .disabled(snapshot.answerability.state(for: selected.id) != .open)
                 .background(TodayStyle.surface)

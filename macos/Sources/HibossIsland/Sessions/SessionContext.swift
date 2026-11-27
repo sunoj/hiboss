@@ -39,8 +39,9 @@ struct SessionContext {
     }
     var replyTargets: [HistoryMessage] {
         guard snapshot.answerability.isLoaded else { return [] }
+        // A form ask is answered through its form; text to it would be refused.
         return snapshot.messages(for: .session(id)).filter { message in
-            snapshot.answerability.permitsReply(to: message)
+            snapshot.answerability.permitsReply(to: message) && message.metadata?.form == nil
         }
     }
     func replyTargetLabel(for message: HistoryMessage) -> String {
