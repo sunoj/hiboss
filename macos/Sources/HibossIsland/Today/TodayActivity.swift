@@ -1,12 +1,11 @@
-// Working sessions and recent deliveries from the shared Today snapshot.
-// Exports: TodayActivity with session navigation, freshness, and full attachments.
-// Dependencies: SwiftUI, HibossKit, and MessageAttachmentView.
+// Recent deliveries from the shared Today snapshot; working sessions live in the sidebar.
+// Exports: TodayActivity: compact delivered rows that open their session.
+// Dependencies: SwiftUI, HibossKit, AttentionItem provenance, and SharedTimestamp.
 
 import HibossKit
 import SwiftUI
 
 struct TodayActivity: View {
-    @Environment(\.surfaceIsVisible) private var isVisible
     @Environment(\.projectSessions) private var inventory
     let snapshot: TodaySnapshot
     let now: Date
@@ -14,15 +13,6 @@ struct TodayActivity: View {
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 24) {
-            if !snapshot.working.isEmpty {
-                group(Text(L("Working now"))) {
-                    ForEach(Array(snapshot.working.enumerated()), id: \.element.id) { index, session in
-                        if index > 0 { Divider().padding(.leading, 12) }
-                        Button { onSession(session.id) } label: { sessionRow(session) }
-                            .buttonStyle(.plain)
-                    }
-                }
-            }
             if !snapshot.delivered.isEmpty {
                 group(Text(L("Delivered"))) {
                     ForEach(Array(snapshot.delivered.enumerated()), id: \.element.id) { index, message in
@@ -43,56 +33,36 @@ struct TodayActivity: View {
         }
     }
 
+    /// One line of what shipped, who and where, with the time at the trailing edge.
     private func deliveredRow(_ message: HistoryMessage) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let item = AttentionItem(message: message, group: .priority)
+        let project = item.project(in: inventory)
+        return VStack(alignment: .leading, spacing: 4) {
             Button { onSession(SessionGrouping.sessionKey(for: message)) } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(message.body).font(.body).foregroundStyle(.primary)
-                    Text([message.sessionLabel, message.agentName].compactMap { $0 }
-                        .joined(separator: " · "))
-                        .font(.caption).foregroundStyle(TodayStyle.secondary)
-                    Text(HistoryTimestamp.localDateTime(from: message.createdAt))
-                        .font(.caption).foregroundStyle(TodayStyle.tertiary)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }.buttonStyle(.plain)
-            if let attachment = message.metadata?.attachment {
-                MessageAttachmentView(attachment: attachment)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-    }
-
-    private func sessionRow(_ session: TodaySession) -> some View {
-        let fact = inventory.first { $0.id == session.id }
-        let project = fact?.avatarProject ?? ProjectIdentity(id: session.id,
-            slug: session.projectLabel, displayName: session.projectLabel)
-        return HStack(alignment: .top, spacing: 12) {
-            ProjectAvatarView(project: project, size: 32)
-            if let agent = session.agentName { AgentAvatarView(name: agent, size: 24) }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(fact?.namedLabel
-                    ?? [session.projectLabel, session.branch].compactMap { $0 }.joined(separator: " · "))
-                    .font(.headline).foregroundStyle(.primary)
-                Text(session.statusText).font(.callout).foregroundStyle(TodayStyle.secondary).lineLimit(2)
-                if let agent = session.agentName {
-                    Text(agent).font(.caption).foregroundStyle(TodayStyle.live)
-                }
-                if let updated = session.lastActivityDate {
-                    TimelineView(ElapsedLabelSchedule(since: updated).paused(!isVisible)) { context in
-                        let age = AttentionClock.elapsed(since: updated, now: context.date, coarse: true)
-                        Text(L("updated \(age) ago")).font(.caption).foregroundStyle(TodayStyle.tertiary)
+                HStack(alignment: .top, spacing: 12) {
+                    ProjectAvatarView(project: project, size: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(message.body).font(.callout.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
+                        Text(verbatim: item.provenance(project: project.displayName))
+                            .font(.caption).foregroundStyle(TodayStyle.secondary).lineLimit(1)
                     }
-                }
+                    Spacer(minLength: 8)
+                    if let date = ISODate.parse(message.createdAt) {
+                        TimelineView(.periodic(from: .now, by: 60)) { tick in
+                            Text(SharedTimestamp.string(date, now: tick.date))
+                                .font(.caption).foregroundStyle(TodayStyle.tertiary)
+                        }
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+            }.buttonStyle(.plain)
+            // A row stays one line high; the session shows the attachment itself.
+            if let attachment = message.metadata?.attachment {
+                Label(attachment.filename, systemImage: "paperclip")
+                    .font(.caption).foregroundStyle(TodayStyle.secondary).lineLimit(1)
+                    .padding(.leading, 36)
             }
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(TodayStyle.tertiary)
-                .accessibilityHidden(true)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
     }
 }

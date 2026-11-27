@@ -41,6 +41,17 @@ canvas: the reason is in the status's tooltip, not in a row above the content (a
 move the content, which `BoxStableRefreshTests` and `ProgressPolishSnapshotTests` guard against), and
 the 401 copy says to check the token rather than to pair again.
 
+## Fidelity pass
+
+After packages 1–4 the window still read as v4, so one pass brought the components to the canvas:
+one toolbar chip "Live · updated 6s ago" (or the failure with Retry) beside Refresh and Settings;
+Today without Working now (the sidebar lists working sessions), with compact Watching cards and
+one-line Delivered rows; a Context inspector (Waiting, Session, Agent, Machine, Started, earlier
+messages) and a reply box that names its question; sidebar rows "agent · waiting 31s" / Working /
+last-active age; a session header "Waiting on you: <question>" with agent · machine · branch ·
+started and the current step. Still different from the canvas: the session thread keeps its pinned
+Needs you section above the conversation.
+
 ## Out of scope
 
 - Decision fact rows (Changes / Risk / Undo): no message field carries them.

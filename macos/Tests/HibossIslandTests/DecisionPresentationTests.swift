@@ -33,7 +33,7 @@ final class DecisionPresentationTests: XCTestCase {
         }
     }
 
-    func testZeroCountChipsAreAbsentAndLiveRemainsVisible() async throws {
+    func testZeroCountChipsAreAbsentAndLiveIsLeftToTheToolbarChip() async throws {
         let now = Date.now
         let decision = AttentionTestSupport.ask(id: "open", options: ["Ship"],
             sessionStatus: "waiting", now: now)
@@ -49,7 +49,7 @@ final class DecisionPresentationTests: XCTestCase {
             XCTAssertEqual(labels.contains { $0.contains("need you") },
                 !snapshot.decisions.isEmpty, "\(labels)")
             XCTAssertEqual(labels.contains { $0.contains("working") }, !snapshot.working.isEmpty, "\(labels)")
-            XCTAssertTrue(labels.contains { $0.contains("Live") })
+            XCTAssertFalse(labels.contains { $0.contains("Live") }, "Live is the toolbar chip: \(labels)")
         }
     }
 

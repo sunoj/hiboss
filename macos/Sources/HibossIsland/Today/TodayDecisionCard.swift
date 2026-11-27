@@ -93,7 +93,7 @@ struct DecisionDeadline: View {
     var body: some View {
         if let expiresAt {
             TimelineView(.periodic(from: now, by: 1).paused(!isVisible)) { context in
-                Text(AttentionClock.remaining(until: expiresAt, now: context.date))
+                Text(L("\(AttentionClock.remaining(until: expiresAt, now: context.date)) left"))
                     .font(.caption.monospacedDigit()).foregroundStyle(TodayStyle.signal)
             }
         } else {

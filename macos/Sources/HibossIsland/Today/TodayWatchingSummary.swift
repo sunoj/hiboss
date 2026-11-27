@@ -1,6 +1,6 @@
 // Today's short view of live panels: the first running ones and a link to Watching.
 // Exports: TodayWatchingSummary.
-// Dependencies: SwiftUI, HibossKit PanelsModel and PanelDashboardCard, WatchingRoute.
+// Dependencies: SwiftUI, HibossKit PanelsModel, TodayWatchingTile, WatchingRoute.
 
 import HibossKit
 import SwiftUI
@@ -21,15 +21,12 @@ struct TodayWatchingSummary: View {
                     .buttonStyle(.link)
                     .accessibilityIdentifier("today.watching.showAll")
             }
-            PanelWallLayout {
+            HStack(alignment: .top, spacing: 12) {
                 ForEach(running.prefix(WatchingRoute.todayLimit)) { tile in
-                    PanelDashboardCard(tile: tile, freshness: panels.freshness(for: tile),
-                        pendingCount: panels.pendingCount(for: tile)) { panels.open(tile.id) }
-                        .background(TodayStyle.surface, in: RoundedRectangle(cornerRadius: 24))
-                        .layoutValue(key: PanelTileSizeLayoutValueKey.self, value: tile.fixture.spec.tileSize)
+                    TodayWatchingTile(tile: tile, store: tile.store,
+                        freshness: { panels.freshness(for: tile) }) { panels.open(tile.id) }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("today.watching")
     }
