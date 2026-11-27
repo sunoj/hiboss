@@ -88,9 +88,13 @@ struct NotificationMessageDetail: View {
                 ProgressView(L("Loading messages…"))
             }
         }
-        .frame(minWidth: 360, minHeight: 320)
+        // A form ask (ranking, review) needs room for its rows and Submit without inner scrolling.
+        .frame(minWidth: isForm ? 640 : 360, idealWidth: isForm ? 680 : nil,
+               minHeight: isForm ? 620 : 320, idealHeight: isForm ? 720 : nil)
         .task(id: messageID) { await load() }
     }
+
+    private var isForm: Bool { message?.metadata?.form != nil }
 
     /// Replies go to the loaded message's own id, never the notification's requested id.
     func loadedDetail(_ message: HistoryMessage, replies: [HistoryMessage] = []) -> HistoryMessageDetail {
