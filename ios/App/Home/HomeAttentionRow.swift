@@ -199,6 +199,12 @@ struct HomeAttentionRow: View {
                 Text(verbatim: label).frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
             }
                 .hbButton(.secondary).disabled(true)
+        } else if item.message.metadata?.form != nil {
+            // Ordering and reviewing need the full screen; the detail view holds the form.
+            NavigationLink(value: item.id) {
+                Text("Answer…").frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
+            }
+            .hbButton(.primary)
         } else if item.options.isEmpty {
             NavigationLink(value: item.id) {
                 Text("Reply…").frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)

@@ -7,6 +7,7 @@ import SwiftUI
 
 struct TodayDecisionCard: View {
     @Environment(\.projectSessions) private var inventory
+    @Environment(\.askFormAnswer) private var answerForm
     let item: AttentionItem
     let now: Date
     let isSubmitting: Bool
@@ -15,6 +16,8 @@ struct TodayDecisionCard: View {
     var copyable = false
     let onSelect: () -> Void
     let onChoose: (String) -> Void
+    /// Records a form answer as this card's submission; set where a reply state exists.
+    var reply: AttentionReplyState?
     @State private var detailsExpanded = false
 
     var body: some View {
@@ -28,7 +31,14 @@ struct TodayDecisionCard: View {
                     toggleColor: TodayStyle.secondary, identifier: "decision.details", cards: true)
                     .textSelection(.enabled)
             }
-            DecisionChoices(item: item, isSubmitting: isSubmitting, onChoose: onChoose)
+            if let form = item.message.metadata?.form {
+                AskFormView(form: form, isSubmitting: isSubmitting) { answers, summary in
+                    if let reply { answerForm?(answers, summary: summary, for: item.id, reply: reply) }
+                }
+                .disabled(reply == nil || answerForm == nil)
+            } else {
+                DecisionChoices(item: item, isSubmitting: isSubmitting, onChoose: onChoose)
+            }
             if let option = item.defaultOption {
                 DecisionDefaultLine(option: option, expiresAt: item.expiresAt, now: now)
             }

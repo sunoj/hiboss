@@ -10,6 +10,10 @@ import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../tes
 
 const ROOT_TOKEN = `hb_boss_signing_root_${"01".repeat(8)}`;
 const PARENT_ID = 'signed-reply-parent';
+const FORM_PARENT_ID = 'signed-form-parent';
+const FORM = { catalogVersion: 2, input: { type: 'RankedChoice', props: {
+  label: 'Order', value: { $bindState: '/form/answer' },
+  options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }] } } };
 const encoder = new TextEncoder();
 let bossId: string;
 let signedToken: string;
@@ -25,6 +29,9 @@ beforeAll(async () => {
   await env.DB.prepare(
     "INSERT OR REPLACE INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal')",
   ).bind(PARENT_ID, getTestAgentId(), 'Approve signed change?').run();
+  await env.DB.prepare(
+    "INSERT OR REPLACE INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'api', ?, 'sent', 'normal', ?)",
+  ).bind(FORM_PARENT_ID, getTestAgentId(), 'Order these', JSON.stringify({ form: FORM })).run();
 
   const pair = await pairSigningClient();
   signedToken = pair.token;
@@ -77,6 +84,20 @@ describe('paired-device message signing', () => {
     expect(fetched.status).toBe(200);
     expect((await fetched.json() as SignedReplyResponse).metadata.provenance)
       .toEqual(message.metadata.provenance);
+  });
+
+  it('signs a form answer and refuses one that differs from the signed value', async () => {
+    const forged = await signReply('Order: A, B', crypto.randomUUID(), FORM_PARENT_ID, ['a', 'b']);
+    const swapped = await reply({ body: 'Order: A, B', signed_message: forged, answers: ['b', 'a'] }, FORM_PARENT_ID);
+    expect(swapped.status).toBe(401);
+    const unsignedAnswers = await signReply('Order: A, B', crypto.randomUUID(), FORM_PARENT_ID);
+    expect((await reply({ body: 'Order: A, B', signed_message: unsignedAnswers, answers: ['a', 'b'] }, FORM_PARENT_ID)).status).toBe(401);
+    const signed = await signReply('Order: A, B', crypto.randomUUID(), FORM_PARENT_ID, ['a', 'b']);
+    const stored = await testJson(201, reply({ body: 'Order: A, B', signed_message: signed, answers: ['a', 'b'] }, FORM_PARENT_ID)) as {
+      metadata: { answers: unknown; provenance: { signature: { signed_message: string } } };
+    };
+    expect(stored.metadata.answers).toEqual(['a', 'b']);
+    expect(stored.metadata.provenance.signature.signed_message).toBe(signed);
   });
 
   it('rejects unsigned messages from a token that has a signing key', async () => {
@@ -151,7 +172,7 @@ async function pairSigningClient(): Promise<{
   return { token: grant.token, signingKeyId: grant.signing_key_id, privateKey: keys.privateKey };
 }
 
-async function signReply(body: string, messageId: string, parentId = PARENT_ID): Promise<string> {
+async function signReply(body: string, messageId: string, parentId = PARENT_ID, answers?: unknown): Promise<string> {
   const header = base64Url(encoder.encode(JSON.stringify({
     alg: 'ES256', kid: signingKeyId, typ: 'hiboss-message+jws',
   })));
@@ -163,6 +184,7 @@ async function signReply(body: string, messageId: string, parentId = PARENT_ID):
     boss_id: bossId,
     action: { kind: 'reply', message_id: parentId },
     body,
+    ...(answers === undefined ? {} : { answers }),
   })));
   const input = `${header}.${payload}`;
   const signature = await crypto.subtle.sign(

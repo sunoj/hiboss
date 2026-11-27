@@ -66,6 +66,14 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public let fileURL: String?
     /// Raw `file_thumbnail_url`: a small display copy uploaded beside an image `file_url`.
     public let fileThumbnailURL: String?
+    /// Raw `form` of a form ask (one catalog v2 input); `form` is the validated reading.
+    public let formValue: PanelValue?
+    /// On a reply to a form ask: the structured answer the server validated.
+    public let answers: PanelValue?
+
+    /// A message that offers options is never a form ask (the server's rule too), so an older ask
+    /// with a coincidental `form` key keeps its buttons.
+    public var form: AskForm? { options.isEmpty ? AskForm(formValue) : nil }
 
     public var attachment: MessageAttachment? {
         fileURL.flatMap { MessageAttachment(urlString: $0, thumbnailURLString: fileThumbnailURL) }
@@ -87,6 +95,8 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         case taskContext = "task_context"
         case fileURL = "file_url"
         case fileThumbnailURL = "file_thumbnail_url"
+        case formValue = "form"
+        case answers
     }
 
     public init(
@@ -103,7 +113,9 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         files: [String] = [],
         fileURL: String? = nil,
         fileThumbnailURL: String? = nil,
-        reactions: [MessageReaction] = []
+        reactions: [MessageReaction] = [],
+        formValue: PanelValue? = nil,
+        answers: PanelValue? = nil
     ) {
         self.reactions = MessageReaction.unique(reactions)
         self.options = options
@@ -119,6 +131,8 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         self.files = files
         self.fileURL = fileURL
         self.fileThumbnailURL = fileThumbnailURL
+        self.formValue = formValue
+        self.answers = answers
     }
 
     public init(from decoder: Decoder) throws {
@@ -143,6 +157,8 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         files = direct.isEmpty ? (nested?.files ?? []) : direct
         fileURL = try? values.decodeIfPresent(String.self, forKey: .fileURL)
         fileThumbnailURL = try? values.decodeIfPresent(String.self, forKey: .fileThumbnailURL)
+        formValue = try? values.decodeIfPresent(PanelValue.self, forKey: .formValue)
+        answers = try? values.decodeIfPresent(PanelValue.self, forKey: .answers)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -163,6 +179,8 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         if !files.isEmpty { try values.encode(files, forKey: .files) }
         try values.encodeIfPresent(fileURL, forKey: .fileURL)
         try values.encodeIfPresent(fileThumbnailURL, forKey: .fileThumbnailURL)
+        try values.encodeIfPresent(formValue, forKey: .formValue)
+        try values.encodeIfPresent(answers, forKey: .answers)
     }
 
     public func optionDescription(for label: String) -> String? {

@@ -122,6 +122,9 @@ struct MainView: View {
             account: settings.activeClientConfig.map { SessionReadAccount(config: $0) },
             destination: destination, overview: overviewStore, windowIsKey: sessionWindowIsKey))
         .environment(\.projectSessions, previewSessions ?? flow.projectSessions)
+        .environment(\.askFormAnswer, AskFormAnswerAction { answers, summary, id in
+            await answerForm(answers, summary, for: id)
+        })
         .environment(\.agentAvatars, previewHistory == nil ? flow.agentAvatars : AttentionPreview.avatars)
         .onChange(of: settings.activeClientConfig) {
             overviewStore.accountDidChange()
@@ -282,6 +285,12 @@ struct MainView: View {
 
     private func answer(_ text: String, for id: MessageID) async -> ReplyFeedback? {
         await overviewStore.answer(text, for: id, using: flow.answer)
+    }
+
+    private func answerForm(_ answers: PanelValue, _ summary: String, for id: MessageID) async -> ReplyFeedback? {
+        await overviewStore.answer(summary, for: id) { text, id in
+            await flow.answer(text, answers: answers, for: id)
+        }
     }
 
 }

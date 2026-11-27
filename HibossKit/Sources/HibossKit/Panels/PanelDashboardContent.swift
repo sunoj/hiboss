@@ -47,7 +47,8 @@ public struct PanelDashboardContent {
     }
 
     private static let inputTypes: Set<String> = [
-        "TextInput", "TextArea", "NumberInput", "Select", "MultiSelect", "Toggle", "Slider"
+        "TextInput", "TextArea", "NumberInput", "Select", "MultiSelect", "Toggle", "Slider",
+        "RankedChoice", "ItemReview"
     ]
 
     private static func orderedElements(in spec: PanelSpec) -> [PanelElement] {

@@ -56,7 +56,8 @@ final class DecisionReplyGate: ObservableObject {
     /// Sends the choice unless a reply for this decision is already in flight. The slot is
     /// released on every exit (success, already-resolved, failure, cancellation) and any
     /// Live Activity for the decision shows the submission, then its recorded outcome.
-    func submit(_ choice: String, to id: MessageID, via api: any BossServing,
+    /// `answers` is a form ask's structured answer; `choice` is then its readable summary.
+    func submit(_ choice: String, answers: PanelValue? = nil, to id: MessageID, via api: any BossServing,
                 answerability: DecisionAnswerability? = nil, recheck: AnswerabilityCheck? = nil,
                 onAuthorizationFailure: @MainActor (Error) -> Void) async -> DecisionSubmission {
         guard inFlight[id] == nil else { return .busy }
@@ -74,7 +75,7 @@ final class DecisionReplyGate: ObservableObject {
         await DecisionActivityLink.showSubmitting(text, for: id)
         let progress = submissionProgress(text, for: id, version: version)
         defer { progress.cancel() }
-        let submission = await performSubmission(choice, to: id, via: api,
+        let submission = await performSubmission(choice, answers: answers, to: id, via: api,
                                                  answerability: answerability, recheck: recheck,
                                                  version: version,
                                                  onAuthorizationFailure: onAuthorizationFailure)
@@ -84,7 +85,7 @@ final class DecisionReplyGate: ObservableObject {
         return submission
     }
 
-    private func performSubmission(_ choice: String, to id: MessageID, via api: any BossServing,
+    private func performSubmission(_ choice: String, answers: PanelValue?, to id: MessageID, via api: any BossServing,
                                    answerability: DecisionAnswerability?, recheck: AnswerabilityCheck?,
                                    version: Int,
                                    onAuthorizationFailure: @MainActor (Error) -> Void) async
@@ -103,7 +104,7 @@ final class DecisionReplyGate: ObservableObject {
             if state != .open {
                 return state == .closed ? .alreadyResolved : .failed(state.label ?? "")
             } else {
-                switch try await api.reply(to: id, with: choice) {
+                switch try await reply(choice, answers: answers, to: id, via: api) {
                 case .accepted: return .accepted
                 case let .acceptedOn(device): return .acceptedOn(device)
                 case .alreadyResolved: return .alreadyResolved
@@ -115,6 +116,15 @@ final class DecisionReplyGate: ObservableObject {
             }
             return .failed(error.localizedDescription)
         }
+    }
+
+    private func reply(_ choice: String, answers: PanelValue?, to id: MessageID,
+                       via api: any BossServing) async throws -> ReplyOutcome {
+        guard let answers else { return try await api.reply(to: id, with: choice) }
+        guard let forms = api as? any AskFormAnswering else {
+            throw HibossAPIError.requestFailed(status: 0, message: String(localized: "Connection isn't ready."))
+        }
+        return try await forms.reply(to: id, with: choice, answers: answers)
     }
 
     private func submissionProgress(_ text: String, for id: MessageID, version: Int) -> Task<Void, Never> {

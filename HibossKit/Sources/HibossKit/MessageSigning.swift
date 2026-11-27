@@ -131,10 +131,12 @@ public struct SecureEnclaveMessageSigner: BossMessageSignatureProvider, Codable,
 }
 
 public enum BossMessageJWS {
+    /// `answers` (a form ask's structured answer) is signed with the body; the server compares both.
     public static func signedReply(
         body: String,
         parentMessageID: String,
         provider: any BossMessageSignatureProvider,
+        answers: PanelValue? = nil,
         issuedAt: Date = Date(),
         messageID: UUID = UUID()
     ) throws -> String {
@@ -146,7 +148,8 @@ public enum BossMessageJWS {
             issuedAt: Int(issuedAt.timeIntervalSince1970),
             bossID: provider.bossID,
             action: SignedAction(kind: "reply", messageID: parentMessageID),
-            body: body
+            body: body,
+            answers: answers
         )
         let encoder = JSONEncoder()
         let encodedHeader = try encoder.encode(header).base64URLEncodedString()
@@ -181,9 +184,10 @@ private struct SignedPayload: Encodable {
     let bossID: String
     let action: SignedAction
     let body: String
+    let answers: PanelValue?
 
     enum CodingKeys: String, CodingKey {
-        case version, purpose, action, body
+        case version, purpose, action, body, answers
         case messageID = "message_id"
         case issuedAt = "issued_at"
         case bossID = "boss_id"

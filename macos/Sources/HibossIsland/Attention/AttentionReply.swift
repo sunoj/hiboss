@@ -50,11 +50,16 @@ final class AttentionReplyState: ObservableObject {
 
 extension OptionFlowStore {
     /// Answers any message by id and reports that message's own feedback; nil means accepted.
-    /// The live question goes through `submit`, so an accepted answer dismisses it as this device's.
+    /// The live question goes through `submit`, so an accepted answer dismisses it as this device's;
+    /// a form answer (`answers`) always goes through the history path, which carries it.
     func answer(_ text: String, for id: MessageID) async -> ReplyFeedback? {
-        let accepted = activeMessage?.id == id
+        await answer(text, answers: nil, for: id)
+    }
+
+    func answer(_ text: String, answers: PanelValue?, for id: MessageID) async -> ReplyFeedback? {
+        let accepted = activeMessage?.id == id && answers == nil
             ? await submit(text, for: id)
-            : await answerHistory(text, for: id)
+            : await answerHistory(text, answers: answers, for: id)
         if accepted { return nil }
         return replyFeedback[id] ?? .failed("")
     }

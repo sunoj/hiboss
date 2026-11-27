@@ -68,7 +68,7 @@ struct HistoryThreadRow: View {
                         Task { await reply.send(text, for: message.id) { choice, _ in
                             await onChoose(choice)
                         } }
-                    })
+                    }, reply: reply)
                 if let attachment = content.attachment { MessageAttachmentView(attachment: attachment) }
                 HistoryReplyActions(message: message, reply: reply,
                     answerability: answerability, onChoose: onChoose)

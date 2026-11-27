@@ -90,7 +90,7 @@ struct TodayView: View {
             isSubmitting: reply.submitting.contains(item.id),
             error: reply.errors[item.id]?.choiceText,
             onSelect: { selection = item.id; compactDetail = true },
-            onChoose: { send($0, for: item.id) })
+            onChoose: { send($0, for: item.id) }, reply: reply)
             .disabled(snapshot.answerability.state(for: item.id) != .open)
             .padding(.bottom, 4)
         if snapshot.answerability.state(for: item.id) == .checking {

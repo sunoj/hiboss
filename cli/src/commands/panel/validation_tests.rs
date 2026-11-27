@@ -274,3 +274,6 @@ mod conformance_tests {
         assert_eq!(validate_publication(&valid), Ok(()));
     }
 }
+
+#[path = "validation_v2_tests.rs"]
+mod catalog_v2;

@@ -20,6 +20,7 @@ import { getAccessibleAgentIds } from './boss-api';
 import { findMessageByIdPrefix } from './id-prefix';
 import { mapMessageRow, replyTargetSession } from './message-helpers';
 import { withdrawResolvedOptions } from './message-options';
+import { askFormOf, validateFormAnswers } from './message-form';
 
 type BossContext = Context<{ Bindings: Env }>;
 const routes = new Hono<{ Bindings: Env }>({});
@@ -34,22 +35,42 @@ async function handleReply(c: BossContext): Promise<Response> {
   if (isWebhookMessage(parent)) return c.text('a webhook integration does not read replies', 409);
   const payload = await parsePayload(c);
   if (!payload?.body) return c.text('body is required', 400);
+  const answers = formAnswers(parent, payload.answers);
+  if (!answers.ok) return c.text(answers.error, answers.status);
   const bossId = getBossId(c);
   const authenticated = await authenticateBossReply({
     env: c.env, bossId, bossName: getBossName(c), tokenId: getBossTokenId(c),
     parentMessageId: parent.id, body: payload.body, signedMessage: payload.signedMessage,
+    answers: answers.value,
   });
   if (!authenticated.ok) return c.text(authenticated.error, authenticated.status);
   const duplicate = await findDuplicate(c.env, parent.agent_id, authenticated.value.idempotencyKey);
   if (duplicate) return c.json(mapMessageRow(duplicate));
   if (!await isDecisionAnswerable(c.env, parent.id)) return c.text('decision no longer open', 409);
-  const provenance = await stampAnsweredBy(c.env, bossId, getClientId(c), authenticated.value.provenance);
+  const stamped = await stampAnsweredBy(c.env, bossId, getClientId(c), authenticated.value.provenance);
+  const provenance = answers.value === undefined ? stamped : { ...stamped, answers: answers.value };
   const optionClaim = await insertReply(c.env, parent, { ...authenticated.value, provenance },
-    deferredAnnounce(c.executionCtx));
+    deferredAnnounce(c.executionCtx), answers.value !== undefined);
   if (optionClaim.kind === 'resolved') return c.text('decision no longer open', 409);
+  if (optionClaim.kind === 'form_required') return c.text(FORM_REQUIRED, 409);
   if (optionClaim.kind === 'failed' || optionClaim.kind === 'invalid_choice') return c.text('failed to persist', 500);
   finishReply(c, parent, optionClaim.reply, optionClaim.kind, bossId, getBossName(c));
   return c.json(mapMessageRow(optionClaim.reply), 201);
+}
+
+const FORM_REQUIRED = 'this question needs a form answer; update HiBoss to answer it';
+
+/**
+ * A form ask takes only a validated `answers` value (409 without one, so a client that cannot
+ * render the form cannot answer it in text); any other message refuses `answers`.
+ */
+function formAnswers(parent: MessageRow, raw: unknown):
+  { ok: true; value: unknown } | { ok: false; status: 400 | 409; error: string } {
+  const form = askFormOf(parent.metadata);
+  if (!form) return raw === undefined ? { ok: true, value: undefined } : { ok: false, status: 400, error: 'this message takes no form answer' };
+  if (raw === undefined) return { ok: false, status: 409, error: FORM_REQUIRED };
+  const valid = validateFormAnswers(form, raw);
+  return valid.ok ? { ok: true, value: valid.value } : { ok: false, status: 400, error: valid.error };
 }
 
 /** Webhook posts come from a key-less integration, so a reply would never be read. */
@@ -70,6 +91,7 @@ async function findParent(c: BossContext): Promise<MessageRow | null> {
 async function parsePayload(c: BossContext): Promise<{
   body: string;
   signedMessage?: unknown;
+  answers?: unknown;
 } | null> {
   try {
     const value = await c.req.json<unknown>();
@@ -77,7 +99,8 @@ async function parsePayload(c: BossContext): Promise<{
     const record = value as Record<string, unknown>;
     const body = typeof record.body === 'string' ? record.body.trim() : '';
     return { body, ...(record.signed_message !== undefined
-      ? { signedMessage: record.signed_message } : {}) };
+      ? { signedMessage: record.signed_message } : {}),
+    ...(record.answers !== undefined ? { answers: record.answers } : {}) };
   } catch {
     return null;
   }
@@ -99,6 +122,7 @@ async function insertReply(
   parent: MessageRow,
   authenticated: { body: string; idempotencyKey: string | null; provenance: Record<string, unknown> },
   announce: Announce,
+  formAnswered: boolean,
 ): Promise<OptionClaimResult> {
   const targetSession = replyTargetSession(parent);
   return persistOptionReply(
@@ -114,7 +138,7 @@ async function insertReply(
       authenticated.body, 'sent', 'normal', parent.id, authenticated.idempotencyKey,
       JSON.stringify(authenticated.provenance), targetSession],
     targetSession,
-    { announce },
+    { announce, formAnswered },
   );
 }
 
@@ -122,7 +146,7 @@ function finishReply(
   c: BossContext,
   parent: MessageRow,
   inserted: MessageRow,
-  optionKind: 'not_option' | 'invalid_choice' | 'claimed',
+  optionKind: 'not_option' | 'claimed',
   bossId: string,
   bossName: string,
 ): void {

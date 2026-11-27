@@ -6,13 +6,16 @@ import type { Env, MessageRow } from '../types';
 import { insertMessageWithEvent, messageEventStatement } from '../session-events';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { announceResolution, type Announce } from '../push/resolution';
+import { askFormOf } from './message-form';
 
 export type OptionClaimResult =
   | { kind: 'not_option'; reply: MessageRow }
   | { kind: 'invalid_choice' }
   | { kind: 'claimed'; reply: MessageRow }
   | { kind: 'failed' }
-  | { kind: 'resolved' };
+  | { kind: 'resolved' }
+  /** A form ask is answered only through a validated form answer, never by text or a button. */
+  | { kind: 'form_required' };
 
 type OptionReplyParent = Pick<MessageRow,
   'id' | 'agent_id' | 'metadata' | 'direction' | 'mode' | 'priority' | 'created_at'>;
@@ -21,7 +24,7 @@ type OptionReplyParent = Pick<MessageRow,
  * `allowExpired` admits an ask past its deadline (the timeout default). `announce` receives the
  * committed resolution: request routes pass deferredAnnounce, the cron sweep its collector.
  */
-export interface ClaimOptions { allowExpired?: boolean; announce?: Announce }
+export interface ClaimOptions { allowExpired?: boolean; announce?: Announce; formAnswered?: boolean }
 
 /**
  * Persists an ask answer only if its conditional insert wins.
@@ -41,10 +44,11 @@ export async function persistOptionReply(
   insertSql: string,
   insertBinds: readonly unknown[],
   sessionId: string | null,
-  { allowExpired = false, announce = announceResolution }: ClaimOptions = {},
+  { allowExpired = false, announce = announceResolution, formAnswered = false }: ClaimOptions = {},
 ): Promise<OptionClaimResult> {
   const options = parseOptions(parent.metadata);
   if (!allowFreeText && !options?.includes(choice)) return { kind: 'invalid_choice' };
+  if (!formAnswered && parent.direction === 'agent_to_boss' && askFormOf(parent.metadata)) return { kind: 'form_required' };
   const isAsk = parent.direction === 'agent_to_boss' && (parent.mode === 'blocking' || options !== null);
   if (!isAsk) {
     const reply = await insertMessageWithEvent(env, insertSql, insertBinds, sessionId);
@@ -106,7 +110,8 @@ export async function persistChannelText(
   if (!parent) return insertMessageWithEvent(env, insertSql, insertBinds, sessionId);
   const result = await persistOptionReply(env, parent, body, true, insertSql, insertBinds, sessionId, { announce });
   if (result.kind === 'claimed' || result.kind === 'not_option') return result.reply;
-  if (result.kind !== 'resolved') return null;
+  // Channel text cannot answer a form ask; it is kept, unlinked, like text after a closed ask.
+  if (result.kind !== 'resolved' && result.kind !== 'form_required') return null;
   // Each channel insert statement binds reply_to at index 8.
   const unlinked = [...insertBinds];
   unlinked[8] = null;

@@ -21,6 +21,8 @@ interface ReplyAuthenticationInput {
   readonly parentMessageId: string;
   readonly body: string;
   readonly signedMessage?: unknown;
+  /** A form answer must be inside the signed payload, compared after canonical encoding. */
+  readonly answers?: unknown;
 }
 
 export async function authenticateBossReply(
@@ -103,7 +105,19 @@ function isSignedBossPayload(
 function matchesRequest(payload: SignedBossPayload, input: ReplyAuthenticationInput): boolean {
   return payload.boss_id === input.bossId
     && payload.action.message_id === input.parentMessageId
-    && payload.body === input.body;
+    && payload.body === input.body
+    && canonicalJson(payload.answers) === canonicalJson(input.answers);
+}
+
+/** Key-sorted JSON so the Swift encoder's key order cannot change the comparison; undefined stays undefined. */
+function canonicalJson(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item) ?? 'null').join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child) ?? 'null'}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function failure(status: 400 | 401, error: string): BossMessageAuthResult {

@@ -6,9 +6,10 @@ import Foundation
 
 extension OptionFlowStore {
     /// Answers a past (history) option message by id, independent of the live `activeMessage`.
+    /// `answers` is a form ask's structured answer; `choice` is then its readable summary.
     /// True only when the server accepted this reply; otherwise `replyFeedback[messageID]` says why.
     @discardableResult
-    public func answerHistory(_ choice: String, for messageID: MessageID) async -> Bool {
+    public func answerHistory(_ choice: String, answers: PanelValue? = nil, for messageID: MessageID) async -> Bool {
         let version = historyVersion
         guard !Task.isCancelled else { return false }
         guard let api else {
@@ -17,7 +18,16 @@ extension OptionFlowStore {
         }
         setHistoryReplyFeedback(nil, for: messageID)
         do {
-            let outcome = try await api.reply(to: messageID, with: choice)
+            let outcome: ReplyOutcome
+            if let answers {
+                guard let forms = api as? any AskFormAnswering else {
+                    setHistoryReplyFeedback(.failed(kitL("Disconnected")), for: messageID)
+                    return false
+                }
+                outcome = try await forms.reply(to: messageID, with: choice, answers: answers)
+            } else {
+                outcome = try await api.reply(to: messageID, with: choice)
+            }
             guard version == historyVersion, !Task.isCancelled else { return false }
             switch outcome {
             case .accepted, .acceptedOn:

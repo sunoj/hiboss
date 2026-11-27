@@ -22,8 +22,8 @@ extension InboxStore {
     /// Sends through the shared gate, so a second reply for the same decision from any
     /// surface returns `.busy` without reaching the server.
     @discardableResult
-    func reply(_ choice: String, to id: MessageID, isDecision knownDecision: Bool? = nil) async
-        -> ReplyResult {
+    func reply(_ choice: String, answers: PanelValue? = nil, to id: MessageID,
+               isDecision knownDecision: Bool? = nil) async -> ReplyResult {
         guard let api else { return .failed }
         guard replying[id] == nil else { return .busy }
         replyFeedback[id] = nil
@@ -37,7 +37,7 @@ extension InboxStore {
         }
         let epoch = requiredEpoch
         let confirmed = hasCompleteRequiredInputs
-        let submission = await replyGate.submit(choice, to: id, via: api,
+        let submission = await replyGate.submit(choice, answers: answers, to: id, via: api,
                                                 answerability: confirmed ? state : nil,
                                                 recheck: { [weak self] id, verified, didVerify in
             self?.submissionAnswerability(for: id, verified: verified, didVerify: didVerify,

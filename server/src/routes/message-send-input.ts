@@ -7,6 +7,7 @@ import { stripServerOwnedMetadata } from '../message-security';
 import { destinationsMode } from '../delivery';
 import { checkRateLimit, validateOption, priorityOptions, validateChannel, resolveChannelRouting, parseOptions, normalizeMetadata, parseOptionMedia, fetchAllChannelConfigs, selectChannelConfig } from './message-helpers';
 import { parseOptionDescriptions } from './option-descriptions';
+import { parseAskForm } from './message-form';
 import { getAttachmentKey } from './progress-helpers';
 const modeOptions: Mode[] = ['async', 'blocking'];
 export interface SendInput {
@@ -67,6 +68,8 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   const descriptions = parseOptionDescriptions(rawMetadata['option_descriptions'], options);
   if (!descriptions.ok) return c.text(descriptions.error, 400);
   if (descriptions.value) rawMetadata['option_descriptions'] = descriptions.value;
+  const formError = askFormError(rawMetadata, options, mode, toAgent);
+  if (formError) return c.text(formError, 400);
   const timeout = typeof payload.timeout === 'number' ? payload.timeout : null;
   // Only the send timeout can grant a blocking caller its own deadline.
   if (mode === 'blocking' && typeof payload.timeout === 'number') rawMetadata['ask_deadline'] = true;
@@ -81,6 +84,24 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
   const channelConfigs = await selectLegacyConfigs(c.env, agentId, priority, requestedChannel);
   return { agentId, payload, body, idempotencyKey, agentConfig, mode, priority, requestedChannel, fileUrl, messageType, sessionId, toAgent, options, optionMediaResult, metadata, clientMetadata, timeout, channelConfigs };
+}
+
+/**
+ * A form ask's question is its one v2 input: it offers no options, has no timeout default
+ * (expiry never fills in a structured answer), and is always a blocking ask.
+ */
+function askFormError(metadata: Record<string, unknown>, options: string[] | undefined, mode: Mode,
+  toAgent: string | null): string | null {
+  if (metadata['form'] === undefined) return null;
+  // Only the boss's apps validate and sign a form answer; an agent reply would close it with text.
+  if (toAgent) return 'a form ask goes to the boss, not to another agent';
+  const form = parseAskForm(metadata['form']);
+  if (!form.ok) return form.error;
+  if (options) return 'a form ask cannot also offer options';
+  if (metadata['default_option'] !== undefined) return 'a form ask cannot have a default';
+  if (mode !== 'blocking') return 'a form ask must be blocking';
+  metadata['form'] = form.value;
+  return null;
 }
 
 /** An optional `file_thumbnail_url` sits beside `file_url` and must be this worker's attachment. */

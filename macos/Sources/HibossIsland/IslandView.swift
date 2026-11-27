@@ -20,15 +20,19 @@ struct IslandView: View {
     let surfaceStyle: OptionSurfaceStyle
     var topInset: CGFloat
     var reportHeight: (MessageID, CGFloat) -> Void
+    /// Opens a message in the main window (a form ask is answered there).
+    var openMessage: (MessageID) -> Void = { _ in }
     let questionGeometry = OptionQuestionGeometry()
 
     init(
         flow: OptionFlowStore, reply: AttentionReplyState, overview: OverviewStore,
         surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0,
         attention: IslandAttention = .shared,
-        reportHeight: @escaping (MessageID, CGFloat) -> Void = { _, _ in }
+        reportHeight: @escaping (MessageID, CGFloat) -> Void = { _, _ in },
+        openMessage: @escaping (MessageID) -> Void = { _ in }
     ) {
         self.reportHeight = reportHeight
+        self.openMessage = openMessage
         self.overview = overview
         self.flow = flow
         self.attention = attention
@@ -221,6 +225,11 @@ struct IslandView: View {
             Divider()
                 .overlay(Color.white.opacity(0.12))
             switch overview.snapshot.answerability.state(for: message.id) {
+            case .open where message.metadata?.form != nil:
+                // A ranking or review list does not fit the notch; it is answered in the window.
+                Button(L("Answer in HiBoss")) { openMessage(message.id) }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("island.form.open")
             case .open:
                 optionList(message)
                 errorLabel(for: message.id)

@@ -146,15 +146,22 @@ struct MessageDetailView: View {
                 options: message.options,
                 media: message.metadata?.optionMedia ?? [], metadata: message.metadata
             )
-            if !message.options.isEmpty {
-                DecisionOptions(options: message.options, metadata: message.metadata, timing: timing,
-                                submitting: submitting,
-                                locksControls: store.replyGate.locksControls(for: message.id),
-                                fullWidth: true) {
-                    submit($0, for: message.id)
+            if let form = message.metadata?.form {
+                // A form ask takes only its structured answer; a text reply would be refused.
+                AskFormView(form: form, isSubmitting: submitting != nil) { answers, summary in
+                    submit(summary, answers: answers, for: message.id)
                 }
+            } else {
+                if !message.options.isEmpty {
+                    DecisionOptions(options: message.options, metadata: message.metadata, timing: timing,
+                                    submitting: submitting,
+                                    locksControls: store.replyGate.locksControls(for: message.id),
+                                    fullWidth: true) {
+                        submit($0, for: message.id)
+                    }
+                }
+                replyField(for: message)
             }
-            replyField(for: message)
             if store.replyGate.verificationTimedOut.contains(message.id) {
                 Text("This is taking longer than expected.").font(.footnote).foregroundStyle(Theme.ink2)
             } else if submitting != nil && !store.replyGate.verifying.contains(message.id) {
@@ -215,12 +222,12 @@ struct MessageDetailView: View {
         return Text("No longer open")
     }
 
-    private func submit(_ choice: String, for id: MessageID) {
+    private func submit(_ choice: String, answers: PanelValue? = nil, for id: MessageID) {
         let text = choice.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, store.replying[id] == nil else { return }
         actionNote = nil
         Task {
-            switch await store.reply(text, to: id) {
+            switch await store.reply(text, answers: answers, to: id) {
             case .busy:
                 break
             case .sent:
