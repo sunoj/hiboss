@@ -94,6 +94,14 @@ final class SessionBehaviorTests: XCTestCase {
         XCTAssertNil(ResolvedBanner.title(for: .open))
     }
 
+    func testOutcomeIsOneLineNamingWhereTheAnswerCameFrom() {
+        let chosen = L("You chose \("Keep")")
+        XCTAssertEqual(ResolvedBanner.line(title: chosen, source: "iPhone"),
+            chosen + " · " + AnswerAttribution.answeredOn("iPhone"))
+        XCTAssertEqual(ResolvedBanner.line(title: chosen, source: nil), chosen,
+            "An answer from this Mac names no device")
+    }
+
     func testResolvedDecisionWithNoReplyReceiptDoesNotInventABossChoice() {
         let settled = HistoryMessage(id: "closed", body: "Ship?", agentName: "Agent",
             direction: "agent_to_boss", status: "replied", priority: "normal",
