@@ -43,6 +43,7 @@ struct OverviewContentHeader: View {
         case .deviceRequests: L("Machines waiting to join.")
         case .box: L("Box")
         case .progress: L("Progress")
+        case .watching: L("Watching")
         }
     }
 }

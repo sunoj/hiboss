@@ -1,4 +1,4 @@
-// Main window: Today, Box, Progress, and session threads with native sidebar navigation.
+// Main window: Today, Box, Progress, Watching, and session threads with native sidebar navigation.
 // Exports: MainView rendering app-owned Panels state, attention drafts, and local session reads.
 // Dependencies: SwiftUI, HibossKit, workspace surfaces, and SessionReadTracking.
 
@@ -13,19 +13,19 @@ struct MainView: View {
     @ObservedObject var notificationNavigation: MessageNotificationNavigation
     @ObservedObject var joinRequests: JoinRequestsModel
     @StateObject private var reply = AttentionReplyState()
-    @ObservedObject private var requiredInputs: RequiredInputStore
+    @ObservedObject var requiredInputs: RequiredInputStore
     @StateObject private var overviewStore = OverviewStore()
     @StateObject private var sessionReads: SessionReadStore
     private let sessionWindowIsKey: Binding<Bool>?
-    @StateObject private var panels: PanelsModel
-    @StateObject private var box: BoxBrowserStore
-    @StateObject private var progress: ProgressFeedStore
+    @StateObject var panels: PanelsModel
+    @StateObject var box: BoxBrowserStore
+    @StateObject var progress: ProgressFeedStore
     @StateObject private var boxMedia: BoxBrowserMedia
-    @StateObject private var sessionBox: BoxBrowserStore
+    @StateObject var sessionBox: BoxBrowserStore
     private let identity: AccountAuthorization
     private let onPaired: (ConnectionConfig) -> Void
     private let previewSessions: [ProjectSession]?
-    @State private var destination: OverviewDestination = .today
+    @State var destination: OverviewDestination = .today
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showsCompactOverview = false
     @State private var previewHistory = AttentionPreview.historyIfRequested()
@@ -106,8 +106,8 @@ struct MainView: View {
             showsCompactOverview = false
         }
         .onChange(of: panels.selectedTileID, initial: true) { _, id in
-            guard id != nil, destination == .progress else { return }
-            destination = .today
+            guard id != nil, let next = WatchingRoute.destination(openingPanelFrom: destination) else { return }
+            destination = next
             showsCompactOverview = false
         }
         .sheet(item: $notificationNavigation.target) { target in
@@ -207,6 +207,7 @@ struct MainView: View {
             connectionState: previewHistory == nil ? flow.connectionState : .connected,
             hasLoadedHistory: previewHistory != nil || flow.historyLoadedAt != nil,
             deviceRequestCount: joinRequests.pendingCount,
+            watchingCount: WatchingRoute.running(panels.tiles).count,
             unreadSessionIDs: sessionReads.unreadSessionIDs(in: snapshot),
             onSelect: {
                 destination = $0
@@ -234,13 +235,16 @@ struct MainView: View {
                     isRefreshing: flow.isRefreshingHistory || panels.isRefreshing
                         || requiredInputs.state.refreshing,
                     onChoose: answer,
-                    onSession: { destination = .session($0) })
+                    onSession: { destination = .session($0) }, onWatching: { destination = .watching })
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else if case let .session(id) = destination {
                 sessionSurface(id: id, snapshot: snapshot)
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else if destination == .progress {
                 ProgressWorkspace(store: progress)
+            } else if destination == .watching {
+                WatchingView(panels: panels, isPreview: previewHistory != nil)
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else if destination == .deviceRequests {
                 DeviceRequestsView(model: joinRequests, focus: $notificationNavigation.deviceRequestsFocus,
                     onSettings: { openWindow(id: "settings") })
@@ -282,19 +286,4 @@ struct MainView: View {
         await overviewStore.answer(text, for: id, using: flow.answer)
     }
 
-    private func refresh() {
-        if destination == .progress {
-            Task { await progress.refresh() }
-            return
-        }
-        if destination == .box {
-            Task { await box.refresh() }
-            return
-        }
-        if destination == .deviceRequests { Task { await joinRequests.refresh() } }
-        if case .session = destination, sessionBox.project != nil { Task { await sessionBox.refresh() } }
-        requiredInputs.refresh()
-        Task { await flow.refreshHistory() }
-        if destination == .today { Task { await panels.load() } }
-    }
 }

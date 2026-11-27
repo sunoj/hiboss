@@ -88,7 +88,7 @@ final class ProgressSnapshotTests: XCTestCase {
         }
     }
 
-    func testPanelSelectionFromProgressStillOpensTodayInspector() async throws {
+    func testPanelSelectionFromProgressOpensWatching() async throws {
         let panels = PanelsModel(demoMode: true, autoload: false)
         let api = ScriptedProgressAPI()
         let host = NSHostingView(rootView: MainView(settings: AppSettings(), flow: OptionFlowStore(),
@@ -100,12 +100,8 @@ final class ProgressSnapshotTests: XCTestCase {
         try await waitForCondition { !api.reads.isEmpty }
         let tile = try XCTUnwrap(panels.tiles.first)
         panels.open(tile.id)
-        try await waitForCondition { window.title == L("Today") }
+        try await waitForCondition { window.title == L("Watching") }
         XCTAssertEqual(panels.selectedTileID, tile.id)
-        let snapshot = OverviewStore().snapshot
-        let today = TodayView(snapshot: snapshot, reply: AttentionReplyState(), panels: panels,
-            onChoose: { _, _ in nil }, onSession: { _ in })
-        XCTAssertTrue(today.hasInspectorContent)
     }
 
     private func makeWindow(_ host: NSView, scheme: ColorScheme) async throws -> NSWindow {

@@ -50,6 +50,7 @@ enum OverviewDestination: Hashable {
     case deviceRequests
     case box
     case progress
+    case watching
 }
 
 struct OverviewSnapshot {
@@ -108,7 +109,7 @@ struct OverviewSnapshot {
         switch destination {
         case .today:
             return attention.map(\.message)
-        case .deviceRequests, .box, .progress:
+        case .deviceRequests, .box, .progress, .watching:
             return []
         case let .session(id):
             return sessionMessages[id] ?? []
@@ -134,6 +135,7 @@ struct OverviewSnapshot {
         case .deviceRequests: L("Device Requests")
         case .box: L("Box")
         case .progress: L("Progress")
+        case .watching: L("Watching")
         }
     }
 
