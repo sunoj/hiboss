@@ -50,7 +50,8 @@ struct IslandView: View {
                 agentHeader(message, item: presentation.item)
                     .padding(.bottom, 12)
                     .reportNaturalHeight(.header)
-                OptionMessageBody(text: message.body, attachment: message.metadata?.attachment)
+                OptionMessageBody(text: message.body, details: nonEmpty(message.content),
+                    attachment: message.metadata?.attachment)
                 fixedActions(message).reportNaturalHeight(.actions)
             }
             .onPreferenceChange(OptionNaturalHeights.self) { heights in
@@ -146,11 +147,11 @@ struct IslandView: View {
                                 .foregroundStyle(.white.opacity(0.7))
                                 .lineLimit(1)
                         } else {
-                            messageContext(message)
+                            messageContext(message, showsContent: false)
                         }
                     }
                 } else {
-                    messageContext(message)
+                    messageContext(message, showsContent: false)
                 }
             }
             Spacer()
@@ -165,8 +166,8 @@ struct IslandView: View {
     }
 
     @ViewBuilder
-    private func messageContext(_ message: OptionMessage) -> some View {
-        if let content = nonEmpty(message.content) {
+    private func messageContext(_ message: OptionMessage, showsContent: Bool = true) -> some View {
+        if showsContent, let content = nonEmpty(message.content) {
             Text(content)
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.58))

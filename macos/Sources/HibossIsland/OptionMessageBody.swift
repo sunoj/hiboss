@@ -1,6 +1,6 @@
 // Renders the live question at natural height and scrolls only when its viewport is capped.
 // Exports: OptionMessageBody, with a one-line viewport floor and natural height preference.
-// Dependencies: SwiftUI and MessageAttachmentView.
+// Dependencies: SwiftUI, OptionMessageDetails, and MessageAttachmentView.
 
 import SwiftUI
 import HibossKit
@@ -11,7 +11,10 @@ struct OptionMessageBody: View {
     static let minimumHeight: CGFloat = 20
 
     let text: String
+    var details: String? = nil
     let attachment: MessageAttachment?
+    /// Owned here, outside `ViewThatFits`, so both branches render the same state.
+    @State private var detailsExpanded = false
 
     var body: some View {
         ViewThatFits(in: .vertical) {
@@ -33,6 +36,9 @@ struct OptionMessageBody: View {
                         value: geometry.frame(in: .named("island.content")))
                 })
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if let details {
+                OptionMessageDetails(text: details, isExpanded: $detailsExpanded)
+            }
             if let attachment {
                 MessageAttachmentView(attachment: attachment)
             }
