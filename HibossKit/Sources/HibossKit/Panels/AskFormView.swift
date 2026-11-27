@@ -54,15 +54,18 @@ public struct AskFormView: View {
     private var editor: some View {
         VStack(alignment: .leading, spacing: 12) {
             control
-            HStack(spacing: 10) {
-                Button(action: submit) {
-                    Text(kitL("Submit answer")).frame(minWidth: 120)
+            Button(action: submit) {
+                HStack(spacing: 8) {
+                    if isSubmitting { ProgressView().controlSize(.small) }
+                    Text(isSubmitting ? kitL("Sending…") : kitL("Submit answer"))
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isSubmitting || !form.isComplete(value))
-                .accessibilityIdentifier("ask-form-submit")
-                if isSubmitting { ProgressView().controlSize(.small) }
-                Spacer(minLength: 0)
+            }
+            .buttonStyle(AskFormSubmitStyle())
+            .disabled(isSubmitting || !form.isComplete(value))
+            .accessibilityIdentifier("ask-form-submit")
+            if !isSubmitting, !form.isComplete(value), form.fitsSizeLimit(form.answer(from: value)) {
+                Text(kitL("Answer every item to submit."))
+                    .font(.caption).foregroundStyle(.secondary)
             }
             if !form.fitsSizeLimit(form.answer(from: value)) {
                 Text(kitL("Shorten the notes to send this answer."))
@@ -82,5 +85,29 @@ public struct AskFormView: View {
         case .itemReview:
             PanelItemReview(label: form.label, items: form.items, verdicts: form.verdicts, value: $value)
         }
+    }
+}
+
+/// A full-width primary action: accent fill when it can be pressed, a quiet but readable fill
+/// when it cannot, never a small grey bar.
+private struct AskFormSubmitStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        AskFormSubmitLabel(configuration: configuration)
+    }
+}
+
+private struct AskFormSubmitLabel: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundStyle(isEnabled ? Color.white : Color.secondary)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(isEnabled ? Color.accentColor : Color.primary.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }

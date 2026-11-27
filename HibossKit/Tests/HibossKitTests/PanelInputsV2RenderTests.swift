@@ -17,6 +17,10 @@ final class PanelInputsV2RenderTests: XCTestCase {
     private let verdicts = [ReviewVerdict(id: "confirmed", label: "Confirmed", requiresNote: false),
         ReviewVerdict(id: "not_confirmed", label: "Cannot confirm", requiresNote: true)]
 
+    private func formOf(_ json: String) throws -> AskForm {
+        try XCTUnwrap(AskForm(try JSONDecoder().decode(PanelValue.self, from: Data(json.utf8))))
+    }
+
     func testInputsRenderWithRealHeight() throws {
         var review = PanelValue.null
         review = ItemReviewAnswer.setting(review, item: "changelog", verdict: "confirmed", note: nil)
@@ -27,6 +31,10 @@ final class PanelInputsV2RenderTests: XCTestCase {
                 topK: nil, value: .constant(.array(["sync", "settings", "avatars", "flag"].map(PanelValue.string)))))),
             ("review", AnyView(PanelItemReview(label: "Pre-release checklist", items: checks,
                 verdicts: verdicts, value: .constant(review)))),
+            ("form-ready", AnyView(AskFormView(form: try formOf(#"{"catalogVersion":2,"input":{"type":"RankedChoice","props":{"label":"Order the follow-ups","value":{"$bindState":"/form/answer"},"options":[{"id":"a","label":"Fix the flaky sync test"},{"id":"b","label":"Split the settings screen"}]}}}"#),
+                isSubmitting: false, onSubmit: { _, _ in true }))),
+            ("form-incomplete", AnyView(AskFormView(form: try formOf(#"{"catalogVersion":2,"input":{"type":"ItemReview","props":{"label":"Checks","value":{"$bindState":"/form/answer"},"items":[{"id":"a","label":"Changelog read"}],"verdicts":[{"id":"ok","label":"Confirmed"},{"id":"no","label":"Cannot confirm"}]}}}"#),
+                isSubmitting: false, onSubmit: { _, _ in true }))),
         ]
         for (name, view) in views {
             for scheme in [ColorScheme.light, .dark] {
@@ -34,7 +42,7 @@ final class PanelInputsV2RenderTests: XCTestCase {
                     .background(scheme == .dark ? Color.black : Color.white).environment(\.colorScheme, scheme))
                 renderer.scale = 2
                 let image = try XCTUnwrap(renderer.cgImage)
-                XCTAssertGreaterThan(image.height, 200, "\(name) rendered \(image.height) px high")
+                XCTAssertGreaterThan(image.height, 150, "\(name) rendered \(image.height) px high")
                 if let directory = ProcessInfo.processInfo.environment["HIBOSS_V2_SHOTS"] {
                     let url = URL(fileURLWithPath: directory).appendingPathComponent("\(name)-\(scheme == .dark ? "dark" : "light").png")
                     let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil))

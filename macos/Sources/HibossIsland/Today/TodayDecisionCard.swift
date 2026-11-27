@@ -8,6 +8,7 @@ import SwiftUI
 struct TodayDecisionCard: View {
     @Environment(\.projectSessions) private var inventory
     @Environment(\.askFormAnswer) private var answerForm
+    @Environment(\.askFormDidAnswer) private var didAnswer
     let item: AttentionItem
     let now: Date
     let isSubmitting: Bool
@@ -34,7 +35,10 @@ struct TodayDecisionCard: View {
             if let form = item.message.metadata?.form {
                 AskFormView(form: form, isSubmitting: isSubmitting) { answers, summary in
                     guard let reply, let answerForm else { return false }
-                    return await answerForm(answers, summary: summary, for: item.id, reply: reply)
+                    let accepted = await answerForm(answers, summary: summary, for: item.id, reply: reply)
+                    // The card leaves Today as soon as the answer settles; Today confirms it instead.
+                    if accepted { didAnswer?() }
+                    return accepted
                 }
                 .disabled(reply == nil || answerForm == nil)
             } else {
