@@ -16,7 +16,7 @@ package alone.
 | 3 | Today focus card | The first open decision gets a focus card with collapsible details; the rest are one-line rows; the inspector shows context, not a second copy of the choices | done (window run pending) |
 | 4 | Session outcomes | Every settled decision in a thread states how it ended in one line: the answer, where and when, or "Expired without an answer" | done (window run pending) |
 | 5 | Inline failures | A failed refresh keeps the loaded content; Settings › Connection names the state and the server's reason | met by existing behaviour (see below) |
-| 6 | Box | Filter chips, newest item preselected, "Added by" badge, a date on every row | waits for `feat/box-v2-macos` |
+| 6 | Box | Filter chips, newest item preselected, "Added by" badge, a date on every row | rows already carry a date and "Added by"; chips and preselection wait for `feat/box-v2-macos` |
 
 ## Sidebar rows
 
