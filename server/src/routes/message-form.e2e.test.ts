@@ -49,10 +49,15 @@ function reply(parentId: string, payload: Record<string, unknown>): Promise<Resp
     { Authorization: `Bearer ${BOSS_TOKEN}`, 'Content-Type': 'application/json' }, payload);
 }
 
+async function stored(id: string): Promise<{ metadata: Record<string, unknown> | null }> {
+  return await testJson(200, testRequest('GET', `https://test.local/api/messages/${id}`, authHeaders())) as
+    { metadata: Record<string, unknown> | null };
+}
+
 async function askWith(form: unknown): Promise<string> {
-  const message = await testJson(201, send({ metadata: { form } })) as { id: string; metadata: { form: unknown } };
-  expect(message.metadata.form).toEqual(form);
-  return message.id;
+  const { id } = await testJson(201, send({ metadata: { form } })) as { id: string };
+  expect((await stored(id)).metadata?.form).toEqual(form);
+  return id;
 }
 
 describe('sending a form ask', () => {
@@ -107,8 +112,8 @@ describe('answering a form ask', () => {
   });
 
   it('refuses answers on an ordinary message and strips answers an agent sends', async () => {
-    const plain = await testJson(201, send({ metadata: { answers: ['sync'] } })) as { id: string; metadata: Record<string, unknown> | null };
-    expect(plain.metadata?.answers).toBeUndefined();
+    const plain = await testJson(201, send({ metadata: { answers: ['sync'] } })) as { id: string };
+    expect((await stored(plain.id)).metadata?.answers).toBeUndefined();
     expect((await reply(plain.id, { body: 'Ok', answers: ['sync'] })).status).toBe(400);
   });
 });
