@@ -31,7 +31,7 @@ public enum HibossAPIError: Error, LocalizedError {
     }
 }
 
-public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Sendable {
+public final class HibossAPI: BossServing, BossPreferencesServing, AskFormAnswering, @unchecked Sendable {
     let config: ConnectionConfig
     let session: URLSession
     let decoder = JSONDecoder()
@@ -62,18 +62,27 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     }
 
     public func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
+        try await postReply(to: messageID, body: choice, answers: nil)
+    }
+
+    public func reply(to messageID: MessageID, with body: String, answers: PanelValue) async throws -> ReplyOutcome {
+        try await postReply(to: messageID, body: body, answers: answers)
+    }
+
+    private func postReply(to messageID: MessageID, body raw: String, answers: PanelValue?) async throws -> ReplyOutcome {
         let endpoint = messageEndpoint(messageID).appendingPathComponent("reply")
         var request = authorizedRequest(url: endpoint, method: "POST")
-        let body = choice.trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         let signedMessage = try messageSigner.map {
             try BossMessageJWS.signedReply(
                 body: body,
                 parentMessageID: messageID.rawValue,
-                provider: $0
+                provider: $0,
+                answers: answers
             )
         }
         request.httpBody = try JSONEncoder().encode(
-            ReplyPayload(body: body, signedMessage: signedMessage)
+            ReplyPayload(body: body, signedMessage: signedMessage, answers: answers)
         )
         let (data, response) = try await session.data(for: request)
         if (response as? HTTPURLResponse)?.statusCode == 409 {
@@ -223,9 +232,10 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
 private struct ReplyPayload: Encodable {
     let body: String
     let signedMessage: String?
+    let answers: PanelValue?
 
     enum CodingKeys: String, CodingKey {
-        case body
+        case body, answers
         case signedMessage = "signed_message"
     }
 }
