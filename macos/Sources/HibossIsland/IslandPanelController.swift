@@ -21,6 +21,7 @@ final class IslandPanelController {
     let overview: OverviewStore
     private let pointerLocation: () -> NSPoint
     private let activate: () -> Void
+    private let openMessage: (MessageID) -> Void
     private var questionScreen: IslandGeometry?
     private var pendingPresentation = false
     private(set) var naturalHeight: CGFloat?
@@ -40,9 +41,11 @@ final class IslandPanelController {
         pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
         activate: @escaping () -> Void = { NSApp.activate(ignoringOtherApps: true) },
         attention: IslandAttention = .shared,
-        preferences: AnyPublisher<BossPreferences, Never> = Just(BossPreferences()).eraseToAnyPublisher()
+        preferences: AnyPublisher<BossPreferences, Never> = Just(BossPreferences()).eraseToAnyPublisher(),
+        openMessage: @escaping (MessageID) -> Void = { _ in }
     ) {
         self.flow = flow
+        self.openMessage = openMessage
         self.attention = attention
         self.settings = settings
         self.overview = overview
@@ -82,7 +85,7 @@ final class IslandPanelController {
             rootView: IslandView(flow: flow, reply: reply, overview: overview,
                 attention: attention, reportHeight: { [weak self] id, height in
                     self?.contentHeightChanged(id: id, height: height, mode: .island)
-                }), settings: settings)
+                }, openMessage: openMessage), settings: settings)
         host.sizingOptions = []
         panel.contentView = host
         panel.setContentSize(NSSize(width: AppConstants.Island.width, height: 600))
@@ -120,7 +123,7 @@ final class IslandPanelController {
             rootView: IslandView(flow: flow, reply: reply, overview: overview,
                 surfaceStyle: .window, attention: attention, reportHeight: { [weak self] id, height in
                     self?.contentHeightChanged(id: id, height: height, mode: .window)
-                })
+                }, openMessage: openMessage)
         )
         host.sizingOptions = []
         // The transparent, hidden titlebar must not reduce the measured content height.

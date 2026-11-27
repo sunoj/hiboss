@@ -13,6 +13,7 @@ struct HistoryDecisionBlock: View {
     /// The session thread states the outcome in its banner, so it hides this line.
     var showsSettlement = true
     @State private var sendingOption: String?
+    @Environment(\.askFormAnswer) private var answerForm
 
     private var message: HistoryMessage { thread.message }
     private var answerState: DecisionAnswerability { answerability.state(for: message.id) }
@@ -28,6 +29,18 @@ struct HistoryDecisionBlock: View {
     }
 
     var body: some View {
+        if let form = message.metadata?.form, isOpen {
+            AskFormView(form: form, isSubmitting: isSubmitting) { answers, summary in
+                answerForm?(answers, summary: summary, for: message.id, reply: reply)
+            }
+            .disabled(answerForm == nil)
+            .accessibilityIdentifier("history.form.\(message.id.rawValue)")
+        } else {
+            options
+        }
+    }
+
+    private var options: some View {
         VStack(alignment: .leading, spacing: 10) {
             HistoryOptionGrid(options: message.options, metadata: message.metadata,
                 defaultOption: message.defaultOption, outcome: displayedOutcome,

@@ -137,7 +137,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         Task { await notifications.prepareAuthorization() }
         observePresentationPreferences()
         panelController = IslandPanelController(flow: flow, settings: settings, overview: overview,
-            preferences: preferencesStore.$preferences.eraseToAnyPublisher())
+            preferences: preferencesStore.$preferences.eraseToAnyPublisher(),
+            openMessage: { [weak self] id in self?.notificationNavigation.open(id) })
         observeJoinRequests()
         observePanels()
         lamp.start(snapshots: overview.$snapshot.eraseToAnyPublisher(),
