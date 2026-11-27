@@ -4,12 +4,12 @@
     <title>HiBoss Island</title>
     <item>
       <title>Version 1.2.0</title>
-      <pubDate>Fri, 27 Nov 2026 09:26:03 +0000</pubDate>
+      <pubDate>Fri, 27 Nov 2026 09:46:30 +0000</pubDate>
       <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
-      <sparkle:version>202611271625</sparkle:version>
+      <sparkle:version>202611271645</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[ Agents can now ask you to put options in order or to review a list item by item. The question shows numbered rows you reorder, or one verdict per item with a note where needed; your answer goes back to the agent as structured input, never as approval. The Island opens these questions in the main window. Also: one toolbar status chip, a compact Today, and a context panel beside the top decision. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.2.0/HiBoss-Island-1.2.0.zip" sparkle:edSignature="cqEK+e1W7cWHqRk8fH3Rmz3MUwbHTJP4+NKgpqk5wl97s0UUem7xA8qWlNRMSktTM/tRFWb4p2Uu3xKpU46nDg==" length="8367460" type="application/zip" />
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.2.0/HiBoss-Island-1.2.0.zip" sparkle:edSignature="cxFGP+qJJBZRqpUSqOO7PJ8spvDK7C+vt3eMA4tn4htzgJu1L9rfwxm5F9NlYjhmgq1P1IwzrCSAmy4VeVJpBw==" length="8377721" type="application/zip" />
     </item>
   </channel>
 </rss>
