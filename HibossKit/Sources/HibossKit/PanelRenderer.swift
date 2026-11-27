@@ -44,6 +44,8 @@ public struct PanelRenderer: View {
         case "TextArea": return renderTextArea(element)
         case "Select": return renderSelect(element)
         case "MultiSelect": return renderMultiSelect(element)
+        case "RankedChoice": return renderRankedChoice(element)
+        case "ItemReview": return renderItemReview(element)
         case "NumberInput": return renderNumberInput(element)
         case "Toggle": return renderToggle(element)
         case "Slider": return renderSlider(element)
@@ -161,6 +163,25 @@ public struct PanelRenderer: View {
             options: options, style: .multiple,
             isSelected: { selection.contains($0) },
             select: { id in updateOption(id, selected: !selection.contains(id), at: path, allowed: optionIDs) }))
+    }
+
+    private func renderRankedChoice(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
+        return AnyView(PanelRankedChoice(
+            label: element.props["label"]?.string ?? kitL("Order"), options: panelOptions(element),
+            topK: element.props["topK"]?.number.map { Int($0) }, value: store.binding(for: bindingPath(element))))
+    }
+
+    private func renderItemReview(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
+        let items = element.props["items"]?.array?.compactMap { value -> PanelOption? in
+            guard let object = value.object, let id = object["id"]?.string, let label = object["label"]?.string
+            else { return nil }
+            return PanelOption(id: id, label: label, description: object["description"]?.string)
+        } ?? []
+        return AnyView(PanelItemReview(
+            label: element.props["label"]?.string ?? kitL("Review"), items: items,
+            verdicts: reviewVerdicts(element), value: store.binding(for: bindingPath(element))))
     }
 
     private func renderNumberInput(_ element: PanelElement) -> AnyView {

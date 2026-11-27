@@ -46,7 +46,8 @@ struct QuestionnaireReviewRow: Identifiable, Equatable {
 }
 
 struct QuestionnaireSteps: Equatable {
-    static let inputTypes: Set<String> = ["TextInput", "TextArea", "NumberInput", "Select", "MultiSelect", "Toggle", "Slider"]
+    static let inputTypes: Set<String> = ["TextInput", "TextArea", "NumberInput", "Select", "MultiSelect", "Toggle", "Slider",
+        "RankedChoice", "ItemReview"]
     static let minimumSteps = 3
 
     /// The form without submit buttons: the review page owns submission.
