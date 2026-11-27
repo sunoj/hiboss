@@ -143,3 +143,20 @@ pub(super) fn schema_node_at_path<'a>(schema: &'a Value, pointer: &str) -> Optio
     current.is_object().then_some(current)
 }
 
+
+pub(super) fn validate_lifecycle(value: &Value) -> Result<(), ValidationError> {
+    let policy = object(value, "/lifecycle", "Lifecycle")?;
+    if policy.keys().any(|key| !["mode", "expectedUpdateIntervalSeconds", "ttlSeconds"].contains(&key.as_str())) {
+        return Err(error("invalid_spec", "/lifecycle", "unsupported lifecycle property"));
+    }
+    if policy.get("mode").is_some_and(|value| ![Some("run"), Some("monitor")].contains(&value.as_str())) {
+        return Err(error("invalid_spec", "/lifecycle/mode", "must be run or monitor"));
+    }
+    if policy.get("expectedUpdateIntervalSeconds").is_some_and(|value| !value.as_u64().is_some_and(|value| (5..=3600).contains(&value))) {
+        return Err(error("invalid_spec", "/lifecycle/expectedUpdateIntervalSeconds", "must be an integer from 5 to 3600"));
+    }
+    if policy.get("ttlSeconds").is_some_and(|value| !value.as_u64().is_some_and(|value| (60..=604800).contains(&value))) {
+        return Err(error("invalid_spec", "/lifecycle/ttlSeconds", "must be an integer from 60 to 604800"));
+    }
+    Ok(())
+}

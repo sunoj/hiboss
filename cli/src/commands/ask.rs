@@ -17,6 +17,8 @@ const MAX_CHOICES: usize = 5;
 
 #[derive(Debug, Args)]
 pub struct AskArgs {
+    #[command(flatten)]
+    pub(crate) form: super::ask_form::FormArgs,
     #[arg(long, default_value_t = 1800, value_parser = clap::value_parser!(u32).range(60..=86400))]
     pub timeout: u32,
     #[arg(
@@ -250,6 +252,7 @@ pub(crate) async fn prepare_request(
     tools: &Tools,
 ) -> Result<SendRequest, Box<dyn Error>> {
     let title = super::message_text::title(&args.body, args.to.is_some())?;
+    let form = args.form.payload(&title)?;
     let content =
         super::message_text::content(args.content.as_deref(), args.content_file.as_deref())?;
     let descriptions =
@@ -265,6 +268,9 @@ pub(crate) async fn prepare_request(
         option_media,
         descriptions,
     )?;
+    if let Some(form) = form {
+        metadata.get_or_insert_with(HashMap::new).insert("form".to_owned(), form);
+    }
     if let Some(thumbnail) = thumbnail.flatten() {
         metadata.get_or_insert_with(HashMap::new).insert("file_thumbnail_url".to_owned(), Value::String(thumbnail));
     }
@@ -286,3 +292,7 @@ pub(crate) async fn prepare_request(
 #[cfg(test)]
 #[path = "ask_description_upload_tests.rs"]
 mod description_upload_tests;
+
+#[cfg(test)]
+#[path = "ask_form_tests.rs"]
+mod form_tests;

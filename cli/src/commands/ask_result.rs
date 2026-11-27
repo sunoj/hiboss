@@ -24,6 +24,10 @@ pub(crate) struct AskResult {
     pub body: Option<String>,
     pub action: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub answers: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub answers_notice: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device_label: Option<String>,
 }
 
@@ -60,6 +64,8 @@ impl AskResult {
             outcome: Outcome::Timeout,
             body: None,
             action: None,
+            answers: None,
+            answers_notice: None,
             device_label: None,
         };
         let answer = ask.and_then(decision_reply);
@@ -78,7 +84,14 @@ impl AskResult {
             } else {
                 Outcome::Reply
             };
-            if !automatic {
+            result.answers = reply
+                .metadata
+                .as_ref()
+                .and_then(|meta| meta.get("answers"))
+                .cloned();
+            if result.answers.is_some() {
+                result.answers_notice = Some("An answer is input, not execution authorization.");
+            } else if !automatic {
                 result.action = reply
                     .metadata
                     .as_ref()
@@ -94,6 +107,9 @@ impl AskResult {
     }
 
     pub(crate) fn text(&self) -> String {
+        if let Some(answers) = &self.answers {
+            return format!("{}\nanswers: {answers}", self.body.as_deref().unwrap_or(""));
+        }
         match self.outcome {
             Outcome::AutoDefault => format!(
                 "[auto_default] {}\nAutomatic timeout default; not a boss reply or execution authorization.",
