@@ -12,7 +12,7 @@ package alone.
 | # | Package | Change | Status |
 |---|---|---|---|
 | 1 | Sidebar | Sessions grouped Needs you / Working / Idle; History section (All messages, Completed, Device requests); Settings moves from the sidebar footer to the toolbar | done |
-| 2 | Watching | Live panels become a sidebar destination; Today keeps a short summary that links to it | planned |
+| 2 | Watching | Live panels become a sidebar destination; Today keeps a short summary that links to it | done (page screenshot pending) |
 | 3 | Today focus card | The first open decision gets a focus card with collapsible details; the rest are one-line rows; the inspector shows context, not a second copy of the choices | planned |
 | 4 | Session outcomes | Every settled decision in a thread states how it ended: the answer, where and when, or "Expired · no answer" | planned |
 | 5 | Inline failures | A failed refresh is one line above the content already loaded; Settings › Connection names the state and the server's reason | planned |

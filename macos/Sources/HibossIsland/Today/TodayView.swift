@@ -1,6 +1,6 @@
 // Today workspace with shared decisions, work, deliveries, and an in-place inspector.
-// Exports: TodayView; existing panel controls and session threads remain reachable.
-// Dependencies: SwiftUI, HibossKit, TodayDecisionCard, TodaySummary, and AttentionDetail.
+// Exports: TodayView; running panels are summarised here and open in Watching.
+// Dependencies: SwiftUI, HibossKit, TodayDecisionCard, TodaySummary, TodayWatchingSummary, AttentionDetail.
 
 import HibossKit
 import SwiftUI
@@ -13,6 +13,7 @@ struct TodayView: View {
     var isRefreshing = false
     let onChoose: (String, MessageID) async -> ReplyFeedback?
     let onSession: (String) -> Void
+    var onWatching: () -> Void = {}
     @State private var selection: MessageID?
     @State private var compactDetail = false
 
@@ -22,12 +23,10 @@ struct TodayView: View {
 
     /// The inspector column appears only with something to show; an empty "Select a
     /// question" pane would take space and say nothing, so Today uses the full width.
-    var hasInspectorContent: Bool { selected != nil || panels.selectedTile != nil }
+    var hasInspectorContent: Bool { selected != nil }
 
-    /// Mounted once. A second copy below the activity list repeats Live tasks.
-    var showsPanelWall: Bool {
-        !isPreview && (panels.didLoadPanels || panels.failureMessage != nil || !panels.visibleTiles.isEmpty)
-    }
+    /// Only running panels; loading, failures and filters belong to the Watching destination.
+    var showsWatchingSummary: Bool { !isPreview && !WatchingRoute.running(panels.tiles).isEmpty }
 
     var body: some View {
         GeometryReader { geometry in
@@ -37,7 +36,7 @@ struct TodayView: View {
                     inspector.frame(minWidth: 320, idealWidth: 360, maxWidth: 480)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if compactDetail, selected != nil || panels.selectedTile != nil {
+            } else if compactDetail, selected != nil {
                 VStack(spacing: 0) {
                     HStack {
                         Button(L("Today"), systemImage: "chevron.left") { compactDetail = false }
@@ -53,9 +52,6 @@ struct TodayView: View {
         .background(TodayStyle.ground)
         .onAppear { syncSelection() }
         .onChange(of: snapshot.attention.map(\.id)) { syncSelection() }
-        .onChange(of: panels.selectedTileID) { _, id in
-            if id != nil { selection = nil; compactDetail = true }
-        }
         .task { if !isPreview { await panels.loadIfNeeded() } }
         .accessibilityIdentifier("today.workspace")
     }
@@ -66,12 +62,7 @@ struct TodayView: View {
                 TodaySummary(snapshot: snapshot.today, now: snapshot.now, isRefreshing: isRefreshing)
                 if snapshot.today.isAllClear { TodayScene() }
                 if !snapshot.today.decisions.isEmpty { decisions }
-                if showsPanelWall {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(L("Watching")).font(.headline)
-                        DashboardPanelsSection(model: panels)
-                    }
-                }
+                if showsWatchingSummary { TodayWatchingSummary(panels: panels, onShowAll: onWatching) }
                 TodayActivity(snapshot: snapshot.today, now: snapshot.now, onSession: onSession)
             }
             .padding(24)
@@ -86,7 +77,7 @@ struct TodayView: View {
                 TodayDecisionCard(item: item, now: snapshot.now, isSelected: selection == item.id,
                     isSubmitting: reply.submitting.contains(item.id),
                     error: reply.errors[item.id]?.choiceText,
-                    onSelect: { panels.closeDetail(); selection = item.id; compactDetail = true },
+                    onSelect: { selection = item.id; compactDetail = true },
                     onChoose: { send($0, for: item.id) })
                     .disabled(snapshot.answerability.state(for: item.id) != .open)
                 if snapshot.answerability.state(for: item.id) == .checking {
@@ -116,8 +107,6 @@ struct TodayView: View {
                 .disabled(snapshot.answerability.state(for: selected.id) != .open)
                 .background(TodayStyle.surface)
                 .accessibilityIdentifier("today.inspector")
-        } else if let tile = panels.selectedTile {
-            ScrollView { DashboardPanelDetail(tile: tile, model: panels).padding(20) }
         } else {
             ContentUnavailableView(L("Select a question"), systemImage: "sidebar.right",
                 description: Text(L("Full context appears here.")))
@@ -135,11 +124,6 @@ struct TodayView: View {
     }
 
     private func syncSelection() {
-        if panels.selectedTile != nil {
-            selection = nil
-            compactDetail = true
-            return
-        }
         if let selection, snapshot.attention.contains(where: { $0.id == selection }) { return }
         selection = snapshot.attention.first?.id
     }

@@ -12,6 +12,7 @@ struct OverviewSidebar: View {
     let connectionState: ConnectionState
     var hasLoadedHistory = false
     var deviceRequestCount = 0
+    var watchingCount = 0
     var unreadSessionIDs: Set<String> = []
     let onSelect: (OverviewDestination) -> Void
     let onSettings: () -> Void
@@ -37,6 +38,10 @@ struct OverviewSidebar: View {
                     if selection == .box { boxScopes }
                     Label(L("Progress"), systemImage: "play.rectangle")
                         .tag(BoxSidebarSelection.workspace(.progress))
+                    Label(L("Watching"), systemImage: "waveform.path.ecg")
+                        .badge(watchingCount)
+                        .tag(BoxSidebarSelection.workspace(.watching))
+                        .accessibilityIdentifier("overview.watching")
                 }
                 sessions
                 Section(L("History")) {

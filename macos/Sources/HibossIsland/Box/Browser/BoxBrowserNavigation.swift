@@ -24,6 +24,7 @@ enum MainWindowRefreshHelp {
         switch destination {
         case .today: return L("Refresh Today")
         case .deviceRequests: return L("Refresh device requests")
+        case .watching: return L("Refresh panels")
         default: return L("Refresh messages")
         }
     }

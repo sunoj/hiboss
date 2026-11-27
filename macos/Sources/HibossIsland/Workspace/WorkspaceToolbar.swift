@@ -85,6 +85,7 @@ struct WorkspaceToolbar: ViewModifier {
         switch destination {
         case .box: L("Refresh Box")
         case .progress: L("Refresh progress")
+        case .watching: L("Refresh panels")
         case .today: L("Refresh Today")
         case .deviceRequests: L("Refresh device requests")
         default: L("Refresh messages")

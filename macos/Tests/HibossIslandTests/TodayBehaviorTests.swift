@@ -86,23 +86,21 @@ final class TodayBehaviorTests: XCTestCase {
             onChoose: { _, _ in nil }, onSession: { _ in })
         // Nothing to inspect: the "Select a question" pane must not take a column.
         XCTAssertFalse(view.hasInspectorContent)
-        XCTAssertFalse(view.showsPanelWall)
+        XCTAssertFalse(view.showsWatchingSummary)
     }
 
     @MainActor
-    func testTodayKeepsThePanelWallMountedOnceTheListHasLoaded() {
+    func testTodaySummarisesRunningPanelsWhateverTheWatchingFilter() {
         let loaded = PanelsModel(demoMode: true, autoload: false)
-        let wall = today(panels: loaded)
-        XCTAssertTrue(loaded.didLoadPanels)
-        XCTAssertTrue(wall.showsPanelWall)
-        loaded.section = .needsInput
-        XCTAssertTrue(wall.showsPanelWall, "An empty filter must keep the wall, or its controls disappear")
+        let summary = today(panels: loaded)
+        XCTAssertFalse(WatchingRoute.running(loaded.tiles).isEmpty)
+        XCTAssertTrue(summary.showsWatchingSummary)
+        loaded.section = .archived
+        XCTAssertTrue(summary.showsWatchingSummary, "The Watching filter must not hide Today's summary")
 
         let waiting = PanelsModel(demoMode: false, autoload: false)
         XCTAssertFalse(waiting.didLoadPanels)
-        XCTAssertTrue(waiting.visibleTiles.isEmpty)
-        XCTAssertNil(waiting.failureMessage)
-        XCTAssertFalse(today(panels: waiting).showsPanelWall)
+        XCTAssertFalse(today(panels: waiting).showsWatchingSummary)
     }
 
     private func today(panels: PanelsModel) -> TodayView {
