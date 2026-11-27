@@ -7,11 +7,8 @@ import SwiftUI
 import AppKit
 
 struct TodaySummary: View {
-    @Environment(\.surfaceIsVisible) private var isVisible
     let snapshot: TodaySnapshot
     let now: Date
-    var isRefreshing = false
-    @StateObject private var refreshStatus = RefreshStatus()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -27,14 +24,8 @@ struct TodaySummary: View {
                         .foregroundStyle(TodayStyle.settled)
                 }
             }.font(.callout)
-            if case let .live(checkedAt) = snapshot.health {
-                TimelineView(ElapsedLabelSchedule(since: checkedAt).paused(!isVisible)) { context in
-                    let age = AttentionClock.elapsed(since: checkedAt, now: context.date, coarse: true)
-                    Label(refreshStatus.showsUpdating ? L("Updating…") : L("Live · updated \(age) ago"),
-                        systemImage: "checkmark.circle.fill")
-                        .font(.caption).foregroundStyle(TodayStyle.settled)
-                }
-            } else {
+            // Live freshness is the toolbar chip; only a problem is repeated here.
+            if !isLive {
                 Label(healthText, systemImage: "antenna.radiowaves.left.and.right.slash")
                     .font(.callout).foregroundStyle(TodayStyle.secondary)
             }
@@ -43,9 +34,11 @@ struct TodaySummary: View {
                     .font(.callout).foregroundStyle(TodayStyle.secondary)
             }
         }
-        .task(id: isRefreshing) {
-            await refreshStatus.update(isRefreshing: isRefreshing)
-        }
+    }
+
+    private var isLive: Bool {
+        if case .live = snapshot.health { return true }
+        return false
     }
 
     private var healthText: String {

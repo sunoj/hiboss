@@ -81,12 +81,17 @@ extension ReplyFeedback {
 
 struct AttentionReplyComposer: View {
     @Binding var text: String
+    /// Names the question a free-text answer goes to, so it is not read as a new instruction.
+    var question: String?
     let isSubmitting: Bool
     let error: String?
     let onSend: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if let question {
+                Text(L("Custom answer to: \(question)")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
             TextField(L("Reply with your own instruction…"), text: $text, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(2...4)

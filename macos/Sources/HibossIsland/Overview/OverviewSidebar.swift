@@ -152,6 +152,14 @@ struct OverviewSidebar: View {
         }.padding(.vertical, 8)
     }
 
+    /// When the session's oldest open decision was asked; the row says how long it has waited.
+    private func waitingSince(_ session: TodaySession) -> Date? {
+        guard session.needsYou else { return nil }
+        return snapshot.today.decisions.last {
+            SessionGrouping.sessionKey(for: $0.message) == session.id
+        }?.createdDate
+    }
+
     private func sessionRow(_ session: TodaySession) -> some View {
         let fact = inventory.first { $0.id == session.id }
         let text = SidebarSessionText(session: session, facts: fact)
@@ -173,15 +181,13 @@ struct OverviewSidebar: View {
                 }
                 HStack(spacing: 4) {
                     if let agent = session.agentName {
-                        AgentAvatarView(name: agent, size: 20)
                         Text(verbatim: text.agent ?? agent)
                             .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             .truncationMode(.tail)
                             .layoutProbe("sidebar.agent.\(session.id)")
                     }
-                    if session.hasLiveWork(now: snapshot.now) {
-                        SidebarWorkingCaption().layoutProbe("sidebar.working.\(session.id)")
-                    }
+                    SidebarSessionState(session: session, waitingSince: waitingSince(session),
+                        now: snapshot.now)
                 }
             }
             Spacer(minLength: 4)

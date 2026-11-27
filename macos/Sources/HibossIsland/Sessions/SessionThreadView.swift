@@ -21,7 +21,7 @@ struct SessionThreadView: View {
         ScrollViewReader { reader in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    SessionHeader(context: context, connection: connection)
+                    SessionHeader(context: context)
                     rows(threads: threads, presentation: presentation, reader: reader)
                 }
                 .frame(maxWidth: 900, alignment: .leading)

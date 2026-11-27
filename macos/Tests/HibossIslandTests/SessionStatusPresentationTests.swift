@@ -1,5 +1,5 @@
 // Checks the rendered session status for labelled activity and a single freshness source.
-// Exports: SessionStatusPresentationTests; the header must not duplicate toolbar freshness.
+// Exports: SessionStatusPresentationTests; the header must not duplicate the toolbar Live chip.
 // Dependencies: AppKit, SwiftUI, Vision, and synthetic session inventory.
 
 import AppKit
@@ -11,14 +11,14 @@ import XCTest
 
 @MainActor
 final class SessionStatusPresentationTests: XCTestCase {
-    func testHeaderLabelsActivityAndLeavesFreshnessToWindowToolbar() async throws {
+    func testHeaderLeadsWithActivityAndLeavesConnectionToWindowToolbar() async throws {
         let session = ProjectSession(id: "session", projectId: nil, projectSlug: nil, branch: nil,
             status: "working", statusText: "Awaiting next input",
             lastSeenAt: AttentionTestSupport.iso(.now.addingTimeInterval(-379)))
         let context = SessionContext(id: session.id,
             snapshot: OverviewSnapshot(history: [], live: nil, now: .now), inventory: [session])
         // The header has no fill of its own; in the app it sits on the session's ground.
-        let host = NSHostingView(rootView: SessionHeader(context: context, connection: .connected)
+        let host = NSHostingView(rootView: SessionHeader(context: context)
             .background(TodayStyle.ground))
         let window = try await StableWindowSupport.show(host)
         defer { window.close() }
@@ -29,8 +29,8 @@ final class SessionStatusPresentationTests: XCTestCase {
         try VNImageRequestHandler(cgImage: XCTUnwrap(bitmap.cgImage)).perform([request])
         let words = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
             .joined(separator: " ")
-        XCTAssertTrue(words.contains("Status: working"), words)
-        XCTAssertTrue(words.contains("Listening"), words)
+        XCTAssertTrue(words.contains("Awaiting next input"), words)
+        XCTAssertFalse(words.contains("Listening"), "Connection is the toolbar chip: \(words)")
         XCTAssertFalse(words.contains("Updated"), words)
     }
 }

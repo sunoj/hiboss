@@ -232,8 +232,6 @@ struct MainView: View {
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else if destination == .today {
                 TodayView(snapshot: snapshot, reply: reply, panels: panels, isPreview: previewHistory != nil,
-                    isRefreshing: flow.isRefreshingHistory || panels.isRefreshing
-                        || requiredInputs.state.refreshing,
                     onChoose: answer,
                     onSession: { destination = .session($0) }, onWatching: { destination = .watching })
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)

@@ -1,6 +1,6 @@
-// Gives the split-view window native refresh and settings actions and compact history status.
+// Gives the split-view window one Live chip, then native refresh and settings actions.
 // Exports WorkspaceToolbar; read progress never disables the workspace action.
-// Dependencies: SwiftUI, HibossKit OptionFlowStore, and CachedReadStatus.
+// Dependencies: SwiftUI, HibossKit OptionFlowStore, and ToolbarLiveChip.
 
 import HibossKit
 import SwiftUI
@@ -16,15 +16,12 @@ struct WorkspaceToolbar: ViewModifier {
 
     func body(content: Content) -> some View {
         content.toolbar {
-            ToolbarItem(placement: .status) {
-                if usesHistoryStatus {
-                    CachedReadStatus(isRefreshing: flow.isRefreshingHistory,
-                        updatedAt: flow.historyLoadedAt, failure: historyFailure, retry: onRefresh)
-                }
+            ToolbarItem(placement: .primaryAction) {
+                ToolbarLiveChip(connection: connection, updatedAt: flow.historyLoadedAt,
+                    isRefreshing: flow.isRefreshingHistory,
+                    failure: usesHistoryStatus ? historyFailure : nil, retry: onRefresh)
             }
             .quietStatusBackground()
-            ToolbarItem(placement: .primaryAction) { connectionStatus }
-                .quietStatusBackground()
             ToolbarItem(placement: .primaryAction) {
                 // The title names the row when a narrow window moves this item into the overflow menu.
                 Button(action: onRefresh) { Label(refreshHelp, systemImage: "arrow.clockwise") }
@@ -37,35 +34,6 @@ struct WorkspaceToolbar: ViewModifier {
                     .help(L("Settings"))
                     .layoutProbe("workspace.settings")
             }
-        }
-    }
-
-    /// A caption, not a second toolbar button. The mark carries the live tint; a label, not a
-    /// bare stack, so the overflow menu of a narrow window has a title for it.
-    private var connectionStatus: some View {
-        Label {
-            Text(connectionTitle)
-        } icon: {
-            Image(systemName: connectionSymbol)
-                .foregroundStyle(connection == .connected ? DesignTokens.live : .secondary)
-        }
-        .labelStyle(.titleAndIcon)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .accessibilityElement(children: .combine)
-        .help(connection.detail ?? connection.label)
-        .layoutProbe("workspace.live")
-    }
-
-    private var connectionTitle: String {
-        connection == .connected ? L("Live") : connection.label
-    }
-
-    private var connectionSymbol: String {
-        switch connection {
-        case .connected: "checkmark.circle.fill"
-        case .connecting: "antenna.radiowaves.left.and.right"
-        case .disconnected, .failed: "antenna.radiowaves.left.and.right.slash"
         }
     }
 

@@ -1,6 +1,6 @@
 // Today workspace: one focus decision card, other decisions as rows, and a context inspector.
 // Exports: TodayView; running panels are summarised here and open in Watching.
-// Dependencies: SwiftUI, HibossKit, TodayDecisionCard/Row, TodaySummary, TodayWatchingSummary, AttentionDetail.
+// Dependencies: SwiftUI, HibossKit, TodayDecisionCard/Row, TodaySummary, TodayWatchingSummary, TodayDecisionContext.
 
 import HibossKit
 import SwiftUI
@@ -10,7 +10,6 @@ struct TodayView: View {
     @ObservedObject var reply: AttentionReplyState
     @ObservedObject var panels: PanelsModel
     var isPreview = false
-    var isRefreshing = false
     let onChoose: (String, MessageID) async -> ReplyFeedback?
     let onSession: (String) -> Void
     var onWatching: () -> Void = {}
@@ -59,7 +58,7 @@ struct TodayView: View {
     private var content: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                TodaySummary(snapshot: snapshot.today, now: snapshot.now, isRefreshing: isRefreshing)
+                TodaySummary(snapshot: snapshot.today, now: snapshot.now)
                 if snapshot.today.isAllClear { TodayScene() }
                 if !snapshot.today.decisions.isEmpty { decisions }
                 if showsWatchingSummary { TodayWatchingSummary(panels: panels, onShowAll: onWatching) }
@@ -102,7 +101,7 @@ struct TodayView: View {
     @ViewBuilder
     private var inspector: some View {
         if let selected {
-            AttentionDetail(item: selected, now: snapshot.now,
+            TodayDecisionContext(item: selected, now: snapshot.now,
                 earlier: earlier(for: selected), onOpenSession: {
                     onSession(SessionGrouping.sessionKey(for: selected.message))
                 })
@@ -112,7 +111,8 @@ struct TodayView: View {
                     AttentionReplyComposer(text: Binding(
                         get: { reply.drafts[selected.id] ?? "" },
                         set: { reply.drafts[selected.id] = $0 }
-                    ), isSubmitting: reply.submitting.contains(selected.id),
+                    ), question: selected.message.messageText.title,
+                        isSubmitting: reply.submitting.contains(selected.id),
                         error: reply.errors[selected.id]?.text,
                         onSend: { send(reply.drafts[selected.id] ?? "", for: selected.id) })
                 }
