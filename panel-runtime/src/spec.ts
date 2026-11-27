@@ -4,9 +4,11 @@
 
 import { z } from 'zod';
 import {
+  CATALOG_VERSIONS,
   componentPropSchemas,
   isActionName,
   isComponentType,
+  type CatalogVersion,
   registeredActions,
   type ActionName,
   type BindingExpression,
@@ -35,6 +37,8 @@ export interface PanelSpec {
 }
 
 export interface SpecValidationOptions {
+  /** The publication's declared catalog version; v2 components need 2. Defaults to 1. */
+  readonly catalogVersion?: CatalogVersion;
   readonly declaredPaths?: readonly string[];
   readonly stateSchema?: unknown;
   readonly pathPrefix?: string;
@@ -231,11 +235,12 @@ function validateAction(value: unknown, path: string): ValidationResult<PanelAct
   return params === undefined ? { ok: true, value: { action: value.action } } : { ok: true, value: { action: value.action, params } };
 }
 
-function validateElement(value: unknown, path: string, declaredPaths: ReadonlySet<string>, stateSchema: unknown): ValidationResult<PanelElement> {
+function validateElement(value: unknown, path: string, declaredPaths: ReadonlySet<string>, stateSchema: unknown, version: CatalogVersion): ValidationResult<PanelElement> {
   if (!isRecord(value)) return failure('invalid_spec', path, 'Element must be an object');
   const unknownKey = Object.keys(value).find((key) => !elementKeys.has(key));
   if (unknownKey !== undefined) return failure('invalid_spec', `${path}/${unknownKey}`, 'Unknown element property');
   if (typeof value.type !== 'string' || !isComponentType(value.type)) return failure('invalid_spec', `${path}/type`, `Unknown component "${String(value.type)}"`);
+  if (!isComponentType(value.type, version)) return failure('invalid_spec', `${path}/type`, `"${value.type}" needs catalogVersion 2`);
   if (!isRecord(value.props)) return failure('invalid_spec', `${path}/props`, 'Component props must be an object');
   const props = componentPropSchemas[value.type].safeParse(value.props);
   if (!props.success) return failure('invalid_spec', zodIssuePath(props.error, `${path}/props`), props.error.issues[0]?.message ?? 'Invalid component props');
@@ -297,7 +302,7 @@ export function validatePanelSpec(value: unknown, options: SpecValidationOptions
   const declaredPaths = new Set([...schemaPaths(options.stateSchema), ...(options.declaredPaths ?? [])]);
   const elements: Record<string, PanelElement> = Object.create(null) as Record<string, PanelElement>;
   for (const id of elementIds) {
-    const result = validateElement(value.elements[id], `${pathPrefix}/elements/${id}`, declaredPaths, options.stateSchema);
+    const result = validateElement(value.elements[id], `${pathPrefix}/elements/${id}`, declaredPaths, options.stateSchema, options.catalogVersion ?? 1);
     if (!result.ok) return result;
     elements[id] = result.value;
   }
@@ -310,5 +315,7 @@ export function validatePanelPublication(value: unknown): ValidationResult<Panel
   if (!isRecord(value)) return failure('invalid_spec', '', 'Panel publication must be an object');
   const summary = validatePanelSummary(value.summary, value.stateSchema);
   if (!summary.ok) return summary;
-  return validatePanelSpec(value.spec, { stateSchema: value.stateSchema, pathPrefix: '/spec' });
+  const catalogVersion = (CATALOG_VERSIONS as readonly unknown[]).includes(value.catalogVersion)
+    ? value.catalogVersion as CatalogVersion : 1;
+  return validatePanelSpec(value.spec, { stateSchema: value.stateSchema, pathPrefix: '/spec', catalogVersion });
 }

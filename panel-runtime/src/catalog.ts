@@ -1,18 +1,25 @@
-// Zod catalog for hiboss.panel version 1 and its registered actions.
-// Exports component schemas, catalog metadata, and catalog identity validation.
-// Dependencies: zod and shared validation errors.
+// Zod catalog for hiboss.panel versions 1 and 2 and its registered actions.
+// Exports component schemas, per-version catalog metadata, and catalog identity validation.
+// Dependencies: zod, the v2 input schemas, and shared validation errors.
 
 import { z } from 'zod';
 import { failure, type ValidationResult } from './errors.js';
+import { inputV2PropSchemas } from './inputs-v2.js';
 
 export const CATALOG_ID = 'hiboss.panel' as const;
-export const CATALOG_VERSION = 1 as const;
-export const COMPONENT_TYPES = [
+/** The newest catalog version; every older one stays accepted. */
+export const CATALOG_VERSION = 2 as const;
+export const CATALOG_VERSIONS = [1, 2] as const;
+export type CatalogVersion = (typeof CATALOG_VERSIONS)[number];
+export const V1_COMPONENT_TYPES = [
   'Stack', 'Grid', 'Section', 'Text', 'Metric', 'Progress', 'Status', 'Table',
   'LineChart', 'BarChart', 'TextInput', 'TextArea', 'NumberInput', 'Select',
   'MultiSelect', 'Toggle', 'Slider', 'Button',
 ] as const;
+export const V2_INPUT_TYPES = ['RankedChoice', 'ItemReview'] as const;
+export const COMPONENT_TYPES = [...V1_COMPONENT_TYPES, ...V2_INPUT_TYPES] as const;
 export type ComponentType = (typeof COMPONENT_TYPES)[number];
+export type V2InputType = (typeof V2_INPUT_TYPES)[number];
 export const ACTION_NAMES = ['submitRequest', 'openPanel'] as const;
 export type ActionName = (typeof ACTION_NAMES)[number];
 
@@ -61,6 +68,7 @@ export const componentPropSchemas = {
   Toggle: z.strictObject({ ...sharedLabel, value: binding, description: z.string().optional() }),
   Slider: z.strictObject({ ...sharedLabel, value: binding, min: finiteNumber, max: finiteNumber, step: finiteNumber.positive().optional() }),
   Button: z.strictObject({ label: z.string().min(1), variant: z.enum(['primary', 'secondary', 'danger']).optional(), disabled: z.boolean().optional() }),
+  ...inputV2PropSchemas,
 } as const;
 
 export const registeredActions = {
@@ -70,26 +78,30 @@ export const registeredActions = {
 
 export interface CatalogManifest {
   readonly catalogId: typeof CATALOG_ID;
-  readonly catalogVersion: typeof CATALOG_VERSION;
+  readonly catalogVersion: CatalogVersion;
   readonly components: readonly ComponentType[];
   readonly actions: readonly ActionName[];
 }
 
-export const catalogManifest: CatalogManifest = {
-  catalogId: CATALOG_ID,
-  catalogVersion: CATALOG_VERSION,
-  components: COMPONENT_TYPES,
-  actions: ACTION_NAMES,
-};
+export function catalogManifestFor(version: CatalogVersion): CatalogManifest {
+  return {
+    catalogId: CATALOG_ID,
+    catalogVersion: version,
+    components: version === 1 ? V1_COMPONENT_TYPES : COMPONENT_TYPES,
+    actions: ACTION_NAMES,
+  };
+}
+
+export const catalogManifest: CatalogManifest = catalogManifestFor(CATALOG_VERSION);
 
 export function validateCatalogIdentity(catalogId: unknown, catalogVersion: unknown): ValidationResult<CatalogManifest> {
   if (catalogId !== CATALOG_ID) return failure('unsupported_catalog', '/catalogId', `Unsupported catalog "${String(catalogId)}"`);
-  if (catalogVersion !== CATALOG_VERSION) return failure('unsupported_catalog', '/catalogVersion', `Unsupported catalog version "${String(catalogVersion)}"`);
-  return { ok: true, value: catalogManifest };
+  if (!(CATALOG_VERSIONS as readonly unknown[]).includes(catalogVersion)) return failure('unsupported_catalog', '/catalogVersion', `Unsupported catalog version "${String(catalogVersion)}"`);
+  return { ok: true, value: catalogManifestFor(catalogVersion as CatalogVersion) };
 }
 
-export function isComponentType(value: string): value is ComponentType {
-  return (COMPONENT_TYPES as readonly string[]).includes(value);
+export function isComponentType(value: string, version: CatalogVersion = CATALOG_VERSION): value is ComponentType {
+  return (catalogManifestFor(version).components as readonly string[]).includes(value);
 }
 
 export function isActionName(value: string): value is ActionName {
