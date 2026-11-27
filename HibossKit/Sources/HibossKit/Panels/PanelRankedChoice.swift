@@ -32,6 +32,8 @@ struct PanelRankedChoice: View {
     let options: [PanelOption]
     let topK: Int?
     @Binding var value: PanelValue
+    /// A questionnaire needs an explicit answer before Next; an ask's Submit sends the shown order.
+    var confirmsOrder = true
 
     private var stored: [String]? { value.array?.compactMap(\.string) }
     private var order: [String] { RankedChoiceOrder.order(stored: stored, options: options) }
@@ -48,7 +50,7 @@ struct PanelRankedChoice: View {
                     row(index: index, option: options.first { $0.id == id })
                 }
             }
-            if stored == nil {
+            if confirmsOrder, stored == nil {
                 Button(kitL("Keep this order")) { write(order) }
                     .font(.callout)
                     .accessibilityIdentifier("panel-ranked-keep")

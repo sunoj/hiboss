@@ -41,7 +41,8 @@ public struct AskFormView: View {
     private var control: some View {
         switch form.kind {
         case .rankedChoice:
-            PanelRankedChoice(label: form.label, options: form.options, topK: form.topK, value: $value)
+            PanelRankedChoice(label: form.label, options: form.options, topK: form.topK, value: $value,
+                confirmsOrder: false)
         case .itemReview:
             PanelItemReview(label: form.label, items: form.items, verdicts: form.verdicts, value: $value)
         }
