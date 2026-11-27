@@ -3,13 +3,13 @@
   <channel>
     <title>HiBoss Island</title>
     <item>
-      <title>Version 1.0.8</title>
-      <pubDate>Thu, 26 Nov 2026 05:13:07 +0000</pubDate>
-      <sparkle:shortVersionString>1.0.8</sparkle:shortVersionString>
-      <sparkle:version>202611261211</sparkle:version>
+      <title>Version 1.1.0</title>
+      <pubDate>Fri, 27 Nov 2026 07:21:05 +0000</pubDate>
+      <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
+      <sparkle:version>202611271419</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[ Idle CPU use is roughly halved, and clocks in a closed, minimized or covered main window now pause. The Progress page shows new posts without a manual refresh. The menu bar icon switch moved to Settings → General, beside Show in Dock. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.0.8/HiBoss-Island-1.0.8.zip" sparkle:edSignature="L9Up+VON3QqfnbYS5GZpSukw4GST8eSBrcRPsEfP43m++WeFcN1Q+JDyLc7Gquv2q+ND86oWO+zHuVQpER2tBQ==" length="8186664" type="application/zip" />
+      <description><![CDATA[ New main window layout. Sessions in the sidebar are grouped into Needs you, Working and Idle, with a History section; Settings moved to the toolbar. Live panels have their own Watching page, and Today shows up to two running panels. Today shows the top decision as a full card with collapsible details, the other decisions as one-line rows, and context beside them. A session thread shows how each decision ended in one line. The Island card can expand the full message. ]]></description>
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.1.0/HiBoss-Island-1.1.0.zip" sparkle:edSignature="ncBbL7/LPgFuK1yOrCGaF+WoIoWewO7y6MpWPEJIOEMNhKBq6hYYz14XCIFtXQziMHh+Wfwoid/Vg+oMIkLcAQ==" length="8229337" type="application/zip" />
     </item>
   </channel>
 </rss>
