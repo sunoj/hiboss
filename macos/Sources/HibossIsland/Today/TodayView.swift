@@ -15,6 +15,7 @@ struct TodayView: View {
     var onWatching: () -> Void = {}
     @State private var selection: MessageID?
     @State private var compactDetail = false
+    @State private var answerSent = false
 
     /// The inspector always describes the focus card's decision.
     private var selected: AttentionItem? {
@@ -51,6 +52,22 @@ struct TodayView: View {
             }
         }
         .background(TodayStyle.ground)
+        .overlay(alignment: .top) {
+            if answerSent {
+                Label(L("Answer sent"), systemImage: "checkmark.circle.fill")
+                    .font(.callout.weight(.semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(TodayStyle.settled, in: Capsule())
+                    .padding(.top, 16)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .accessibilityIdentifier("today.answerSent")
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: answerSent)
+        .environment(\.askFormDidAnswer, {
+            answerSent = true
+            Task { try? await Task.sleep(for: .milliseconds(1600)); answerSent = false }
+        })
         .task { if !isPreview { await panels.loadIfNeeded() } }
         .accessibilityIdentifier("today.workspace")
     }
