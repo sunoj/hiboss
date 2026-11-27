@@ -8,11 +8,11 @@ use schema::*;
 
 use serde_json::{Map, Value};
 use super::json::parse_unique_json;
+use crate::commands::input_v2;
 use std::error::Error;
 use std::path::Path;
 
 const CATALOG_ID: &str = "hiboss.panel";
-const CATALOG_VERSION: u64 = 1;
 const MAX_ELEMENTS: usize = 200;
 const MAX_DEPTH: usize = 12;
 
@@ -44,9 +44,11 @@ pub fn validate_publication(value: &Value) -> Result<(), ValidationError> {
     if object.get("catalogId") != Some(&Value::String(CATALOG_ID.to_owned())) {
         return Err(error("unsupported_catalog", "/catalogId", "catalogId must be \"hiboss.panel\""));
     }
-    if object.get("catalogVersion").and_then(Value::as_u64) != Some(CATALOG_VERSION) {
-        return Err(error("unsupported_catalog", "/catalogVersion", "catalogVersion must be 1"));
-    }
+    let version = match object.get("catalogVersion").and_then(Value::as_f64) {
+        Some(1.0) => 1,
+        Some(2.0) => 2,
+        _ => return Err(error("unsupported_catalog", "/catalogVersion", "catalogVersion must be 1 or 2")),
+    };
     let schema = object_value(object, "stateSchema", "")?;
     if let Some(summary) = object.get("summary") {
         validate_summary(summary, schema)?;
@@ -58,10 +60,10 @@ pub fn validate_publication(value: &Value) -> Result<(), ValidationError> {
     }
     validate_value(schema, initial, "/initialState")?;
     let spec = object_value(object, "spec", "")?;
-    validate_spec(spec, schema)
+    validate_spec(spec, schema, version)
 }
 
-fn validate_spec(value: &Value, schema: &Value) -> Result<(), ValidationError> {
+fn validate_spec(value: &Value, schema: &Value, version: u8) -> Result<(), ValidationError> {
     let spec = object(value, "/spec", "Panel spec")?;
     let root = non_empty_string(spec, "root", "/spec")?;
     let elements = object_value(spec, "elements", "/spec")?;
@@ -73,7 +75,7 @@ fn validate_spec(value: &Value, schema: &Value) -> Result<(), ValidationError> {
     let mut visiting = Vec::new();
     let mut done = Vec::new();
     for (id, element) in elements {
-        validate_element(id, element, &paths, schema)?;
+        validate_element(id, element, &paths, schema, version)?;
     }
     visit_element(root, elements, &mut visiting, &mut done, 1)?;
     if !elements.values().filter_map(|element| element.get("props")).any(has_live_state_binding) {
@@ -91,7 +93,9 @@ fn has_live_state_binding(value: &Value) -> bool {
     }
 }
 
-fn validate_element(id: &str, value: &Value, paths: &[String], state_schema: &Value) -> Result<(), ValidationError> {
+fn validate_element(
+    id: &str, value: &Value, paths: &[String], state_schema: &Value, version: u8,
+) -> Result<(), ValidationError> {
     let path = format!("/spec/elements/{}", escape_pointer(id));
     let element = object(value, &path, "Element")?;
     for key in element.keys() {
@@ -100,11 +104,23 @@ fn validate_element(id: &str, value: &Value, paths: &[String], state_schema: &Va
         }
     }
     let component = non_empty_string(element, "type", &path)?;
-    if !component_types().contains(&component) {
+    let v2_input = input_v2::TYPES.contains(&component);
+    if v2_input && version == 1 {
+        return Err(error("invalid_spec", &format!("{path}/type"),
+            &format!("\"{component}\" needs catalogVersion 2")));
+    }
+    if !v2_input && !component_types().contains(&component) {
         return Err(error("invalid_spec", &format!("{path}/type"), &format!("unknown component \"{component}\"")));
     }
     let props = object_value(element, "props", &path)?;
-    validate_props(component, props, &format!("{path}/props"), paths, state_schema)?;
+    if v2_input {
+        let props_path = format!("{path}/props");
+        input_v2::validate_props(component, props)
+            .map_err(|message| error("invalid_spec", &props_path, &message))?;
+        validate_binding(&props["value"], &format!("{props_path}/value"), paths)?;
+    } else {
+        validate_props(component, props, &format!("{path}/props"), paths, state_schema)?;
+    }
     if let Some(warning) = metric_denominator_warning(component, props) { eprintln!("{warning}"); }
     let children = element.get("children").ok_or_else(|| error("invalid_spec", &path, "missing children"))?;
     if !children.as_array().is_some_and(|items| items.iter().all(Value::is_string)) {
@@ -272,20 +288,3 @@ fn valid_options(value: Option<&Value>) -> bool { value.and_then(Value::as_array
 #[cfg(test)]
 #[path = "validation_tests.rs"]
 mod tests;
-
-fn validate_lifecycle(value: &Value) -> Result<(), ValidationError> {
-    let policy = object(value, "/lifecycle", "Lifecycle")?;
-    if policy.keys().any(|key| !["mode", "expectedUpdateIntervalSeconds", "ttlSeconds"].contains(&key.as_str())) {
-        return Err(error("invalid_spec", "/lifecycle", "unsupported lifecycle property"));
-    }
-    if policy.get("mode").is_some_and(|value| ![Some("run"), Some("monitor")].contains(&value.as_str())) {
-        return Err(error("invalid_spec", "/lifecycle/mode", "must be run or monitor"));
-    }
-    if policy.get("expectedUpdateIntervalSeconds").is_some_and(|value| !value.as_u64().is_some_and(|value| (5..=3600).contains(&value))) {
-        return Err(error("invalid_spec", "/lifecycle/expectedUpdateIntervalSeconds", "must be an integer from 5 to 3600"));
-    }
-    if policy.get("ttlSeconds").is_some_and(|value| !value.as_u64().is_some_and(|value| (60..=604800).contains(&value))) {
-        return Err(error("invalid_spec", "/lifecycle/ttlSeconds", "must be an integer from 60 to 604800"));
-    }
-    Ok(())
-}

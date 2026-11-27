@@ -141,6 +141,22 @@ separates the label and text; both are trimmed. Text must contain 1–200 charac
 and labels must be unique. Invalid descriptions fail before any upload. Descriptions
 are stored in message metadata and appended as text for Telegram and Discord.
 
+Catalog v2 form asks are blocking. Use `--rank` for 2–20 choices (optional
+`--top K`), `--review` for 1–50 items with 2–4 `--verdict` values (optional
+`--layout checklist|grid`), or `--form FILE.json` to supply the complete form
+object. A trailing `!` on a verdict label requires a note. Form flags are
+incompatible with `--option`, `--action`, `--option-image`,
+`--option-description`, and `--default`.
+
+```bash
+hiboss ask "Rank fixes" --rank 'sync=Fix sync::Flaky on CI' --rank 'docs=Update docs' --top 1
+hiboss ask "Review checks" --review 'sync=Sync verified' --verdict 'yes=Confirmed' --verdict 'no=Cannot confirm!'
+```
+
+Form replies include `answers` alongside `body` in `--json` output. Plain output
+prints the body followed by `answers:` and compact JSON. Use the structured
+value as input. Execution authorization requires a separate decision.
+
 ## Inbox
 ```bash
 hiboss inbox                              # unread messages (boss + agent)
