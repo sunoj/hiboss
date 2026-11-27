@@ -39,8 +39,11 @@ struct TodayDecisionContext: View {
 
     private var facts: some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-            TimelineView(.periodic(from: now, by: 1).paused(!isVisible)) { context in
-                row(L("Waiting"), item.waited(at: context.date))
+            GridRow {
+                Text(L("Waiting")).foregroundStyle(TodayStyle.secondary)
+                TimelineView(.periodic(from: now, by: 1).paused(!isVisible)) { context in
+                    Text(verbatim: item.waited(at: context.date))
+                }
             }
             row(L("Session"), item.project(in: inventory).displayName
                 + (session?.branch.map { " / " + $0 } ?? ""))

@@ -11,6 +11,9 @@ import XCTest
 
 @MainActor
 final class ProgressPolishSnapshotTests: XCTestCase {
+    /// Finds the workspace Live chip, which sits with Refresh and Settings in a hosted window.
+    private let toolbarProbe = LayoutProbe()
+
     func testLoadedFeedAndErrorFillDetailInBothAppearances() async throws {
         let server = ProgressPolishMediaServer()
         try await server.start()
@@ -31,7 +34,7 @@ final class ProgressPolishSnapshotTests: XCTestCase {
                     previewHistory: PhaseBSnapshotFixtures.history(baseURL: server.baseURL),
                     previewSessions: [session],
                     progressStore: store, panelsModel: PanelsModel(demoMode: true, autoload: false))
-                    .environment(\.colorScheme, scheme))
+                    .environment(\.colorScheme, scheme).environment(\.layoutProbe, toolbarProbe))
                 host.sizingOptions = []
                 let window = window(host, scheme: scheme)
                 defer { window.close() }
@@ -184,7 +187,11 @@ final class ProgressPolishSnapshotTests: XCTestCase {
 
     private func assertTrailingFilterAndReadStatus(_ window: NSWindow) throws {
         let items = window.toolbar?.items.compactMap(\.view) ?? []
-        let groups = items.filter { $0.bounds.width > 50 }
+        // The workspace Live chip belongs with Refresh and Settings, not with Progress's own items.
+        let chip = toolbarProbe.anchors["workspace.live"]
+        let groups = items.filter { view in
+            view.bounds.width > 50 && !(chip?.isDescendant(of: view) ?? false)
+        }
         XCTAssertFalse(groups.isEmpty)
         for view in groups {
             let rect = view.convert(view.bounds, to: nil)
