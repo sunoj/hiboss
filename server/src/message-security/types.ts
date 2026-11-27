@@ -39,6 +39,8 @@ export interface SignedBossPayload {
     readonly message_id: string;
   };
   readonly body: string;
+  /** A form ask's structured answer; present exactly when the reply carries `answers`. */
+  readonly answers?: unknown;
 }
 
 export interface AuthenticatedBossMessage {

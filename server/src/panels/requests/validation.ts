@@ -2,7 +2,7 @@
 // Exports definition/submission parsers; rejects execution authorizations in this catalog slice.
 // Dependencies: shared schema/catalog validators and panel faults.
 
-import { validateAnswerSchema, validateAnswers, validateCatalogIdentity, validatePanelSpec, type AnswerSchema, type PanelSpec } from '@hiboss/panel-runtime';
+import { validateAnswerSchema, validateAnswers, validateCatalogIdentity, validateInputAnswerSchemas, validatePanelSpec, type AnswerSchema, type PanelSpec } from '@hiboss/panel-runtime';
 import { isJsonValue, isRecord } from '../definition/helpers';
 import { PanelFault } from '../lifecycle/types';
 import type { Questionnaire, Submission } from './types';
@@ -10,7 +10,7 @@ import type { Questionnaire, Submission } from './types';
 const MAX_DOCUMENT_BYTES = 65_536;
 const MAX_ANSWERS_BYTES = 16_384;
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
-const INPUT_TYPES = new Set(['TextInput', 'TextArea', 'NumberInput', 'Select', 'MultiSelect', 'Toggle', 'Slider']);
+const INPUT_TYPES = new Set(['TextInput', 'TextArea', 'NumberInput', 'Select', 'MultiSelect', 'Toggle', 'Slider', 'RankedChoice', 'ItemReview']);
 
 export function parseQuestionnaire(value: unknown): Questionnaire {
   if (!isRecord(value) || new TextEncoder().encode(JSON.stringify(value)).length > MAX_DOCUMENT_BYTES) throw new PanelFault('invalid_request', 422);
@@ -20,7 +20,8 @@ export function parseQuestionnaire(value: unknown): Questionnaire {
   if (typeof value.title !== 'string' || !value.title.trim() || value.title.length > 240 || typeof value.blocking !== 'boolean'
     || !['low', 'normal', 'high', 'critical'].includes(String(value.priority))) throw new PanelFault('invalid_request', 422);
   if (value.expiresAt !== undefined && (typeof value.expiresAt !== 'string' || !Number.isFinite(Date.parse(value.expiresAt)))) throw new PanelFault('invalid_expiry', 422);
-  if (!validateCatalogIdentity(value.catalogId, value.catalogVersion).ok) throw new PanelFault('unsupported_catalog', 422);
+  const catalog = validateCatalogIdentity(value.catalogId, value.catalogVersion);
+  if (!catalog.ok) throw new PanelFault('unsupported_catalog', 422);
   const schema = validateAnswerSchema(value.answerSchema);
   if (!schema.ok) throw new PanelFault('invalid_schema', 422, schema.error.message);
   if (!isRecord(value.defaults) || !isJsonValue(value.defaults) || !isRecord(value.context) || !isJsonValue(value.context)) throw new PanelFault('invalid_request', 422);
@@ -28,9 +29,11 @@ export function parseQuestionnaire(value: unknown): Questionnaire {
   if (!defaults.ok) throw new PanelFault('invalid_defaults', 422, defaults.error.message);
   const stateSchema = { type: 'object', properties: { form: schema.value } };
   const contextPaths = jsonPaths(value.context, '/context');
-  const spec = validatePanelSpec(value.formSpec, { stateSchema, declaredPaths: contextPaths });
+  const spec = validatePanelSpec(value.formSpec, { stateSchema, declaredPaths: contextPaths, catalogVersion: catalog.value.catalogVersion });
   if (!spec.ok) throw new PanelFault('invalid_spec', 422, spec.error.message);
   validateFormBindings(spec.value);
+  const derived = validateInputAnswerSchemas(spec.value.elements, schema.value);
+  if (!derived.ok) throw new PanelFault('invalid_schema', 422, `${derived.error.path}: ${derived.error.message}`);
   return { ...value, ...(typeof value.expiresAt === 'string' ? { expiresAt: new Date(value.expiresAt).toISOString() } : {}), formSpec: spec.value, answerSchema: schema.value } as unknown as Questionnaire;
 }
 

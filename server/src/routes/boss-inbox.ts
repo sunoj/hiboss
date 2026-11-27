@@ -160,6 +160,7 @@ routes.post('/:id/reply', async (c) => {
   if (!auth.ok) return c.text(auth.error, auth.status);
   const result = await insertInboxReply(c.env, parent, boss, agentId, body, deferredAnnounce(c.executionCtx));
   if (result.kind === 'resolved') return c.text('option already resolved', 409);
+  if (result.kind === 'form_required') return c.text('this question needs a form answer in the HiBoss app', 409);
   if (result.kind === 'failed' || result.kind === 'invalid_choice') return c.text('failed to persist', 500);
   const inserted = result.reply;
   if (result.kind === 'not_option') await c.env.DB

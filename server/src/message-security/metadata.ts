@@ -6,6 +6,7 @@ const SERVER_OWNED_KEYS = new Set([
   'provenance', 'source', 'rich_content', 'boss_id', 'boss_name', 'auto_default', 'ask_deadline', 'answered_by',
   'options', 'file_url', 'options_resolved', 'options_expired', 'selected_option', 'reactions',
   'telegram_message_id', 'telegram_chat_id', 'discord_message_id', 'delivery_results', 'delivery_error',
+  'answers',
 ]);
 
 /** Returns a copy without server-owned keys; null when nothing client-owned remains. */
