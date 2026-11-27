@@ -64,8 +64,11 @@ public struct AskForm: Equatable, Sendable {
         }
     }
 
+    /// Counts the bytes JavaScript's JSON.stringify would produce: it does not escape "/".
     public func fitsSizeLimit(_ answer: PanelValue) -> Bool {
-        ((try? JSONEncoder().encode(answer))?.count ?? Int.max) <= Self.answerByteLimit
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.withoutEscapingSlashes]
+        return ((try? encoder.encode(answer))?.count ?? Int.max) <= Self.answerByteLimit
     }
 
     /// The reply's readable body for the thread, Discord and older clients; agents read `answers`.

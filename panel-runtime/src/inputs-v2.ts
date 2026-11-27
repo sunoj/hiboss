@@ -132,6 +132,10 @@ export function validateInputAnswerSchemas(
     const binding = (element.props.value as { $bindState?: string } | undefined)?.$bindState ?? '';
     const key = formKey(binding);
     const declared = key === undefined ? undefined : schemaAt(answerSchema, key);
+    // A root $ref replaces the whole schema, so "required" and "properties" beside it would not apply.
+    if ((answerSchema as { $ref?: unknown } | null)?.$ref !== undefined) {
+      return failure('invalid_spec', '/answerSchema/$ref', `A form with a ${element.type} needs a root answer schema without $ref`);
+    }
     if (key === undefined || !isRequired(answerSchema, key)) {
       return failure('invalid_spec', `/formSpec/elements/${elementId}/props/value`,
         `${element.type} must bind to a /form/<field> listed in the answer schema's root "required"`);

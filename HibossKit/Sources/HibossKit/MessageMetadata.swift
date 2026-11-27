@@ -71,7 +71,9 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     /// On a reply to a form ask: the structured answer the server validated.
     public let answers: PanelValue?
 
-    public var form: AskForm? { AskForm(formValue) }
+    /// A message that offers options is never a form ask (the server's rule too), so an older ask
+    /// with a coincidental `form` key keeps its buttons.
+    public var form: AskForm? { options.isEmpty ? AskForm(formValue) : nil }
 
     public var attachment: MessageAttachment? {
         fileURL.flatMap { MessageAttachment(urlString: $0, thumbnailURLString: fileThumbnailURL) }

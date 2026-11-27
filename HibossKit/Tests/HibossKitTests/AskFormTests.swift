@@ -30,6 +30,19 @@ final class AskFormTests: XCTestCase {
         XCTAssertEqual(form.summary(value), "Changelog: Confirmed\nRollback: Cannot confirm (Old schema)")
     }
 
+    func testAnOptionAskWithAStrayFormKeepsItsButtons() throws {
+        let meta = try metadata(#"{"options":["A","B"],"form":{"catalogVersion":2,"input":{"type":"RankedChoice","props":{"label":"Order","value":{"$bindState":"/form/answer"},"options":[{"id":"a","label":"A"},{"id":"b","label":"B"}]}}}}"#)
+        XCTAssertNil(meta.form)
+    }
+
+    func testSizeLimitCountsSlashesAsJavaScriptDoes() throws {
+        let meta = try metadata(#"{"options":[],"form":{"catalogVersion":2,"input":{"type":"ItemReview","props":{"label":"Checks","value":{"$bindState":"/form/answer"},"items":[{"id":"c","label":"C"}],"verdicts":[{"id":"ok","label":"OK"},{"id":"no","label":"No"}]}}}}"#)
+        let form = try XCTUnwrap(meta.form)
+        let slashes = String(repeating: "/", count: 9_000)
+        let value = PanelValue.object(["c": .object(["verdict": .string("ok"), "note": .string(slashes)])])
+        XCTAssertTrue(form.fitsSizeLimit(value), "9,000 slashes are about 9 KiB, not 18 KiB")
+    }
+
     func testIgnoresCatalogV1AndReadsReplyAnswers() throws {
         let v1 = try metadata(#"{"options":[],"form":{"catalogVersion":1,"input":{"type":"RankedChoice","props":{}}}}"#)
         XCTAssertNil(v1.form)

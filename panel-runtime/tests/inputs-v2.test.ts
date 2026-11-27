@@ -120,6 +120,13 @@ describe('questionnaire consistency', () => {
     expect(validateInputAnswerSchemas(elements, optional).ok).toBe(false);
   });
 
+  it('refuses a root $ref, which would replace the required field', () => {
+    const elements = { main: { type: 'RankedChoice', props: ranked } };
+    const derived = answerSchemaFor('RankedChoice', ranked);
+    const schema = derived.ok ? { ...formSchema('order', derived.value), $ref: '#/$defs/empty', $defs: { empty: { type: 'object' } } } : {};
+    expect(validateInputAnswerSchemas(elements, schema).ok).toBe(false);
+  });
+
   it('decodes an escaped pointer before looking up the declared schema', () => {
     const props = { ...ranked, value: { $bindState: '/form/a~1b' } };
     const derived = answerSchemaFor('RankedChoice', props);
