@@ -14,6 +14,9 @@ struct HistoryDecisionBlock: View {
     var showsSettlement = true
     @State private var sendingOption: String?
     @Environment(\.askFormAnswer) private var answerForm
+    @Environment(\.askFormDidAnswer) private var didAnswer
+    /// Keeps the form on screen after acceptance so its "Answer sent" confirmation is seen.
+    @State private var formSent = false
 
     private var message: HistoryMessage { thread.message }
     private var answerState: DecisionAnswerability { answerability.state(for: message.id) }
@@ -29,10 +32,13 @@ struct HistoryDecisionBlock: View {
     }
 
     var body: some View {
-        if let form = message.metadata?.form, isOpen {
-            AskFormView(form: form, isSubmitting: isSubmitting) { answers, summary in
-                answerForm?(answers, summary: summary, for: message.id, reply: reply)
-            }
+        if let form = message.metadata?.form, isOpen || formSent {
+            AskFormView(form: form, isSubmitting: isSubmitting, onSubmit: { answers, summary in
+                guard let answerForm else { return false }
+                let accepted = await answerForm(answers, summary: summary, for: message.id, reply: reply)
+                if accepted { formSent = true }
+                return accepted
+            }, onAnswered: didAnswer)
             .disabled(answerForm == nil)
             .accessibilityIdentifier("history.form.\(message.id.rawValue)")
         } else {

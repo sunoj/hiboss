@@ -92,6 +92,8 @@ struct NotificationMessageDetail: View {
         .frame(minWidth: isForm ? 640 : 360, idealWidth: isForm ? 680 : nil,
                minHeight: isForm ? 620 : 320, idealHeight: isForm ? 720 : nil)
         .task(id: messageID) { await load() }
+        // A form ask answered here shows "Answer sent", then the sheet closes.
+        .environment(\.askFormDidAnswer, { dismiss() })
     }
 
     private var isForm: Bool { message?.metadata?.form != nil }

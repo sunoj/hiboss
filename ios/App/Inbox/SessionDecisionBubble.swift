@@ -52,7 +52,8 @@ struct SessionDecisionBubble: View {
     private var pendingOptions: some View {
         if let form = message.metadata?.form {
             AskFormView(form: form, isSubmitting: store.replying[message.id] != nil) { answers, summary in
-                Task { await store.reply(summary, answers: answers, to: message.id) }
+                if case .sent = await store.reply(summary, answers: answers, to: message.id) { return true }
+                return false
             }
         } else {
             DecisionOptions(options: message.options, metadata: message.metadata,
