@@ -94,12 +94,12 @@ struct HistoryThreadRow: View {
         if usesV4 {
             if decision == nil || answerability.state(for: message.id) != .open {
                 let outcome = answerability.outcome(for: thread, at: now)
-                if !sessionEntries || thread.replies.isEmpty {
-                    ResolvedBanner(thread: thread, outcome: outcome)
-                }
+                let showsBanner = !sessionEntries || thread.replies.isEmpty
+                if showsBanner { ResolvedBanner(thread: thread, outcome: outcome) }
                 // A closed decision keeps its options on screen, read-only, never folded away.
                 HistoryDecisionBlock(thread: thread,
-                    reply: reply, answerability: answerability, onChoose: onChoose)
+                    reply: reply, answerability: answerability, onChoose: onChoose,
+                    showsSettlement: !showsBanner)
                     .font(.callout)
             }
         } else {

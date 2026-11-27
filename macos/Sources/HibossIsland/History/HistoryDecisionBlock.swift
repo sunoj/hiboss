@@ -10,6 +10,8 @@ struct HistoryDecisionBlock: View {
     @ObservedObject var reply: AttentionReplyState
     var answerability: AnswerableDecisions = .loading
     let onChoose: (String) async -> ReplyFeedback?
+    /// The session thread states the outcome in its banner, so it hides this line.
+    var showsSettlement = true
     @State private var sendingOption: String?
 
     private var message: HistoryMessage { thread.message }
@@ -38,7 +40,7 @@ struct HistoryDecisionBlock: View {
                     }
                 }
             }
-            settlement
+            if showsSettlement { settlement }
             if answerState == .checking {
                 Button(L("Checking…")) {}.disabled(true)
             } else if answerState == .closed, displayedOutcome == .none {
