@@ -27,7 +27,6 @@ function write(path: string, body: unknown, method = 'PATCH', token = 'install-a
 }
 
 it('rule 3 grants every bootstrap profile admin only after approval', async () => {
-  await env.DB.prepare('DELETE FROM channel_configs').run();
   await env.DB.prepare('DELETE FROM boss_agent_access').run();
   await env.DB.prepare('DELETE FROM api_keys').run();
   env.BOOTSTRAP_SECRET = 'synthetic-install-secret';

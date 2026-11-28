@@ -4,7 +4,7 @@
 
 import { testRequest, testJson } from './test-request';
 import { env } from 'cloudflare:test';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase } from './test-helpers';
 import { hashApiKey } from './middleware/auth';
 import { handleScheduled } from './scheduled';
@@ -26,11 +26,6 @@ beforeAll(async () => {
       JSON.stringify({ quiet_hours_start: utcTime(-1), quiet_hours_end: utcTime(1), timezone: 'UTC' })).run();
   await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind('quiet-drain-boss', AGENT).run();
-});
-
-beforeEach(async () => {
-  await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, 'api', '{}', 1)")
-    .bind(`cfg-${AGENT}`, AGENT).run();
 });
 
 afterEach(() => {
@@ -63,7 +58,6 @@ async function queueRow(messageId: string): Promise<{ status: string; error: str
 
 describe('quiet-hours drain', () => {
   it('holds and drains boss notifications without legacy channels', async () => {
-    await env.DB.prepare('DELETE FROM channel_configs WHERE agent_id = ?').bind(AGENT).run();
     const id = await queuedSend({ body: 'native-only quiet hours' });
     const notified = await drain();
     expect((await queueRow(id))?.status).toBe('delivered');

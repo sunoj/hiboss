@@ -23,13 +23,6 @@ beforeAll(async () => {
   await seedBoss('boss-writes-viewer', 'Boss Writes Viewer', 'viewer', VIEWER_TOKEN);
   await grantAccess('boss-writes-manager', getTestAgentId());
   await grantAccess('boss-writes-viewer', getTestAgentId());
-  await env.DB.prepare(
-    "INSERT INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, 'email', ?, 1) ON CONFLICT(agent_id, channel) DO UPDATE SET config = excluded.config, enabled = 1"
-  ).bind(
-    'boss-writes-email-config',
-    getTestAgentId(),
-    JSON.stringify({ label: 'Ops inbox', webhook_url: 'https://secret.test/hook', bot_token: 'secret-token' }),
-  ).run();
 });
 
 function bossHeaders(token = ADMIN_TOKEN): Record<string, string> {
@@ -61,48 +54,22 @@ describe('boss write contract', () => {
     expect(data.messages[0]?.agent_id).toBe(getTestAgentId());
   });
 
-  it('creates a routing rule for accessible owner and target agents', async () => {
-    const data = await testJson(201,
-      testRequest('POST', 'https://test.local/api/boss/routing-rules', bossHeaders(), {
-          owner_agent_id: getTestAgentId(),
-          channel: 'telegram',
-          pattern: 'boss-write.*',
-          target_agent_id: getTestAgentId(),
-          priority: 7,
-        })) as { id: string; owner_id: string; priority: number };
-    expect(data.owner_id).toBe(getTestAgentId());
-    expect(data.priority).toBe(7);
-    ruleId = data.id;
-  });
-
   it('updates agent config through boss scope', async () => {
     const res = await testRequest('PATCH', `https://test.local/api/boss/agents/${getTestAgentId()}/config`,
       bossHeaders(),
-      { default_priority: 'critical', rate_limit: 11, channel_routing: { alerts: 'telegram' } });
+      { default_priority: 'critical', rate_limit: 11 });
     expect(res.status).toBe(200);
-    const data = await res.json() as { default_priority: string; rate_limit: number; channel_routing: { alerts: string } };
+    const data = await res.json() as { default_priority: string; rate_limit: number };
     expect(data.default_priority).toBe('critical');
     expect(data.rate_limit).toBe(11);
-    expect(data.channel_routing.alerts).toBe('telegram');
-  });
-
-  it('returns channel rows without secret config fields', async () => {
-    const res = await SELF.fetch('https://test.local/api/boss/channels', { headers: bossHeaders() });
-    expect(res.status).toBe(200);
-    const data = await res.json() as { agent_id: string; label?: string; bot_token?: string; webhook_url?: string }[];
-    const row = data.find((item) => item.agent_id === getTestAgentId() && item.label === 'Ops inbox');
-    expect(row).toBeDefined();
-    expect(row?.bot_token).toBeUndefined();
-    expect(row?.webhook_url).toBeUndefined();
   });
 
   it('returns a cheap system doctor snapshot', async () => {
     const res = await SELF.fetch('https://test.local/api/boss/system', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as { db_ok: boolean; server_time: string; channels: unknown[] };
+    const data = await res.json() as { db_ok: boolean; server_time: string };
     expect(data.db_ok).toBe(true);
     expect(typeof data.server_time).toBe('string');
-    expect(Array.isArray(data.channels)).toBe(true);
   });
 
   it('rejects viewer writes and non-accessible manager writes', async () => {
@@ -115,15 +82,6 @@ describe('boss write contract', () => {
     expect(manager.status).toBe(403);
   });
 
-  it('deletes boss-created routing rule and group', async () => {
-    const deleteRule = await testRequest('DELETE', `https://test.local/api/boss/routing-rules/${ruleId}`,
-      bossHeaders());
-    expect(deleteRule.status).toBe(200);
-
-    const deleteGroup = await testRequest('DELETE', `https://test.local/api/boss/groups/${groupId}`,
-      bossHeaders());
-    expect(deleteGroup.status).toBe(200);
-  });
 });
 
 async function seedAgent(id: string): Promise<void> {

@@ -20,13 +20,13 @@ routes.get('/me/bosses', async (c) => {
 routes.get('/me', async (c) => {
   const agentId = getAgentId(c);
   const row = await c.env.DB
-    .prepare('SELECT id, name, callback_url, default_priority, rate_limit, channel_routing, avatar_url, role, session_info, last_used_at, created_at FROM api_keys WHERE id = ?')
+    .prepare('SELECT id, name, callback_url, default_priority, rate_limit, avatar_url, role, session_info, last_used_at, created_at FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ id: string; name: string; callback_url: string | null; default_priority: string; rate_limit: number | null; channel_routing: string | null; avatar_url: string | null; role: string | null; session_info: string | null; last_used_at: string | null; created_at: string }>();
+    .first<{ id: string; name: string; callback_url: string | null; default_priority: string; rate_limit: number | null; avatar_url: string | null; role: string | null; session_info: string | null; last_used_at: string | null; created_at: string }>();
   if (!row) {
     return c.text('agent not found', 404);
   }
-  return c.json({ ...row, agent_key_id: getAgentKeyId(c), channel_routing: row.channel_routing ? JSON.parse(row.channel_routing) : null, session_info: row.session_info ? JSON.parse(row.session_info) : null });
+  return c.json({ ...row, agent_key_id: getAgentKeyId(c), session_info: row.session_info ? JSON.parse(row.session_info) : null });
 });
 
 routes.get('/', async (c) => {
@@ -56,11 +56,11 @@ routes.put('/me/config', async (c) => {
     .bind(...binds)
     .run();
   const updated = await c.env.DB
-    .prepare('SELECT default_priority, rate_limit, channel_routing, avatar_url, role, session_info FROM api_keys WHERE id = ?')
+    .prepare('SELECT default_priority, rate_limit, avatar_url, role, session_info FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ default_priority: string; rate_limit: number | null; channel_routing: string | null; avatar_url: string | null; role: string | null; session_info: string | null }>();
+    .first<{ default_priority: string; rate_limit: number | null; avatar_url: string | null; role: string | null; session_info: string | null }>();
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'agent.config', 'api_key', agentId, JSON.stringify(Object.keys(payload))));
-  return c.json({ ...updated, channel_routing: updated?.channel_routing ? JSON.parse(updated.channel_routing) : null, session_info: updated?.session_info ? JSON.parse(updated.session_info) : null });
+  return c.json({ ...updated, session_info: updated?.session_info ? JSON.parse(updated.session_info) : null });
 });
 
 routes.put('/me/callback', async (c) => {

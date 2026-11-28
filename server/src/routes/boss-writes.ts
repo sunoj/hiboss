@@ -3,8 +3,7 @@
 // Depends on boss auth, access scoping, audit logging, and D1 tables.
 
 import { Hono, type Context } from 'hono';
-import type { Channel, Env, Priority } from '../types';
-import { channelWriteError } from './channel-names';
+import type { Env, Priority } from '../types';
 import { isIntegration } from '../integrations/credentials';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
@@ -13,9 +12,7 @@ import { getAccessibleAgentIds } from './boss-api';
 import { getBossOverview } from './boss-overview';
 
 type BossContext = Context<{ Bindings: Env }>;
-type JsonPrimitive = string | number | boolean | null;
 type JsonObject = Record<string, unknown>;
-type ChannelDisplay = Record<string, JsonPrimitive>;
 
 interface GroupRow {
   id: string;
@@ -25,26 +22,12 @@ interface GroupRow {
   created_at: string;
 }
 
-interface RoutingRuleRow {
-  id: string;
-  owner_id: string;
-  channel: string;
-  pattern: string;
-  target_agent_id: string;
-  priority: number;
-  enabled: number;
-  created_at: string;
-}
-
 interface AgentConfigRow {
   default_priority: Priority;
   rate_limit: number | null;
-  channel_routing: string | null;
 }
 
 const VALID_PRIORITIES: Priority[] = ['critical', 'high', 'normal', 'low'];
-const VALID_CHANNELS: Channel[] = ['discord', 'telegram', 'api'];
-const SECRET_CONFIG_KEYS = new Set(['bot_token', 'webhook_url', 'webhook_secret', 'secret', 'token', 'password', 'api_key']);
 
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', bossAuth);
@@ -105,33 +88,6 @@ routes.delete('/groups/:id/members/:agentId', async (c) => {
   return c.json({ ok: true });
 });
 
-routes.post('/routing-rules', async (c) => {
-  const scope = await requireWriteScope(c);
-  if (!scope.ok) return scope.response;
-  const payload = await c.req.json<JsonObject>();
-  const ruleInput = parseRuleInput(payload);
-  if (!ruleInput.ok) return c.text(ruleInput.error, 400);
-  if (!scope.agentIds.includes(ruleInput.ownerId) || !scope.agentIds.includes(ruleInput.targetAgentId)) {
-    return c.text('agent not accessible', 403);
-  }
-  const inserted = await c.env.DB.prepare('INSERT INTO routing_rules (owner_id, channel, pattern, target_agent_id, priority) VALUES (?, ?, ?, ?, ?) RETURNING *')
-    .bind(ruleInput.ownerId, ruleInput.channel, ruleInput.pattern, ruleInput.targetAgentId, ruleInput.priority)
-    .first<RoutingRuleRow>();
-  if (!inserted) return c.text('failed to create', 500);
-  audit(c, scope.bossId, 'rule.create', 'routing_rule', inserted.id, JSON.stringify(ruleInput));
-  return c.json(inserted, 201);
-});
-
-routes.delete('/routing-rules/:id', async (c) => {
-  const scope = await requireWriteScope(c);
-  if (!scope.ok) return scope.response;
-  const rule = await c.env.DB.prepare('SELECT owner_id FROM routing_rules WHERE id = ?').bind(c.req.param('id')).first<{ owner_id: string }>();
-  if (!rule || !scope.agentIds.includes(rule.owner_id)) return c.text('not found', 404);
-  await c.env.DB.prepare('DELETE FROM routing_rules WHERE id = ?').bind(c.req.param('id')).run();
-  audit(c, scope.bossId, 'rule.delete', 'routing_rule', c.req.param('id'));
-  return c.json({ ok: true });
-});
-
 routes.patch('/agents/:id/config', async (c) => {
   const scope = await requireWriteScope(c);
   if (!scope.ok) return scope.response;
@@ -152,39 +108,9 @@ routes.patch('/agents/:id/config', async (c) => {
   const parsed = parseAgentConfig(payload);
   if (!parsed.ok) return c.text(parsed.error, 400);
   await c.env.DB.prepare(`UPDATE api_keys SET ${parsed.updates.join(', ')} WHERE id = ?`).bind(...parsed.binds, agentId).run();
-  const updated = await c.env.DB.prepare('SELECT default_priority, rate_limit, channel_routing FROM api_keys WHERE id = ?').bind(agentId).first<AgentConfigRow>();
+  const updated = await c.env.DB.prepare('SELECT default_priority, rate_limit FROM api_keys WHERE id = ?').bind(agentId).first<AgentConfigRow>();
   audit(c, scope.bossId, 'agent.config', 'api_key', agentId, JSON.stringify(parsed.keys));
-  return c.json({ ...updated, channel_routing: updated?.channel_routing ? JSON.parse(updated.channel_routing) as JsonObject : null });
-});
-
-routes.get('/channels', async (c) => {
-  const agentIds = await accessibleAgents(c);
-  if (agentIds.length === 0) return c.json([]);
-  const rows = await loadChannelRows(c.env, agentIds);
-  return c.json(rows.map(mapChannelRow));
-});
-
-routes.patch('/channels/:id', async (c) => {
-  const scope = await requireWriteScope(c);
-  if (!scope.ok) return scope.response;
-  const id = c.req.param('id');
-  const row = await c.env.DB.prepare('SELECT agent_id FROM channel_configs WHERE id = ?').bind(id).first<{ agent_id: string }>();
-  if (!row || !scope.agentIds.includes(row.agent_id)) return c.text('not found', 404);
-  const payload: unknown = await c.req.json().catch(() => null);
-  if (!payload || typeof payload !== 'object' || !('enabled' in payload) || typeof payload.enabled !== 'boolean') {
-    return c.text('enabled must be a boolean', 400);
-  }
-  const enabled = payload.enabled;
-  const [, remaining] = await c.env.DB.batch<{ count: number }>([
-    c.env.DB.prepare('UPDATE channel_configs SET enabled = ? WHERE id = ?').bind(Number(enabled), id),
-    c.env.DB.prepare('SELECT COUNT(*) AS count FROM channel_configs WHERE agent_id = ? AND enabled = 1').bind(row.agent_id),
-  ]);
-  const updated = (await loadChannelRows(c.env, [row.agent_id])).find((channel) => channel.id === id);
-  if (!updated) return c.text('not found', 404);
-  audit(c, scope.bossId, 'channel.update', 'channel_config', id, JSON.stringify({ enabled }));
-  const warning = !enabled && remaining.results[0]?.count === 0
-    ? { warning: 'agent has no enabled channel; hiboss send will fail' } : {};
-  return c.json({ ...mapChannelRow(updated), ...warning });
+  return c.json(updated);
 });
 
 routes.get('/system', async (c) => {
@@ -194,7 +120,6 @@ routes.get('/system', async (c) => {
   return c.json({
     server_time: new Date().toISOString(),
     db_ok: dbRow?.ok === 1,
-    channels: overview.channels,
     active_sessions: overview.kpis.activeSessions,
     pending_decisions: overview.kpis.pendingDecisions,
   });
@@ -228,21 +153,6 @@ function parsePriority(value: unknown, fallback: Priority): Priority {
   return typeof value === 'string' && VALID_PRIORITIES.includes(value as Priority) ? value as Priority : fallback;
 }
 
-function parseRuleInput(payload: JsonObject): { ok: true; ownerId: string; channel: Channel; pattern: string; targetAgentId: string; priority: number } | { ok: false; error: string } {
-  const ownerId = typeof payload.owner_agent_id === 'string' ? payload.owner_agent_id : '';
-  const channel = typeof payload.channel === 'string' ? payload.channel : '';
-  const pattern = typeof payload.pattern === 'string' ? payload.pattern : '';
-  const targetAgentId = typeof payload.target_agent_id === 'string' ? payload.target_agent_id : '';
-  const priority = typeof payload.priority === 'number' ? payload.priority : 0;
-  if (!ownerId) return { ok: false, error: 'owner_agent_id is required' };
-  const channelError = channelWriteError(channel, VALID_CHANNELS, 'invalid channel');
-  if (channelError) return { ok: false, error: channelError };
-  if (!pattern) return { ok: false, error: 'pattern is required' };
-  if (!targetAgentId) return { ok: false, error: 'target_agent_id is required' };
-  try { new RegExp(pattern); } catch { return { ok: false, error: 'invalid regex pattern' }; }
-  return { ok: true, ownerId, channel: channel as Channel, pattern, targetAgentId, priority };
-}
-
 function parseAgentConfig(payload: JsonObject): { ok: true; updates: string[]; binds: (string | number | null)[]; keys: string[] } | { ok: false; error: string } {
   const updates: string[] = [];
   const binds: (string | number | null)[] = [];
@@ -257,52 +167,6 @@ function parseAgentConfig(payload: JsonObject): { ok: true; updates: string[]; b
     if (value !== null && (typeof value !== 'number' || value < 0 || !Number.isInteger(value))) return { ok: false, error: 'rate_limit must be a positive integer or null' };
     updates.push('rate_limit = ?'); binds.push(value as number | null); keys.push('rate_limit');
   }
-  if ('channel_routing' in payload) {
-    const parsed = parseChannelRouting(payload.channel_routing);
-    if (!parsed.ok) return parsed;
-    updates.push(parsed.sql); binds.push(parsed.value); keys.push('channel_routing');
-  }
   if (updates.length === 0) return { ok: false, error: 'no valid fields to update' };
   return { ok: true, updates, binds, keys };
-}
-
-function parseChannelRouting(value: unknown): { ok: true; sql: string; value: string | null } | { ok: false; error: string } {
-  if (value === null) return { ok: true, sql: 'channel_routing = ?', value: null };
-  if (typeof value !== 'object' || Array.isArray(value)) return { ok: false, error: 'channel_routing must be an object or null' };
-  for (const [, channel] of Object.entries(value as JsonObject)) {
-    const error = channelWriteError(channel, VALID_CHANNELS, 'channel_routing values must be valid channels');
-    if (error) return { ok: false, error };
-  }
-  return { ok: true, sql: 'channel_routing = ?', value: JSON.stringify(value) };
-}
-
-async function loadChannelRows(env: Env, agentIds: string[]) {
-  const placeholders = agentIds.map(() => '?').join(', ');
-  const rows = await env.DB.prepare(`SELECT cc.id, cc.agent_id, k.name AS agent_name, cc.channel, cc.config, cc.enabled, cc.created_at FROM channel_configs cc JOIN api_keys k ON k.id = cc.agent_id WHERE cc.agent_id IN (${placeholders}) ORDER BY k.name, cc.channel`)
-    .bind(...agentIds)
-    .all<{ id: string; agent_id: string; agent_name: string; channel: Channel; config: string; enabled: 0 | 1; created_at: string }>();
-  return rows.results ?? [];
-}
-
-function mapChannelRow(row: { id: string; agent_id: string; agent_name: string; channel: Channel; config: string; enabled: 0 | 1; created_at: string }): ChannelDisplay {
-  return { ...publicConfig(row.config), id: row.id, agent_id: row.agent_id, agent_name: row.agent_name, channel: row.channel, configured: row.enabled === 1, enabled: row.enabled, created_at: row.created_at };
-}
-
-function publicConfig(raw: string): ChannelDisplay {
-  const parsed = parseObject(raw);
-  const display: ChannelDisplay = {};
-  for (const [key, value] of Object.entries(parsed)) {
-    if (SECRET_CONFIG_KEYS.has(key) || key.endsWith('_token') || key.endsWith('_secret')) continue;
-    if (['string', 'number', 'boolean'].includes(typeof value) || value === null) display[key] = value as JsonPrimitive;
-  }
-  return display;
-}
-
-function parseObject(raw: string): JsonObject {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as JsonObject : {};
-  } catch {
-    return {};
-  }
 }

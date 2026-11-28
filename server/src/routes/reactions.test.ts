@@ -51,45 +51,6 @@ describe('POST /api/messages/:id/react', () => {
     ]);
   });
 
-  it('retains the stored reaction when Discord forwarding is unavailable', async () => {
-    await env.DB.prepare(
-      "INSERT OR REPLACE INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'discord', ?, 1)"
-    ).bind(agentId, JSON.stringify({ webhook_url: 'https://discord.com/api/webhooks/x/y' })).run();
-    const msgId = 'react-discord-no-token';
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, channel, metadata) VALUES (?, ?, 'boss_to_agent', 'async', 'Discord msg', 'sent', 'discord', ?)"
-    ).bind(msgId, agentId, JSON.stringify({ discord_message_id: '123' })).run();
-
-    const res = await testRequest('POST', `https://test.local/api/messages/${msgId}/react`, authHeaders(),
-      { emoji: '👍' });
-    expect(res.status).toBe(200);
-    const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
-      .bind(msgId).first<{ metadata: string }>();
-    expect(JSON.parse(row?.metadata ?? '{}').reactions).toHaveLength(1);
-  });
-
-  it.each([true, false])('persists Telegram reactions when forwarding succeeds: %s', async succeeds => {
-    const id = `react-telegram-${succeeds}`;
-    await env.DB.prepare(`INSERT OR REPLACE INTO channel_configs (agent_id, channel, config, enabled)
-      VALUES (?, 'telegram', ?, 1)`)
-      .bind(agentId, JSON.stringify({ bot_token: 'reaction-test-token', chat_id: 'chat' })).run();
-    await env.DB.prepare(`INSERT INTO messages
-      (id, agent_id, direction, mode, body, status, channel, metadata)
-      VALUES (?, ?, 'boss_to_agent', 'async', 'React', 'sent', 'telegram', ?)`)
-      .bind(id, agentId, JSON.stringify({ telegram_message_id: 123 })).run();
-    const provider = vi.fn().mockImplementation(async () => {
-      const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
-        .bind(id).first<{ metadata: string }>();
-      expect(JSON.parse(row?.metadata ?? '{}').reactions).toHaveLength(1);
-      if (!succeeds) throw new Error('provider unavailable');
-      return new Response(JSON.stringify({ ok: true, result: true }));
-    });
-    vi.stubGlobal('fetch', provider);
-    const response = await testRequest('POST', `https://test.local/api/messages/${id}/react`, authHeaders(),
-      { emoji: '👍' });
-    expect(response.status).toBe(200);
-    expect(provider).toHaveBeenCalledWith(expect.stringContaining('/setMessageReaction'), expect.any(Object));
-  });
 });
 
 describe('GET /api/messages/:id/reactions', () => {
@@ -118,44 +79,5 @@ describe('GET /api/messages/:id/reactions', () => {
     expect(res.status).toBe(200);
     const data = await res.json() as { reactions: unknown[] };
     expect(data.reactions).toEqual(reactions);
-  });
-});
-
-describe('resolveDiscordChannelId (thread routing)', () => {
-  const agentId = getTestAgentId();
-
-  it('returns the session thread id when threads are enabled', async () => {
-    const { resolveDiscordChannelId } = await import('./agent-delivery');
-    for (const threadId of ['thread-999', 'parent-000', '']) {
-      await env.DB.prepare(
-        "INSERT OR REPLACE INTO sessions (id, agent_id, discord_thread_id) VALUES (?, ?, ?)"
-      ).bind('rd-sess-thread', agentId, threadId).run();
-      const channelId = await resolveDiscordChannelId(env,
-        { channel_id: 'parent-000', use_threads: true }, 'rd-sess-thread');
-      expect(channelId).toBe(threadId); // The session's stored thread controls routing.
-    }
-  });
-
-  it('falls back to config channel_id when threads are disabled', async () => {
-    const { resolveDiscordChannelId } = await import('./agent-delivery');
-    await env.DB.prepare(
-      "INSERT OR IGNORE INTO sessions (id, agent_id, discord_thread_id) VALUES (?, ?, ?)"
-    ).bind('rd-sess-nothread', agentId, 'thread-888').run();
-    for (const extra of [{}, { use_threads: false }, { use_threads: 0 }, { use_threads: '' }]) {
-      const channelId = await resolveDiscordChannelId(env,
-        { channel_id: 'parent-000', ...extra }, 'rd-sess-nothread');
-      expect(channelId).toBe('parent-000');
-    }
-  });
-
-  it('falls back to config channel_id when the session has no thread', async () => {
-    const { resolveDiscordChannelId } = await import('./agent-delivery');
-    await env.DB.prepare('INSERT OR IGNORE INTO sessions (id, agent_id) VALUES (?, ?)')
-      .bind('rd-sess-no-thread', agentId).run();
-    for (const sessionId of ['no-such-session', 'rd-sess-no-thread']) {
-      const channelId = await resolveDiscordChannelId(env,
-        { channel_id: 'parent-000', use_threads: true }, sessionId);
-      expect(channelId).toBe('parent-000');
-    }
   });
 });

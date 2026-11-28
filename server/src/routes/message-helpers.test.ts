@@ -7,7 +7,6 @@ import {
   mapMessageRow,
   normalizeMetadata,
   validateOption,
-  validateChannel,
   parsePriorityFilter,
   clampNumber,
 } from './message-helpers';
@@ -101,26 +100,6 @@ describe('validateOption', () => {
     for (const input of [123, null, undefined]) {
       expect(validateOption(input, opts)).toBeNull();
     }
-  });
-});
-
-describe('validateChannel', () => {
-  it('returns valid channels', () => {
-    expect(validateChannel('discord')).toBe('discord');
-    expect(validateChannel('telegram')).toBe('telegram');
-    expect(validateChannel('api')).toBe('api');
-    expect(validateChannel('email')).toBeUndefined();
-  });
-
-  it('returns undefined for invalid channel', () => {
-    expect(validateChannel('slack')).toBeUndefined();
-    expect(validateChannel('')).toBeUndefined();
-  });
-
-  it('returns undefined for non-string values', () => {
-    expect(validateChannel(null)).toBeUndefined();
-    expect(validateChannel(42)).toBeUndefined();
-    expect(validateChannel(undefined)).toBeUndefined();
   });
 });
 

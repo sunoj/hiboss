@@ -1,31 +1,20 @@
 // Agent reply endpoint and legacy reply delivery.
 // Exports messageReplyRouter; depends on message helpers and destination dispatch.
-import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
 import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
 import { getAgentId, getAgentKeyId } from '../middleware/auth';
 import { actionContent, audienceOf, authenticateAgentMessage, signedIdempotencyKey } from '../message-security';
 import { findByIdempotencyKey } from './message-queries';
-import { notifyTargetAgent } from '../notify';
+import { notifyBossAgents, notifyTargetAgent } from '../notify';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
-import type { Channel, Direction, Env, MessageRow } from '../types';
-import { OPEN_MESSAGE_STATUS, SENT_MESSAGE_STATUS } from '../message-status';
-import { getDeliveryErrorMessage, persistDeliveryFailure } from './delivery';
-import {
-  deliverReply,
-  deliverWithRetry,
-  extractTelegramMessageId,
-  fetchMessageRow,
-  mapMessageRow,
-  replyTargetSession,
-  requireTelegramConfig,
-  selectChannelConfig,
-} from './message-helpers';
-import { ensureTopicForSession } from './session-channels';
+import type { Direction, Env, MessageRow } from '../types';
+import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { ownsSession } from '../projects';
 import { isDecisionReply } from '../decision-answerability';
 
-import { destinationsMode, dispatchDestinations } from '../delivery';
+import { dispatchDestinations } from '../delivery';
+import { fetchMessageRow, mapMessageRow, replyTargetSession } from './message-helpers';
+import { enqueueNativeDelivery } from './message-send-legacy';
 const routes = new Hono<{ Bindings: Env }>();
 routes.post('/:id/reply', async (c) => {
   const agentId = getAgentId(c);
@@ -89,7 +78,7 @@ async function persistReply(
     `INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority,
       session_id, reply_to, target_agent_id, target_session_id, metadata, idempotency_key)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal',
+    [createMessageId(), agentId, replyDirection, 'async', replyDirection === 'agent_to_agent' ? 'api' : null, body, 'sent', 'normal',
       sessionId, parent.id, replyTargetAgentId, target.sessionId,
       JSON.stringify(metadata), idempotencyKey],
     sessionId,
@@ -97,7 +86,12 @@ async function persistReply(
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
-  if (replyDirection === 'agent_to_boss') await sendBossReply(c, inserted, parent, body);
+  if (replyDirection === 'agent_to_boss') {
+    await dispatchDestinations(c.env, inserted);
+    if (!await enqueueNativeDelivery(c.env, inserted)) {
+      c.executionCtx.waitUntil(notifyBossAgents(c.env, agentId, inserted));
+    }
+  }
   // Only an answer closes the parent; the asker's own follow-ups leave its ask open.
   if (parent.direction !== 'agent_to_boss' && isDecisionReply(parent, inserted)) {
     await c.env.DB
@@ -112,63 +106,3 @@ async function persistReply(
 }
 
 export const messageReplyRouter = routes;
-
-async function sendBossReply(c: Context<{ Bindings: Env }>, inserted: MessageRow, parent: MessageRow, body: string): Promise<void> {
-  const agentId = inserted.agent_id;
-  if (destinationsMode(c.env.DESTINATIONS_MODE) === 'on') {
-    await dispatchDestinations(c.env, inserted);
-  }
-  if (parent.channel && destinationsMode(c.env.DESTINATIONS_MODE) !== 'on') {
-    try {
-      const channelConfig = await selectChannelConfig(c.env, agentId, parent.channel as Channel);
-      await dispatchDestinations(c.env, inserted, [channelConfig]);
-      const agentRow = await c.env.DB.prepare('SELECT name, avatar_url FROM api_keys WHERE id = ?').bind(agentId).first<{ name: string; avatar_url: string | null }>();
-      let replyDisplayName = agentRow?.name ?? 'agent';
-      let sessionLabel: string | null = null;
-      if (inserted.session_id) {
-        const sess = await c.env.DB.prepare('SELECT label FROM sessions WHERE id = ?').bind(inserted.session_id).first<{ label: string | null }>();
-        sessionLabel = sess?.label ?? null;
-        if (sessionLabel) replyDisplayName = `${sessionLabel} (${replyDisplayName})`;
-      }
-      if (channelConfig.channel === 'telegram' && inserted.session_id) {
-        await ensureTopicForSession(
-          c.env,
-          inserted.session_id,
-          agentRow?.name ?? 'agent',
-          sessionLabel,
-          requireTelegramConfig(channelConfig.config),
-        );
-      }
-      const telegramReplyId = extractTelegramMessageId(parent.metadata);
-      const result = await deliverWithRetry(() =>
-        deliverReply(
-          channelConfig.channel, channelConfig.config, replyDisplayName, body, telegramReplyId,
-          agentRow?.avatar_url ?? undefined, c.env, inserted.session_id,
-        )
-      );
-      if (result.delivered) {
-        await markReplyDelivered(c.env, inserted.id, result.telegramMessageId,
-          channelConfig.channel === 'telegram' ? channelConfig.config.chat_id : undefined,
-          result.discordMessageId);
-      }
-    } catch (error) {
-      await persistDeliveryFailure(c.env, inserted.id, getDeliveryErrorMessage(error));
-    }
-  }
-}
-
-async function markReplyDelivered(
-  env: Env, messageId: string, telegramMessageId?: number, telegramChatId?: unknown,
-  discordMessageId?: string,
-): Promise<void> {
-  const metadata: Record<string, unknown> = {};
-  if (telegramMessageId) {
-    metadata['telegram_message_id'] = telegramMessageId;
-    if (typeof telegramChatId === 'string') metadata['telegram_chat_id'] = telegramChatId;
-  }
-  if (discordMessageId) metadata['discord_message_id'] = discordMessageId;
-  await env.DB.prepare(`UPDATE messages SET status = 'delivered',
-    metadata = json_patch(${MESSAGE_METADATA_OBJECT_SQL}, json(?)), updated_at = datetime('now')
-    WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
-    .bind(JSON.stringify(metadata), messageId).run();
-}

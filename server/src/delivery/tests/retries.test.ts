@@ -14,8 +14,11 @@ const on: Env = { ...env, DESTINATIONS_MODE: 'on' };
 beforeAll(async () => {
   await seedDatabase();
   await env.DB.prepare("INSERT INTO bosses (id, name, role) VALUES ('retry-boss', 'Boss', 'admin')").run();
-  await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES ('retry-provider', 'discord', 'Bot', '{\"bot_token\":\"token\"}')").run();
-  await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, provider_id, target, label) VALUES ('retry-dest', 'retry-boss', 'discord_channel', 'retry-provider', '{\"channel_id\":\"10\"}', 'Chat')").run();
+  for (const id of ['retry-device', 'immediate-device']) {
+    await env.DB.prepare(`INSERT INTO boss_devices (id, boss_id, device_token, bundle_id, environment, token_id)
+      VALUES (?, 'retry-boss', ?, 'app', 'sandbox', ?)`).bind(id, id, await liveTokenId('retry-boss')).run();
+  }
+  await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, target, label) VALUES ('retry-dest', 'retry-boss', 'apns', '{\"device_id\":\"retry-device\"}', 'Push')").run();
 });
 beforeEach(async () => {
   await env.DB.prepare("DELETE FROM message_deliveries WHERE destination_id IN (SELECT id FROM boss_destinations WHERE boss_id = 'retry-boss')").run();
@@ -64,7 +67,7 @@ it('defers per-destination quiet hours and allows an opt-out destination immedia
   const end = new Date(now.getTime() + 60_000).toISOString().slice(11, 16);
   await env.DB.prepare("UPDATE bosses SET preferences = ? WHERE id = 'retry-boss'")
     .bind(JSON.stringify({ quiet_hours: { enabled: true, start, end, timezone: 'UTC' } })).run();
-  await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, provider_id, target, label, honours_quiet_hours) VALUES ('immediate', 'retry-boss', 'discord_channel', 'retry-provider', '{\"channel_id\":\"11\"}', 'Immediate', 0)").run();
+  await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, target, label, honours_quiet_hours) VALUES ('immediate', 'retry-boss', 'apns', '{\"device_id\":\"immediate-device\"}', 'Immediate', 0)").run();
   const spy = vi.spyOn(adapters, 'sendDestination').mockResolvedValue('external-id');
   const row = await message();
   await dispatchDestinations(on, { ...row, priority: 'normal' });
@@ -76,13 +79,6 @@ it('defers per-destination quiet hours and allows an opt-out destination immedia
   await env.DB.prepare("UPDATE message_deliveries SET next_attempt_at = '2000-01-01' WHERE message_id = ? AND destination_id = 'retry-dest'").bind(row.id).run();
   await drainDestinationDeliveries(on);
   expect(spy).toHaveBeenCalledTimes(2);
-});
-it('resolves Discord thread overrides independently of legacy session columns', async () => {
-  await env.DB.prepare("INSERT INTO sessions (id, agent_id, discord_thread_id) VALUES ('retry-session', 'test-agent-id', 'old-thread')").run();
-  await env.DB.prepare("INSERT INTO destination_routes (destination_id, session_id, external_channel_id, external_thread_id) VALUES ('retry-dest', 'retry-session', '20', '30')").run();
-  const row = await message();
-  const result = await resolveDestinations(on, { ...row, session_id: 'retry-session' });
-  expect(result[0].config).toMatchObject({ channel_id: '30', thread_id: '30' });
 });
 it.each(['high', 'critical'] as const)('delivers %s immediately during quiet hours', async priority => {
   const now = new Date();

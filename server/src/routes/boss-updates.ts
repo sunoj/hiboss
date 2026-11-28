@@ -1,13 +1,12 @@
-// Builds atomic admin boss updates while synchronizing external identities.
+// Builds atomic admin boss updates.
 // Exports buildBossUpdate; depends on typed boss rows, validation, and D1 helpers.
 import type { Env } from '../types';
 import type { BossRow } from './bosses';
 import { validatePreferences } from './boss-preferences';
-import { legacyIdentityWrites } from './boss-external-accounts';
-type Update = { columns: string[]; values: (string | null)[]; writes: D1PreparedStatement[] };
+type Update = { columns: string[]; values: (string | null)[] };
 type Result = { ok: true; writes: D1PreparedStatement[] } | { ok: false; error: string; status: 400 };
 export function lastAdminGuard(env: Env, id: string): D1PreparedStatement {
-  // The invalid update aborts the whole batch before any identity writes can run.
+  // The invalid update aborts the whole batch before any other writes can run.
   return env.DB.prepare(`UPDATE bosses SET role = NULL WHERE id = ? AND role = 'admin'
     AND archived_at IS NULL
     AND (SELECT COUNT(*) FROM bosses WHERE role = 'admin' AND archived_at IS NULL) = 1`).bind(id);
@@ -18,19 +17,15 @@ export function isLastAdminError(error: unknown): boolean {
 }
 
 export async function buildBossUpdate(env: Env, boss: BossRow, payload: Record<string, unknown>): Promise<Result> {
-  const update: Update = { columns: [], values: [], writes: [] };
+  const update: Update = { columns: [], values: [] };
   const error = simpleFields(payload, update);
   if (error) return { ok: false, error, status: 400 };
-  for (const key of ['telegram_user_id', 'discord_user_id', 'agent_id'] as const) {
+  for (const key of ['agent_id'] as const) {
     if (!(key in payload)) continue;
     const input = payload[key];
     if (input !== null && typeof input !== 'string') return { ok: false, error: `${key} must be a string or null`, status: 400 };
     const value = typeof input === 'string' ? input.trim() || null : null;
     update.columns.push(`${key} = ?`); update.values.push(value);
-    if (key !== 'agent_id') {
-      const provider = key === 'telegram_user_id' ? 'telegram' : 'discord';
-      update.writes.push(...legacyIdentityWrites(env, boss.id, provider, boss[key], value));
-    }
   }
   const preferenceError = preferenceFields(boss, payload, update);
   if (preferenceError) return { ok: false, error: preferenceError, status: 400 };
@@ -39,7 +34,7 @@ export async function buildBossUpdate(env: Env, boss: BossRow, payload: Record<s
     ? [lastAdminGuard(env, boss.id)] : [];
   const sql = `UPDATE bosses SET ${update.columns.join(', ')} WHERE id = ?`;
   return { ok: true, writes: [...guard, env.DB.prepare(sql)
-    .bind(...update.values, boss.id), ...update.writes] };
+    .bind(...update.values, boss.id)] };
 }
 function simpleFields(payload: Record<string, unknown>, update: Update): string | null {
   for (const key of ['name', 'role']) {

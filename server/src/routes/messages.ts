@@ -9,8 +9,6 @@ import { apiAuth, createAuthValidator, getAgentId, getAgentKeyId } from '../midd
 import { actionContent, agentRequiresSignature, authenticateAgentMessage } from '../message-security';
 import type { Direction, Env, MessageRow, Status } from '../types';
 import { OPEN_MESSAGE_STATUS, RECEIPT_STATUS_SET_SQL } from '../message-status';
-import { propagateMessageEdit } from './message-edit';
-import { forwardMessage, validateForwardChannel } from './message-forward';
 import {
   buildFilters,
   clampNumber,
@@ -85,36 +83,6 @@ routes.get('/:id', async (c) => {
 
 routes.route('/', messageReplyRouter);
 
-routes.post('/:id/forward', async (c) => {
-  const agentId = getAgentId(c);
-  const original = await fetchMessageRow(c.env, agentId, c.req.param('id'));
-  if (!original) {
-    return c.text('not found', 404);
-  }
-  if (original.agent_id !== agentId) {
-    return c.text('forbidden', 403);
-  }
-  const payload = await c.req.json<Record<string, unknown>>();
-  const targetChannel = validateForwardChannel(payload.channel);
-  if (!targetChannel) {
-    return c.text('channel must be discord or telegram', 400);
-  }
-  const auth = await authenticateAgentMessage({
-    env: c.env, agentId, agentKeyId: getAgentKeyId(c), signedMessage: payload.signed_message,
-    content: actionContent({ kind: 'forward', message_id: original.id, channel: targetChannel }, ''),
-  });
-  if (!auth.ok) return c.text(auth.error, auth.status);
-  try {
-    const forwarded = await forwardMessage(c.env, original, targetChannel);
-    c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.forward', 'message', original.id, targetChannel));
-    return c.json(mapMessageRow(forwarded), 201);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'forward failed';
-    const status = message === 'no channel configured' ? 400 : message === 'cannot forward boss messages' ? 403 : 502;
-    return c.text(message, status);
-  }
-});
-
 routes.patch('/:id', async (c) => {
   const agentId = getAgentId(c);
   const payload = await c.req.json<Record<string, unknown>>();
@@ -150,7 +118,6 @@ routes.patch('/:id', async (c) => {
     return c.text('update failed', 500);
   }
   if (body) {
-    c.executionCtx.waitUntil(propagateMessageEdit(c.env, updated));
     c.executionCtx.waitUntil(
       logAudit(c.env, 'agent', agentId, 'message.edit', 'message', updated.id, JSON.stringify({ channel: updated.channel }))
     );

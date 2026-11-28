@@ -31,8 +31,6 @@ interface SessionRow {
   cwd: string | null;
   status: SessionStatus;
   status_text: string | null;
-  discord_thread_id: string | null;
-  telegram_topic_id: number | null;
   host: string | null;
   runtime: string | null;
   dispatch_ref: string | null;
@@ -221,8 +219,7 @@ routes.delete('/:id', async (c) => {
   const [expired] = await db.batch([
     sessionAsksExpiry(db, agentId, sessionId),
     db.prepare(`DELETE FROM session_events WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),
-    db.prepare(`DELETE FROM destination_routes WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),
-    db.prepare("UPDATE sessions SET telegram_topic_id = NULL, status = 'completed' WHERE id = ? AND agent_id = ?")
+    db.prepare("UPDATE sessions SET status = 'completed' WHERE id = ? AND agent_id = ?")
       .bind(sessionId, agentId),
     // A child must not keep pointing at an id that a later registration could claim.
     db.prepare(`UPDATE sessions SET parent_session_id = NULL

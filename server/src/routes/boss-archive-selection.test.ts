@@ -7,9 +7,6 @@ import { hashApiKey } from '../middleware/auth';
 import { bossCanAccessAgent, panelTargetAccessSql, resolvedBosses } from '../panels/access';
 import { notifyBossAgents } from '../notify';
 import { resolveDestinations } from '../delivery/destinations';
-import { findInboundRoute } from '../delivery/inbound';
-import { resolveBossForChannel } from './webhook-helpers';
-import { ensureThreadForSession } from './message-option-threads';
 import { getAgentQuietHoursEnd } from './quiet-hours';
 import type { MessageRow } from '../types';
 import { testJson } from '../test-request';
@@ -25,16 +22,14 @@ beforeAll(async () => {
   manager = await seedBossToken('Manager M', 'manager', 'selection-manager');
   await env.DB.prepare('INSERT INTO boss_agent_access VALUES (?, ?)').bind(manager, 'test-agent-id').run();
   await env.DB.prepare("INSERT INTO api_keys (id, name, key_hash, callback_url) VALUES ('callback-agent', 'Callback', 'callback-hash', 'https://callback.test')").run();
-  await env.DB.prepare(`UPDATE bosses SET agent_id = 'callback-agent', telegram_user_id = '1234',
+  await env.DB.prepare(`UPDATE bosses SET agent_id = 'callback-agent',
     preferences = '{"quiet_hours":{"start":"00:00","end":"23:59","timezone":"UTC"}}' WHERE id = ?`).bind(manager).run();
   await env.DB.prepare("INSERT INTO sessions (id, agent_id) VALUES ('archive-session', 'test-agent-id')").run();
   const row = await env.DB.prepare("INSERT INTO messages (agent_id, direction, mode, body) VALUES ('test-agent-id', 'agent_to_boss', 'async', 'Archive test') RETURNING *").first<MessageRow>();
   if (!row) throw new Error('message seed failed');
   message = row;
-  await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES ('archive-provider', 'telegram', 'Archive', '{}')").run();
-  await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, kind, provider_id, label, target)
-    VALUES ('archive-destination', ?, 'telegram_chat', 'archive-provider', 'Archive', '{"chat_id":"1234"}')`).bind(manager).run();
-  await env.DB.prepare("INSERT INTO inbound_routes (id, destination_id, target_agent_id) VALUES ('archive-inbound', 'archive-destination', 'test-agent-id')").run();
+  await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, kind, label, target)
+    VALUES ('archive-destination', ?, 'native_live', 'Archive', '{}')`).bind(manager).run();
 });
 beforeEach(async () => { await env.DB.prepare('UPDATE bosses SET archived_at = NULL WHERE id = ?').bind(manager).run(); });
 afterEach(() => vi.unstubAllGlobals());
@@ -80,46 +75,12 @@ it('excludes archived managers and admins from callback fan-out', async () => {
   await env.DB.prepare("UPDATE bosses SET role = 'manager' WHERE id = ?").bind(manager).run();
 });
 
-it('excludes archived destinations, inbound identities, and quiet hours', async () => {
+it('excludes archived destinations and quiet hours', async () => {
   expect(await resolveDestinations(env, message)).toHaveLength(1);
-  expect(await findInboundRoute(env, 'telegram', '1234')).not.toBeNull();
-  expect((await resolveBossForChannel(env, 'telegram', '1234', false)).boss?.id).toBe(manager);
   expect(await getAgentQuietHoursEnd(env, 'test-agent-id', new Date('2026-09-13T12:00:00Z'))).not.toBeNull();
   await archive();
   expect(await resolveDestinations(env, message)).toEqual([]);
-  expect(await findInboundRoute(env, 'telegram', '1234')).toBeNull();
-  expect(await resolveBossForChannel(env, 'telegram', '1234', false)).toEqual({ boss: null, error: 'unknown sender' });
   expect(await getAgentQuietHoursEnd(env, 'test-agent-id', new Date('2026-09-13T12:00:00Z'))).toBeNull();
-});
-
-it('keeps anonymous webhook access closed when every boss is archived', async () => {
-  await archive();
-  await env.DB.prepare("UPDATE bosses SET archived_at = datetime('now') WHERE id = ?").bind(admin).run();
-  try {
-    expect(await resolveBossForChannel(env, 'telegram', '1234', false)).toEqual({ boss: null, error: 'unknown sender' });
-    expect(await resolvedBosses(env.DB, 'test-agent-id')).toEqual([]);
-  } finally {
-    await env.DB.prepare('UPDATE bosses SET archived_at = NULL WHERE id = ?').bind(admin).run();
-  }
-});
-
-it('invites only live granted bosses to Discord threads', async () => {
-  await env.DB.prepare("UPDATE bosses SET discord_user_id = '5678' WHERE id = ?").bind(manager).run();
-  const transport = vi.fn(async (url: string) => url.endsWith('/threads')
-    ? Response.json({ id: 'archive-thread' }) : new Response(null, { status: 204 }));
-  vi.stubGlobal('fetch', transport);
-  const invites = (): number => transport.mock.calls.filter(([url]) => url.includes('/thread-members/')).length;
-  const discord = { channel: 'discord' as const, config: { use_threads: true, bot_token: 'test-bot', channel_id: '100' } };
-  const openThread = async (sessionId: string): Promise<string | undefined> => {
-    await env.DB.prepare("INSERT INTO sessions (id, agent_id) VALUES (?, 'test-agent-id')").bind(sessionId).run();
-    return ensureThreadForSession(env, 'test-agent-id', sessionId, discord, 'discord-message');
-  };
-  expect(await openThread('thread-live')).toBe('archive-thread');
-  expect(invites()).toBe(1);
-  transport.mockClear();
-  await archive();
-  expect(await openThread('thread-archived')).toBe('archive-thread');
-  expect(invites()).toBe(0);
 });
 
 it('does not consume a pairing code or issue a token for an archived boss', async () => {

@@ -17,7 +17,7 @@ import type { SendTarget } from './message-send-target';
 import { noteReplyStatements, validateNoteReply } from './note-replies';
 
 import { dispatchDestinations } from '../delivery';
-import { deliverLegacySend } from './message-send-legacy';
+import { enqueueNativeDelivery } from './message-send-legacy';
 import { resolveSendTarget } from './message-send-target';
 const DEFAULT_TIMEOUT_SECONDS = 300;
 const MAX_ASK_TIMEOUT_SECONDS = 86400;
@@ -107,10 +107,10 @@ routes.post('/resolve-target', async (c) => {
 });
 
 export async function persistSend(c: Context<{ Bindings: Env }>, input: SendInput, target: SendTarget): Promise<Response | MessageRow> {
-  const { agentId, channelConfigs, requestedChannel, metadata, idempotencyKey, mode, body, priority, messageType, sessionId } = input;
+  const { agentId, metadata, idempotencyKey, mode, body, priority, messageType, sessionId } = input;
   const { targetAgentId, targetSessionId, direction, targetSession } = target;
-  // Agent-to-agent messages use 'api' channel; others use resolved channel config
-  const channel = direction === 'agent_to_agent' ? 'api' : (channelConfigs[0]?.channel ?? requestedChannel ?? null);
+  // A null channel represents app-only boss delivery.
+  const channel = direction === 'agent_to_agent' ? 'api' : null;
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   if (idempotencyKey) {
     const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
@@ -145,7 +145,7 @@ export async function persistSend(c: Context<{ Bindings: Env }>, input: SendInpu
 }
 
 export async function finishSend(c: Context<{ Bindings: Env }>, input: SendInput, target: SendTarget, inserted: MessageRow): Promise<Response> {
-  const { agentId, payload, mode, priority, body, sessionId, options, channelConfigs, optionMediaResult, fileUrl, agentConfig } = input;
+  const { agentId, payload, mode, priority, body, sessionId, options } = input;
   const { direction, targetAgentId, targetSession, targetWarning } = target;
   // Options retain their cron lifetime; explicit blocking timeouts also cover text asks.
   if (options || (mode === 'blocking' && typeof payload.timeout === 'number')) {
@@ -163,10 +163,8 @@ export async function finishSend(c: Context<{ Bindings: Env }>, input: SendInput
   if (sessionId && direction === 'agent_to_boss' && !input.integration) {
     c.executionCtx.waitUntil(inferSessionStatus(c.env, agentId, sessionId, mode, priority as string, body));
   }
-  await dispatchDestinations(c.env, inserted, channelConfigs);
-  const legacyResult = await deliverLegacySend(c, inserted, channelConfigs, options, optionMediaResult.value, fileUrl, agentConfig?.avatar_url ?? undefined);
-  if (legacyResult instanceof Response) return legacyResult;
-  const queuedForQuietHours = legacyResult;
+  await dispatchDestinations(c.env, inserted);
+  const queuedForQuietHours = await enqueueNativeDelivery(c.env, inserted);
   // Notify boss-agents and boss iOS devices after immediate agent-to-boss delivery.
   if (direction === 'agent_to_boss' && !queuedForQuietHours) {
     c.executionCtx.waitUntil(notifyBossAgents(c.env, agentId, inserted));

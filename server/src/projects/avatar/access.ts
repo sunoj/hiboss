@@ -5,8 +5,7 @@
 const PARTICIPANTS_SQL = `SELECT ?2 AS agent_id
   UNION SELECT agent_id FROM sessions WHERE project_id = ?1
   UNION SELECT agent_id FROM progress_posts WHERE project_id = ?1
-  UNION SELECT created_by_agent_id FROM projects WHERE id = ?1 AND created_by_agent_id IS NOT NULL
-  UNION SELECT s.agent_id FROM destination_routes r JOIN sessions s ON s.id = r.session_id WHERE r.project_id = ?1`;
+  UNION SELECT created_by_agent_id FROM projects WHERE id = ?1 AND created_by_agent_id IS NOT NULL`;
 
 const OUTSIDER_SQL = `SELECT 1 FROM (${PARTICIPANTS_SQL}) owners WHERE NOT EXISTS (
     SELECT 1 FROM boss_agent_access mine

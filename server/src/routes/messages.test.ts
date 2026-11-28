@@ -28,9 +28,6 @@ function toUtcTime(value: Date): string {
 
 async function setupQuietHoursAgent(agentId: string, apiKey: string): Promise<Record<string, string>> {
   const headers = await createAgentAuth(agentId, apiKey);
-  await env.DB.prepare(
-    'INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, ?, ?, 1)'
-  ).bind(`cfg-${agentId}`, agentId, 'api', JSON.stringify({})).run();
 
   const now = new Date();
   const quietStart = new Date(now.getTime() - 60_000);
@@ -216,6 +213,6 @@ describe('POST /api/messages', () => {
       .prepare('SELECT status FROM messages WHERE id = ?')
       .bind(data.id)
       .first<{ status: string }>();
-    expect(messageRow?.status).toBe('delivered');
+    expect(messageRow?.status).toBe('sent');
   });
 });

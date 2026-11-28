@@ -5,9 +5,9 @@
 import { bossProjectsRouter } from './projects/boss-router';
 import { projectAliasesRouter } from './projects/aliases-router';
 import { Hono } from 'hono';
-import { bossExternalAccountsRouter, adminExternalAccountsRouter } from './routes/boss-external-accounts';
-import { bossDestinationsRouter, bossProvidersRouter } from './routes/boss-destinations';
+import { bossDestinationsRouter } from './routes/boss-destinations';
 import { cors } from 'hono/cors';
+import { matchedRoutes } from 'hono/route';
 import type { Env } from './types';
 import { adminRouter } from './routes/admin';
 import integrationsRouter from './integrations/routes';
@@ -21,12 +21,9 @@ import { joinRouter } from './routes/join';
 import { messagesRouter } from './routes/messages';
 import { streamRouter } from './routes/stream';
 import { groupsRouter } from './routes/groups';
-import { routingRouter } from './routes/routing';
 import { attachmentsRouter } from './routes/attachments';
 import { boxRouter } from './box/items';
 import { publicShares } from './box/shares/public';
-import { discordInteractionsRouter } from './routes/discord-interactions';
-import { webhooksRouter } from './routes/webhooks';
 import { bossesRouter } from './routes/bosses';
 import { bossNotesRouter } from './routes/boss-session-notes';
 import { agentNotesRouter } from './routes/session-notes';
@@ -40,7 +37,6 @@ import { sessionEventsRouter } from './routes/session-events';
 import { progressRouter } from './routes/progress';
 import { progressTeamsRouter } from './routes/progress-teams';
 import { handleScheduled } from './scheduled';
-import { discordGatewayRouter } from './routes/discord-gateway-api';
 import { requestId } from './middleware/request-id';
 import { bossPairingRouter, pairingRouter } from './routes/pairing';
 import { bossSigninRouter, signinRouter } from './routes/signin';
@@ -84,31 +80,28 @@ app.use(
   }),
 );
 
+// Wildcard auth middleware also matches unknown paths. Return 404 before authenticating those requests.
+app.use('/api/*', (c, next) => matchedRoutes(c).some(route => route.method !== 'ALL') ? next() : c.notFound());
+
 app.route('/api/attachments', attachmentsRouter);
 app.route('/api/box', boxRouter);
 app.route('/s', publicShares);
-// Discord-compatible webhook URLs: /{17-20 digit id}/{token} never matches the named routes below.
+// Discord-compatible webhook URLs: /{17-20 digit id}/{token}.
 app.route('/api/webhooks', discordWebhookRouter);
 app.route('/api/:version{v[0-9]{1,2}}/webhooks', discordWebhookRouter);
-app.route('/api/webhooks/discord-interactions', discordInteractionsRouter);
-app.route('/api/webhooks', webhooksRouter);
 app.route('/api/agents/me/keys', agentKeysRouter);
 app.route('/api/agents/me/signing-keys', agentSigningRouter);
 app.route('/api/agents', agentsRouter);
 app.route('/api/integrations', integrationsRouter);
 app.route('/api/messages', streamRouter);
 app.route('/api/messages', messagesRouter);
-app.route('/api/routing-rules', routingRouter);
 app.route('/api/groups', groupsRouter);
-app.route('/api/bosses', adminExternalAccountsRouter);
 app.route('/api/bosses', bossesRouter);
-app.route('/api/boss/me/external-accounts', bossExternalAccountsRouter);
 app.route('/api/boss/inbox', bossInboxRouter);
 app.route('/api/boss/devices', bossDevicesRouter);
 app.route('/api/boss/tokens', bossTokensRouter);
 app.route('/api/boss/clients', bossClientsRouter);
 app.route('/api/boss/destinations', bossDestinationsRouter);
-app.route('/api/boss/providers', bossProvidersRouter);
 app.route('/api/boss/projects', bossProjectsRouter);
 app.route('/api/projects', projectAliasesRouter);
 app.route('/api/boss', bossGroupBroadcastRouter);
@@ -136,7 +129,6 @@ app.route('/api', panelRelayRouter);
 app.route('/api/join', joinRouter);
 app.route('/api/devices', deviceInvitesRouter);
 app.route('/api/bootstrap', bootstrapBossRouter);
-app.route('/api/discord-gateway', discordGatewayRouter);
 app.route('/api', adminRouter);
 
 app.get('/', (c) => c.text('hiboss server'));
@@ -164,7 +156,6 @@ app.onError((err, c) => {
   return c.json({ error: 'internal server error', request_id: reqId }, 500);
 });
 
-export { DiscordGateway } from './discord-gateway';
 export { PanelRoom } from './panels/relay/room';
 
 export default {

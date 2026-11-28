@@ -6,7 +6,7 @@ import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent-keys';
 import { drainDestinationDeliveries } from '../delivery/dispatch';
-import { chatKey } from '../delivery/targets';
+import { fingerprint } from '../delivery/targets';
 import * as adapters from '../delivery/adapters';
 import { seedBossToken, seedDatabase, getTestAgentId } from '../test-helpers';
 import type { Env, MessageRow } from '../types';
@@ -46,23 +46,19 @@ async function deliveryPair(name: string): Promise<{
   const prefix = unique(name);
   const primary = `${prefix}-a`;
   const secondary = `${prefix}-z`;
-  const provider = unique('provider');
-  await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES (?, 'telegram', ?, ?)")
-    .bind(provider, provider, JSON.stringify({ bot_token: provider })).run();
   for (const [id, bossId] of [[primary, primaryBoss.id], [secondary, otherBoss.id]]) {
-    await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, kind, provider_id, target, label)
-      VALUES (?, ?, 'telegram_chat', ?, ?, ?)`)
-      .bind(id, bossId, provider, JSON.stringify({ chat_id: prefix }), id).run();
+    await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, kind, target, label)
+      VALUES (?, ?, 'native_live', '{}', ?)`).bind(id, bossId, id).run();
   }
   const row = await env.DB.prepare(`INSERT INTO messages (agent_id, direction, mode, channel, body, status)
-    VALUES (?, 'agent_to_boss', 'async', 'telegram', 'delivery', 'sent') RETURNING *`)
+    VALUES (?, 'agent_to_boss', 'async', NULL, 'delivery', 'sent') RETURNING *`)
     .bind(getTestAgentId()).first<MessageRow>();
   if (!row) throw new Error('message fixture failed');
   const first = `${prefix}-delivery-a`;
   await env.DB.prepare(`INSERT INTO message_deliveries
     (id, message_id, destination_id, external_target, next_attempt_at)
     VALUES (?, ?, ?, ?, '2000-01-01T00:00:00.000Z')`)
-    .bind(first, row.id, primary, await chatKey('telegram', { chat_id: prefix, bot_token: provider })).run();
+    .bind(first, row.id, primary, await fingerprint(['native_live', null])).run();
   await env.DB.prepare('INSERT INTO message_deliveries (message_id, destination_id, merged_into) VALUES (?, ?, ?)')
     .bind(row.id, secondary, first).run();
   return { primaryBoss, primary, secondary, message: row.id };

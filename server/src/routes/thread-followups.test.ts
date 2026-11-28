@@ -101,7 +101,7 @@ it.each(['cleanup', 'expiry', 'default'])('preserves a reaction added after the 
     .bind(id).first<MessageRow>();
   expect(snapshot).not.toBeNull();
   await storeMessageReaction(env, id, 'agent', 'concurrent-agent', '👍');
-  if (kind === 'cleanup') await withdrawResolvedOptions(env, getTestAgentId(), snapshot!, 'A');
+  if (kind === 'cleanup') await withdrawResolvedOptions(env, snapshot!, 'A');
   else await expireMessageOptions(env, getTestAgentId(), snapshot!);
   const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
     .bind(id).first<{ metadata: string }>();

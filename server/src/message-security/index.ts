@@ -16,7 +16,6 @@ export {
   agentBearerProvenance,
   agentSignedProvenance,
   bearerApiMetadata,
-  channelMetadata,
   mergeProvenance,
   signedApiMetadata,
   systemMetadata,

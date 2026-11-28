@@ -7,7 +7,6 @@ import { getBossId, getBossRole } from '../middleware/auth';
 import { getAccessibleAgentIds } from './boss-api-access';
 import { mapMessageRow, clampNumber, parsePriorityFilter } from './message-helpers';
 import { findMessageByIdPrefix } from './id-prefix';
-import { forwardMessage, validateForwardChannel } from './message-forward';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { decodeRequiredInputCursor, fetchRequiredInputPage } from './boss-required-inputs';
@@ -117,28 +116,6 @@ routes.get('/messages/:id', async (c) => {
     .bind(row.id, ...agentIds, ...agentIds, row.id)
     .all<MessageRow>();
   return c.json({ ...mapMessageRow(row), replies: (replies.results ?? []).map(mapMessageRow) });
-});
-
-routes.post('/messages/:id/forward', async (c) => {
-  const bossId = getBossId(c);
-  const role = getBossRole(c);
-  if (role === 'viewer') return c.text('viewer cannot send messages', 403);
-  const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
-  const messageId = c.req.param('id');
-  const original = await findMessageByIdPrefix(c.env.DB, messageId, true);
-  if (!original || !agentIds.includes(original.agent_id)) return c.text('not found', 404);
-  const payload = await c.req.json<Record<string, unknown>>();
-  const targetChannel = validateForwardChannel(payload.channel);
-  if (!targetChannel) return c.text('channel must be discord or telegram', 400);
-  try {
-    const forwarded = await forwardMessage(c.env, original, targetChannel);
-    c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'message.forward', 'message', original.id, targetChannel));
-    return c.json(mapMessageRow(forwarded), 201);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'forward failed';
-    const status = message === 'no channel configured' ? 400 : message === 'cannot forward boss messages' ? 403 : 502;
-    return c.text(message, status);
-  }
 });
 
 /** PATCH /api/boss/messages/:id — boss marks a message as read */

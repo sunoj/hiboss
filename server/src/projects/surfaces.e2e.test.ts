@@ -3,7 +3,6 @@
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, seedBossToken, seedDatabase } from '../test-helpers';
-import { resolveDestinations } from '../delivery/destinations';
 
 beforeAll(seedDatabase);
 const request = (path: string, method = 'GET', body?: unknown, token?: string): Promise<Response> =>
@@ -72,22 +71,4 @@ it('scopes boss inventory and exposes canonical session fields even for inactive
   const { projects } = await listing.json() as { projects: { slug: string }[] };
   expect(projects.some(p => p.slug === 'invisible')).toBe(false);
   expect((await request('boss/projects/invisible', 'PATCH', { display_name: 'No' }, 'scoped-projects')).status).toBe(404);
-});
-
-it('routes by project IDs and retains target routes when explicitly merging', async () => {
-  await seedBossToken('Route Admin', 'admin', 'route-admin', 'route-admin');
-  await request('sessions', 'POST', { id: 'route-session', project: 'route-source' });
-  await request('progress', 'POST', { body: 'route-target', project: 'route-target' });
-  const source = await env.DB.prepare("SELECT id FROM projects WHERE slug = 'route-source'").first<string>('id');
-  const target = await env.DB.prepare("SELECT id FROM projects WHERE slug = 'route-target'").first<string>('id');
-  if (!source || !target) throw new Error('missing route projects');
-  await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, label, target) VALUES ('route-dest', 'route-admin', 'discord_channel', 'Route', '{}')").run();
-  await env.DB.prepare("INSERT INTO destination_routes (id, destination_id, project_id, external_channel_id) VALUES ('source-route', 'route-dest', ?, 'source-channel'), ('target-route', 'route-dest', ?, 'target-channel')").bind(source, target).run();
-  const message = { agent_id: 'test-agent-id', direction: 'agent_to_boss' as const, priority: 'normal' as const, session_id: 'route-session' };
-  const before = await resolveDestinations(env, message);
-  expect(before.find(d => d.id === 'route-dest')?.config.channel_id).toBe('source-channel');
-  expect((await request(`boss/projects/${source}`, 'PATCH', { merge_into: target }, 'route-admin')).status).toBe(200);
-  const after = await resolveDestinations(env, { ...message, project: 'route-source' });
-  expect(after.find(d => d.id === 'route-dest')?.config.channel_id).toBe('target-channel');
-  expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM destination_routes WHERE destination_id = 'route-dest'").first('n')).toBe(1);
 });

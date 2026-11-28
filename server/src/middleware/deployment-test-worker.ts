@@ -4,7 +4,7 @@ import worker from '../index';
 import type { Env } from '../types';
 import { hashApiKey } from './auth';
 
-export { DiscordGateway, PanelRoom } from '../index';
+export { PanelRoom } from '../index';
 
 export default {
   ...worker,

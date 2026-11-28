@@ -1,42 +1,11 @@
 /**
  * Database query functions for message-related data.
- * Handles fetching messages, replies, channel configurations, and rate limiting.
+ * Handles fetching messages, replies, and rate limiting.
  */
 
-import type { Channel, Env, MessageRow } from '../types';
+import type { Env, MessageRow } from '../types';
 import { mapMessageRow } from './message-helpers';
 import { isDecisionReply } from '../decision-answerability';
-
-export async function selectChannelConfig(env: Env, agentId: string, requested?: Channel) {
-  if (requested) {
-    const exact = await env.DB
-      .prepare("SELECT channel, config FROM channel_configs WHERE agent_id = ? AND enabled = 1 AND channel = ? LIMIT 1")
-      .bind(agentId, requested)
-      .first<{ channel: Channel; config: string }>();
-    if (exact) {
-      return { channel: exact.channel, config: JSON.parse(exact.config) as Record<string, unknown> };
-    }
-  }
-  const fallback = await env.DB
-    .prepare("SELECT channel, config FROM channel_configs WHERE agent_id = ? AND enabled = 1 ORDER BY created_at DESC LIMIT 1")
-    .bind(agentId)
-    .first<{ channel: Channel; config: string }>();
-  if (!fallback) {
-    throw new Error('no channel configured');
-  }
-  return { channel: fallback.channel, config: JSON.parse(fallback.config) as Record<string, unknown> };
-}
-
-export async function fetchAllChannelConfigs(env: Env, agentId: string) {
-  const rows = await env.DB
-    .prepare('SELECT channel, config FROM channel_configs WHERE agent_id = ? AND enabled = 1')
-    .bind(agentId)
-    .all<{ channel: Channel; config: string }>();
-  return (rows.results ?? []).map((r) => ({
-    channel: r.channel,
-    config: JSON.parse(r.config) as Record<string, unknown>,
-  }));
-}
 
 export async function fetchMessageRow(env: Env, agentId: string, messageId: string) {
   const exact = await env.DB

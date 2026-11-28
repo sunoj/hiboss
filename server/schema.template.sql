@@ -48,18 +48,10 @@ CREATE INDEX idx_messages_target_updated;
 CREATE INDEX idx_messages_open_expires;
 CREATE TRIGGER messages_updated_at BEGIN SELECT 1; END;
 
--- Deferred channel deliveries blocked by boss quiet hours
+-- Deferred app notifications blocked by boss quiet hours
 CREATE TABLE IF NOT EXISTS delivery_queue;
 
 CREATE INDEX IF NOT EXISTS idx_delivery_queue_pending;
-
--- Channel configurations (per agent)
-CREATE TABLE IF NOT EXISTS channel_configs;
-
--- Routing rules: regex patterns route incoming boss messages to agents
-CREATE TABLE IF NOT EXISTS routing_rules;
-
-CREATE INDEX IF NOT EXISTS idx_routing_rules_channel;
 
 -- Agent groups
 
@@ -74,8 +66,6 @@ CREATE TABLE IF NOT EXISTS agent_group_members;
 -- Boss identities and preferences
 CREATE TABLE IF NOT EXISTS bosses;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_telegram;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_discord;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_agent;
 
 -- Installed boss clients
@@ -143,8 +133,6 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_action;
 CREATE TABLE IF NOT EXISTS sessions;
 
 CREATE INDEX IF NOT EXISTS idx_sessions_agent;
-CREATE INDEX IF NOT EXISTS idx_sessions_discord_thread;
-CREATE INDEX IF NOT EXISTS idx_sessions_telegram_topic;
 CREATE INDEX idx_sessions_agent_updated;
 CREATE TRIGGER sessions_inserted_at BEGIN SELECT 1; END;
 CREATE TRIGGER sessions_updated_at BEGIN SELECT 1; END;
@@ -219,23 +207,15 @@ CREATE TABLE interaction_submissions;
 CREATE TABLE interaction_deliveries;
 
 -- Add boss-owned destinations and per-message delivery state without touching messages.
--- Backfill legacy credentials, accessible chats, session routes, and native clients.
-CREATE TABLE channel_providers;
 
-CREATE UNIQUE INDEX idx_channel_providers_effective_credential;
 CREATE TABLE boss_destinations;
 CREATE INDEX idx_boss_destinations_boss;
-CREATE TABLE destination_routes;
-CREATE UNIQUE INDEX idx_destination_routes_scope;
-CREATE TABLE inbound_routes;
 CREATE TABLE message_deliveries;
 CREATE INDEX idx_message_deliveries_message;
 CREATE INDEX idx_message_deliveries_retry;
 
 CREATE UNIQUE INDEX idx_message_deliveries_target;
 CREATE INDEX idx_message_deliveries_merged;
-CREATE TABLE boss_external_accounts;
-CREATE INDEX idx_boss_external_accounts_boss;
 
 -- Project identities and profiles retain legacy text columns.
 CREATE TABLE projects;
@@ -250,7 +230,6 @@ CREATE INDEX idx_sessions_project_nickname;
 CREATE TRIGGER projects_identity_updated BEGIN SELECT 1; END;
 CREATE TRIGGER agents_name_updated BEGIN SELECT 1; END;
 CREATE INDEX idx_progress_project_id;
-CREATE INDEX idx_destination_routes_project;
 
 -- Boss-owned reference items, retry records and full-text search.
 -- Search triggers index only live items and follow metadata edits and deletion.

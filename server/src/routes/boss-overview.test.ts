@@ -44,10 +44,6 @@ beforeAll(async () => {
     "INSERT INTO sessions (id, agent_id, label, status, status_text) VALUES (?, ?, 'sess-b', 'completed', 'done')",
   ).bind('ov-sess-done', AGENT_ID).run();
 
-  // A configured discord channel for health.
-  await env.DB.prepare(
-    "INSERT INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'discord', '{}', 1)",
-  ).bind(AGENT_ID).run();
 });
 
 function bossHeaders(): Record<string, string> {
@@ -62,7 +58,6 @@ describe('GET /api/boss/overview', () => {
       kpis: Record<string, number>;
       priorityDistribution: Record<string, number>;
       sessionStatus: Record<string, number>;
-      channels: { channel: string; configured: boolean }[];
     };
     expect(body.kpis.pendingDecisions).toBe(2);
     expect(body.kpis.blockingPending).toBe(1);
@@ -75,16 +70,11 @@ describe('GET /api/boss/overview', () => {
     const body = await res.json() as {
       priorityDistribution: Record<string, number>;
       sessionStatus: Record<string, number>;
-      channels: { channel: string; configured: boolean }[];
     };
     expect(body.priorityDistribution.critical).toBe(1);
     expect(body.priorityDistribution.high).toBe(1);
     expect(body.priorityDistribution.normal).toBe(1);
     expect(body.sessionStatus.working).toBe(1);
     expect(body.sessionStatus.completed).toBe(1);
-    const discord = body.channels.find((ch) => ch.channel === 'discord');
-    const api = body.channels.find((ch) => ch.channel === 'api');
-    expect(discord?.configured).toBe(true);
-    expect(api?.configured).toBe(true);
   });
 });

@@ -9,8 +9,6 @@ import { createAgent } from '../agent-keys';
 import { seedDatabase } from '../test-helpers';
 import type { Env, MessageRow } from '../types';
 import { fetchAllRequiredInputs } from './boss-required-inputs';
-import { forwardMessage } from './message-forward';
-import { findPendingTelegramMessageInChat } from './telegram-message-match';
 
 const api = 'https://test.local/api';
 const unique = (name: string): string => `m2-${name}-${crypto.randomUUID().slice(0, 8)}`;
@@ -41,38 +39,8 @@ async function eventSessions(messageId: string): Promise<string[]> {
 }
 
 /** A blocking Telegram option ask with a deadline, delivered to `chat`. */
-async function telegramAsk(agentId: string, chat: string): Promise<MessageRow> {
-  const id = unique('ask');
-  await env.DB.prepare("INSERT INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'telegram', ?)")
-    .bind(unique('config'), agentId, JSON.stringify({ chat_id: chat, bot_token: 'synthetic' })).run();
-  await env.DB.prepare(`INSERT INTO messages
-    (id, agent_id, direction, mode, channel, body, status, metadata, expires_at, created_at)
-    VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Deploy prod?', 'delivered', ?, ?, datetime('now', '-1 minute'))`)
-    .bind(id, agentId, JSON.stringify({ options: ['Yes', 'No'], telegram_message_id: 5101, telegram_chat_id: chat }),
-      new Date(Date.now() + 30 * 60_000).toISOString()).run();
-  return row(id);
-}
-
 beforeAll(async () => { await seedDatabase(); });
 afterEach(() => { vi.unstubAllGlobals(); });
-
-describe('MA4 a forward copy of an ask is never an open decision', () => {
-  for (const mode of ['off', 'on'] as const) {
-    it(`keeps one pending input and the original as the Telegram auto-link target (destinations ${mode})`, async () => {
-      const asker = await agent(`ma4-${mode}`);
-      const chat = unique('chat');
-      const original = await telegramAsk(asker.id, chat);
-      // CONTROL: before the forward, the ask is the one pending input and the auto-link target.
-      expect((await fetchAllRequiredInputs(env as Env, [asker.id])).map(item => item.id)).toEqual([original.id]);
-      vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: true, result: { message_id: 5102 } }))));
-      const copy = await forwardMessage({ ...env, DESTINATIONS_MODE: mode } as Env, original, 'telegram');
-      expect({ type: copy.type, reply_to: copy.reply_to }).toEqual({ type: 'forwarded', reply_to: original.id });
-      expect((await fetchAllRequiredInputs(env as Env, [asker.id])).map(item => item.id)).toEqual([original.id]);
-      expect(await findPendingTelegramMessageInChat(env as Env, asker.id, chat)).toBe(original.id);
-      expect((await row(copy.id)).mode).toBe('async');
-    });
-  }
-});
 
 describe('SP2 an agent-to-agent reply belongs to the replier\'s session', () => {
   it('stores the replier\'s session, targets the asker\'s session and lands the event for the replier', async () => {

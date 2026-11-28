@@ -26,8 +26,6 @@ it.each([
   [{ name: 123 }, 'no valid fields to update'],
   [{ role: 123 }, 'no valid fields to update'],
   [{ agent_id: 123 }, 'agent_id must be a string or null'],
-  [{ telegram_user_id: 123, preferences: [] }, 'telegram_user_id must be a string or null'],
-  [{ discord_user_id: false, agent_id: 123 }, 'discord_user_id must be a string or null'],
   [{ preferences: [] }, 'preferences must be an object or null'],
   [{ preferences: { quiet_hours: { timezone: 'UTC' } } }, 'quiet_hours must have start and end time strings (HH:MM)'],
 ])('preserves text PATCH errors for %j', async (payload, error) => {
@@ -43,20 +41,15 @@ it.each([123, null, false, {}, []])('ignores non-string role %j while updating o
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ name: 'Two', role: 'manager' });
 });
-it('preserves schema-default IDs, raw preference responses, and both account writes', async () => {
-  const response = await request('bosses', { name: ' Created ', role: 123, telegram_user_id: ' 123 ', discord_user_id: ' 456 ' }, 'POST');
+it('preserves schema-default IDs and raw preference responses', async () => {
+  const response = await request('bosses', { name: ' Created ', role: 123 }, 'POST');
   expect(response.status).toBe(201);
   const created = await response.json() as { id: string; name: string; role: string };
   expect(created).toMatchObject({ name: 'Created', role: 'admin' });
   expect(created.id).toMatch(/^[a-f0-9]{32}$/);
-  expect((await env.DB.prepare('SELECT provider FROM boss_external_accounts WHERE boss_id = ?').bind(created.id).all()).results).toHaveLength(2);
   const update = await request(`bosses/${created.id}`, { preferences: {} });
   expect(update.status).toBe(200);
   expect(await update.json()).toMatchObject({ preferences: '{}' });
-  const conflict = await request('bosses', { name: 'Duplicate', telegram_user_id: '123' }, 'POST');
-  expect(conflict.status).toBe(409);
-  expect(conflict.headers.get('Content-Type')).toBe('text/plain; charset=UTF-8');
-  expect(await conflict.text()).toBe('external account already linked');
 });
 it.each(['preferred_channel', 'notify_priorities'])('rejects removed %s on both preference paths without persistence', async key => {
   for (const [path, method, body] of [

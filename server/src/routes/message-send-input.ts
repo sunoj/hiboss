@@ -1,11 +1,10 @@
-// Parses send requests, strips server-owned metadata, and selects legacy channels in off/shadow mode.
+// Parses send requests, strips server-owned metadata.
 // Exports prepareSendInput and its inferred contract; depends on shared validators.
 import type { Context } from 'hono';
-import type { Env, Mode, Priority, Channel, OptionMedia } from '../types';
+import type { Env, Mode, Priority } from '../types';
 import { getAgentId } from '../middleware/auth';
 import { stripServerOwnedMetadata } from '../message-security';
-import { destinationsMode } from '../delivery';
-import { checkRateLimit, validateOption, priorityOptions, validateChannel, resolveChannelRouting, parseOptions, normalizeMetadata, parseOptionMedia, fetchAllChannelConfigs, selectChannelConfig } from './message-helpers';
+import { checkRateLimit, validateOption, priorityOptions, parseOptions, normalizeMetadata, parseOptionMedia } from './message-helpers';
 import { parseOptionDescriptions } from './option-descriptions';
 import { parseAskForm } from './message-form';
 import { getAttachmentKey } from './progress-helpers';
@@ -15,21 +14,17 @@ export interface SendInput {
   payload: Record<string, unknown>;
   body: string;
   idempotencyKey: string | null;
-  agentConfig: { default_priority: string; rate_limit: number | null; channel_routing: string | null; avatar_url: string | null } | null;
   mode: Mode;
   priority: Priority;
-  requestedChannel: Channel | undefined;
   fileUrl: string | undefined;
   messageType: string;
   sessionId: string | null;
   toAgent: string | null;
   options: string[] | undefined;
-  optionMediaResult: { ok: true; value: OptionMedia[] | undefined };
   metadata: Record<string, unknown> | null;
   /** Client-owned metadata exactly as a signature must cover it. */
   clientMetadata: Record<string, unknown> | null;
   timeout: number | null;
-  channelConfigs: { channel: Channel; config: Record<string, unknown> }[];
   /** Set for webhook posts from an integration agent. */
   integration?: boolean;
 }
@@ -42,20 +37,15 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   }
   const idempotencyKey = typeof payload.idempotency_key === 'string' ? payload.idempotency_key.trim() || null : null;
   const agentConfig = await c.env.DB
-    .prepare('SELECT default_priority, rate_limit, channel_routing, avatar_url FROM api_keys WHERE id = ?')
+    .prepare('SELECT default_priority, rate_limit FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ default_priority: string; rate_limit: number | null; channel_routing: string | null; avatar_url: string | null }>();
+    .first<{ default_priority: string; rate_limit: number | null }>();
   const defaultPriority = (agentConfig?.default_priority ?? 'normal') as Priority;
   if (agentConfig?.rate_limit && await checkRateLimit(c.env, agentId, agentConfig.rate_limit)) {
     return c.text('rate limit exceeded', 429);
   }
   const mode = validateOption<Mode>(payload.mode, modeOptions, 'async') as Mode;
   const priority = validateOption<Priority>(payload.priority, priorityOptions, defaultPriority) as Priority;
-  const explicitChannel = validateChannel(payload.channel);
-  const routedChannel = !explicitChannel && agentConfig?.channel_routing
-    ? resolveChannelRouting(agentConfig.channel_routing, priority as string)
-    : undefined;
-  const requestedChannel = explicitChannel ?? routedChannel;
   const fileUrl = typeof payload.file_url === 'string' ? payload.file_url.trim() : undefined;
   const messageType = typeof payload.type === 'string' ? payload.type.trim() : 'text';
   const sessionId = typeof payload.session_id === 'string' ? payload.session_id.trim() || null : null;
@@ -82,8 +72,7 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   if (options) (rawMetadata as Record<string, unknown>)['options'] = options;
   if (optionMediaResult.value) (rawMetadata as Record<string, unknown>)['option_media'] = optionMediaResult.value;
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
-  const channelConfigs = await selectLegacyConfigs(c.env, agentId, priority, requestedChannel);
-  return { agentId, payload, body, idempotencyKey, agentConfig, mode, priority, requestedChannel, fileUrl, messageType, sessionId, toAgent, options, optionMediaResult, metadata, clientMetadata, timeout, channelConfigs };
+  return { agentId, payload, body, idempotencyKey, mode, priority, fileUrl, messageType, sessionId, toAgent, options, metadata, clientMetadata, timeout };
 }
 
 /**
@@ -112,26 +101,4 @@ function fileThumbnailError(value: unknown, fileUrl: string | undefined, request
     return 'file_thumbnail_url must point to this worker attachments path';
   }
   return null;
-}
-
-export async function selectLegacyConfigs(env: Env, agentId: string, priority: Priority, requestedChannel: Channel | undefined): Promise<{ channel: Channel; config: Record<string, unknown> }[]> {
-  const isUrgent = priority === 'critical' || priority === 'high';
-  let channelConfigs: { channel: Channel; config: Record<string, unknown> }[] = [];
-  try {
-    if (destinationsMode(env.DESTINATIONS_MODE) === 'on') {
-      channelConfigs = [];
-    } else if (isUrgent) {
-      channelConfigs = await fetchAllChannelConfigs(env, agentId);
-      if (requestedChannel) {
-        // Put requested channel first, keep others
-        channelConfigs.sort((a, b) => (a.channel === requestedChannel ? -1 : b.channel === requestedChannel ? 1 : 0));
-      }
-    } else {
-      const single = await selectChannelConfig(env, agentId, requestedChannel);
-      channelConfigs = [single];
-    }
-  } catch {
-    // No channel configured — message will be stored without delivery.
-  }
-  return channelConfigs;
 }

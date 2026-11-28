@@ -15,7 +15,7 @@ beforeAll(async () => { await seedDatabase(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 async function setup(
-  tag: string, withChannel: boolean,
+  tag: string,
 ): Promise<{ key: string; agent: string; cb: string }> {
   const agent = `aq-${tag}`;
   const key = `hb_aq_${tag}_key_000000001`;
@@ -32,11 +32,6 @@ async function setup(
     ).run();
   await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind(`${agent}-b`, agent).run();
-  if (withChannel) {
-    await env.DB.prepare(
-      "INSERT INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, 'api', '{}', 1)",
-    ).bind(`cfg-${agent}`, agent).run();
-  }
   return { key, agent, cb };
 }
 
@@ -74,23 +69,22 @@ async function queueRows(id: string) {
 
 describe('quiet-hours destination modes', () => {
   for (const mode of ['off', 'shadow', 'on']) {
-    for (const withChannel of [false, true]) {
-      it(`${mode} channel=${withChannel} normal: defers only in legacy modes`, async () => {
-        const { key, cb } = await setup(`${mode}-${withChannel}`, withChannel);
+      it(`${mode} normal: defers only in legacy modes`, async () => {
+        const { key, cb } = await setup(mode);
         stub(cb);
         const id = await send(key, mode);
         const atSend = calls.length;
         const rows = await queueRows(id);
         expect(atSend).toBe(mode === 'on' ? 1 : 0);
         if (mode === 'on') expect(rows).toEqual([]);
-        else expect(rows).toMatchObject([{ status: 'pending' }]);
+        else expect(rows).toMatchObject([{ channel: 'api', config: '{"native_only":true}', status: 'pending' }]);
         await drainTwice(id, mode);
         if (mode === 'on') expect(await queueRows(id)).toEqual([]);
         else expect(await queueRows(id)).toMatchObject([{ status: 'delivered' }]);
         expect(calls.filter(x => x === id).length).toBe(1);
       });
-      it(`${mode} channel=${withChannel} high: immediate, never queued`, async () => {
-        const { key, cb } = await setup(`${mode}-${withChannel}-hi`, withChannel);
+      it(`${mode} high: immediate, never queued`, async () => {
+        const { key, cb } = await setup(`${mode}-hi`);
         stub(cb);
         const id = await send(key, mode, 'high');
         expect(calls).toEqual([id]);
@@ -98,6 +92,5 @@ describe('quiet-hours destination modes', () => {
         await drainTwice(id, mode);
         expect(calls).toEqual([id]);
       });
-    }
   }
 });

@@ -42,11 +42,10 @@ describe('POST /api/bosses', () => {
     createdBossId = data.id;
   });
 
-  it('creates a boss with explicit role and telegram ID', async () => {
+  it('creates a boss with an explicit role', async () => {
     const data = await testJson(201, testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
-      { name: 'Viewer Boss', role: 'viewer', telegram_user_id: '12345' })) as any;
+      { name: 'Viewer Boss', role: 'viewer' })) as any;
     expect(data.role).toBe('viewer');
-    expect(data.telegram_user_id).toBe('12345');
   });
 
   it('rejects empty name', returnsStatus(400, () =>

@@ -10,10 +10,6 @@ export type Env = {
   ATTACHMENTS: R2Bucket;
   BOOTSTRAP_SECRET?: string;
   CONSOLE_ORIGIN?: string;
-  DISCORD_PUBLIC_KEY?: string;
-  DISCORD_WEBHOOK_SECRET?: string;
-  TELEGRAM_WEBHOOK_SECRET?: string;
-  DISCORD_GATEWAY?: DurableObjectNamespace;
   PANEL_ROOM?: DurableObjectNamespace;
   PUSH_RELAY_URL?: string;
   APNS_KEY_ID?: string;
@@ -90,29 +86,4 @@ export interface MessageResponse {
   session_label?: string | null;
   session_branch?: string | null;
   session_status?: string | null;
-}
-
-export interface ChannelConfigRow {
-  id: string;
-  agent_id: string;
-  channel: Channel;
-  config: string;
-  enabled: 0 | 1;
-  created_at: string;
-}
-
-export interface DiscordChannelConfig {
-  channel_id?: string;
-  bot_token?: string;
-  webhook_url?: string;
-  avatar_url?: string;
-  use_threads?: boolean;
-  thread_id?: string;
-}
-
-export interface TelegramChannelConfig {
-  chat_id: string;
-  bot_token: string;
-  message_thread_id?: number;
-  use_topics?: boolean;
 }

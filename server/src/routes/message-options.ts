@@ -1,19 +1,11 @@
 /**
  * Helper functions for message options and expiry.
- * Handles parsing options, building keyboards, and expiring asks at their deadline.
+ * Handles parsing options and expiring asks at their deadline.
  */
 
-import { fetchAgentName, resolveDiscordConfig } from '../message-context';
 import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
-import type { Channel, Env, MessageRow } from '../types';
-import { createForumTopic, editTelegramCaption, editMessageReplyMarkup, formatTelegramAttachmentCaption, removeInlineKeyboard } from '../channels/telegram';
-import { editDiscordMessage } from '../channels/discord';
-import {
-  requireTelegramConfig as _requireTelegramConfig, requireDiscordConfig as _requireDiscordConfig,
-  formatAgentMessage as _formatAgentMessage,
-} from './delivery';
-import { selectChannelConfig } from './message-queries';
-import { extractTelegramMessageId, replyTargetSession } from './message-helpers';
+import type { Env, MessageRow } from '../types';
+import { replyTargetSession } from './message-helpers';
 import { notifyAgentCallback } from '../notify';
 import { createMessageId } from '../session-events';
 import { systemMetadata } from '../message-security';
@@ -44,20 +36,16 @@ export function parseOptions(value: unknown): OptionsParseResult {
   return { ok: true, value: options };
 }
 
-export function buildInlineKeyboard(messageId: string, options: string[]): { text: string; callback_data: string }[][] {
-  return options.map((opt) => [{ text: opt, callback_data: `${messageId.slice(0, 12)}:${opt}` }]);
-}
-
 export async function expireMessageOptions(env: Env, agentId: string, message: MessageRow,
   announce: Announce = announceResolution): Promise<void> {
   // The timeout default answers only a boss ask; any other timed-out message just expires once.
   const meta = parseMetadata(message.metadata);
   const defaultOption = message.direction === 'agent_to_boss' ? getDefaultOption(meta) : null;
   if (defaultOption) {
-    await autoResolveDefaultOption(env, agentId, message, meta, defaultOption, announce);
+    await autoResolveDefaultOption(env, agentId, message, defaultOption, announce);
     return;
   }
-  await expireWithoutDefault(env, agentId, message, announce);
+  await expireWithoutDefault(env, message, announce);
 }
 
 /** SET clause that expires an open ask without recording any choice. */
@@ -67,31 +55,23 @@ export const EXPIRE_ASK_SET_SQL = `status = 'expired', metadata = json_remove(js
 
 /**
  * Expires an open ask without answering it: nobody chose, so nothing is recorded as a
- * choice. Returns false when the ask was already resolved. Channel cleanup is best-effort.
+ * choice. Returns false when the ask was already resolved.
  */
-export async function expireWithoutDefault(env: Env, agentId: string, message: MessageRow,
+export async function expireWithoutDefault(env: Env, message: MessageRow,
   announce: Announce = announceResolution): Promise<boolean> {
   const claimed = await env.DB
     .prepare(`UPDATE messages SET ${EXPIRE_ASK_SET_SQL} WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING id`)
     .bind(message.id)
     .first<{ id: string }>();
   if (!claimed) return false;
-  await announceExpiredAsk(env, agentId, message, announce);
+  await announceExpiredAsk(env, message, announce);
   return true;
 }
 
-/** Best-effort chat edit and resolution fan-out for an ask already expired without an answer. */
-export async function announceExpiredAsk(env: Env, agentId: string, message: MessageRow,
+/** Resolution fan-out for an ask already expired without an answer. */
+export async function announceExpiredAsk(env: Env, message: MessageRow,
   announce: Announce = announceResolution): Promise<void> {
   await announce(env, message, 'expired');
-  const meta = parseMetadata(message.metadata);
-  meta['options_expired'] = true;
-  delete meta['actions'];
-  try {
-    await editExpiredChannelMessage(env, agentId, message, meta, '⏰ Options expired');
-  } catch {
-    // swallow: the expiry is persisted; a chat edit (missing config, network) is best-effort
-  }
 }
 
 /** Unparseable metadata must not keep an ask open forever; expire it with a fresh object. */
@@ -119,12 +99,9 @@ async function autoResolveDefaultOption(
   env: Env,
   agentId: string,
   message: MessageRow,
-  meta: Record<string, unknown>,
   defaultOption: string,
   announce: Announce,
 ): Promise<void> {
-  meta['options_expired'] = true;
-  delete meta['actions'];
   const outcome = await persistOptionReply(
     env,
     message,
@@ -142,124 +119,18 @@ async function autoResolveDefaultOption(
     updated_at = datetime('now') WHERE id = ? AND status = 'replied'`)
     .bind(message.id).run();
   // Best-effort notifications: the default is already durably recorded above, so a failed
-  // agent callback / channel edit (e.g. unreachable URL) must not throw out of the cron path.
+  // agent callback (e.g. unreachable URL) must not throw out of the cron path.
   try {
     await notifyAgentCallback(env, agentId, inserted);
-    await withdrawResolvedOptions(env, agentId, { ...message, metadata: JSON.stringify(meta) }, defaultOption);
-    await editExpiredChannelMessage(env, agentId, message, meta, `⏰ Timed out — default selected: ${defaultOption}`);
+    await withdrawResolvedOptions(env, message, defaultOption);
   } catch {
-    // swallow: resolution persisted; downstream fan-out is best-effort
+    // The resolution is already persisted.
   }
 }
 
-async function editExpiredChannelMessage(
-  env: Env,
-  agentId: string,
-  message: MessageRow,
-  meta: Record<string, unknown>,
-  notice: string,
-): Promise<void> {
-  const agentName = await fetchAgentName(env, agentId) ?? 'agent';
-  if (message.channel === 'telegram') {
-    const tgMsgId = extractTelegramMessageId(message.metadata);
-    if (tgMsgId) {
-      const cc = await selectChannelConfig(env, agentId, 'telegram');
-      const tgConfig = _requireTelegramConfig(cc.config);
-      const expiredText = _formatAgentMessage(agentName, message.body) + `\n\n${notice}`;
-      if (hasOptionKeyboard(meta)) {
-        await editMessageReplyMarkup(tgConfig.bot_token, tgConfig.chat_id, tgMsgId, expiredText);
-      } else {
-        await editTelegramCaption(tgConfig, tgMsgId, formatTelegramAttachmentCaption(agentName, `${message.body}\n\n${notice}`));
-      }
-    }
-  } else if (message.channel === 'discord') {
-    const dcMsgId = meta['discord_message_id'] as string | undefined;
-    if (dcMsgId) {
-      const cc = await selectChannelConfig(env, agentId, 'discord');
-      const dcConfig = _requireDiscordConfig(cc.config);
-      const expiredText = _formatAgentMessage(agentName, message.body) + `\n\n${notice}`;
-      await editDiscordMessage(dcConfig, dcMsgId, expiredText, []);
-    }
-  }
-}
-
-function hasOptionKeyboard(metadata: Record<string, unknown>): boolean {
-  const options = metadata['options'];
-  return Array.isArray(options) && options.length > 0;
-}
-
-export async function withdrawResolvedOptions(
-  env: Env,
-  agentId: string,
-  message: MessageRow,
-  selectedOption: string,
-): Promise<void> {
-  const metadata = message.metadata ? JSON.parse(message.metadata) as Record<string, unknown> : {};
-  metadata['options_resolved'] = true;
-  metadata['selected_option'] = selectedOption;
-  delete metadata['actions'];
+export async function withdrawResolvedOptions(env: Env, message: MessageRow, selectedOption: string): Promise<void> {
   await env.DB.prepare(`UPDATE messages SET metadata = json_remove(
     json_set(${MESSAGE_METADATA_OBJECT_SQL}, '$.options_resolved', json('true'),
       '$.selected_option', ?), '$.actions'), updated_at = datetime('now') WHERE id = ?`)
     .bind(selectedOption, message.id).run();
-  await Promise.allSettled([
-    removeTelegramOptions(env, agentId, metadata),
-    removeDiscordOptions(env, agentId, message, metadata),
-  ]);
-}
-
-async function removeTelegramOptions(
-  env: Env,
-  agentId: string,
-  metadata: Record<string, unknown>,
-): Promise<void> {
-  const messageId = metadata['telegram_message_id'];
-  if (typeof messageId !== 'number') return;
-  const channel = await selectChannelConfig(env, agentId, 'telegram');
-  const config = _requireTelegramConfig(channel.config);
-  await removeInlineKeyboard(config.bot_token, config.chat_id, messageId);
-}
-
-async function removeDiscordOptions(
-  env: Env,
-  agentId: string,
-  message: MessageRow,
-  metadata: Record<string, unknown>,
-): Promise<void> {
-  const messageId = metadata['discord_message_id'];
-  if (typeof messageId !== 'string') return;
-  const channel = await selectChannelConfig(env, agentId, 'discord');
-  const effectiveConfig = await resolveDiscordConfig(env, message, channel.config);
-  await editDiscordMessage(_requireDiscordConfig(effectiveConfig), messageId, undefined, []);
-}
-
-export function resolveChannelRouting(routingJson: string, priority: string): Channel | undefined {
-  try {
-    const routing = JSON.parse(routingJson) as Record<string, string>;
-    const ch = routing[priority];
-    if (ch && ['discord', 'telegram', 'api'].includes(ch)) {
-      return ch as Channel;
-    }
-  } catch { /* ignore */ }
-  return undefined;
-}
-
-/** Auto-create a Telegram forum topic for this agent if use_topics is set. */
-export async function ensureTopicForAgent(env: Env, agentId: string, channelConfig: { channel: Channel; config: Record<string, unknown> }): Promise<void> {
-  if (channelConfig.channel !== 'telegram') return;
-  const cfg = channelConfig.config;
-  if (!cfg['use_topics'] || cfg['message_thread_id']) return;
-  const tgCfg = _requireTelegramConfig(cfg);
-  const agentName = await fetchAgentName(env, agentId) ?? 'agent';
-  try {
-    const threadId = await createForumTopic(tgCfg.bot_token, tgCfg.chat_id, agentName);
-    cfg['message_thread_id'] = threadId;
-    // Persist the thread ID so future sends reuse it
-    await env.DB
-      .prepare('UPDATE channel_configs SET config = ? WHERE agent_id = ? AND channel = ?')
-      .bind(JSON.stringify(cfg), agentId, 'telegram')
-      .run();
-  } catch {
-    // Topic creation failed (group may not support topics) — deliver without thread
-  }
 }

@@ -35,17 +35,6 @@ export async function seedMessageQueries(): Promise<void> {
   await seedDatabase();
   await env.DB.prepare('INSERT INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind(rateAgentId, 'rate-agent', 'message-query-fixture-hash').run();
-  // Seed channel configs for tests. Discord is newer than Telegram; the newer API row is disabled.
-  for (const [id, owner, channel, config, enabled, created] of [
-    ['cc-tg', agentId, 'telegram', { chat_id: 'tg-123', bot_token: 'tg-tok' }, 1, '2026-01-01T00:00:00Z'],
-    ['cc-dc', agentId, 'discord', { channel_id: 'dc-456', bot_token: 'dc-tok' }, 1, '2026-01-02T00:00:00Z'],
-    ['cc-disabled', agentId, 'api', {}, 0, '2026-01-03T00:00:00Z'],
-    ['cc-foreign', rateAgentId, 'discord', {}, 1, '2026-01-04T00:00:00Z'],
-  ] as const) {
-    await env.DB.prepare(`INSERT INTO channel_configs
-      (id, agent_id, channel, config, enabled, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-      .bind(id, owner, channel, JSON.stringify(config), enabled, created).run();
-  }
   await env.DB.batch([
     message(msgId, 'fetch test body'),
     message(parentId, 'parent msg', { direction: 'boss_to_agent' }),

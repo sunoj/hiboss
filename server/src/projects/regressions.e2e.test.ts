@@ -27,14 +27,11 @@ it('merges origin/checkout history, registers the hook and permits its next send
   await post('sessions', { id: 'audit-old', label: 'audit-repo/main', cwd: '/work/audit-checkout' });
   await post('progress', { body: 'audit-history', project: 'audit-checkout', session_id: 'audit-old' });
   const absorbed = await env.DB.prepare("SELECT id FROM projects WHERE slug = 'audit-checkout'").first<string>('id');
-  await env.DB.prepare("INSERT INTO bosses (id, name) VALUES ('merge-boss', 'Merge Boss')").run();
-  await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, label, target) VALUES ('merge-dest', 'merge-boss', 'native_live', 'Merge', '{}')").run();
-  await env.DB.prepare("INSERT INTO destination_routes (id, destination_id, project_id) VALUES ('merge-route', 'merge-dest', ?)").bind(absorbed).run();
   const response = await post('sessions', { id: 'audit-new', project: 'audit-repo',
     project_identity: { slug: 'audit-repo', aliases: ['audit-checkout'] } });
   expect(response.status).toBe(201);
   const winner = await env.DB.prepare("SELECT id FROM projects WHERE slug = 'audit-repo'").first<string>('id');
-  for (const [table, id] of [['sessions', 'audit-old'], ['sessions', 'audit-new'], ['destination_routes', 'merge-route']]) {
+  for (const [table, id] of [['sessions', 'audit-old'], ['sessions', 'audit-new']]) {
     expect(await env.DB.prepare(`SELECT project_id FROM ${table} WHERE id = ?`).bind(id).first('project_id')).toBe(winner);
   }
   expect(await env.DB.prepare("SELECT project_id FROM progress_posts WHERE body = 'audit-history'").first('project_id')).toBe(winner);

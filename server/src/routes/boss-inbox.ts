@@ -166,7 +166,7 @@ routes.post('/:id/reply', async (c) => {
   if (result.kind === 'not_option') await c.env.DB
     .prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
     .bind(parent.id).run();
-  else c.executionCtx.waitUntil(withdrawResolvedOptions(c.env, parent.agent_id, parent, inserted.body).catch(() => {}));
+  else c.executionCtx.waitUntil(withdrawResolvedOptions(c.env, parent, inserted.body).catch(() => {}));
   // Notify sub-agent via callback
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, parent.agent_id, inserted));
   return c.json(mapMessageRow(inserted), 201);

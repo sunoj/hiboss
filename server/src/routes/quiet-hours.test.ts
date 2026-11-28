@@ -156,7 +156,7 @@ describe('quiet-hours delivery integration', () => {
     const message = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
       .bind(id).first<{ status: string }>();
     expect(queueCount?.total).toBe(0);
-    expect(message?.status).toBe('delivered');
+    expect(message?.status).toBe('sent');
   });
 });
 
@@ -169,9 +169,6 @@ async function createQuietHoursAgent(
   const keyHash = await hashApiKey(apiKey);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind(agentId, agentId, keyHash).run();
-  await env.DB.prepare(
-    'INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, ?, ?, 1)'
-  ).bind(`cfg-${agentId}`, agentId, 'api', JSON.stringify({})).run();
   await seedBossPreferences(agentId, {
     quiet_hours_start: new Date(now - 3_600_000).toISOString().slice(11, 16),
     quiet_hours_end: end.toISOString().slice(11, 16), timezone: 'UTC',

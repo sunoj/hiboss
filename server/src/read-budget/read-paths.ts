@@ -79,14 +79,14 @@ export const READ_PATHS: ReadPath[] = [
     } },
   // Externally driven: a misconfigured CI loop can make it hot, so its reads and statements are capped.
   { id: 'discord-webhook-post', kind: 'endpoint', budget: 40, statementBudget: 14,
-    insight: 'POST /api/webhooks/:id/:token (agent_webhooks by id, rate window upsert, send fan-out)',
+    insight: 'POST /api/webhooks/:id/:token (agent_webhooks by id, rate window upsert, app-only send)',
     measure: () => driveRequest(() => new Request(`http://localhost${WEBHOOK_PATH}`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: 'Read budget probe' }) })) },
   { id: 'interaction-requests', kind: 'endpoint', budget: 100,
     insight: 'GET /api/interaction-requests (open questionnaires for the boss)',
     measure: () => driveRequest(get('/api/interaction-requests', boss)) },
   { id: 'cron-every-5-min', kind: 'cron', budget: 100,
-    insight: 'scheduled: expiry sweep, delivery queue, pairing/sign-in cleanup, panel repair',
+    insight: 'scheduled: expiry sweep, app-only delivery queue, pairing/sign-in cleanup, panel repair',
     measure: () => driveTask(async (env: Env) => {
       await handleScheduled(env, 30);
       await repairPanelRooms({ ...env, PANEL_ROOM: roomStub } as unknown as Env);

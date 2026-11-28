@@ -87,9 +87,9 @@ describe('session removal with panels', () => {
     const res = await SELF.fetch(`http://localhost/api/sessions/${session}`, { method: 'DELETE', headers: authHeaders() });
     expect(res.status).toBe(200);
     expect(await state(pending)).toEqual({ status: 'expired', replies: 0 });
-    const row = await env.DB.prepare('SELECT status, telegram_topic_id FROM sessions WHERE id = ?')
-      .bind(session).first<{ status: string; telegram_topic_id: number | null }>();
-    expect(row).toEqual({ status: 'completed', telegram_topic_id: null });
+    const row = await env.DB.prepare('SELECT status FROM sessions WHERE id = ?')
+      .bind(session).first<{ status: string }>();
+    expect(row).toEqual({ status: 'completed' });
     const panel = await SELF.fetch(`https://test.local/api/panels/${panelId}`, { headers: { Authorization: `Bearer ${ADMIN}` } });
     expect(panel.status).toBe(200);
   });

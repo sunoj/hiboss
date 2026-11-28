@@ -102,23 +102,6 @@ export function agentSignedProvenance(
   };
 }
 
-export function channelMetadata(
-  source: 'discord' | 'telegram',
-  actor: BossActor | null,
-  externalUserId?: string,
-): Record<string, unknown> {
-  const provenance = {
-    version: 1,
-    source,
-    actor: actor ? { kind: 'boss', ...actor } : { kind: 'provider_user' },
-    authentication: { kind: 'provider_account', credential_id: externalUserId ?? null },
-    signature: { status: 'unsupported' },
-  };
-  return actor
-    ? addCompatibilityFields(actor, source, provenance)
-    : { source, provenance };
-}
-
 export function systemMetadata(base: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     ...base,

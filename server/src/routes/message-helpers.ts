@@ -6,7 +6,6 @@ import { SESSION_NICKNAME_SQL } from './session-nickname';
 import { readAnsweredBy } from '../answered-by';
 import { stripServerOwnedMetadata } from '../message-security';
 import type {
-  Channel,
   Direction,
   Env,
   MessageResponse,
@@ -17,19 +16,8 @@ import type {
   Status,
 } from '../types';
 
-export { 
-  deliverReply, 
-  deliverToChannelWithOptions, 
-  deliverWithRetry, 
-  formatAgentMessage, 
-  requireDiscordConfig, 
-  requireTelegramConfig 
-} from './delivery';
-export type { DeliveryResult } from './delivery';
-
-const channelOptions: Channel[] = ['discord', 'telegram', 'api'];
 export const priorityOptions: Priority[] = ['critical', 'high', 'normal', 'low'];
-export const resolutionSourceOptions: ResolutionSource[] = ['ios', 'macos', 'telegram', 'discord', 'api'];
+export const resolutionSourceOptions: ResolutionSource[] = ['ios', 'macos', 'api'];
 const LIKE_ESCAPE_PATTERN = /[%_\\]/g;
 
 export function mapMessageRow(row: MessageRow): MessageResponse {
@@ -73,13 +61,6 @@ export function validateOption<T extends string>(value: unknown, options: readon
     return fallback;
   }
   return null;
-}
-
-export function validateChannel(value: unknown): Channel | undefined {
-  if (typeof value === 'string' && channelOptions.includes(value as Channel)) {
-    return value as Channel;
-  }
-  return undefined;
 }
 
 export function validateResolutionSource(value: unknown, fallback: ResolutionSource): ResolutionSource | null {
@@ -218,22 +199,6 @@ export async function inferSessionStatus(
       last_seen_at = datetime('now') WHERE id = ? AND agent_id = ?`)
     .bind(status, statusText, sessionId, null, null, sessionId, agentId)
     .run();
-}
-
-export function extractTelegramMessageId(metadata: string | null): number | undefined {
-  const meta = safeParse(metadata);
-  if (!meta || typeof meta !== 'object') return undefined;
-  const record = meta as Record<string, unknown>;
-  // Flat key: set by delivery handler (agent_to_boss messages)
-  const flat = record['telegram_message_id'];
-  if (typeof flat === 'number') return flat;
-  // Nested key: raw Telegram payload stored by webhook (boss_to_agent messages)
-  const msg = record['message'];
-  if (msg && typeof msg === 'object') {
-    const id = (msg as Record<string, unknown>)['message_id'];
-    if (typeof id === 'number') return id;
-  }
-  return undefined;
 }
 
 // Re-export specialized modules

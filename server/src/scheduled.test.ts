@@ -103,7 +103,7 @@ function makeFakeEnv({
                   run: async () => ({ meta: { changes: 1 } }),
                 };
               }
-              if (sql.includes('FROM messages') && sql.includes('api_keys.name AS agent_name')) {
+              if (sql === 'SELECT * FROM messages WHERE id = ?') {
                 return {
                   first: async () => queuedMessages[binds[0] as string] ?? null,
                 };
@@ -129,23 +129,16 @@ vi.mock('./abandoned-asks', () => ({
   expireStaleAsks: vi.fn(async () => 0),
 }));
 
-vi.mock('./routes/agent-delivery', () => ({
-  deliverAgentMessage: vi.fn(async () => ({ delivered: true })),
-}));
-
 import { expireMessageOptions } from './routes/message-options';
-import { deliverAgentMessage } from './routes/agent-delivery';
 import { expireStaleAsks } from './abandoned-asks';
 
 const mockedExpire = vi.mocked(expireMessageOptions);
-const mockedDeliverAgentMessage = vi.mocked(deliverAgentMessage);
 
 describe('handleScheduled', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-21T00:05:00.000Z'));
     mockedExpire.mockClear();
-    mockedDeliverAgentMessage.mockClear();
   });
 
   afterEach(() => {
@@ -227,27 +220,20 @@ describe('handleScheduled', () => {
       queuedMessages: { 'queued-msg-1': queuedMessage },
     });
 
-    mockedDeliverAgentMessage.mockResolvedValueOnce({ delivered: true, telegramMessageId: 42 });
 
     await handleScheduled(env as never);
 
-    expect(mockedDeliverAgentMessage).toHaveBeenCalledTimes(1);
-    expect(mockedDeliverAgentMessage.mock.calls[0][2].body)
-      .toBe('deliver later\n\n• B — Keep current');
     expect(preparedStatements.some((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'processing'"))).toBe(true);
     expect(preparedStatements.some((stmt) => stmt.sql.startsWith("UPDATE messages SET status = 'delivered'"))).toBe(true);
     expect(preparedStatements.some((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'delivered'"))).toBe(true);
   });
 
-  it('marks queued delivery as failed when channel delivery throws', async () => {
+  it('marks queued delivery as failed when the queued message is missing', async () => {
     const queueRow = makeQueueRow('queue-2', 'queued-msg-2', 'agent-b', 1);
-    const queuedMessage = makeQueuedMessage('queued-msg-2', 'agent-b');
     const { env, preparedStatements } = makeFakeEnv({
       queueRows: [queueRow],
-      queuedMessages: { 'queued-msg-2': queuedMessage },
     });
 
-    mockedDeliverAgentMessage.mockRejectedValueOnce(new Error('channel error'));
 
     await handleScheduled(env as never);
 

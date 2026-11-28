@@ -9,7 +9,6 @@ import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
 import { mintedKeySweep } from '../agent-keys/boss-access';
-import { identityConflict } from './boss-external-accounts';
 import { archiveBoss, restoreBoss } from './boss-archive';
 import { buildBossUpdate, isLastAdminError, lastAdminGuard } from './boss-updates';
 import { issueBossToken } from '../boss-token';
@@ -22,8 +21,6 @@ export interface BossRow {
   id: string;
   name: string;
   role: BossRole;
-  telegram_user_id: string | null;
-  discord_user_id: string | null;
   agent_id: string | null;
   preferences: string | null;
   created_at: string;
@@ -75,8 +72,6 @@ routes.get('/', async (c) => {
     id: row.id,
     name: row.name,
     role: row.role,
-    telegram_user_id: row.telegram_user_id,
-    discord_user_id: row.discord_user_id,
     agent_id: row.agent_id,
     preferences: safeParse(row.preferences),
     created_at: row.created_at,
@@ -95,22 +90,11 @@ routes.post('/', async (c) => {
     return c.text('name is required', 400);
   }
   const role = typeof payload.role === 'string' && VALID_ROLES.includes(payload.role as BossRole) ? (payload.role as BossRole) : 'admin';
-  const telegramInput = typeof payload.telegram_user_id === 'string' ? payload.telegram_user_id.trim() : null;
-  const telegramUserId = telegramInput === '' ? null : telegramInput;
-  const discordInput = typeof payload.discord_user_id === 'string' ? payload.discord_user_id.trim() : null;
-  const discordUserId = discordInput === '' ? null : discordInput;
   const agentIdInput = typeof payload.agent_id === 'string' ? payload.agent_id.trim() : null;
   const bossAgentId = agentIdInput === '' ? null : agentIdInput;
-  for (const [provider, userId] of [['telegram', telegramUserId], ['discord', discordUserId]] as const) {
-    if (userId && await identityConflict(c.env, '', provider, userId)) return c.text('external account already linked', 409);
-  }
   const results = await c.env.DB.batch<BossRow>([
-    c.env.DB.prepare('INSERT INTO bosses (name, role, telegram_user_id, discord_user_id, agent_id) VALUES (?, ?, ?, ?, ?) RETURNING *')
-      .bind(name, role, telegramUserId, discordUserId, bossAgentId),
-    c.env.DB.prepare(`WITH created AS MATERIALIZED (SELECT * FROM bosses WHERE rowid = last_insert_rowid())
-      INSERT INTO boss_external_accounts (boss_id, provider, provider_user_id)
-      SELECT id, 'telegram', telegram_user_id FROM created WHERE telegram_user_id IS NOT NULL
-      UNION ALL SELECT id, 'discord', discord_user_id FROM created WHERE discord_user_id IS NOT NULL`),
+    c.env.DB.prepare('INSERT INTO bosses (name, role, agent_id) VALUES (?, ?, ?) RETURNING *')
+      .bind(name, role, bossAgentId),
     ...mintedKeySweep(c.env.DB),
   ]);
   const inserted = results[0].results[0];

@@ -1,116 +1,26 @@
-// Preserves legacy channel fan-out, quiet-hour queuing, and response semantics.
-// Exports deliverLegacySend; depends on shared adapters and message metadata.
+// Queues app-only boss messages during quiet hours.
+// Exports enqueueNativeDelivery; depends on D1 and quiet-hours preferences.
 import { destinationsMode } from '../delivery';
-import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
-import { appendOptionDescriptions } from './option-descriptions';
-import type { Context } from 'hono';
-import type { Env, Channel, MessageRow, OptionMedia } from '../types';
-import { SENT_MESSAGE_STATUS } from '../message-status';
-import { buildInlineKeyboard } from './message-helpers';
-import { deliverAgentMessage } from './agent-delivery';
+import type { Env, MessageRow } from '../types';
 import { getAgentQuietHoursEnd } from './quiet-hours';
-import { getDeliveryErrorMessage, persistDeliveryFailure, type DeliveryResult } from './delivery';
+
 async function enqueueDelivery(
   env: Env,
   messageId: string,
   agentId: string,
-  channel: Channel,
-  config: Record<string, unknown>,
   scheduledAt: Date,
 ): Promise<void> {
   await env.DB
     .prepare('INSERT INTO delivery_queue (message_id, agent_id, channel, config, scheduled_at) VALUES (?, ?, ?, ?, ?)')
-    .bind(messageId, agentId, channel, JSON.stringify(config), scheduledAt.toISOString())
+    .bind(messageId, agentId, 'api', JSON.stringify({ native_only: true }), scheduledAt.toISOString())
     .run();
 }
 
-export async function deliverLegacySend(c: Context<{ Bindings: Env }>, inserted: MessageRow, channelConfigs: { channel: Channel; config: Record<string, unknown> }[], options: string[] | undefined, optionMedia: OptionMedia[] | undefined, fileUrl: string | undefined, avatarUrl: string | undefined): Promise<Response | boolean> {
-  const { agent_id: agentId, direction, body, session_id: sessionId, priority } = inserted;
-  const metadata = inserted.metadata ? JSON.parse(inserted.metadata) as Record<string, unknown> : null;
-  const isUrgent = priority === 'high' || priority === 'critical';
-  let queuedForQuietHours = false;
-  if (destinationsMode(c.env.DESTINATIONS_MODE) !== 'on' && direction === 'agent_to_boss' && !isUrgent) {
-    const quietHoursEnd = await getAgentQuietHoursEnd(c.env, agentId);
-    if (quietHoursEnd) {
-      const target = channelConfigs[0] ?? { channel: 'api' as const, config: { native_only: true } };
-      await enqueueDelivery(c.env, inserted.id, agentId, target.channel, target.config, quietHoursEnd);
-      queuedForQuietHours = true;
-    }
-  }
-  if (channelConfigs.length > 0 && direction !== 'agent_to_agent' && !queuedForQuietHours) {
-    const agentRow = await c.env.DB.prepare('SELECT name FROM api_keys WHERE id = ?').bind(agentId).first<{ name: string }>();
-    const resolvedAgentName = agentRow?.name ?? 'agent';
-    const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
-    try {
-      const results = await Promise.allSettled(
-        channelConfigs.map((cc) =>
-          deliverAgentMessage(c.env, cc, {
-            agentId, agentName: resolvedAgentName,
-            body: appendOptionDescriptions(body, metadata, cc.channel), sessionId, inlineKeyboard,
-            fileUrl, optionMedia, optionLabels: options, avatarUrl,
-          })
-        )
-      );
-      const deliveryResults = mapLegacyResults(results, channelConfigs);
-      const anyDelivered = deliveryResults.some((d) => d.ok);
-      if (anyDelivered) {
-        await markLegacyDelivered(c.env, inserted.id, deliveryResults, isUrgent);
-      } else {
-        const firstError = results.find((r) => r.status === 'rejected');
-        const message = firstError?.status === 'rejected'
-          ? getDeliveryErrorMessage(firstError.reason)
-          : 'delivery failure';
-        await persistDeliveryFailure(c.env, inserted.id, message);
-        return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'delivery failure';
-      await persistDeliveryFailure(c.env, inserted.id, message);
-      return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
-    }
-  }
-  return queuedForQuietHours;
-}
-
-function mapLegacyResults(
-  results: PromiseSettledResult<DeliveryResult>[],
-  channelConfigs: { channel: Channel; config: Record<string, unknown> }[],
-): LegacyResult[] {
-  return results.map((r, i) => ({
-    channel: channelConfigs[i].channel,
-    ok: r.status === 'fulfilled' && r.value.delivered,
-    telegramMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.telegramMessageId : undefined,
-    telegramChatId: channelConfigs[i].channel === 'telegram' ? channelConfigs[i].config.chat_id : undefined,
-    discordMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.discordMessageId : undefined,
-  }));
-}
-
-interface LegacyResult { channel: Channel; ok: boolean; telegramMessageId?: number; telegramChatId?: unknown; discordMessageId?: string }
-async function markLegacyDelivered(
-  env: Env, messageId: string, deliveryResults: LegacyResult[], isUrgent: boolean,
-): Promise<void> {
-  const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
-  const binds: (string | number)[] = [];
-  const meta: Record<string, unknown> = {};
-  const tgResult = deliveryResults.find((d) => d.telegramMessageId);
-  if (tgResult?.telegramMessageId) {
-    meta['telegram_message_id'] = tgResult.telegramMessageId;
-    if (typeof tgResult.telegramChatId === 'string') meta['telegram_chat_id'] = tgResult.telegramChatId;
-  }
-  const dcResult = deliveryResults.find((d) => d.discordMessageId);
-  if (dcResult?.discordMessageId) {
-    meta['discord_message_id'] = dcResult.discordMessageId;
-  }
-  if (isUrgent && deliveryResults.length > 1) {
-    meta['delivery_results'] = deliveryResults.map((d) => ({ channel: d.channel, ok: d.ok }));
-  }
-  if (Object.keys(meta).length > 0) {
-    updates.push(`metadata = json_patch(${MESSAGE_METADATA_OBJECT_SQL}, json(?))`);
-    binds.push(JSON.stringify(meta));
-  }
-  binds.push(messageId);
-  await env.DB
-    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
-    .bind(...binds)
-    .run();
+export async function enqueueNativeDelivery(env: Env, message: MessageRow): Promise<boolean> {
+  if (destinationsMode(env.DESTINATIONS_MODE) === 'on' || message.direction !== 'agent_to_boss'
+      || message.priority === 'high' || message.priority === 'critical') return false;
+  const quietHoursEnd = await getAgentQuietHoursEnd(env, message.agent_id);
+  if (!quietHoursEnd) return false;
+  await enqueueDelivery(env, message.id, message.agent_id, quietHoursEnd);
+  return true;
 }

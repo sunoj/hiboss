@@ -1,6 +1,6 @@
 // Dashboard overview aggregate for the web console.
 // Exports: getBossOverview computing KPIs, priority distribution, session
-// status counts, and channel health in a single round of queries.
+// status counts in a single round of queries.
 // Depends on D1 and the boss's accessible agent set.
 
 import type { Env, Priority } from '../types';
@@ -15,7 +15,6 @@ export interface BossOverview {
   };
   priorityDistribution: Record<Priority, number>;
   sessionStatus: Record<string, number>;
-  channels: { channel: string; configured: boolean }[];
 }
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'normal', 'low'];
@@ -26,14 +25,13 @@ export async function getBossOverview(env: Env, agentIds: string[]): Promise<Bos
   const ph = agentIds.map(() => '?').join(', ');
   const now = new Date().toISOString();
 
-  const [kpis, priorityDistribution, sessionStatus, channels] = await Promise.all([
+  const [kpis, priorityDistribution, sessionStatus] = await Promise.all([
     loadKpis(env, ph, agentIds, now),
     loadPriorityDistribution(env, ph, agentIds),
     loadSessionStatus(env, ph, agentIds),
-    loadChannelHealth(env, ph, agentIds),
   ]);
 
-  return { kpis, priorityDistribution, sessionStatus, channels };
+  return { kpis, priorityDistribution, sessionStatus };
 }
 
 async function loadKpis(
@@ -97,21 +95,6 @@ async function loadSessionStatus(
   return counts;
 }
 
-async function loadChannelHealth(
-  env: Env, ph: string, agentIds: string[],
-): Promise<BossOverview['channels']> {
-  const rows = await env.DB.prepare(
-    `SELECT DISTINCT channel FROM channel_configs
-     WHERE agent_id IN (${ph}) AND enabled = 1`,
-  ).bind(...agentIds).all<{ channel: string }>();
-  const configured = new Set((rows.results ?? []).map((r) => r.channel));
-  return [
-    { channel: 'discord', configured: configured.has('discord') },
-    { channel: 'telegram', configured: configured.has('telegram') },
-    { channel: 'api', configured: true },
-  ];
-}
-
 function zero<T extends string>(keys: T[]): Record<T, number> {
   return Object.fromEntries(keys.map((k) => [k, 0])) as Record<T, number>;
 }
@@ -121,10 +104,5 @@ function emptyOverview(): BossOverview {
     kpis: { activeSessions: 0, workingSessions: 0, pendingDecisions: 0, blockingPending: 0, unread1h: 0 },
     priorityDistribution: zero(PRIORITIES),
     sessionStatus: zero(SESSION_STATUSES),
-    channels: [
-      { channel: 'discord', configured: false },
-      { channel: 'telegram', configured: false },
-      { channel: 'api', configured: true },
-    ],
   };
 }

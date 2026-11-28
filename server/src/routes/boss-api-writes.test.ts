@@ -77,67 +77,6 @@ describe('POST /api/boss/messages/:id/reply', () => {
 
 });
 
-describe('POST /api/boss/messages/:id/reply', () => {
-  it('removes Discord buttons when an API client selects an option', async () => {
-    const messageId = `boss-api-discord-option-${Date.now()}`;
-    await env.DB.prepare(
-      "INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'discord', ?)"
-    ).bind(
-      `boss-api-discord-config-${Date.now()}`,
-      getTestAgentId(),
-      JSON.stringify({ webhook_url: 'https://discord.test/webhook' }),
-    ).run();
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', ?, 'delivered', 'normal', ?, ?)"
-    ).bind(
-      messageId,
-      getTestAgentId(),
-      'Choose cleanup',
-      JSON.stringify({ options: ['Approve', 'Wait'], discord_message_id: 'discord-option-1' }),
-      new Date(Date.now() + 60_000).toISOString(),
-    ).run();
-    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const res = await testRequest('POST', `http://localhost/api/boss/messages/${messageId}/reply`,
-      bossHeaders(), { body: 'Approve' });
-
-    expect(res.status).toBe(201);
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://discord.test/webhook/messages/discord-option-1',
-      expect.objectContaining({
-        method: 'PATCH',
-        body: expect.stringContaining('"components":[]'),
-      }),
-    );
-  });
-});
-
-describe('POST /api/boss/messages/:id/forward', () => {
-  it('rejects invalid target channels', async () => {
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'sent', 'normal')"
-    ).bind('boss-forward-source', getTestAgentId(), 'Ship this update').run();
-
-    const res = await testRequest('POST', 'http://localhost/api/boss/messages/boss-forward-source/forward',
-      bossHeaders(), { channel: 'api' });
-    expect(res.status).toBe(400);
-    expect(await res.text()).toContain('channel must be discord or telegram');
-  });
-
-  it('rejects forwarding boss-authored messages', async () => {
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'boss_to_agent', 'async', 'api', ?, 'sent', 'normal')"
-    ).bind('boss-forward-blocked', getTestAgentId(), 'Do not forward this').run();
-
-    const res = await testRequest('POST', 'http://localhost/api/boss/messages/boss-forward-blocked/forward',
-      bossHeaders(), { channel: 'telegram' });
-    expect(res.status).toBe(403);
-    expect(await res.text()).toBe('cannot forward boss messages');
-  });
-});
-
 describe('GET /api/boss/sessions', () => {
   it('lists sessions for accessible agents', async () => {
     // Register a session first

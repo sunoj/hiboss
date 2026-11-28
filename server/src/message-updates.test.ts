@@ -3,7 +3,6 @@
 import { testRequest, testJson } from './test-request';
 import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { persistDiscordReaction } from './discord-gateway-reactions';
 import { handleScheduled } from './scheduled';
 import { authHeaders, getTestAgentId, seedDatabase } from './test-helpers';
 
@@ -12,20 +11,6 @@ const SECRET = 'message-updates-test-secret';
 
 beforeAll(async () => {
   await seedDatabase();
-  env.TELEGRAM_WEBHOOK_SECRET = SECRET;
-  await env.DB.prepare(
-    "INSERT INTO bosses (id, name, role, discord_user_id, telegram_user_id) VALUES (?, ?, 'manager', ?, ?)"
-  ).bind('updates-boss', 'Updates Boss', 'updates-discord-boss', 'updates-telegram-boss').run();
-  await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
-    .bind('updates-boss', getTestAgentId()).run();
-  for (const [channel, config] of [
-    ['discord', { channel_id: 'updates-discord-chat' }],
-    ['telegram', { chat_id: 'updates-telegram-chat' }],
-    ['api', {}],
-  ] as const) {
-    await env.DB.prepare('INSERT INTO channel_configs (agent_id, channel, config) VALUES (?, ?, ?)')
-      .bind(getTestAgentId(), channel, JSON.stringify(config)).run();
-  }
   // Backdate only these inserts so a later write in the same request must move the timestamp.
   await env.DB.prepare(`CREATE TRIGGER backdate_expiry_fixture AFTER INSERT ON messages
     WHEN NEW.body LIKE 'updates-expiry-%'
@@ -73,30 +58,18 @@ async function expectSendExpiryUpdate(): Promise<void> {
 }
 
 describe('message update timestamps', () => {
-  it('moves updated_at through Discord, Telegram, option expiry, and scheduled delivery writes', async () => {
-    await insertMessage('updates-discord', 'discord', { discord_message_id: 'updates-external' });
-    expect(await persistDiscordReaction(env, getTestAgentId(), {
-      user_id: 'updates-discord-boss', channel_id: 'updates-discord-chat',
-      message_id: 'updates-external', emoji: { id: null, name: '👍' },
-    }, 'add')).toBe(true);
-    await expectMoved('updates-discord');
-
-    await insertMessage('updates-telegram', 'telegram', { telegram_message_id: 101 });
-    const response = await testRequest('POST', 'https://test.local/api/webhooks/telegram',
-      { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': SECRET },
-      { message_reaction: {
-        chat: { id: 'updates-telegram-chat' }, message_id: 101,
-        user: { id: 'updates-telegram-boss', first_name: 'Boss' },
-        new_reaction: [{ type: 'emoji', emoji: '👍' }],
-      } });
+  it('moves updated_at through reactions, option expiry, and scheduled delivery', async () => {
+    await insertMessage('updates-reaction', 'discord');
+    const response = await testRequest('POST', 'https://test.local/api/messages/updates-reaction/react',
+      authHeaders(), { emoji: '👍' });
     expect(response.status).toBe(200);
-    await expectMoved('updates-telegram');
+    await expectMoved('updates-reaction');
     await expectSendExpiryUpdate();
 
     await insertMessage('updates-scheduled');
     await env.DB.prepare(
       `INSERT INTO delivery_queue (message_id, agent_id, channel, config, scheduled_at)
-        VALUES (?, ?, 'api', '{}', ?)`
+        VALUES (?, ?, 'api', '{"native_only":true}', ?)`
     ).bind('updates-scheduled', getTestAgentId(), OLD).run();
     await handleScheduled(env);
     await expectMoved('updates-scheduled');

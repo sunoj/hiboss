@@ -11,8 +11,6 @@ export interface RepeatSiteEntry {
   unmetered?: string;
 }
 
-const DISCORD_ALARM = 'Discord gateway heartbeat/reconnect alarm: reads Durable Object storage only; '
-  + 'D1 is read per inbound gateway event, not per alarm.';
 const PANEL_ALARM = 'Panel room retry alarm: armed only while a control operation is pending, and each '
   + 'retry reads and writes D1 rows by primary key (panel_id, operation_id).';
 
@@ -25,14 +23,6 @@ export const REPEAT_SITES: RepeatSiteEntry[] = [
     paths: ['boss-required-input-stream'] },
   { id: 'routes/session-events.ts#streamLoop', kind: 'loop', paths: ['session-event-stream'] },
   { id: 'routes/messages.ts#routes.post(/:id/poll)', kind: 'loop', paths: ['agent-reply-long-poll'] },
-  { id: 'routes/delivery.ts#deliverWithRetry', kind: 'loop', paths: [],
-    unmetered: 'Bounded retry (at most 2 attempts, 2 s apart) of one outbound channel send per message; '
-      + 'a send reads at most its session row by primary key (Telegram topic). Runs per message, not per timer.' },
-  { id: 'discord-gateway.ts#DiscordGateway.alarm', kind: 'alarm', paths: [], unmetered: DISCORD_ALARM },
-  { id: 'discord-gateway.ts#DiscordGateway.connect', kind: 'alarm', paths: [], unmetered: DISCORD_ALARM },
-  { id: 'discord-gateway.ts#DiscordGateway.handleHello', kind: 'alarm', paths: [], unmetered: DISCORD_ALARM },
-  { id: 'discord-gateway.ts#DiscordGateway.onClose', kind: 'alarm', paths: [], unmetered: DISCORD_ALARM },
-  { id: 'discord-gateway.ts#DiscordGateway.onMessage', kind: 'alarm', paths: [], unmetered: DISCORD_ALARM },
   { id: 'panels/relay/runtime/engine.ts#PanelEngine.control', kind: 'alarm', paths: [], unmetered: PANEL_ALARM },
   { id: 'panels/relay/runtime/engine.ts#PanelEngine.finish', kind: 'alarm', paths: [], unmetered: PANEL_ALARM },
   { id: 'panels/relay/wall/signals.ts#WallSignals.schedule', kind: 'alarm', paths: [],

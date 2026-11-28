@@ -24,7 +24,6 @@ globs = ["**/*.html"]
 
 [durable_objects]
 bindings = [
-  { name = "DISCORD_GATEWAY", class_name = "DiscordGateway" },
   { name = "PANEL_ROOM", class_name = "PanelRoom" }
 ]
 
@@ -35,6 +34,10 @@ new_classes = ["DiscordGateway"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["PanelRoom"]
+
+[[migrations]]
+tag = "v3"
+deleted_classes = ["DiscordGateway"]
 
 [triggers]
 crons = ["*/5 * * * *"]
@@ -47,15 +50,11 @@ PUSH_RELAY_URL = "https://push.hiboss.org"
 # Leave unset to allow only localhost dev origins.
 CONSOLE_ORIGIN = "https://your-console.pages.dev"
 
-# External delivery path (docs/delivery-destinations.md). An absent or unknown value is "off".
-#   off    agent channel configs, quiet-hours queue and APNs notifier (legacy path)
-#   shadow legacy delivery, plus destination observations and mismatch audits; sends nothing extra
-#   on     per-boss destinations with retries; legacy channel selection is disabled
+# App delivery mode. An absent or unknown value is "off".
+#   off    quiet-hours queue and direct APNs notifier
+#   shadow direct delivery with destination observations
+#   on     per-boss destinations with retries
 DESTINATIONS_MODE = "off"
-
-# Discord application public key, used to verify signed interactions on
-# POST /api/webhooks/discord-interactions. Optional; interactions are rejected without it.
-# DISCORD_PUBLIC_KEY = "<discord-application-public-key>"
 
 # iOS push through APNs. Optional; push is disabled unless all three APNs values are set.
 # The key must belong to the Apple team that signs the iOS app (docs/push-privacy-and-isolation.md).
@@ -64,6 +63,4 @@ DESTINATIONS_MODE = "off"
 
 # Secrets (set with `npx wrangler secret put <NAME>`, never in this file):
 #   BOOTSTRAP_SECRET        required for the first machine (/api/join) and the first boss (/api/bootstrap/boss)
-#   TELEGRAM_WEBHOOK_SECRET X-Telegram-Bot-Api-Secret-Token for the Telegram webhook
-#   DISCORD_WEBHOOK_SECRET  X-Webhook-Secret for POST /api/webhooks/discord
 #   APNS_AUTH_KEY           contents of the APNs .p8 private key (PEM), with APNS_KEY_ID and APNS_TEAM_ID

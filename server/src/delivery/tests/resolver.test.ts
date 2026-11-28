@@ -9,8 +9,8 @@ import type { Priority } from '../../types';
 
 const now = new Date('2026-09-11T02:00:00Z');
 const base: DestinationRow = {
-  id: 'destination' as DestinationId, boss_id: 'boss', kind: 'telegram_chat', client_id: null, provider_id: 'provider',
-  target: '{}', credentials: '{}', preferences: null, min_priority: 'low', enabled: 1,
+  id: 'destination' as DestinationId, boss_id: 'boss', kind: 'native_live', client_id: null,
+  target: '{}', preferences: null, min_priority: 'low', enabled: 1,
   honours_quiet_hours: 1, quiet_start: '22:00', quiet_end: '08:00', timezone: 'UTC', quiet_enabled: 1,
 };
 const priorities = Object.keys(PRIORITY_RANK) as Priority[];
@@ -33,25 +33,17 @@ for (const priority of priorities) for (const honours of [0, 1]) for (const quie
 
 beforeAll(async () => {
   await seedDatabase();
-  await env.DB.prepare("INSERT INTO channel_providers (id, provider, credentials, label) VALUES ('rp', 'telegram', '{\"bot_token\":\"token\"}', 'Bot')").run();
   await env.DB.prepare("INSERT INTO sessions (id, agent_id, label) VALUES ('rs', 'test-agent-id', 'project/branch')").run();
 });
 
 for (const role of ['admin', 'manager', 'viewer']) for (const granted of [false, true]) {
-  it(`resolves ${role} with explicit grant ${granted} and session precedence`, async () => {
+  it(`resolves ${role} with explicit grant ${granted}`, async () => {
     const id = `${role}-${granted}`;
     await env.DB.prepare('INSERT INTO bosses (id, name, role) VALUES (?, ?, ?)').bind(id, id, role).run();
     if (granted) await env.DB.prepare("INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, 'test-agent-id')").bind(id).run();
-    await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, provider_id, target, label) VALUES (?, ?, 'telegram_chat', 'rp', '{\"chat_id\":\"123\"}', 'Chat')").bind(id, id).run();
-    await env.DB.prepare("INSERT INTO destination_routes (destination_id, project, external_thread_id) VALUES (?, 'project', '10')").bind(id).run();
-    await env.DB.prepare("INSERT INTO destination_routes (destination_id, session_id, external_thread_id) VALUES (?, 'rs', '20')").bind(id).run();
+    await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, target, label) VALUES (?, ?, 'native_live', '{}', 'Native')").bind(id, id).run();
     const message = { agent_id: 'test-agent-id', priority: 'normal' as const, direction: 'agent_to_boss' as const, session_id: 'rs' };
     const resolved = (await resolveDestinations(env, message, now)).find(row => row.id === id);
     expect(Boolean(resolved)).toBe(role === 'admin' || granted);
-    if (resolved) {
-      expect(resolved.config.message_thread_id).toBe(20);
-      const project = (await resolveDestinations(env, { ...message, session_id: null, project: 'project' }, now)).find(row => row.id === id);
-      expect(project?.config.message_thread_id).toBe(10);
-    }
   });
 }

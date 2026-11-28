@@ -2,17 +2,12 @@
 // Exports the scheduled handler used by the Worker cron entrypoint.
 // Depends on D1, message expiry helpers, and the shared agent delivery helper.
 
-import { parseStoredJSON as parseMetadata } from './stored-json';
-import { MESSAGE_METADATA_OBJECT_SQL } from './routes/message-reactions';
-import { appendOptionDescriptions } from './routes/option-descriptions';
-import type { Channel, Env, MessageRow } from './types';
+import type { Env, MessageRow } from './types';
 import { SENT_MESSAGE_STATUS } from './message-status';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './routes/delivery';
-import { deliverAgentMessage } from './routes/agent-delivery';
 import { expireMessageOptions } from './routes/message-options';
 import { expireStaleAsks } from './abandoned-asks';
 import { notifyBossAgents } from './notify';
-import { parseOptionMedia } from './routes/option-media';
 import { destinationsMode, drainDestinationDeliveries } from './delivery';
 import { purgeLiveActivityTokens } from './push/live-activity';
 import { ResolutionSweep, type Announce } from './push/resolution';
@@ -24,16 +19,7 @@ const PROCESSING_TIMEOUT_MS = 5 * 60 * 1000;
 interface DeliveryQueueRow {
   id: string;
   message_id: string;
-  agent_id: string;
-  channel: Channel;
-  config: string;
-  scheduled_at: string;
   attempts: number;
-}
-
-interface QueuedMessageRow extends MessageRow {
-  agent_name: string | null;
-  avatar_url: string | null;
 }
 
 /** One cron run; `minute` (UTC) selects the hourly steps, which run in the first five minutes. */
@@ -93,9 +79,10 @@ async function drainDeliveryQueue(env: Env, now: string): Promise<void> {
   await retryFailedQueueItems(env, now);
   const rows = await env.DB
     .prepare(
-      `SELECT id, message_id, agent_id, channel, config, scheduled_at, attempts
+      `SELECT id, message_id, attempts
        FROM delivery_queue
        WHERE status = 'pending' AND scheduled_at <= ?
+         AND channel = 'api' AND json_extract(config, '$.native_only') = 1
        ORDER BY scheduled_at ASC
        LIMIT ?`
     )
@@ -104,10 +91,7 @@ async function drainDeliveryQueue(env: Env, now: string): Promise<void> {
 
   for (const row of rows.results ?? []) {
     const locked = await markQueueProcessing(env, row.id, now);
-    if (!locked) {
-      await dropDisabledQueueItem(env, row);
-      continue;
-    }
+    if (!locked) continue;
     try {
       const message = await fetchQueuedMessage(env, row.message_id);
       if (!message) throw new Error('queued message not found');
@@ -115,7 +99,7 @@ async function drainDeliveryQueue(env: Env, now: string): Promise<void> {
         await markQueueSkipped(env, row.id);
         continue;
       }
-      await deliverQueuedMessage(env, row, message);
+      await markMessageDelivered(env, message);
       await markQueueDelivered(env, row.id);
       // The same boss-agent callback and device push an immediate send triggers.
       if (message.direction === 'agent_to_boss') await notifyBossAgents(env, message.agent_id, message);
@@ -128,75 +112,18 @@ async function drainDeliveryQueue(env: Env, now: string): Promise<void> {
 }
 
 /** An ask answered, expired, or past its deadline while queued no longer needs sending. */
-function isClosedAsk(message: QueuedMessageRow, now: string): boolean {
+function isClosedAsk(message: MessageRow, now: string): boolean {
   if (message.status === 'replied' || message.status === 'expired') return true;
   return !!message.expires_at && Date.parse(message.expires_at) <= Date.parse(now);
 }
 
-async function deliverQueuedMessage(env: Env, row: DeliveryQueueRow, message: QueuedMessageRow): Promise<void> {
-  const metadata = parseMetadata(message.metadata);
-  const options = parseOptions(metadata?.['options']);
-  const optionMediaResult = parseOptionMedia(metadata?.['option_media'], options ?? undefined);
-  const result = await deliverAgentMessage(
-    env,
-    { channel: row.channel, config: JSON.parse(row.config) as Record<string, unknown> },
-    {
-      agentId: message.agent_id,
-      agentName: message.agent_name ?? 'agent',
-      body: appendOptionDescriptions(message.body, metadata, row.channel),
-      sessionId: message.session_id,
-      avatarUrl: message.avatar_url ?? undefined,
-      fileUrl: typeof metadata?.['file_url'] === 'string' ? metadata['file_url'] : undefined,
-      inlineKeyboard: options ? buildInlineKeyboard(message.id, options) : undefined,
-      optionMedia: optionMediaResult.ok ? optionMediaResult.value : undefined,
-      optionLabels: options ?? undefined,
-    },
-  );
-  if (!result.delivered) {
-    throw new Error('delivery failure');
-  }
-  await markMessageDelivered(env, message, result.telegramMessageId, result.discordMessageId,
-    row.channel === 'telegram' ? (JSON.parse(row.config) as Record<string, unknown>).chat_id : undefined);
+async function fetchQueuedMessage(env: Env, messageId: string): Promise<MessageRow | null> {
+  return env.DB.prepare('SELECT * FROM messages WHERE id = ?').bind(messageId).first<MessageRow>();
 }
 
-async function fetchQueuedMessage(env: Env, messageId: string): Promise<QueuedMessageRow | null> {
-  return env.DB
-    .prepare(
-      `SELECT messages.*, api_keys.name AS agent_name, api_keys.avatar_url
-       FROM messages
-       LEFT JOIN api_keys ON api_keys.id = messages.agent_id
-       WHERE messages.id = ?`
-    )
-    .bind(messageId)
-    .first<QueuedMessageRow>();
-}
-
-async function markMessageDelivered(
-  env: Env,
-  message: QueuedMessageRow,
-  telegramMessageId?: number,
-  discordMessageId?: string,
-  telegramChatId?: unknown,
-): Promise<void> {
-  const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
-  const binds: Array<string | number> = [];
-  const nextMetadata: Record<string, unknown> = {};
-
-  if (telegramMessageId) {
-    nextMetadata['telegram_message_id'] = telegramMessageId;
-    if (typeof telegramChatId === 'string') nextMetadata['telegram_chat_id'] = telegramChatId;
-  }
-  if (discordMessageId) nextMetadata['discord_message_id'] = discordMessageId;
-  if (Object.keys(nextMetadata).length > 0) {
-    updates.push(`metadata = json_patch(${MESSAGE_METADATA_OBJECT_SQL}, json(?))`);
-    binds.push(JSON.stringify(nextMetadata));
-  }
-
-  binds.push(message.id);
-  await env.DB
-    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
-    .bind(...binds)
-    .run();
+async function markMessageDelivered(env: Env, message: MessageRow): Promise<void> {
+  await env.DB.prepare(`UPDATE messages SET status = 'delivered', updated_at = datetime('now')
+    WHERE id = ? AND ${SENT_MESSAGE_STATUS}`).bind(message.id).run();
 }
 
 async function reclaimStaleQueueItems(env: Env, now: string): Promise<void> {
@@ -216,23 +143,11 @@ async function retryFailedQueueItems(env: Env, now: string): Promise<void> {
 async function markQueueProcessing(env: Env, queueId: string, now: string): Promise<boolean> {
   const result = await env.DB
     .prepare(`UPDATE delivery_queue SET status = 'processing', attempts = attempts + 1, scheduled_at = ?, error = NULL
-      WHERE id = ? AND status = 'pending' AND (
-        (channel = 'api' AND json_extract(config, '$.native_only') = 1) OR EXISTS (
-        SELECT 1 FROM channel_configs WHERE agent_id = delivery_queue.agent_id
-        AND channel = delivery_queue.channel AND enabled = 1))`)
+      WHERE id = ? AND status = 'pending'
+      AND channel = 'api' AND json_extract(config, '$.native_only') = 1`)
     .bind(now, queueId)
     .run();
   return (result.meta.changes ?? 0) > 0;
-}
-
-async function dropDisabledQueueItem(env: Env, row: DeliveryQueueRow): Promise<void> {
-  const error = 'channel disabled or removed';
-  const result = await env.DB.prepare(`UPDATE delivery_queue SET status = 'failed', attempts = ?, error = ?
-    WHERE id = ? AND status = 'pending' AND NOT EXISTS (
-      SELECT 1 FROM channel_configs WHERE agent_id = delivery_queue.agent_id
-      AND channel = delivery_queue.channel AND enabled = 1)`)
-    .bind(MAX_QUEUE_ATTEMPTS, error, row.id).run();
-  if (result.meta.changes) await persistDeliveryFailure(env, row.message_id, error);
 }
 
 async function markQueueDelivered(env: Env, queueId: string): Promise<void> {
@@ -256,15 +171,6 @@ async function markQueueFailed(env: Env, queueId: string, error: string, nextRet
     .run();
 }
 
-
-function parseOptions(value: unknown): string[] | null {
-  if (!Array.isArray(value)) return null;
-  return value.every((item) => typeof item === 'string') ? value : null;
-}
-
-function buildInlineKeyboard(messageId: string, options: string[]): { text: string; callback_data: string }[][] {
-  return options.map((option) => [{ text: option, callback_data: `${messageId.slice(0, 12)}:${option}` }]);
-}
 
 function computeRetryAt(now: string, attempts: number): string {
   const backoffMs = Math.max(60_000, 2 ** Math.max(attempts - 1, 0) * 60_000);

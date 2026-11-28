@@ -18,13 +18,12 @@ beforeAll(async () => {
   await env.DB.prepare('INSERT INTO boss_agent_access VALUES (?, ?)').bind(manager, 'test-agent-id').run();
   await env.DB.prepare("INSERT INTO boss_clients (id, boss_id, kind, label) VALUES ('archive-client', ?, 'macos', 'Retained client')").bind(manager).run();
   await env.DB.prepare("UPDATE boss_tokens SET client_id = 'archive-client' WHERE boss_id = ?").bind(manager).run();
-  await env.DB.prepare("INSERT INTO boss_external_accounts (boss_id, provider, provider_user_id) VALUES (?, 'telegram', '9988')").bind(manager).run();
   await env.DB.prepare("INSERT INTO audit_log (id, actor_type, actor_id, action, resource_type, resource_id) VALUES ('archive-prior-audit', 'boss', ?, 'boss.create', 'boss', ?)").bind(admin, manager).run();
   await seedBossToken('Viewer', 'viewer', 'archive-viewer-token');
 });
 
 it('archives and restores without changing grants, clients, tokens, or existing audit rows', async () => {
-  const tables = ['boss_agent_access', 'boss_clients', 'boss_tokens', 'boss_external_accounts'];
+  const tables = ['boss_agent_access', 'boss_clients', 'boss_tokens'];
   const before = await Promise.all(tables.map(table => env.DB.prepare(`SELECT * FROM ${table} WHERE boss_id = ?`).bind(manager).all()));
   expect((await post(manager, 'archive')).status).toBe(200);
   const archived = await env.DB.prepare('SELECT archived_at FROM bosses WHERE id = ?').bind(manager).first<{ archived_at: string }>();
@@ -80,7 +79,7 @@ it('blocks archived target mutations, including grants, token rotation, and exte
   for (const [method, path, body] of [
     ['PATCH', '', { name: 'Changed' }], ['PATCH', '', { preferences: {} }],
     ['POST', '/access', { agent_id: 'test-agent-id' }], ['DELETE', '/access/test-agent-id', undefined],
-    ['POST', '/token', undefined], ['POST', '/external-accounts', { provider: 'telegram', provider_user_id: '123' }],
+    ['POST', '/token', undefined],
     ['DELETE', '/external-accounts/missing', undefined],
   ] as const) {
     const response = await SELF.fetch(`https://test.local/api/bosses/${manager}${path}`, { method, headers: headers(), body: body && JSON.stringify(body) });

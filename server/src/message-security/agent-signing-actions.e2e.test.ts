@@ -88,7 +88,6 @@ it('requires signatures on forwards and boss-agent replies of a signing agent', 
   const sent = await request('/messages', agent.token, 'POST',
     { body: 'Deploy finished', signed_message: await signedMessage(signer, messagePayload(agent.id)) });
   const id = (await sent.json() as { id: string }).id;
-  expect((await request(`/messages/${id}/forward`, agent.token, 'POST', { channel: 'telegram' })).status).toBe(401);
   await env.DB.prepare("INSERT INTO bosses (name, role, agent_id) VALUES ('Agent Boss', 'admin', ?)").bind(agent.id).run();
   const worker = await seedAgent('boss-agent-worker');
   const ask = await request('/messages', worker.token, 'POST', { body: 'Approve?' });

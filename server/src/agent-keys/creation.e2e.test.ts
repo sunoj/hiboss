@@ -1,9 +1,9 @@
 // Exercises all identity creation surfaces against the real Worker and D1.
 // Verifies credentials authenticate while the retained identity hash stays NULL.
+import { approveJoin } from '../devices/approve';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { approveAndCollect, mintTestInvite, seedDatabase, seedBossToken } from '../test-helpers';
-import { approveJoinRequest } from '../routes/join-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
@@ -49,7 +49,7 @@ it('boss and provider approvals create keys for new identities', async () => {
     expect(pending.status).toBe(201);
     const { request_id, poll_token } = await pending.json() as { request_id: string; poll_token: string };
     if (provider === 'boss') expect((await post(`/boss/join-requests/${request_id}/approve`, {}, 'creation-boss')).status).toBe(200);
-    else expect((await approveJoinRequest(env, request_id)).statusCode).toBe(200);
+    else expect((await approveJoin(env.DB, request_id, { type: 'system', id: 'join' })).ok).toBe(true);
     const poll = await SELF.fetch(`${base}/join/status?token=${poll_token}`);
     const grant = (await poll.json() as { profiles: Array<{ agent_id: string; key: string }> }).profiles[0];
     await assertGrant({ id: grant.agent_id, key: grant.key });

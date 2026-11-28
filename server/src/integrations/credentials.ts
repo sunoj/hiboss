@@ -39,15 +39,13 @@ export interface WebhookCredential {
   priority_cap: 'low' | 'normal' | 'high';
   agent_name: string;
   rate_limit: number | null;
-  channel_routing: string | null;
-  avatar_url: string | null;
   last_used_at: string | null;
 }
 
 /** One primary-key read; an unknown id, a wrong token and a revoked URL look the same. */
 export async function findWebhook(db: D1Database, id: string, token: string): Promise<WebhookCredential | null> {
   const row = await db.prepare(`SELECT w.id, w.agent_id, w.session_id, w.label, w.priority_cap, w.token_hash,
-      w.last_used_at, a.name AS agent_name, a.rate_limit, a.channel_routing, a.avatar_url
+      w.last_used_at, a.name AS agent_name, a.rate_limit
     FROM agent_webhooks w JOIN api_keys a ON a.id = w.agent_id
     WHERE w.id = ? AND w.revoked_at IS NULL AND a.kind = 'integration'`)
     .bind(id).first<WebhookCredential & { token_hash: string }>();

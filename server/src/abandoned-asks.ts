@@ -33,7 +33,7 @@ export function sessionAsksExpiry(db: D1Database, agentId: string, sessionId: st
 
 /** Best-effort chat edits for the asks a committed sessionAsksExpiry returned. */
 export async function announceSessionAsks(env: Env, rows: MessageRow[]): Promise<void> {
-  for (const row of rows) await announceExpiredAsk(env, row.agent_id, row);
+  for (const row of rows) await announceExpiredAsk(env, row);
 }
 
 /** Ends a session's asks the way every completing path must: all expire, none by default. */
@@ -63,7 +63,7 @@ async function expireAll(env: Env, rows: MessageRow[], announce: Announce): Prom
   let expired = 0;
   for (const row of rows) {
     try {
-      if (await expireWithoutDefault(env, row.agent_id, row, announce)) expired += 1;
+      if (await expireWithoutDefault(env, row, announce)) expired += 1;
     } catch {
       console.error(`Failed to expire abandoned ask ${row.id}`);
     }

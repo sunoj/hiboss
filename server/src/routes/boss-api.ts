@@ -28,16 +28,6 @@ interface GroupRow {
   description: string | null;
   created_at: string;
 }
-interface RoutingRuleRow {
-  id: string;
-  owner_id: string;
-  channel: string;
-  pattern: string;
-  target_agent_id: string;
-  priority: number;
-  enabled: number;
-  created_at: string;
-}
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', bossAuth);
 routes.route('/', bossMessagesRouter);
@@ -49,7 +39,7 @@ routes.route('/', bossJoinRouter);
 routes.get('/me', async (c) => {
   const bossId = getBossId(c);
   const boss = await c.env.DB
-    .prepare('SELECT id, name, role, telegram_user_id, discord_user_id, agent_id, preferences, created_at FROM bosses WHERE id = ? AND archived_at IS NULL')
+    .prepare('SELECT id, name, role, agent_id, preferences, created_at FROM bosses WHERE id = ? AND archived_at IS NULL')
     .bind(bossId)
     .first<Record<string, unknown>>();
   if (!boss) return c.text('not found', 404);
@@ -58,7 +48,7 @@ routes.get('/me', async (c) => {
     preferences: safeParse(boss.preferences as string | null), agent_ids: agentIds });
 });
 
-/** GET /api/boss/overview — dashboard KPIs, priority distribution, session status, channel health */
+/** GET /api/boss/overview — dashboard KPIs, priority distribution, session status */
 routes.get('/overview', async (c) => {
   const bossId = getBossId(c);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
@@ -105,7 +95,7 @@ routes.get('/agents', async (c) => {
   const placeholders = agentIds.map(() => '?').join(', ');
   const rows = await c.env.DB
     .prepare(`SELECT a.id, a.name, a.role, a.avatar_url, a.last_used_at, a.created_at, a.kind, a.is_admin,
-      a.default_priority, a.rate_limit, a.channel_routing,
+      a.default_priority, a.rate_limit,
       (SELECT json_group_array(slug) FROM (SELECT DISTINCT p.slug FROM sessions s
         JOIN projects p ON p.id = s.project_id WHERE s.agent_id = a.id ORDER BY p.slug)) AS project_slugs
       FROM api_keys a WHERE a.id IN (${placeholders})`)
@@ -113,7 +103,7 @@ routes.get('/agents', async (c) => {
     .all<{
       id: string; name: string; role: string | null; avatar_url: string | null;
       last_used_at: string | null; created_at: string; project_slugs: string; kind: string; is_admin: number;
-      default_priority: string; rate_limit: number | null; channel_routing: string | null;
+      default_priority: string; rate_limit: number | null;
     }>();
   // kind tells an integration (webhook sender, reads nothing) from an agent; admin is the agent capability.
   return c.json({ agents: rows.results.map(({ is_admin, ...row }) => ({
@@ -137,18 +127,6 @@ routes.get('/groups', async (c) => {
 });
 
 /** GET /api/boss/routing-rules — list routing rules for accessible agents */
-routes.get('/routing-rules', async (c) => {
-  const bossId = getBossId(c);
-  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
-  if (agentIds.length === 0) return c.json({ rules: [] });
-  const placeholders = agentIds.map(() => '?').join(', ');
-  const rows = await c.env.DB
-    .prepare(`SELECT * FROM routing_rules WHERE owner_id IN (${placeholders}) ORDER BY priority DESC`)
-    .bind(...agentIds)
-    .all<RoutingRuleRow>();
-  return c.json({ rules: rows.results ?? [] });
-});
-
 /** GET /api/boss/audit — list audit log entries scoped to accessible agents */
 routes.get('/audit', async (c) => {
   const bossId = getBossId(c);

@@ -6,38 +6,15 @@ import { fetchAgentName } from '../../message-context';
 import { describe, expect, it, beforeAll } from 'vitest';
 import { agentId, rateAgentId, msgId, parentId, sessId, seedMessageQueries, testEnv } from './fixtures';
 import {
-  selectChannelConfig,
   fetchMessageRow,
   fetchReplies,
   fetchMessageWithReplies,
-  fetchAllChannelConfigs,
   checkRateLimit,
   findByIdempotencyKey,
   inferSessionStatus,
 } from '../message-helpers';
 
 beforeAll(seedMessageQueries);
-
-describe('selectChannelConfig', () => {
-  it.each([
-    ['returns exact requested channel', 'telegram', {
-      channel: 'telegram', config: { chat_id: 'tg-123', bot_token: 'tg-tok' },
-    }],
-    ['falls back to most recent when requested channel not found', 'api', { channel: 'discord' }],
-    ['falls back to most recent when no channel requested', undefined, { channel: 'discord' }],
-  ] as const)('%s', async (_name, requested, expected) => {
-    // Discord was inserted with later created_at, so it should be the fallback.
-    const result = await selectChannelConfig(testEnv, agentId, requested);
-    expect(result.channel).toBe(expected.channel);
-    if ('config' in expected) {
-      expect(result.config).toEqual(expected.config);
-    }
-  });
-
-  it('throws when agent has no channels', async () => {
-    await expect(selectChannelConfig(testEnv, 'no-such-agent')).rejects.toThrow('no channel configured');
-  });
-});
 
 describe('fetchMessageRow', () => {
   it.each([
@@ -106,29 +83,6 @@ describe('fetchAgentName', () => {
   it('returns null for unknown agent ID', async () => {
     const name = await fetchAgentName(testEnv, 'nonexistent-agent');
     expect(name).toBeNull();
-  });
-});
-
-describe('fetchAllChannelConfigs', () => {
-  it('returns all enabled channel configs for agent', async () => {
-    const configs = await fetchAllChannelConfigs(testEnv, agentId);
-    expect(configs).toHaveLength(2);
-    const channels = configs.map((c) => c.channel);
-    expect(channels).toContain('telegram');
-    expect(channels).toContain('discord');
-  });
-
-  it('returns empty array for agent with no channels', async () => {
-    const configs = await fetchAllChannelConfigs(testEnv, 'no-such-agent');
-    expect(configs).toEqual([]);
-  });
-
-  it('parses config JSON into objects', async () => {
-    const configs = await fetchAllChannelConfigs(testEnv, agentId);
-    const tg = configs.find((c) => c.channel === 'telegram');
-    expect(tg).toBeDefined();
-    expect(typeof tg!.config).toBe('object');
-    expect(tg!.config['chat_id']).toBe('tg-123');
   });
 });
 

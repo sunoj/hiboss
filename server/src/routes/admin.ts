@@ -1,15 +1,13 @@
-// Admin routes for creating API keys and managing channel configs.
-// Exports POST /api/keys, GET /api/channels, GET /api/channels/stats, and PUT /api/channels/:channel.
+// Admin routes for creating API keys.
+// Exports POST /api/keys.
 // Depends on Hono, auth middleware, hashing helpers, and shared types.
 
 import { Hono } from 'hono';
-import type { Channel, ChannelConfigRow, Env } from '../types';
+import type { Env } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { agentAdmin } from '../middleware/agent-admin';
 import { createAgent } from '../agent-keys';
 import { logAudit } from '../audit';
-import { channelWriteError } from './channel-names';
-import { getChannelStatsResponse } from './admin-channel-stats';
 
 const router = new Hono<{ Bindings: Env }>({});
 router.use('*', apiAuth);
@@ -38,76 +36,4 @@ router.get('/keys', async (c) => {
   });
 });
 
-router.get('/channels', async (c) => {
-  const agentId = getAgentId(c);
-  const rows = await c.env.DB
-    .prepare('SELECT id, channel, config, enabled, created_at FROM channel_configs WHERE agent_id = ?')
-    .bind(agentId)
-    .all<ChannelConfigRow>();
-  const channels = (rows.results ?? []).map((row) => ({
-    id: row.id,
-    channel: row.channel,
-    config: safeParse(row.config),
-    enabled: row.enabled === 1,
-    created_at: row.created_at,
-  }));
-  return c.json({ channels });
-});
-
-router.get('/channels/stats', async (c) => {
-  const agentId = getAgentId(c);
-  const verbose = c.req.query('verbose') === '1' || c.req.query('verbose') === 'true';
-  return c.json(await getChannelStatsResponse(c.env, agentId, verbose));
-});
-
-router.put('/channels/:channel', async (c) => {
-  const agentId = getAgentId(c);
-  const channelError = channelWriteError(c.req.param('channel'), ['discord', 'telegram'], 'invalid channel');
-  const channel = normalizeChannel(c.req.param('channel'));
-  if (channelError || !channel) {
-    return c.text(channelError ?? 'invalid channel', 400);
-  }
-  const payload = await c.req.json<unknown>();
-  if (!isPlainObject(payload)) {
-    return c.text('config must be an object', 400);
-  }
-  const configJson = JSON.stringify(payload);
-  const row = await c.env.DB
-    .prepare(
-      'INSERT INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, ?, ?, 1) ON CONFLICT(agent_id, channel) DO UPDATE SET config = excluded.config, enabled = 1 RETURNING id, channel, config, enabled, created_at'
-    )
-    .bind(agentId, channel, configJson)
-    .first<ChannelConfigRow>();
-  if (!row) {
-    return c.text('failed to save configuration', 500);
-  }
-  c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'channel.set', 'channel_config', row.id, channel));
-  return c.json({
-    id: row.id,
-    channel: row.channel,
-    config: safeParse(row.config),
-    enabled: row.enabled === 1,
-    created_at: row.created_at,
-  });
-});
-
 export const adminRouter = router;
-
-function normalizeChannel(value: string | null): Channel | null {
-  if (value === 'discord' || value === 'telegram') {
-    return value;
-  }
-  return null;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function safeParse(value: string): Record<string, unknown> {
-  try {
-    return JSON.parse(value) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}

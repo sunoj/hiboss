@@ -34,16 +34,3 @@ export function parseOptionDescriptions(value: unknown, options: string[] | unde
   }
   return { ok: true, value: options.flatMap(label => descriptions.filter(item => item.label === label)) };
 }
-
-export function appendOptionDescriptions(
-  body: string, metadata: Record<string, unknown> | null, channel?: string,
-): string {
-  const options = metadata?.options;
-  const parsed = parseOptionDescriptions(metadata?.option_descriptions,
-    Array.isArray(options) && options.every((item): item is string => typeof item === 'string')
-      ? options : undefined);
-  if (!parsed.ok || !parsed.value?.length) return body;
-  const plain = (text: string): string => channel === 'discord'
-    ? text.replace(/([\\`*_{}\[\]()<>~|])/g, '\\$1') : text;
-  return `${body}\n\n${parsed.value.map(item => `• ${plain(item.label)} — ${plain(item.text)}`).join('\n')}`;
-}

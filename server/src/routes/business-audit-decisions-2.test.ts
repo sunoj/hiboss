@@ -32,31 +32,6 @@ async function answerCount(id: string): Promise<number> {
   return row?.total ?? 0;
 }
 
-async function seedTelegramChats(owner: string, inboundChat: string, otherChat: string): Promise<{ parent: string; local: string }> {
-  const provider = fresh('f14-provider');
-  const destination = fresh('f14-destination');
-  await env.DB.prepare("INSERT INTO bosses (id, name, role, telegram_user_id) VALUES (?, ?, 'manager', ?)")
-    .bind(owner, owner, owner).run();
-  await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(owner, agent).run();
-  await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'telegram', ?)")
-    .bind(fresh('f14-config'), agent, JSON.stringify({ chat_id: otherChat, bot_token: 'synthetic' })).run();
-  await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES (?, 'telegram', ?, ?)")
-    .bind(provider, provider, JSON.stringify({ bot_token: provider })).run();
-  await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, provider_id, target, label) VALUES (?, ?, 'telegram_chat', ?, ?, ?)")
-    .bind(destination, owner, provider, JSON.stringify({ chat_id: inboundChat }), destination).run();
-  await env.DB.prepare('INSERT INTO inbound_routes (id, destination_id, target_agent_id) VALUES (?, ?, ?)')
-    .bind(fresh('f14-route'), destination, agent).run();
-  const parent = fresh('f14-parent');
-  const local = fresh('f14-local');
-  for (const [id, body, messageId, chatId] of [[parent, 'Question', 901, inboundChat], [local, 'Local', 902, otherChat]] as const) {
-    await env.DB.prepare(`INSERT INTO messages
-      (id, agent_id, direction, mode, channel, body, status, metadata)
-      VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', ?, 'delivered', ?)`)
-      .bind(id, agent, body, JSON.stringify({ telegram_message_id: messageId, telegram_chat_id: chatId })).run();
-  }
-  return { parent, local };
-}
-
 beforeAll(async () => {
   await seedDatabase();
   const boss = await seedBossToken('Decision stream boss', 'manager', token, fresh('stream-boss'));
@@ -77,14 +52,10 @@ describe('decision integrity: scheduled and webhook paths', () => {
     const target = await option(fresh('f19-target'), true);
     await env.DB.prepare(`UPDATE messages SET expires_at = datetime('now', '-1 minute') WHERE id = ?`)
       .bind(target.id).run();
-    // Queued rows always come from an enabled channel_configs row (discord/telegram only).
-    const config = JSON.stringify({ chat_id: fresh('f19-chat'), bot_token: 'synthetic' });
-    await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'telegram', ?)")
-      .bind(fresh('f19-config'), agent, config).run();
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('{"ok":true,"result":{"message_id":1901}}', { status: 200 })));
+    const config = JSON.stringify({ native_only: true });
     await env.DB.prepare(`INSERT INTO delivery_queue
       (id, message_id, agent_id, channel, config, scheduled_at)
-      VALUES (?, ?, ?, 'telegram', ?, datetime('now', '-1 minute'))`)
+      VALUES (?, ?, ?, 'api', ?, datetime('now', '-1 minute'))`)
       .bind(fresh('f19-queue'), target.id, agent, config).run();
     expect(await answerCount(target.id)).toBe(0);
     await handleScheduled(env as Env);
@@ -122,85 +93,4 @@ describe('decision integrity: scheduled and webhook paths', () => {
     }
   });
 
-  it('F13 Discord /msg rejects replay of a signed interaction', async () => {
-    const channel = fresh('f13-channel');
-    const user = fresh('f13-user');
-    const boss = fresh('f13-boss');
-    const bodyText = fresh('f13-body');
-    const previousKey = env.DISCORD_PUBLIC_KEY;
-    await env.DB.prepare("INSERT INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'discord', ?)")
-      .bind(fresh('f13-config'), agent, JSON.stringify({ channel_id: channel, bot_token: 'synthetic' })).run();
-    await env.DB.prepare("INSERT INTO bosses (id, name, role, discord_user_id) VALUES (?, ?, 'manager', ?)")
-      .bind(boss, boss, user).run();
-    await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(boss, agent).run();
-    const keys = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
-    env.DISCORD_PUBLIC_KEY = Array.from(new Uint8Array(await crypto.subtle.exportKey('raw', keys.publicKey)))
-      .map(byte => byte.toString(16).padStart(2, '0')).join('');
-    const payload = JSON.stringify({ id: fresh('f13-interaction'), type: 2, channel_id: channel,
-      member: { user: { id: user } }, data: { name: 'msg', options: [{ name: 'message', value: bodyText }] } });
-    const timestamp = String(Math.floor(Date.now() / 1000));
-    const signature = Array.from(new Uint8Array(await crypto.subtle.sign('Ed25519', keys.privateKey,
-      new TextEncoder().encode(timestamp + payload)))).map(byte => byte.toString(16).padStart(2, '0')).join('');
-    const send = () => SELF.fetch(`${base}/api/webhooks/discord-interactions`, { method: 'POST', body: payload,
-      headers: { 'Content-Type': 'application/json', 'X-Signature-Timestamp': timestamp, 'X-Signature-Ed25519': signature } });
-    try {
-      expect((await send()).status).toBe(200);
-      expect((await env.DB.prepare('SELECT COUNT(*) AS total FROM messages WHERE body = ?').bind(bodyText)
-        .first<{ total: number }>())?.total).toBe(1);
-      await send();
-      expect((await env.DB.prepare('SELECT COUNT(*) AS total FROM messages WHERE body = ?').bind(bodyText)
-        .first<{ total: number }>())?.total).toBe(1);
-    } finally {
-      env.DISCORD_PUBLIC_KEY = previousKey;
-    }
-  });
-
-  it.each(['reply', 'reaction'])('F14 Telegram %s stays bound to the originating chat', async (scenario) => {
-    const key = fresh('f14-key');
-    const owner = fresh('f14-boss');
-    const inboundChat = fresh('f14-inbound');
-    const otherChat = fresh('f14-other');
-    const previousSecret = env.TELEGRAM_WEBHOOK_SECRET;
-    const previousMode = env.DESTINATIONS_MODE;
-    env.TELEGRAM_WEBHOOK_SECRET = key;
-    env.DESTINATIONS_MODE = 'on';
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('{"ok":true,"result":{}}', { status: 200 })));
-    try {
-      const { parent, local } = await seedTelegramChats(owner, inboundChat, otherChat);
-      const send = (chat: string, replyId: number, body: string, update: number) => SELF.fetch(`${base}/api/webhooks/telegram`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': key },
-        body: JSON.stringify({ update_id: update, message: { message_id: update, chat: { id: chat },
-          from: { id: owner }, text: body, reply_to_message: { message_id: replyId } } }),
-      });
-      const reaction = (messageId: number) => SELF.fetch(`${base}/api/webhooks/telegram`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': key },
-        body: JSON.stringify({ message_reaction: { chat: { id: otherChat }, message_id: messageId,
-          user: { id: owner, first_name: 'Boss' }, new_reaction: [{ type: 'emoji', emoji: '👍' }] } }),
-      });
-      if (scenario === 'reply') {
-        const updateBase = Math.floor(Date.now() / 1000);
-        const control = await send(inboundChat, 901, fresh('f14-good'), updateBase);
-        expect(control.status).toBe(201);
-        expect((await control.json() as { reply_to: string }).reply_to).toBe(parent);
-        const wrong = await send(otherChat, 901, fresh('f14-wrong'), updateBase + 1);
-        if (wrong.status === 201) {
-          expect((await wrong.json() as { reply_to: string | null }).reply_to).toBeNull();
-        } else {
-          expect(wrong.status).toBeGreaterThanOrEqual(400);
-        }
-      } else {
-        expect((await reaction(902)).status).toBe(200);
-        const localRow = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?').bind(local)
-          .first<{ metadata: string }>();
-        expect(JSON.parse(localRow?.metadata ?? '{}').reactions).toHaveLength(1);
-        await reaction(901);
-        const original = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?').bind(parent)
-          .first<{ metadata: string }>();
-        expect(JSON.parse(original?.metadata ?? '{}').reactions).toBeUndefined();
-      }
-    } finally {
-      env.TELEGRAM_WEBHOOK_SECRET = previousSecret;
-      env.DESTINATIONS_MODE = previousMode;
-    }
-  });
 });

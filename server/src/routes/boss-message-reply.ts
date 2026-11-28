@@ -16,10 +16,10 @@ import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
 import { deferredAnnounce, type Announce } from '../push/resolution';
+import { withdrawResolvedOptions } from './message-options';
 import { getAccessibleAgentIds } from './boss-api';
 import { findMessageByIdPrefix } from './id-prefix';
 import { mapMessageRow, replyTargetSession } from './message-helpers';
-import { withdrawResolvedOptions } from './message-options';
 import { askFormOf, validateFormAnswers } from './message-form';
 
 type BossContext = Context<{ Bindings: Env }>;
@@ -156,9 +156,7 @@ function finishReply(
       .bind(parent.id).run(),
   );
   if (optionKind === 'claimed') {
-    c.executionCtx.waitUntil(
-      withdrawResolvedOptions(c.env, parent.agent_id, parent, inserted.body).catch(() => {}),
-    );
+    c.executionCtx.waitUntil(withdrawResolvedOptions(c.env, parent, inserted.body).catch(() => {}));
   }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, parent.agent_id, inserted));
   c.executionCtx.waitUntil(

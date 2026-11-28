@@ -1,9 +1,7 @@
-// Records shadow parity and executes resumable destination delivery with bounded retries.
+// Records shadow delivery state and executes resumable destination delivery with bounded retries.
 // Exports dispatch and cron entrypoints; depends on resolver, adapters, and D1 atomic claims.
-import type { Channel, Env, MessageRow } from '../types';
-import { logAudit } from '../audit';
-import { resolveDiscordChannelId } from '../routes/agent-delivery';
-import { groupTargets, recordTarget, mirrorMerged, chatKey, type DeliveryRow } from './targets';
+import type { Env, MessageRow } from '../types';
+import { groupTargets, recordTarget, mirrorMerged, type DeliveryRow } from './targets';
 import { sendDestination } from './adapters';
 import { resolveDestinations } from './destinations';
 import { destinationsMode, type ResolvedDestination } from './types';
@@ -11,9 +9,8 @@ import { destinationsMode, type ResolvedDestination } from './types';
 const MAX_ATTEMPTS = 3;
 const LEASE_MS = 5 * 60_000;
 const BATCH_SIZE = 50;
-type LegacyConfig = { channel: Channel; config: Record<string, unknown> };
 
-export async function dispatchDestinations(env: Env, message: MessageRow, legacy: LegacyConfig[] = []): Promise<void> {
+export async function dispatchDestinations(env: Env, message: MessageRow): Promise<void> {
   const mode = destinationsMode(env.DESTINATIONS_MODE);
   if (mode === 'off' || message.direction !== 'agent_to_boss') return;
   try {
@@ -25,38 +22,11 @@ export async function dispatchDestinations(env: Env, message: MessageRow, legacy
       const row = await recordTarget(env, message.id, group, due);
       if (row && due && due <= now.toISOString()) await attemptDelivery(env, row, message, destination, now);
     }
-    if (mode === 'shadow') await compareShadow(env, message, legacy, destinations);
   } catch (error) {
     if (mode === 'on') throw error;
     // Shadow failures cannot alter the legacy response or notification behavior.
     console.error('Destination shadow recording failed', message.id, error instanceof Error ? error.name : 'Error');
   }
-}
-
-async function compareShadow(env: Env, message: MessageRow, legacy: LegacyConfig[], destinations: ResolvedDestination[]): Promise<void> {
-  const legacyRoutes = await Promise.all(legacy.map(async row => {
-    const channelId = row.channel === 'discord' ? await resolveDiscordChannelId(env, row.config, message.session_id) : undefined;
-    const config = channelId && channelId !== row.config.channel_id
-      ? { ...row.config, channel_id: channelId, thread_id: channelId } : row.config;
-    return { kind: row.channel, config };
-  }));
-  const oldChats = await chatSet(legacyRoutes);
-  const newChats = await chatSet(destinations.map(row => ({
-    kind: row.kind === 'telegram_chat' ? 'telegram' : row.kind === 'discord_channel' ? 'discord' : row.kind,
-    config: row.config,
-  })));
-  if (JSON.stringify(oldChats) === JSON.stringify(newChats)) return;
-  await logAudit(env, 'system', 'destinations', 'destination_shadow', 'message', message.id,
-    JSON.stringify({ legacy_chats: oldChats, destination_chats: newChats }));
-}
-
-async function chatSet(rows: { kind: string; config: Record<string, unknown> }[]): Promise<string[]> {
-  const keys: string[] = [];
-  for (const { kind, config } of rows) {
-    if (kind !== 'telegram' && kind !== 'discord') continue;
-    keys.push(await chatKey(kind, config));
-  }
-  return [...new Set(keys)].sort();
 }
 
 export async function drainDestinationDeliveries(env: Env, now = new Date()): Promise<void> {

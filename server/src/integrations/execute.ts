@@ -4,7 +4,7 @@
 import { Hono, type Context } from 'hono';
 import type { Env, Priority } from '../types';
 import { finishSend, persistSend } from '../routes/message-send';
-import { selectLegacyConfigs, type SendInput } from '../routes/message-send-input';
+import { type SendInput } from '../routes/message-send-input';
 import type { SendTarget } from '../routes/message-send-target';
 import { webhookProvenance } from '../message-security/provenance';
 import { DEFAULT_RATE_LIMIT, findWebhook, reserveRateSlot, type WebhookCredential } from './credentials';
@@ -79,12 +79,9 @@ async function deliver(c: WebhookContext, credential: WebhookCredential, body: W
   if (payload.threadName) metadata.webhook = { thread_name: payload.threadName };
   const input: SendInput = {
     agentId: credential.agent_id, payload: {}, body: rendered.title, idempotencyKey: null,
-    agentConfig: { default_priority: credential.priority_cap, rate_limit: credential.rate_limit,
-      channel_routing: credential.channel_routing, avatar_url: credential.avatar_url },
-    mode: 'async', priority, requestedChannel: undefined, fileUrl: undefined, messageType: 'text',
+    mode: 'async', priority, fileUrl: undefined, messageType: 'text',
     sessionId: credential.session_id, toAgent: null, options: undefined,
-    optionMediaResult: { ok: true, value: undefined }, metadata, clientMetadata: null, timeout: null,
-    channelConfigs: await selectLegacyConfigs(c.env, credential.agent_id, priority, undefined),
+    metadata, clientMetadata: null, timeout: null,
     integration: true,
   };
   const inserted = await persistSend(c, input, TARGET);

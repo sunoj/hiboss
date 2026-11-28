@@ -9,7 +9,7 @@ import { hasValidBootstrapSecret } from '../middleware/bootstrap-secret';
 import { createJoinRequest, pollJoinRequest, resolveDeviceProof, takenNames } from '../devices/enroll';
 import { consumeInvite, inviteIsLive } from '../devices/invites';
 import { parseJoinPayload } from '../devices/types';
-import { notifyJoinConnected, notifyJoinRequest } from './join-notify';
+import { notifyJoinRequest } from './join-notify';
 
 const INVITE_REQUIRED = 'an invite is required; run `hiboss device invite` on an enrolled machine';
 const INVITE_DEAD = 'invite is invalid, already used or expired';
@@ -59,9 +59,7 @@ router.get('/status', async (c) => {
     ...result.delivery,
   };
   if (result.delivery) {
-    const delivery = result.delivery;
     c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.key_delivered', 'join_request', result.requestId, result.deviceLabel));
-    c.executionCtx.waitUntil(notifyJoinConnected(c.env, result.deviceLabel, delivery.profiles).catch(() => {}));
   }
   return c.json(body);
 });

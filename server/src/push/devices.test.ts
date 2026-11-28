@@ -52,7 +52,6 @@ it('keeps device and destination when another boss attempts deletion', async () 
 
 it.each(['api', 'notify', 'destination'])('cleans only the removed device inventory via %s', async path => {
   const row = await message();
-  await env.DB.prepare("INSERT INTO destination_routes (destination_id, external_thread_id) VALUES ('cleanup-destination', '123')").run();
   await env.DB.prepare("INSERT INTO message_deliveries (message_id, destination_id) VALUES (?, 'cleanup-destination')").bind(row.id).run();
   vi.spyOn(apns, 'hasApnsConfig').mockReturnValue(true);
   vi.spyOn(apns, 'sendPush').mockImplementation(async (_env, token) => token === deviceToken
@@ -77,7 +76,6 @@ it.each(['api', 'notify', 'destination'])('cleans only the removed device invent
   expect(await env.DB.prepare('SELECT id FROM boss_destinations WHERE boss_id = ? ORDER BY id').bind(bossId).all())
     .toMatchObject({ results: [{ id: 'kept-destination' }, { id: 'kept-native' }] });
   expect(await env.DB.prepare("SELECT id FROM boss_devices WHERE id = 'kept-device'").first()).not.toBeNull();
-  expect(await env.DB.prepare("SELECT id FROM destination_routes WHERE destination_id = 'cleanup-destination'").first()).toBeNull();
   expect(await env.DB.prepare('SELECT id FROM message_deliveries WHERE message_id = ?').bind(row.id).first()).toBeNull();
 });
 

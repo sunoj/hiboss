@@ -9,33 +9,7 @@ import { approveAndCollect, getTestAgentId, mintTestInvite, seedBossToken, seedD
 import { hashApiKey } from '../middleware/auth';
 
 const JOIN_BASE = 'https://test.local/api/join';
-const TELEGRAM_SECRET = 'join-flow-telegram-secret';
-const DISCORD_CHANNEL_ID = 'join-flow-discord-channel';
-const TELEGRAM_CHAT_ID = 'join-flow-telegram-chat';
-const TEXT_ENCODER = new TextEncoder();
-
-let discordPrivateKey: CryptoKey;
-
-beforeAll(async () => {
-  await seedDatabase();
-  env.TELEGRAM_WEBHOOK_SECRET = TELEGRAM_SECRET;
-  await env.DB.prepare(
-    'INSERT OR IGNORE INTO channel_configs (agent_id, channel, config) VALUES (?, ?, ?), (?, ?, ?)'
-  )
-    .bind(
-      getTestAgentId(),
-      'telegram',
-      JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, bot_token: 'join-flow-bot' }),
-      getTestAgentId(),
-      'discord',
-      JSON.stringify({ channel_id: DISCORD_CHANNEL_ID, bot_token: 'join-flow-token' }),
-    )
-    .run();
-  const keyPair = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
-  discordPrivateKey = keyPair.privateKey;
-  const publicKeyBytes = await crypto.subtle.exportKey('raw', keyPair.publicKey);
-  env.DISCORD_PUBLIC_KEY = bufferToHex(publicKeyBytes);
-});
+beforeAll(seedDatabase);
 
 afterEach(async () => {
   await env.DB.prepare("DELETE FROM join_requests WHERE device_label LIKE 'join-flow-%'").run();
@@ -57,90 +31,6 @@ describe('Join flow', () => {
     expect(stored).toEqual({ status: 'pending', poll_token_hash: await hashApiKey(res.poll_token) });
   });
 
-  it('approves a pending join request from a Telegram callback and returns the key via polling', async () => {
-    await createBoss('join-flow-telegram-admin', 'telegram', '9001');
-    const join = await createJoinRequest('join-flow-telegram-approve');
-
-    const callbackRes = await postTelegramCallback(`join:approve:${join.request_id}`, '9001');
-    expect(callbackRes.status).toBe(200);
-    expect(await callbackRes.json()).toEqual({ status: 'approved' });
-
-    const statusRes = await SELF.fetch(`${JOIN_BASE}/status?token=${join.poll_token}`);
-    expect(statusRes.status).toBe(200);
-    expect(await statusRes.json()).toMatchObject({
-      status: 'approved',
-      request_id: join.request_id,
-      device_id: expect.stringMatching(/^d_/),
-      profiles: [expect.objectContaining({ profile: 'claude', key: expect.stringMatching(/^hb_/), agent_id: expect.any(String) })],
-    });
-  });
-
-  it('approves a pending join request from a Discord interaction callback', async () => {
-    await createBoss('join-flow-discord-admin', 'discord', '777');
-    const join = await createJoinRequest('join-flow-discord-approve');
-
-    const res = await signedDiscordFetch({
-      type: 3,
-      channel_id: DISCORD_CHANNEL_ID,
-      data: { custom_id: `join:approve:${join.request_id}` },
-      member: { user: { id: '777' } },
-      message: { content: 'Join request for join-flow-discord-approve' },
-    });
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({
-      type: 7,
-      data: { content: expect.stringContaining('✅ Approved'), components: [] },
-    });
-
-    const stored = await env.DB
-      .prepare('SELECT status, device_id FROM join_requests WHERE id = ?')
-      .bind(join.request_id)
-      .first<{ status: string; device_id: string | null }>();
-    expect(stored?.status).toBe('approved');
-    expect(stored?.device_id).toBeTruthy();
-  });
-
-  it('rejects a join request through both Telegram and Discord callbacks', async () => {
-    await createBoss('join-flow-telegram-rejector', 'telegram', '9002');
-    await createBoss('join-flow-discord-rejector', 'discord', '778');
-    const telegramJoin = await createJoinRequest('join-flow-telegram-reject');
-    const discordJoin = await createJoinRequest('join-flow-discord-reject');
-
-    const telegramRes = await postTelegramCallback(`join:reject:${telegramJoin.request_id}`, '9002');
-    expect(telegramRes.status).toBe(200);
-    expect(await telegramRes.json()).toEqual({ status: 'rejected' });
-
-    const discordRes = await signedDiscordFetch({
-      type: 3,
-      channel_id: DISCORD_CHANNEL_ID,
-      data: { custom_id: `join:reject:${discordJoin.request_id}` },
-      member: { user: { id: '778' } },
-      message: { content: 'Join request for join-flow-discord-reject' },
-    });
-    expect(discordRes.status).toBe(200);
-    expect(await discordRes.json()).toMatchObject({
-      type: 7,
-      data: { content: expect.stringContaining('❌ Rejected'), components: [] },
-    });
-
-    const telegramStatus = await SELF.fetch(`${JOIN_BASE}/status?token=${telegramJoin.poll_token}`);
-    expect(await telegramStatus.json()).toMatchObject({ status: 'rejected', request_id: telegramJoin.request_id });
-    const discordRow = await env.DB.prepare('SELECT status FROM join_requests WHERE id = ?').bind(discordJoin.request_id).first<{ status: string }>();
-    expect(discordRow?.status).toBe('rejected');
-  });
-
-  it('rejects duplicate approvals after the request is already approved', async () => {
-    await createBoss('join-flow-telegram-duplicate', 'telegram', '9003');
-    const join = await createJoinRequest('join-flow-duplicate-approve');
-
-    expect((await postTelegramCallback(`join:approve:${join.request_id}`, '9003')).status).toBe(200);
-
-    const duplicateRes = await postTelegramCallback(`join:approve:${join.request_id}`, '9003');
-    expect(duplicateRes.status).toBe(409);
-    expect(await duplicateRes.text()).toBe('join request already approved');
-  });
-
   it('rejects a taken name when the request is created', async () => {
     const res = await SELF.fetch(JOIN_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...joinBody('test-agent'), invite: await mintTestInvite() }) });
@@ -148,28 +38,18 @@ describe('Join flow', () => {
     expect(await res.json()).toEqual({ error: 'agent name already exists', conflicts: ['test-agent'] });
   });
 
-  it('returns 409 text for duplicate names through boss, Telegram and Discord approval', async () => {
+  it('returns 409 text for duplicate names through boss approval', async () => {
     const join = await createJoinRequest('join-flow-late-duplicate');
     await env.DB.prepare('INSERT INTO api_keys (id, name) VALUES (?, ?)').bind('join-flow-late-agent', 'join-flow-late-duplicate').run();
     await seedBossToken('join-flow-api-admin', 'admin', 'join-duplicate-token');
-    await createBoss('join-flow-telegram-admin', 'telegram', '9001');
-    await createBoss('join-flow-discord-admin', 'discord', '777');
-    const responses = [
-      await testRequest('POST', `https://test.local/api/boss/join-requests/${join.request_id}/approve`,
-        { Authorization: 'Bearer join-duplicate-token' }),
-      await postTelegramCallback(`join:approve:${join.request_id}`, '9001'),
-      await signedDiscordFetch({ type: 3, channel_id: DISCORD_CHANNEL_ID,
-        data: { custom_id: `join:approve:${join.request_id}` }, member: { user: { id: '777' } } }),
-    ];
-    for (const response of responses) {
-      expect(response.status).toBe(409);
-      expect(await response.text()).toBe('an agent with one of these names already exists');
-    }
+    const response = await testRequest('POST', `https://test.local/api/boss/join-requests/${join.request_id}/approve`,
+      { Authorization: 'Bearer join-duplicate-token' });
+    expect(response.status).toBe(409);
+    expect(await response.text()).toBe('an agent with one of these names already exists');
     expect(await env.DB.prepare('SELECT status FROM join_requests WHERE id = ?').bind(join.request_id).first('status')).toBe('pending');
   });
 
   it('keeps the first join of an empty server pending until a boss approves it', async () => {
-    await env.DB.prepare('DELETE FROM channel_configs').run();
     await env.DB.prepare('DELETE FROM boss_agent_access').run();
     await env.DB.prepare('DELETE FROM api_keys').run();
     const previous = env.BOOTSTRAP_SECRET;
@@ -205,65 +85,9 @@ function joinBody(name: string): Record<string, unknown> {
   return { device: { label: 'join-flow-device' }, profiles: [{ profile: 'claude', name }] };
 }
 
-async function createBoss(name: string, channel: 'telegram' | 'discord', userId: string): Promise<void> {
-  await env.DB.prepare(
-    `INSERT OR REPLACE INTO bosses (id, name, role, ${channel === 'telegram' ? 'telegram_user_id' : 'discord_user_id'}) VALUES (?, ?, 'admin', ?)`
-  ).bind(name, name, userId).run();
-}
-
-async function postTelegramCallback(data: string, userId: string): Promise<Response> {
-  return testRequest('POST', 'https://test.local/api/webhooks/telegram', {
-      'Content-Type': 'application/json',
-      'X-Telegram-Bot-Api-Secret-Token': TELEGRAM_SECRET,
-    }, {
-      callback_query: {
-        id: `cb-${userId}`,
-        data,
-        from: { id: userId },
-        message: {
-          message_id: 100,
-          text: 'Join request',
-          chat: { id: TELEGRAM_CHAT_ID },
-        },
-      },
-    });
-}
-
-async function signedDiscordFetch(body: Record<string, unknown>, timestamp = String(Math.floor(Date.now() / 1000))): Promise<Response> {
-  const payload = JSON.stringify(body);
-  const signatureBuffer = await crypto.subtle.sign('Ed25519', discordPrivateKey, TEXT_ENCODER.encode(timestamp + payload));
-  return SELF.fetch('https://test.local/api/webhooks/discord-interactions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Signature-Timestamp': timestamp,
-      'X-Signature-Ed25519': bufferToHex(signatureBuffer),
-    },
-    body: payload,
-  });
-}
-
 async function restoreDefaultAgent(): Promise<void> {
   const keyHash = await hashApiKey('hb_test_key_0000000000000000');
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind(getTestAgentId(), 'test-agent', keyHash)
     .run();
-  await env.DB.prepare(
-    'INSERT OR IGNORE INTO channel_configs (agent_id, channel, config) VALUES (?, ?, ?), (?, ?, ?)'
-  )
-    .bind(
-      getTestAgentId(),
-      'telegram',
-      JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, bot_token: 'join-flow-bot' }),
-      getTestAgentId(),
-      'discord',
-      JSON.stringify({ channel_id: DISCORD_CHANNEL_ID, bot_token: 'join-flow-token' }),
-    )
-    .run();
-}
-
-function bufferToHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
 }
