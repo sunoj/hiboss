@@ -15,7 +15,7 @@ struct DemoActivityStateView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Live Activity").font(.hbH2).foregroundStyle(Theme.ink)
+            header
             DecisionActivityCard(attributes: attributes, state: state)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 6)
@@ -29,6 +29,15 @@ struct DemoActivityStateView: View {
             if page == 7 {
                 islandStatus
             }
+        }
+        .padding(16)
+        .background(Theme.paper)
+    }
+
+    private var header: some View {
+        HStack {
+            Text("Live Activity").font(.hbH2).foregroundStyle(Theme.ink)
+            Spacer()
             Button {
                 page = (page + 1) % 8
             } label: {
@@ -37,8 +46,6 @@ struct DemoActivityStateView: View {
             .accessibilityLabel("Next")
             .accessibilityIdentifier("demo-activity-next")
         }
-        .padding(16)
-        .background(Theme.paper)
     }
 
     private var cardShape: RoundedRectangle {
@@ -75,10 +82,27 @@ struct DemoActivityStateView: View {
         return HStack(spacing: 16) {
             compact(state)
             compact(untimed)
-            DecisionActivityMinimalStatus(state: state).padding(4).background(.black, in: Circle())
+            demoTimerRing.padding(4).background(.black, in: Circle())
             DecisionActivityMinimalStatus(state: untimed).padding(4).background(.black, in: Circle())
         }
         .environment(\.colorScheme, .dark)
+    }
+
+    // Circular progress is determinate in WidgetKit. Draw its ring for the in-app fixture.
+    private var demoTimerRing: some View {
+        let tint = DecisionActivityPriority.color(state.priority)
+        return TimelineView(.periodic(from: .now, by: 1)) { context in
+            let duration = deadline.timeIntervalSince(askedAt)
+            let fraction = min(1, max(0, deadline.timeIntervalSince(context.date) / duration))
+            Circle().strokeBorder(.white.opacity(0.14), lineWidth: 3)
+                .overlay {
+                    Circle().inset(by: 1.5).trim(from: 0, to: fraction)
+                        .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+        }
+        .frame(width: 30, height: 30)
+        .accessibilityLabel("Decision waiting")
     }
 
     private func compact(_ state: DecisionActivityAttributes.ContentState) -> some View {

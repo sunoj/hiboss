@@ -37,7 +37,7 @@ struct DecisionActivityControls: View {
                     optionLabel(option)
                         .modifier(DecisionActivityButtonStyle(isPrimary: index == 0))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DecisionActivityOptionStyle())
             }
         }
         .disabled(state.submitting != nil || state.completion != nil)
@@ -55,6 +55,12 @@ struct DecisionActivityControls: View {
         } else {
             Text(verbatim: option)
         }
+    }
+}
+
+private struct DecisionActivityOptionStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
 
