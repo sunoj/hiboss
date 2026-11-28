@@ -41,7 +41,24 @@ pub async fn run(args: &SetupArgs) -> Result<(), Box<dyn Error>> {
         },
     };
     println!("Approved. Saved credentials for every requested profile.");
+    pin_boss_keys().await;
     install_profiles(&plan)
+}
+
+/// Pins the bosses' app signing keys right after approval and prints their fingerprints, so the
+/// boss can compare them with the app. A failure leaves setup done and says how to pin later.
+async fn pin_boss_keys() {
+    let pinned: Result<Vec<String>, Box<dyn Error>> = async {
+        let credential = config::resolve_credentials(&config::load_saved_config()?)?;
+        let client = crate::client::HiBossClient::new(&credential.server, &credential.key);
+        let directory = client.get_boss_keys().await?;
+        super::boss::keys::pin_directory(&directory, "first_use")
+    }
+    .await;
+    match pinned {
+        Ok(lines) => lines.iter().for_each(|line| println!("{line}")),
+        Err(error) => eprintln!("Couldn't pin the boss signing keys ({error}); run `hiboss boss keys --pin`."),
+    }
 }
 
 /// Sends a new join request; None means there was nothing to enroll.

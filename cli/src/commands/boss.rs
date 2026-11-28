@@ -6,7 +6,7 @@ use crate::{client::HiBossClient, config::Config, helpers::short_id};
 #[path = "boss_args.rs"]
 mod args;
 mod archive;
-mod keys;
+pub(crate) mod keys;
 pub use args::*;
 use colored::Colorize;
 use serde_json::{Map, Value};

@@ -54,7 +54,9 @@ fn minted_invite_enrolls_a_second_machine_and_delivers_keys_once() {
     }
     assert_private_config(&machine);
     assert_no_secrets(&enrolled, &["synthetic-key-aid", "synthetic-key-codex"]);
-    assert_eq!(server.requests().len(), 3);
+    let requests = server.requests();
+    assert_eq!(requests.len(), 4);
+    assert_eq!(requests[3].path, "/api/agents/me/boss-keys", "setup pins the boss keys after approval");
 }
 
 fn invite_and_join_server() -> Http {
@@ -62,6 +64,7 @@ fn invite_and_join_server() -> Http {
     let profiles = requested.clone();
     let delivered = AtomicBool::new(false);
     Http::start(move |request| match request.path.as_str() {
+        "/api/agents/me/boss-keys" => Response::json(200, json!({"bosses": []})),
         "/api/devices/invites" => Response::json(
             201,
             json!({"invite":INVITE, "expires_at":"2099-01-01T00:00:00Z", "inviter_label":"synthetic-host"}),
@@ -172,6 +175,9 @@ fn immediate_bootstrap_approval_saves_keys_without_polling() {
         if request.path == "/api/bootstrap/boss" {
             return Response::json(409, json!({"error":"boss already exists"}));
         }
+        if request.path == "/api/agents/me/boss-keys" {
+            return Response::json(200, json!({"bosses": []}));
+        }
         let mut response = approval("approved", &request.body["profiles"]);
         response["request_id"] = json!("synthetic-request");
         response["poll_token"] = json!("synthetic-poll");
@@ -198,8 +204,9 @@ fn immediate_bootstrap_approval_saves_keys_without_polling() {
     );
     assert!(!output.stdout.contains("VERIFICATION CODE"));
     let requests = server.requests();
-    assert_eq!(requests.len(), 2);
+    assert_eq!(requests.len(), 3);
     assert_eq!(requests[0].path, "/api/bootstrap/boss");
     assert_eq!(requests[1].path, "/api/join");
+    assert_eq!(requests[2].path, "/api/agents/me/boss-keys", "setup pins the boss keys after approval");
     assert_no_secrets(&output, &["synthetic-secret", "synthetic-key-aid"]);
 }
