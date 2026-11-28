@@ -13,6 +13,8 @@ it('keeps agent and dual boss auth available before migration, then honors migra
   await env.DB.prepare('DROP TABLE agent_signing_keys').run();
   await env.DB.prepare('DROP TABLE agent_keys').run();
   await env.DB.prepare('ALTER TABLE api_keys DROP COLUMN is_admin').run();
+  // The old credential backfill reads the routing column removed by migration 0072.
+  await env.DB.prepare('ALTER TABLE api_keys ADD COLUMN channel_routing TEXT').run();
   const response = await SELF.fetch('https://test.local/api/agents/me', { headers: authHeaders() });
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ id: 'test-agent-id', agent_key_id: null });
@@ -30,6 +32,7 @@ it('keeps agent and dual boss auth available before migration, then honors migra
     .bind('test-agent-id').first()).toEqual({ last_used_at: expect.any(String) });
   const statements = migration.replace(/^--.*$/gm, '').split(';').map(sql => sql.trim()).filter(Boolean);
   await env.DB.batch(statements.map(sql => env.DB.prepare(sql)));
+  await env.DB.prepare('ALTER TABLE api_keys DROP COLUMN channel_routing').run();
   const migrated = await SELF.fetch('https://test.local/api/agents/me', { headers: authHeaders() });
   expect(migrated.status).toBe(200);
   expect(await migrated.json()).toMatchObject({ id: 'test-agent-id', agent_key_id: expect.any(String) });
