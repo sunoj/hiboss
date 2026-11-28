@@ -75,7 +75,7 @@ final class ProjectIdentityUITests: XCTestCase {
         XCTAssertTrue(session.appears(timeout: 10))
         verifySessionTitle(app, label: "Sessions")
         XCTAssertTrue(session.label.contains("prod-release"))
-        XCTAssertFalse(session.label.contains("prod-release /"))
+        XCTAssertTrue(session.label.contains("prod-release / release/v2.4"), "v5 rows read project / branch")
         let payments = app.buttons["activity-session-sess-pay"]
         XCTAssertTrue(payments.label.contains("payments-hotfix"))
         XCTAssertTrue(payments.label.contains("fix/gateway-retry"))
