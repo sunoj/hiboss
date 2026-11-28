@@ -2,6 +2,7 @@
 // Exports: RespondDecisionIntent — replies through DecisionReplyGate, which settles the activity.
 // Dependencies: AppIntents, HibossKit, DecisionReplyGate. iOS 17+.
 
+import ActivityKit
 import AppIntents
 import Foundation
 import HibossKit
@@ -23,6 +24,9 @@ struct RespondDecisionIntent: LiveActivityIntent {
     /// it with the recorded outcome. A tap while another reply is in flight sends nothing.
     @MainActor
     func perform() async throws -> some IntentResult {
+        guard !Activity<DecisionActivityAttributes>.activities.contains(where: {
+            $0.attributes.messageID == messageID && $0.content.state.replyFailed == true
+        }) else { return .result() }
         if let api = HiBossStore.replyAPI() {
             _ = await DecisionReplyGate.shared.submit(choice, to: MessageID(rawValue: messageID), via: api,
                 onAuthorizationFailure: { AccountAuthorization.shared.reject($0) })

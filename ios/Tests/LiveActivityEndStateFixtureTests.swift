@@ -23,6 +23,8 @@ final class LiveActivityEndStateFixtureTests: XCTestCase {
             XCTAssertEqual(state.options, [])
             XCTAssertEqual(state.priority, "normal")
             XCTAssertNil(state.deadline)
+            XCTAssertNil(state.defaultOption)
+            XCTAssertNil(state.askedAt)
             XCTAssertNil(state.submitting)
         }
     }

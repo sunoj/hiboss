@@ -129,6 +129,12 @@ final class DecisionActivitySyncTests: XCTestCase {
         store.stop()
     }
 
+    func testContentStateCarriesTheMessagesDefaultAndAskedTime() {
+        let state = DecisionActivityManager.contentState(for: Self.ask)
+        XCTAssertEqual(state.defaultOption, "Hold")
+        XCTAssertEqual(state.askedAt, Date(timeIntervalSince1970: 1_791_331_200))
+    }
+
     private func waitFor(_ publisher: Published<Bool>.Publisher) async {
         let loaded = expectation(description: "store snapshot loaded")
         let observation = publisher.filter { $0 }.prefix(1).sink { _ in loaded.fulfill() }
@@ -138,7 +144,7 @@ final class DecisionActivitySyncTests: XCTestCase {
 
     private static let ask = HistoryMessage(
         id: "live", body: "Ship?", direction: "agent_to_boss", status: "sent",
-        priority: "high", mode: "blocking", metadata: MessageMetadata(options: ["Ship", "Hold"]),
+        priority: "high", mode: "blocking", metadata: MessageMetadata(options: ["Ship", "Hold"], defaultOption: "Hold"),
         createdAt: "2026-10-07T00:00:00Z"
     )
 }

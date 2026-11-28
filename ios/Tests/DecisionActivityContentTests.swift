@@ -15,4 +15,16 @@ final class DecisionActivityContentTests: XCTestCase {
         XCTAssertNil(state.replyFailed)
         XCTAssertEqual(state.options, ["Yes"])
     }
+
+    func testRingUsesOriginalIntervalAndRejectsMissingOrInvertedBounds() {
+        let asked = Date(timeIntervalSince1970: 100)
+        let now = asked.addingTimeInterval(20)
+        let deadline = asked.addingTimeInterval(60)
+
+        XCTAssertEqual(DecisionTimerRange.progress(from: asked, until: deadline, now: now), asked...deadline)
+        XCTAssertNil(DecisionTimerRange.progress(from: nil, until: deadline, now: now))
+        XCTAssertNil(DecisionTimerRange.progress(from: asked, until: nil, now: now))
+        XCTAssertNil(DecisionTimerRange.progress(from: asked, until: asked, now: now))
+        XCTAssertNil(DecisionTimerRange.progress(from: now, until: asked, now: now))
+    }
 }

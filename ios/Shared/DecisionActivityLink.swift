@@ -25,7 +25,7 @@ enum DecisionActivityLink {
         }
     }
 
-    /// A failed send re-enables the buttons; a settled decision ends with what was recorded.
+    /// A failed send keeps the activity buttons locked; a settled decision ends with what was recorded.
     /// An already-resolved decision reads the winning reply rather than claiming this one.
     static func settle(
         _ id: MessageID, after submission: DecisionSubmission, choice: String, api: any BossServing

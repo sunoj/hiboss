@@ -7,7 +7,13 @@ import XCTest
 final class IntermediateOnboardingUITests: IntermediateCaptureCase {
     func testLiveActivityControls() {
         launch(["HIBOSS_DEMO_ACTIVITY": "1"])
-        holdAndCapture("activity-reply")
+        let next = app.buttons["demo-activity-next"]
+        XCTAssertTrue(next.appears(timeout: 8))
+        let states = ["pending", "sending", "slow", "failed", "answered", "default", "elsewhere", "island"]
+        for (index, state) in states.enumerated() {
+            if index > 0 { next.tap() }
+            capture("activity-\(state)")
+        }
     }
 
     func testRestoreAndConnect() {

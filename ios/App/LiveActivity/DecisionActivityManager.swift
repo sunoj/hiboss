@@ -49,11 +49,7 @@ enum DecisionActivityManager {
             registrar.observe(activity)
         }
 
-        let state = DecisionActivityAttributes.ContentState(
-            body: top.body, options: top.options, priority: top.priority,
-            deadline: top.expirationDate, content: top.content,
-            submitting: DecisionReplyGate.shared.inFlight[top.id]
-        )
+        let state = contentState(for: top)
         if await updateExisting(id: top.id.rawValue, state: state, deadline: top.expirationDate) { return }
         let attributes = DecisionActivityAttributes(
             messageID: top.id.rawValue, project: top.project ?? top.displayName,
@@ -67,6 +63,15 @@ enum DecisionActivityManager {
         } catch {
             laLog.error("Activity.request failed: \(error.localizedDescription)")
         }
+    }
+
+    static func contentState(for message: HistoryMessage) -> DecisionActivityAttributes.ContentState {
+        DecisionActivityAttributes.ContentState(
+            body: message.body, options: message.options, priority: message.priority,
+            deadline: message.expirationDate, content: message.content,
+            defaultOption: message.defaultOption, askedAt: message.createdDate,
+            submitting: DecisionReplyGate.shared.inFlight[message.id]
+        )
     }
 
     /// A token-push request the system refuses still gets a local-only activity.
@@ -100,8 +105,8 @@ enum DecisionActivityManager {
         if next.submitting == previous.submitting {
             next.submissionProgressVisible = previous.submissionProgressVisible
             next.submissionIsSlow = previous.submissionIsSlow
-            next.replyFailed = previous.replyFailed
         }
+        next.replyFailed = previous.replyFailed
         await activity.update(ActivityContent(state: next, staleDate: deadline))
         return true
     }

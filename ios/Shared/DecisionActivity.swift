@@ -15,6 +15,8 @@ struct DecisionActivityAttributes: ActivityAttributes {
         var priority: String
         var deadline: Date?
         var content: String?
+        var defaultOption: String?
+        var askedAt: Date?
         /// The choice a reply is sending; the buttons stay disabled until it lands.
         var submitting: String?
         var submissionProgressVisible: Bool?
@@ -53,6 +55,11 @@ enum DecisionTimerRange {
     static func active(until deadline: Date?, now: Date = Date()) -> ClosedRange<Date>? {
         guard let deadline, deadline > now else { return nil }
         return now...deadline
+    }
+
+    static func progress(from askedAt: Date?, until deadline: Date?, now: Date = .now) -> ClosedRange<Date>? {
+        guard let askedAt, askedAt <= now, let deadline, deadline > askedAt else { return nil }
+        return askedAt...deadline
     }
 }
 
