@@ -53,7 +53,7 @@ struct ProgressVideoCell: View {
         Theme.surface2
             .overlay { poster }
             .overlay { activePlayer }
-            .overlay { playMark }
+            .overlay(alignment: .topTrailing) { playMark.padding(Space.xs) }
             .overlay(alignment: .bottomLeading) { muteButton }
             .overlay(alignment: .bottomTrailing) { durationPill }
             .clipped()
