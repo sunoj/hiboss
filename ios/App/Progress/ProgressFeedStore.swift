@@ -1,5 +1,5 @@
 // Progress feed view model: pull-to-refresh, project filter, cursor pagination.
-// Exports: ProgressFeedStore driving the 进展 tab.
+// Exports: ProgressFeedStore driving the Progress tab.
 // Dependencies: Combine, HibossKit ProgressServing.
 
 import Combine
@@ -12,6 +12,8 @@ final class ProgressFeedStore: ObservableObject {
     @Published private(set) var projects: [ProgressProject] = []
     @Published private(set) var selectedProject: String?
     @Published private(set) var loadError: String?
+    @Published private(set) var paginationError: String?
+    @Published private(set) var loadedAt: Date?
     @Published private(set) var didLoad = false
     @Published private(set) var isLoadingMore = false
     @Published private(set) var isRefreshing = false
@@ -28,9 +30,14 @@ final class ProgressFeedStore: ObservableObject {
 
     private var api: (any ProgressServing)?
     private var nextCursor: ProgressCursor?
+    private var loadedProject: String?
     private var operation: Task<Void, Never>?
     private var refreshGeneration = 0
     private static let pageSize = 20
+
+    var canLoadMore: Bool {
+        nextCursor != nil && loadedProject == selectedProject && loadError == nil && paginationError == nil
+    }
 
     func start(api: any ProgressServing) {
         self.api = api
@@ -44,8 +51,11 @@ final class ProgressFeedStore: ObservableObject {
         operation?.cancel()
         operation = nil
         nextCursor = nil
+        loadedProject = nil
+        loadedAt = nil
         didLoad = false
         loadError = nil
+        paginationError = nil
         isLoadingMore = false
         isRefreshing = false
         likingIDs = []
@@ -90,18 +100,23 @@ final class ProgressFeedStore: ObservableObject {
         let generation = refreshGeneration
         isRefreshing = true
         defer { if generation == refreshGeneration { isRefreshing = false } }
+        let project = selectedProject
         do {
             let feed = try await api.progressFeed(
-                project: selectedProject, limit: Self.pageSize, before: nil
+                project: project, limit: Self.pageSize, before: nil
             )
             guard !Task.isCancelled else { return }
             posts = feed.posts
             nextCursor = feed.nextCursor
+            loadedProject = project
+            loadedAt = .now
             loadError = nil
+            paginationError = nil
             didLoad = true
         } catch is CancellationError {
             return
         } catch {
+            guard !Task.isCancelled else { return }
             loadError = error.localizedDescription
             return
         }
@@ -124,7 +139,7 @@ final class ProgressFeedStore: ObservableObject {
     }
 
     private func performLoadMore() async {
-        guard let api, let cursor = nextCursor, !isLoadingMore else { return }
+        guard let api, let cursor = nextCursor, canLoadMore, !isLoadingMore else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }
         do {
@@ -138,7 +153,8 @@ final class ProgressFeedStore: ObservableObject {
         } catch is CancellationError {
             return
         } catch {
-            loadError = error.localizedDescription
+            guard !Task.isCancelled else { return }
+            paginationError = error.localizedDescription
         }
     }
 

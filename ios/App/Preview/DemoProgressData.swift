@@ -7,8 +7,13 @@ import Foundation
 import HibossKit
 
 enum DemoProgressFixtures {
-    static func iso(_ offset: TimeInterval) -> String {
-        Date().addingTimeInterval(offset).ISO8601Format()
+    private static let now = Date()
+
+    static func iso(_ offset: TimeInterval, daysAgo: Int = 0) -> String {
+        let start = Calendar.current.startOfDay(for: now)
+        guard daysAgo > 0 else { return max(start, now.addingTimeInterval(offset)).ISO8601Format() }
+        let day = Calendar.current.date(byAdding: .day, value: -daysAgo, to: start) ?? start
+        return day.addingTimeInterval(12 * 60 * 60 + offset).ISO8601Format()
     }
 
     /// A bundled demo file; alternating grids keep neighbouring mosaic cells distinct.
@@ -41,7 +46,7 @@ enum DemoProgressFixtures {
                 "Portrait shot taller than 3:4 — clamped in the mosaic, full image on tap.",
                 zh: "高于 3:4 的竖向截图：拼图里限高显示，点开看全图。"),
             media: [image(1016, width: 800, height: 1600, alt: "tall portrait screenshot")],
-            createdAt: iso(-120),
+            createdAt: iso(-120, daysAgo: 1),
             team: .storefront, likeCount: 2, liked: false
         ),
         ProgressPost(
@@ -53,7 +58,7 @@ enum DemoProgressFixtures {
                 image(10, width: 800, height: 600, alt: "leading still"),
                 image(11, width: 800, height: 600, alt: "trailing still"),
             ],
-            createdAt: iso(-180),
+            createdAt: iso(-180, daysAgo: 1),
             team: .storefront, likeCount: 1, liked: false
         ),
         ProgressPost(
@@ -66,7 +71,7 @@ enum DemoProgressFixtures {
                 image(13, width: 800, height: 600, alt: "top still"),
                 image(14, width: 800, height: 600, alt: "bottom still"),
             ],
-            createdAt: iso(-240),
+            createdAt: iso(-240, daysAgo: 1),
             team: .storefront, likeCount: 0, liked: false
         ),
         ProgressPost(
@@ -80,7 +85,7 @@ enum DemoProgressFixtures {
                 image(17, width: 800, height: 600, alt: "quad bottom leading"),
                 image(18, width: 800, height: 600, alt: "quad bottom trailing"),
             ],
-            createdAt: iso(-300),
+            createdAt: iso(-300, daysAgo: 1),
             team: .storefront, likeCount: 8, liked: true
         ),
         ProgressPost(
@@ -97,7 +102,7 @@ enum DemoProgressFixtures {
                     alt: "looping demo clip"
                 ),
             ],
-            createdAt: iso(-400),
+            createdAt: iso(-400, daysAgo: 1),
             team: .storefront, likeCount: 1, liked: false
         ),
         ProgressPost(
@@ -112,7 +117,7 @@ enum DemoProgressFixtures {
                     alt: "retry latency chart"
                 ),
             ],
-            tags: ["hotfix"], createdAt: iso(-1800),
+            tags: ["hotfix"], createdAt: iso(-1800, daysAgo: 2),
             team: .payments, likeCount: 0, liked: false
         ),
         ProgressPost(
@@ -120,14 +125,14 @@ enum DemoProgressFixtures {
             body: demoCopy(
                 "Sandbox timeout reproduced. Waiting on the retry strategy decision.",
                 zh: "沙盒超时已复现，正在等待重试策略的决定。"),
-            createdAt: iso(-2400),
+            createdAt: iso(-2400, daysAgo: 2),
             team: .payments, likeCount: 2, liked: false
         ),
     ]
 
     static let projects: [ProgressProject] = [
         ProgressProject(project: "storefront", count: 6, lastPostAt: iso(-60), agentId: "ak1"),
-        ProgressProject(project: "payments", count: 2, lastPostAt: iso(-1800), agentId: "ak2"),
+        ProgressProject(project: "payments", count: 2, lastPostAt: iso(-1800, daysAgo: 2), agentId: "ak2"),
     ]
 }
 
