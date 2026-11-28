@@ -65,6 +65,11 @@ impl BossPins {
         true
     }
 
+    /// An operator's explicit `hiboss boss trust` overrides a revocation the directory reported.
+    pub fn reinstate(&mut self, key_id: &str) {
+        self.revoked.retain(|key| key.key_id != key_id);
+    }
+
     pub fn revoke(&mut self, key_id: &str, revoked_at: &str) {
         self.keys.retain(|key| key.key_id != key_id);
         if !self.is_revoked(key_id) {

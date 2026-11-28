@@ -141,3 +141,19 @@ verified actor kind instead: `[boss]` only for a boss actor whose signature veri
 Landed in `fix(cli,mcp): verify spooled boss messages and bind form answers to the signature`:
 the `daemon` spool is verified before the hook injects it, and a form reply's stored `answers`
 must equal the signed ones in the CLI and MCP.
+
+## Phase A (this release) and its limits
+
+Shipped: the boss key directory, CLI and MCP pinning with verification against the pins, pinning
+at setup for every saved profile, `hiboss boss keys [--pin]` and `hiboss boss trust`, Mac signing
+with a Secure Enclave key created at pairing, and the fingerprint and key text in the apps.
+
+Known limits, closed in phase B:
+
+- Revocations and new keys come from the directory unsigned. A hostile server can revoke a pinned
+  key (an availability loss: `hiboss boss trust` re-pins it) or offer a new key that the next
+  `--pin` or setup accepts. Endorsement and revocation statements signed by a trusted key fix both.
+- A revoked key never verifies, so replies it signed earlier read as unverified. The ledger of
+  seen signatures will keep that history readable without trusting a claimed time.
+- Unsigned boss writes (notes, reactions, commands, broadcasts, join approvals, web console,
+  Sign in with iPhone on the Mac) are still accepted with their attribution.

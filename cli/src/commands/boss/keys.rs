@@ -28,6 +28,7 @@ pub async fn run_keys(pin: bool, client: &HiBossClient) -> Result<(), Box<dyn Er
 pub fn run_trust(text: &str) -> Result<(), Box<dyn Error>> {
     let key = boss_key_text::parse(text)?;
     let mut pins = boss_pins::load(&key.boss_id).unwrap_or_else(|| BossPins::new(&key.boss_id, None));
+    pins.reinstate(&key.key_id);
     let fresh = pins.pin(pinned(&key, "manual"));
     let path = boss_pins::save(&pins)?;
     let verb = if fresh { "Pinned" } else { "Already pinned" };

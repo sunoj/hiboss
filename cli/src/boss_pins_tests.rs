@@ -63,3 +63,17 @@ fn key_text_round_trips_and_rejects_a_mismatched_key_id() {
     assert!(parse(&render(&forged)).is_err());
     assert!(parse("hiboss-boss-key:not-json").is_err());
 }
+
+#[test]
+fn an_explicit_trust_reinstates_a_key_the_directory_revoked() {
+    let message = signed_message_for_pins();
+    let (key_id, public_key) = key_of(&message);
+    let mut pins = pins(&key_id, &public_key);
+    pins.revoke(&key_id, "2026-11-28 00:00:00");
+    pins.reinstate(&key_id);
+    assert!(pins.pin(crate::boss_pins::PinnedKey { key_id: key_id.clone(), public_key, client_kind: "ios".into(),
+        label: None, via: "manual".into(), pinned_at: "2026-11-28T01:00:00Z".into() }));
+    set_pins(Some(vec![pins]));
+    assert!(verify_message(&message).is_ok());
+    set_pins(None);
+}

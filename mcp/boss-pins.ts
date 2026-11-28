@@ -53,7 +53,9 @@ function isPinFile(value: unknown): value is PinFile {
   const file = value as PinFile | null;
   const list = (items: unknown, field: string) => items == null
     || (Array.isArray(items) && items.every((item) => typeof (item as Record<string, unknown>)?.[field] === 'string'));
-  return typeof file?.boss_id === 'string' && list(file.keys, 'key_id') && list(file.revoked, 'key_id');
+  // The CLI always writes `keys`; a file without it is not one of ours.
+  return typeof file?.boss_id === 'string' && Array.isArray(file.keys)
+    && list(file.keys, 'key_id') && list(file.revoked, 'key_id');
 }
 
 /**
