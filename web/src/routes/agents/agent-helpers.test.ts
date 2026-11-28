@@ -133,6 +133,15 @@ describe('agent sending defaults from the inventory', () => {
 	it('preserves the legacy blank defaults', () => {
 		expect(agentConfig(row)).toEqual(defaultAgentConfig());
 	});
+	it.each([
+		{ default_priority: 'low', rate_limit: null },
+		{ default_priority: 'normal', rate_limit: 0 },
+		{ default_priority: 'high', rate_limit: 10 },
+		{ default_priority: 'critical', rate_limit: 50 }
+	] as const)('reads $default_priority defaults from a legacy agent record', (defaults) => {
+		const legacy = { ...row, ...defaults, channel_routing: { high: 'discord' } };
+		expect(agentConfig(legacy)).toEqual(defaults);
+	});
 	it('uses all supported server fields and preserves a zero rate limit', () => {
 		const config = { default_priority: 'high', rate_limit: 0 } as const;
 		expect(agentConfig({ ...row, ...config })).toEqual(config);

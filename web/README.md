@@ -1,7 +1,7 @@
 # HiBoss web console
 
 A SvelteKit single-page app for bosses: agents and their keys, bosses and grants,
-messages, sessions, projects, notification destinations, devices, routing and audit.
+messages, sessions, projects, HiBoss notification destinations, devices and audit.
 It is a static build (`@sveltejs/adapter-static` with an `index.html` fallback) and
 talks to the HiBoss server directly from the browser.
 
