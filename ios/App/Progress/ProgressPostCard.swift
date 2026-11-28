@@ -13,24 +13,24 @@ struct ProgressPostCard: View {
     var likeError: String? = nil
     var onOpenMedia: (ProgressMedia) -> Void
     var onToggleLike: () -> Void
+    @Environment(\.layoutDirection) private var layoutDirection
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.s) {
             header
             Text(MessageMarkdown.plainLinks(post.body))
                 .font(.body)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
             if !post.media.isEmpty {
                 ProgressMediaView(items: post.media, onOpen: onOpenMedia)
             }
-            HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+            HStack(spacing: Space.xs) {
                 if !post.tags.isEmpty {
-                    Text(verbatim: post.tags.map { "#\($0)" }.joined(separator: " "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    tagChips
+                } else {
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: Space.xs)
                 ProgressLikeButton(
                     liked: post.liked,
                     count: post.likeCount,
@@ -58,38 +58,58 @@ struct ProgressPostCard: View {
     @Environment(\.openConnectionSettings) private var openSettings
 
     private var header: some View {
-        HStack(alignment: .top, spacing: Space.s) {
+        HStack(spacing: Space.s) {
             ProjectAvatarView(project: post.projectIdentity, size: AvatarSize.row)
-            VStack(alignment: .leading, spacing: Space.xxs) {
-                Text(verbatim: (post.projectIdentity.displayName.isEmpty
-                    ? post.projectIdentity.slug : post.projectIdentity.displayName)).font(.headline)
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: Space.xxs) {
-                        attribution
-                        if hasAttribution && post.createdDate != nil { Text(verbatim: "·") }
-                        if let date = post.createdDate { RecordedTimeText(date: date) }
-                    }
-                    .fixedSize(horizontal: true, vertical: false)
-                    VStack(alignment: .leading, spacing: Space.xxs) {
-                        attribution
-                        if let date = post.createdDate { RecordedTimeText(date: date) }
-                    }
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                    projectName.fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 0)
+                    byline.fixedSize(horizontal: true, vertical: false)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: Space.xxs) {
+                    projectName
+                    byline
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
 
-    private var hasAttribution: Bool { post.agentLabel != nil || post.model != nil }
-
-    @ViewBuilder
-    private var attribution: some View {
-        if hasAttribution {
-            ProgressAttributionChip(agentLabel: post.agentLabel, model: post.model)
-        }
+    private var projectName: some View {
+        Text(verbatim: post.projectIdentity.displayName.isEmpty
+             ? post.projectIdentity.slug : post.projectIdentity.displayName)
+            .font(.headline)
+            .foregroundStyle(Theme.ink)
     }
 
+    private var byline: some View {
+        let agent = post.agentLabel ?? (post.agentName.isEmpty ? nil : post.agentName)
+        return HStack(alignment: .firstTextBaseline, spacing: Space.xxs) {
+            ProgressAttributionChip(agentLabel: agent, model: post.model, compact: true)
+            if let date = post.createdDate {
+                if agent != nil || post.model != nil {
+                    Text(verbatim: "·").accessibilityHidden(true)
+                }
+                Text(date, format: .dateTime.hour().minute())
+                    .fixedSize()
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(Theme.ink2)
+    }
+
+    private var tagChips: some View {
+        DecisionOptionFlow(layoutDirection: layoutDirection) {
+            ForEach(Array(post.tags.enumerated()), id: \.offset) { _, tag in
+                Text(verbatim: "#\(tag)")
+                    .font(.caption)
+                    .foregroundStyle(Theme.ink2)
+                    .padding(.horizontal, Space.xs)
+                    .padding(.vertical, Space.xxs)
+                    .background(Theme.surface2, in: Capsule())
+            }
+        }
+    }
 }
 
 struct ProgressLikeButton: View {
