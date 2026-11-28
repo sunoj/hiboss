@@ -129,8 +129,10 @@ struct BoxListView: View {
     }
 
     private func tile(_ item: BoxItem) -> some View {
-        Button { open(item) } label: { BoxTile(item: item, media: media) }
-            .buttonStyle(.plain)
+        BoxTile(item: item, media: media)
+            .onTapGesture { open(item) }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { open(item) }
             .accessibilityIdentifier("box-item-\(item.id)")
             .contextMenu {
                 if onSelect == nil {

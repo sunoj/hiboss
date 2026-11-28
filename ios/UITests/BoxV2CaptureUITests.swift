@@ -230,6 +230,7 @@ final class BoxCardSwipeUITests: XCTestCase {
             start.press(forDuration: 0.1, thenDragTo: end)
             let detailOpened = app.scrollViews["box-detail"].exists
                 || app.buttons["media-viewer-close"].exists
+            XCTAssertFalse(detailOpened, "A horizontal drag must not activate a card")
             let list = app.descendants(matching: .any)[gridID]
             let revealedActions = ["Delete", "Share", "Like"].flatMap { title in
                 app.buttons.matching(NSPredicate(format: "label == %@", title)).allElementsBoundByIndex
@@ -239,7 +240,6 @@ final class BoxCardSwipeUITests: XCTestCase {
             screenshot.lifetime = .keepAlways
             add(screenshot)
             XCTAssertTrue(revealedActions.isEmpty, "Swipe actions revealed inside the list")
-            XCTAssertFalse(detailOpened, "A horizontal drag must not activate a card")
             XCTAssertEqual(card.frame.minX, original.minX, accuracy: 1)
             XCTAssertEqual(card.frame.minY, original.minY, accuracy: 1)
             XCTAssertEqual(neighbor.frame.minX, adjacent.minX, accuracy: 1)
