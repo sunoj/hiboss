@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from 'bun:test';
 import { verifyMessage } from './message-security.js';
+import { setPinsForTest } from './boss-pins.js';
 
 const encoder = new TextEncoder();
 
@@ -25,6 +26,20 @@ describe('MCP message verification', () => {
     await expect(verifyMessage(withAnswers(signed, { order: ['a', 'b'] }))).rejects.toThrow('answers mismatch');
     const plain = await signedMessage('Submitted', 'Submitted');
     await expect(verifyMessage(withAnswers(plain, { order: ['a'] }))).rejects.toThrow('answers mismatch');
+  });
+
+  it('verifies against a pinned key and refuses an unpinned one once anything is pinned', async () => {
+    const message = await signedMessage('Approve', 'Approve');
+    const signature = ((message.metadata as Record<string, any>).provenance.signature) as Record<string, string>;
+    setPinsForTest([{ boss_id: 'boss-1', keys: [{ key_id: signature.key_id, public_key: signature.public_key }] }]);
+    try {
+      await expect(verifyMessage(message)).resolves.toMatchObject({ kind: 'verified' });
+      await expect(verifyMessage(await signedMessage('Approve', 'Approve'))).rejects.toThrow('not pinned');
+      setPinsForTest([{ boss_id: 'boss-1', keys: [], revoked: [{ key_id: signature.key_id }] }]);
+      await expect(verifyMessage(message)).rejects.toThrow('revoked');
+    } finally {
+      setPinsForTest(undefined);
+    }
   });
 
   it('accepts Discord with explicit unsupported attribution', async () => {

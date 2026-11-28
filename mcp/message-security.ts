@@ -2,6 +2,7 @@
 // Exports verifiable message types, recursive ES256 checks, assurance labels and shared JWS helpers.
 // Depends on Web Crypto and strict JSON/base64url parsing only.
 
+import { trustedKey } from './boss-pins.js';
 import { verifyAgentRow } from './agent-provenance.js';
 
 export const SIGNATURE_SCHEME = 'JWS-ES256';
@@ -91,7 +92,10 @@ async function verifySignature(
   if (source !== 'ios' && source !== 'macos') throw failure(message, 'signed source is not native');
   if (signature.scheme !== SIGNATURE_SCHEME) throw failure(message, 'unsupported signature scheme');
   const keyId = requiredString(message, signature, 'key_id');
-  const publicKey = decodeRequired(message, signature, 'public_key');
+  const bossId = String(asRecord(provenance.actor)?.id ?? '');
+  let offered = requiredString(message, signature, 'public_key');
+  try { offered = trustedKey(bossId, keyId, offered); } catch (error) { throw failure(message, (error as Error).message); }
+  const publicKey = decode(message, offered);
   const derivedKeyId = new Uint8Array(await crypto.subtle.digest('SHA-256', arrayBuffer(publicKey)));
   if (!equalBytes(decode(message, keyId), derivedKeyId)) {
     throw failure(message, 'signing key identifier mismatch');
