@@ -15,11 +15,12 @@ final class DuoRailActionsUITests: XCTestCase {
     /// on any device (the comparison shots) and measures only on the Duo.
     func testScrolledUpTranscriptKeepsMostOfTheHeight() throws {
         let app = launchDemo(["HIBOSS_DEMO_SESSION": "1"])
+        // Only the folded Duo's rail is under test; a larger window may not scroll at all.
+        try XCTSkipUnless(app.frame.size == Self.foldedDuo, "needs the folded Duo's side rail")
         chooseNoteMode(app)
         app.swipeDown()
         XCTAssertTrue(app.buttons["jump-to-live"].appears(timeout: 5))
         captureDemoScreenshot(app, name: "duo-rail-scrolled-up", test: self)
-        try XCTSkipUnless(app.frame.size == Self.foldedDuo, "needs the folded Duo's side rail")
         let composer = app.descendants(matching: .any)["session-reply-composer"].frame
         let transcript = visibleTranscript(app, composer: composer)
         let report = "transcript \(transcript.height) pt, composer \(composer.height) pt, "
