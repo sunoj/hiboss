@@ -267,23 +267,28 @@ extension XCUIApplication {
         let row = scrollViews["box-filters"]
         XCTAssertTrue(row.appears(timeout: 5))
         for _ in 0..<8 {
-            if chip.isHittable && row.frame.contains(chip.frame) { break }
-            if chip.exists && chip.frame.midX < row.frame.midX { row.swipeRight() }
+            let frame = chip.exists ? chip.frame : .null
+            if !frame.isEmpty && row.frame.contains(frame) {
+                XCTAssertTrue(chip.isHittable, identifier)
+                chip.tap()
+                XCTAssertTrue(chip.isSelected, identifier)
+                return
+            }
+            if !frame.isEmpty && frame.midX < row.frame.midX { row.swipeRight() }
             else { row.swipeLeft() }
         }
-        XCTAssertTrue(chip.isHittable, identifier)
-        chip.tap()
-        XCTAssertTrue(chip.isSelected, identifier)
+        XCTFail("Box chip did not scroll into view: \(identifier)")
     }
 
     func revealBoxTile(_ tile: XCUIElement) {
         let grid = scrollViews["box-grid"]
         XCTAssertTrue(grid.appears(timeout: 5))
         for _ in 0..<12 {
-            if tile.isHittable && grid.frame.contains(tile.frame) { break }
-            if tile.exists && tile.frame.minY < grid.frame.minY { grid.swipeDown() }
+            let frame = tile.exists ? tile.frame : .null
+            if !frame.isEmpty && grid.frame.contains(frame) && tile.isHittable { return }
+            if !frame.isEmpty && frame.minY < grid.frame.minY { grid.swipeDown() }
             else { grid.swipeUp() }
         }
-        XCTAssertTrue(tile.isHittable, tile.identifier)
+        XCTFail("Box tile did not scroll into view: \(tile.identifier)")
     }
 }
