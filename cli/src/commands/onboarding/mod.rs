@@ -52,11 +52,19 @@ async fn pin_boss_keys() {
     let pinned: Result<Vec<String>, Box<dyn Error>> = async {
         let config = config::load_saved_config()?;
         let mut lines = Vec::new();
-        for profile in config.profiles.values() {
+        for (name, profile) in &config.profiles {
             let (Some(key), Some(server)) = (profile.key.as_deref(), profile.server.as_deref()
                 .or(config.server.as_deref())) else { continue };
-            let directory = crate::client::HiBossClient::new(server, key).get_boss_keys().await?;
-            lines.extend(super::boss::keys::pin_directory(&directory, "first_use")?);
+            // One profile's stale credential must not leave the others' bosses unpinned.
+            let pinned = match crate::client::HiBossClient::new(server, key).get_boss_keys().await {
+                Ok(directory) => super::boss::keys::pin_directory(&directory, "first_use"),
+                Err(error) => Err(error),
+            };
+            match pinned {
+                Ok(pinned) => lines.extend(pinned),
+                Err(error) => lines.push(format!("Couldn't pin the boss keys profile {name} sees ({error}); \
+                    run `hiboss boss keys --pin` with that profile.")),
+            }
         }
         Ok(lines)
     }

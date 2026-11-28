@@ -44,7 +44,7 @@ pub fn pin_directory(directory: &BossKeysResponse, via: &str) -> Result<Vec<Stri
         pins.name = Some(boss.name.clone());
         for key in &boss.keys {
             if let Some(revoked_at) = &key.revoked_at {
-                pins.revoke(&key.key_id, revoked_at, Some(key.public_key.clone()));
+                pins.revoke(&key.key_id, revoked_at);
                 continue;
             }
             if !AUTO_PIN_KINDS.contains(&key.client_kind.as_str()) {

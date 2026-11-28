@@ -9,7 +9,7 @@ import { configPath } from './config.js';
 interface PinFile {
   boss_id: string;
   keys?: { key_id: string; public_key: string }[] | null;
-  revoked?: { key_id: string; revoked_at?: string; public_key?: string | null }[] | null;
+  revoked?: { key_id: string }[] | null;
 }
 
 interface PinStore { files: PinFile[]; damaged: boolean }
@@ -33,39 +33,37 @@ function loadStore(): PinStore {
   if (override) return override;
   const dir = pinsDir();
   let names: string[];
-  try { names = readdirSync(dir).filter((name) => name.endsWith('.json')); } catch { return { files: [], damaged: false }; }
+  try {
+    names = readdirSync(dir).filter((name) => name.endsWith('.json'));
+  } catch (error) {
+    // Missing means nothing pinned; a directory that exists but cannot be listed is damaged.
+    return { files: [], damaged: (error as NodeJS.ErrnoException).code !== 'ENOENT' };
+  }
   const store: PinStore = { files: [], damaged: false };
   for (const name of names) {
     try {
       const file = JSON.parse(readFileSync(join(dir, name), 'utf8')) as PinFile;
-      if (typeof file?.boss_id === 'string') store.files.push(file); else store.damaged = true;
+      if (isPinFile(file)) store.files.push(file); else store.damaged = true;
     } catch { store.damaged = true; }
   }
   return store;
 }
 
-/** Unix seconds from RFC 3339 or SQLite's `YYYY-MM-DD HH:MM:SS` (UTC). */
-function parseTime(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const iso = value.includes('T') ? value : `${value.replace(' ', 'T')}Z`;
-  const ms = Date.parse(iso);
-  return Number.isNaN(ms) ? undefined : Math.floor(ms / 1000);
+function isPinFile(value: unknown): value is PinFile {
+  const file = value as PinFile | null;
+  const list = (items: unknown, field: string) => items == null
+    || (Array.isArray(items) && items.every((item) => typeof (item as Record<string, unknown>)?.[field] === 'string'));
+  return typeof file?.boss_id === 'string' && list(file.keys, 'key_id') && list(file.revoked, 'key_id');
 }
 
 /**
  * The pinned key's base64url bytes when pinned; the offered key only while nothing is pinned.
  * Throws for a revoked key, or an unknown key once this machine pins anything.
  */
-export function trustedKey(bossId: string, keyId: string, offered: string, issuedAt: number): string {
+export function trustedKey(bossId: string, keyId: string, offered: string): string {
   const store = loadStore();
   const pins = store.files.find((file) => file.boss_id === bossId);
-  const revoked = pins?.revoked?.find((key) => key.key_id === keyId);
-  if (revoked) {
-    // History stays readable: a signature made before the revocation still counts.
-    const at = parseTime(revoked.revoked_at);
-    if (revoked.public_key && at !== undefined && issuedAt < at) return revoked.public_key;
-    throw new Error('signing key revoked on this machine');
-  }
+  if (pins?.revoked?.some((key) => key.key_id === keyId)) throw new Error('signing key revoked on this machine');
   const pinned = pins?.keys?.find((key) => key.key_id === keyId);
   if (pinned) return pinned.public_key;
   const anyPins = store.damaged

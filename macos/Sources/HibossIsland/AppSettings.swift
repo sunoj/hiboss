@@ -201,9 +201,9 @@ final class AppSettings: ObservableObject {
                 accepted = login.config
                 notice = login.notice
             }
-            try keychain.write(accepted.bossToken)
-            // A typed token was never bound to this Mac's key.
+            // A typed token was never bound to this Mac's key; drop it before the token changes.
             if !isStoredConnection { try MacMessageSigning.replace(with: nil, in: signerStore) }
+            try keychain.write(accepted.bossToken)
             defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
             bossToken = accepted.bossToken
             clientExchangeNotice = notice
@@ -220,12 +220,11 @@ final class AppSettings: ObservableObject {
             let key = pairingKey()
             let grant = try await redeemer.redeem(payload: payload, deviceLabel: outgoingDeviceLabel,
                                                   signing: try key?.registration(pairingCode: payload.code))
-            let config = try adopt(grant, server: payload.serverURL)
             // The server bound this key to the new token; replies from this Mac are now signed.
-            if let key, let keyID = grant.signingKeyID, !keyID.isEmpty {
-                try MacMessageSigning.replace(with: key.bind(bossID: grant.bossID, keyID: keyID), in: signerStore)
+            let signer = key.flatMap { key in
+                grant.signingKeyID.flatMap { $0.isEmpty ? nil : key.bind(bossID: grant.bossID, keyID: $0) }
             }
-            return .success(config)
+            return .success(try adopt(grant, server: payload.serverURL, signer: signer))
         } catch {
             return .failure(error)
         }
@@ -237,11 +236,13 @@ final class AppSettings: ObservableObject {
     }
 
     /// Stores a token granted by a pairing code or by Sign in with iPhone, as a manual login does.
-    func adopt(_ grant: PairingRedemptionGrant, server: URL) throws -> ConnectionConfig {
+    func adopt(
+        _ grant: PairingRedemptionGrant, server: URL, signer: SecureEnclaveMessageSigner? = nil
+    ) throws -> ConnectionConfig {
         let accepted = ConnectionConfig(serverURL: server, bossToken: grant.token)
+        // The signer changes first: if the Keychain refuses, the old token and key stay as they were.
+        try MacMessageSigning.replace(with: signer, in: signerStore)
         try keychain.write(accepted.bossToken)
-        // A new token has no key yet; pairing stores the one bound to it right after this.
-        try MacMessageSigning.replace(with: nil, in: signerStore)
         defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
         serverAddress = accepted.serverURL.absoluteString
         bossToken = accepted.bossToken
@@ -259,8 +260,8 @@ final class AppSettings: ObservableObject {
     ) throws -> ConnectionConfig {
         guard activeClientConfig == current else { throw CancellationError() }
         let accepted = ConnectionConfig(serverURL: current.serverURL, bossToken: token)
-        try keychain.write(token)
         try MacMessageSigning.replace(with: nil, in: signerStore)
+        try keychain.write(token)
         bossToken = token
         serverAddress = current.serverURL.absoluteString
         clientExchangeNotice = nil

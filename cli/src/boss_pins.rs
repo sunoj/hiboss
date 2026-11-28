@@ -24,9 +24,6 @@ pub struct PinnedKey {
 pub struct RevokedKey {
     pub key_id: String,
     pub revoked_at: String,
-    /// Kept so replies signed before the revocation still verify.
-    #[serde(default)]
-    pub public_key: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -45,8 +42,8 @@ pub struct BossPins {
 pub enum PinLookup {
     /// Pinned and not revoked: verify with these public-key bytes.
     Pinned(Vec<u8>),
-    /// Revoked at `revoked_at`; signatures issued before it still verify with `public_key`.
-    Revoked { public_key: Option<Vec<u8>>, revoked_at: String },
+    /// Revoked: no signature by this key verifies, whatever time it claims.
+    Revoked,
     Unknown,
 }
 
@@ -68,12 +65,10 @@ impl BossPins {
         true
     }
 
-    pub fn revoke(&mut self, key_id: &str, revoked_at: &str, public_key: Option<String>) {
-        let pinned = self.keys.iter().find(|key| key.key_id == key_id).map(|key| key.public_key.clone());
+    pub fn revoke(&mut self, key_id: &str, revoked_at: &str) {
         self.keys.retain(|key| key.key_id != key_id);
         if !self.is_revoked(key_id) {
-            self.revoked.push(RevokedKey { key_id: key_id.to_owned(), revoked_at: revoked_at.to_owned(),
-                public_key: pinned.or(public_key) });
+            self.revoked.push(RevokedKey { key_id: key_id.to_owned(), revoked_at: revoked_at.to_owned() });
         }
     }
 }
@@ -92,10 +87,16 @@ pub fn load_store() -> (Vec<BossPins>, bool) {
     if let Some(pins) = tests_support::override_pins() {
         return (pins, tests_support::damaged());
     }
-    let Ok(entries) = fs::read_dir(pins_dir()) else { return (Vec::new(), false) };
+    let entries = match fs::read_dir(pins_dir()) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return (Vec::new(), false),
+        // A pins directory that exists but cannot be listed is damaged, never empty.
+        Err(_) => return (Vec::new(), true),
+    };
     let mut damaged = false;
     let mut pins = Vec::new();
-    for entry in entries.filter_map(Result::ok) {
+    for entry in entries {
+        let Ok(entry) = entry else { damaged = true; continue };
         if entry.path().extension().is_none_or(|ext| ext != "json") { continue; }
         match fs::read_to_string(entry.path()).ok().and_then(|text| serde_json::from_str::<BossPins>(&text).ok()) {
             Some(file) => pins.push(file),
@@ -121,11 +122,8 @@ pub fn any_pins() -> bool {
 
 pub fn lookup(boss_id: &str, key_id: &str) -> PinLookup {
     let Some(pins) = load(boss_id) else { return PinLookup::Unknown };
-    if let Some(revoked) = pins.revoked.iter().find(|key| key.key_id == key_id) {
-        return PinLookup::Revoked {
-            public_key: revoked.public_key.as_deref().and_then(decode_b64url),
-            revoked_at: revoked.revoked_at.clone(),
-        };
+    if pins.is_revoked(key_id) {
+        return PinLookup::Revoked;
     }
     pins.keys.iter().find(|key| key.key_id == key_id)
         .and_then(|key| decode_b64url(&key.public_key))
@@ -195,22 +193,11 @@ pub(crate) mod tests_support {
 
 /// The key a signature must verify against: the pinned bytes when pinned; the offered key only
 /// while this machine has no pins at all (before setup pinned any).
-pub fn trusted_key(boss_id: &str, key_id: &str, offered: Vec<u8>, issued_at: i64) -> Result<Vec<u8>, &'static str> {
+pub fn trusted_key(boss_id: &str, key_id: &str, offered: Vec<u8>) -> Result<Vec<u8>, &'static str> {
     match lookup(boss_id, key_id) {
         PinLookup::Pinned(bytes) => Ok(bytes),
-        // History stays readable: a signature made before the revocation still counts.
-        PinLookup::Revoked { public_key: Some(bytes), revoked_at }
-            if parse_time(&revoked_at).is_some_and(|revoked| issued_at < revoked) => Ok(bytes),
-        PinLookup::Revoked { .. } => Err("signing key revoked on this machine"),
+        PinLookup::Revoked => Err("signing key revoked on this machine"),
         PinLookup::Unknown if any_pins() => Err("signed by a key this machine has not pinned; run `hiboss boss keys`"),
         PinLookup::Unknown => Ok(offered),
     }
-}
-
-/// Unix seconds from RFC 3339 or SQLite's `YYYY-MM-DD HH:MM:SS` (UTC).
-fn parse_time(value: &str) -> Option<i64> {
-    use time::format_description::well_known::Rfc3339;
-    let rfc = value.replacen(' ', "T", 1);
-    let rfc = if rfc.ends_with('Z') || rfc.contains('+') { rfc } else { format!("{rfc}Z") };
-    time::OffsetDateTime::parse(&rfc, &Rfc3339).ok().map(|time| time.unix_timestamp())
 }

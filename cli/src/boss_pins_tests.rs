@@ -32,17 +32,12 @@ fn a_pinned_key_verifies_and_an_unpinned_one_is_refused_once_anything_is_pinned(
 }
 
 #[test]
-fn a_revoked_key_still_verifies_what_it_signed_before_the_revocation() {
-    // The fixture signs at 2026-09-01 (issued_at 1_788_454_800).
+fn a_revoked_key_is_refused_whatever_time_its_signature_claims() {
     let message = signed_message_for_pins();
     let (key_id, public_key) = key_of(&message);
-    let mut later = pins(&key_id, &public_key);
-    later.revoke(&key_id, "2026-11-28 00:00:00", None);
-    set_pins(Some(vec![later]));
-    assert!(verify_message(&message).is_ok(), "signed before the revocation: history stays readable");
-    let mut earlier = pins(&key_id, &public_key);
-    earlier.revoke(&key_id, "2026-01-01T00:00:00Z", None);
-    set_pins(Some(vec![earlier]));
+    let mut revoked = pins(&key_id, &public_key);
+    revoked.revoke(&key_id, "2026-11-28 00:00:00");
+    set_pins(Some(vec![revoked]));
     assert!(verify_message(&message).expect_err("revoked").to_string().contains("revoked"));
     set_pins(None);
 }
