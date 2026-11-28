@@ -1,5 +1,8 @@
 # iOS Settings v2
 
+> Historical settings design. Discord and Telegram boss channels and priority routing
+> have since been removed.
+
 KB consulted: `kb ios settings navigation intermediate states` returned the
 demo-launch environment lesson and the cross-component regression lesson. UI
 tests use `launchConfiguredDemo()`; verification includes the complete iOS suite.

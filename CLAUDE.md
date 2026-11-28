@@ -1,6 +1,6 @@
-# hiboss — AI Agent ↔ Boss Communication Tool
+# hiboss — AI Agent ↔ Boss Communication Through HiBoss
 
-CLI tool for AI agents to send messages to their boss (human or AI) and receive replies. Supports Discord and Telegram channels.
+CLI tool for AI agents to send messages to their boss (human or AI) and receive replies. Bosses receive messages and reply in the HiBoss iOS and macOS apps or web console.
 
 ## Agent Instructions
 
@@ -14,7 +14,7 @@ configures SessionStart (unread messages + daemon start), PostToolUse
 
 Prefer HiBoss for boss-facing progress, results, and input during substantive tasks.
 Read `hiboss panel guide`, then inspect `hiboss panel --help` and `hiboss request
---help`. Respect an explicit channel preference or notification opt-out.
+--help`. Respect an explicit notification preference or notification opt-out.
 
 - When the hook announces a boss note (留言), run `hiboss note read`, reply with `hiboss note reply`.
 - Handle actual unread messages with `hiboss reply <id> "response"`.
@@ -296,6 +296,6 @@ Run limits, so the desktop is not taken over:
 Detailed docs live in [`docs/reference/`](docs/reference/README.md):
 - **API Reference** — all endpoints, request/response formats
 - **CLI Reference** — complete command reference with examples
-- **Message Delivery** — delivery architecture, channel resolution, hooks
+- **Message Delivery** — delivery architecture, reactions, hooks
 - **Roadmap History** — version history v0.1 through v1.4
 - **Architecture Decisions** — agent-as-boss, autonomy, multi-agent design

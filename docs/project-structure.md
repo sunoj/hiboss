@@ -7,7 +7,7 @@ Claude Code ←stdio/MCP→ hiboss-mcp (local Bun, mcp/)
                               ↕ SSE + REST
 hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, server/)
                                     ↕ D1 (messages)
-                                    ↕ Channel Adapters (Discord, Telegram)
+                                    ↕ Boss API (iOS, macOS, web console)
                                     ↕ Boss (human or AI)
 ```
 

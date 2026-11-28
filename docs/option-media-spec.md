@@ -1,10 +1,12 @@
 # Option media — images attached to the choices of an ask
 
 An ask can carry one image per option, so the boss compares two renderings and picks one
-("A or B?"). This document is the contract every surface implements: server, CLI, Discord,
-Telegram, the boss API clients (iOS, macOS, web console).
+("A or B?"). This document is the contract every surface implements: server, CLI and the boss API clients (iOS, macOS, web console).
 
-## Why it does not work today
+## Original defects (historical)
+
+Discord and Telegram boss channels were removed. The following records the defects
+that motivated the option media format.
 
 Three defects, all confirmed on production data (2026-09-10):
 
@@ -20,7 +22,7 @@ Three defects, all confirmed on production data (2026-09-10):
 3. Telegram: `deliverToChannelWithOptions()` sends the photo/document and **silently drops
    the inline keyboard**. An ask with an image loses its buttons entirely.
 
-No surface has ever had per-option media; `metadata.options` is a list of labels.
+Before this format, no surface had per-option media; `metadata.options` is a list of labels.
 
 ## Wire format
 
@@ -66,7 +68,7 @@ keeps serving. No migration.
 
 ## Rendering
 
-### Discord
+### Discord (removed)
 
 - One embed per option that has media, in `options` order:
   `{ title: "A · <label>", description: <caption?>, image: { url } }`, letters A, B, C…
@@ -76,7 +78,7 @@ keeps serving. No migration.
   `file_url` that points at `/api/attachments/<key>`, read the object from the
   `ATTACHMENTS` binding directly; only a foreign URL is fetched.
 
-### Telegram
+### Telegram (removed)
 
 One rule, because the three special cases this replaced each lost something: the question
 text, the buttons, or the ability to edit the message afterwards.
@@ -140,8 +142,6 @@ hiboss ask \
 
 Not "it compiles". A real two-option ask with two images, sent from the CLI, must:
 
-- Telegram: show both images and working buttons; the pick strikes the keyboard.
-- Discord: show two labeled embeds and working buttons.
 - macOS and iOS: show both thumbnails; the pick resolves with the right `selected_option`.
 - D1: `metadata.option_media` present, `metadata.delivery_error` absent.
 
@@ -150,6 +150,6 @@ iOS the decision card appears in the Home list, the Inbox list and the message d
 and a layout bug can live on exactly one of them. Rendering the component on a single screen
 at three Dynamic Type sizes is one test, not three.
 
-Status as of 2026-09-11: all of the above confirmed except the Discord render, which is
-covered only by unit tests on embed composition — the bot token used here cannot read that
-channel back (403).
+In the 2026-09-11 verification, the former Telegram path passed and the former Discord
+path was covered only by embed composition unit tests. Its bot token could not read
+that channel back (403).

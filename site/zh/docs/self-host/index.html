@@ -38,7 +38,6 @@
           <li><a href="#approve">6. 批准这台机器</a></li>
           <li><a href="#agents">7. 接入智能体</a></li>
           <li><a href="#more">添加更多机器</a></li>
-          <li><a href="#channels">Telegram 与 Discord</a></li>
           <li><a href="#push">推送通知</a></li>
           <li><a href="#update">更新</a></li>
         </ol>
@@ -108,14 +107,6 @@ hiboss ask --option "收到" --option "没收到" "这条消息到你手机上�
 
         <h2 id="more">添加更多机器</h2>
         <p>在已配置的机器上运行 <code>hiboss device invite --copy</code>，把生成的提示粘贴给新机器上的智能体。它会按需安装命令行、运行 setup，然后等你在应用里批准。</p>
-
-        <h2 id="channels">Telegram 与 Discord（可选）</h2>
-        <p>只用应用就够了。如果还想在聊天应用里收消息，可以运行引导式设置：</p>
-        <pre><code>hiboss setup telegram
-hiboss setup discord</code></pre>
-        <p>也可以直接配置渠道，例如 Discord webhook：</p>
-        <pre><code>hiboss channel set discord --webhook-url &lt;WEBHOOK_URL&gt;</code></pre>
-        <p>如果 Telegram 向导用到了 webhook 密钥，它会提醒你在服务器上设置同样的值：<code>npx wrangler secret put TELEGRAM_WEBHOOK_SECRET</code>。</p>
 
         <h2 id="push">推送通知</h2>
         <p>App Store 版 iPhone 应用开箱即可收到推送。没有自己 Apple 推送通知服务（APNs）密钥的服务器，会通过 HiBoss 推送中继 <code>push.hiboss.org</code> 发送通知，中继持有该应用的 APNs 密钥。</p>

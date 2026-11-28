@@ -23,8 +23,8 @@
    only if a boss-authenticated agent command already exists.
 5. Reject role changes and hard deletion that would leave no live, non-archived
    admin bosses with 409. Preserve the archive route's last-admin protection.
-6. Guided Discord command registration sends normal agent authentication.
-   A non-success response fails setup with a nonzero exit status.
+6. After approval, setup pins the boss’s app signing keys and prints their fingerprints.
+   If pinning fails, setup reports the error and suggests `hiboss boss keys --pin`.
 
 Bootstrap secrets use the existing constant-time comparison and are never
 logged, printed, or stored. Bootstrap does not issue a bearer token. Agent
@@ -32,4 +32,4 @@ bootstrap stops once an agent exists; boss bootstrap stops once a boss exists.
 Credentials require the secret or an approved enrollment.
 
 HTTP server regression tests cover rules 3–5. CLI mock-server tests cover
-pairing output, secret omission, and authenticated Discord registration errors.
+pairing output and secret omission.

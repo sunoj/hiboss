@@ -10,7 +10,7 @@ SHA-256 hashes; a bearer value is returned once, by the mint response.
   `key_hash` to one `agent_keys` row labelled `migrated`, so installed bearers keep
   working without re-enrolment. New identities never write the legacy hash column.
 - Administrative capability is the separate `api_keys.is_admin` flag. Agents are
-  authorized for admin-gated routes (`/api/channels`, `/api/keys`, Discord gateway)
+  authorized for admin-gated routes (`/api/keys`, `/api/integrations`)
   only through `is_admin`. Rows whose legacy `role` was `admin` were migrated to
   `is_admin = 1`.
 - Workflow roles (`orchestrator`, `worker`, `reviewer`, or null) are separate from

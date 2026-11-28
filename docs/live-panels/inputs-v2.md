@@ -39,7 +39,7 @@ instead of `options`. One input only: two or more fields remain a questionnaire.
 - The server derives the answer schema and stores `form` on the message (at most 8 KiB).
 - `--default` is rejected for a form ask. Expiry never fills in an answer.
 - The boss's reply carries `answers` (the value at the input) and a readable `body`
-  summary for the thread, Discord and older clients. The server validates `answers`
+  summary for the thread and older clients. The server validates `answers`
   with `validateAnswers` against the derived schema. A reply without `answers` is
   refused with 409, so a client that cannot render the form cannot answer it in text.
 - A signed reply includes `answers` in the signed payload; the server compares it with

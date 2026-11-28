@@ -55,5 +55,4 @@ One formatter per client (`macos/Sources/HibossIsland/Formatting/SharedTimestamp
 - Deadlines are future times and keep their own countdown/absolute format, still without the
   current year.
 
-Answer sources and channels use one brand-casing helper (iOS, iPadOS, macOS, watchOS, CLI, Web,
-Telegram, Discord); `.capitalized` is only the fallback for unknown values.
+Answer sources use one brand-casing helper (iOS, iPadOS, macOS, watchOS, CLI and Web); `.capitalized` is only the fallback for unknown values.

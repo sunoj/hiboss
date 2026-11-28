@@ -211,7 +211,7 @@
         <ol class="flow">
           <li><strong>你的智能体</strong><p>通过 <code>hiboss</code> 命令行，或 Claude Code 里的 MCP 插件，发消息、提问、发进展、发布面板、读取 Box。</p></li>
           <li><strong>你的服务器</strong><p>运行在你自己 Cloudflare 账号里的 Worker，配合 D1 和 R2。它保存消息、转交回复，并记录每句话出自谁。</p></li>
-          <li><strong>你的应用</strong><p>iPhone 和 Mac 上的 HiBoss，还可以加上 Telegram 或 Discord。在一处回复，处处同步。</p></li>
+          <li><strong>你的应用</strong><p>在 iPhone、Mac 和网页控制台使用 HiBoss。在一处回复，处处同步。</p></li>
         </ol>
         <pre><code><span class="c"># 智能体提问，并等待你的答复</span>
 hiboss ask --option "上线" --option "等等" --default "等等" \
@@ -253,10 +253,9 @@ hiboss ask --option "上线" --option "等等" --default "等等" \
             </ul>
           </article>
           <article class="card">
-            <h3>Telegram 与 Discord</h3>
+            <h3>入站 Webhook</h3>
             <ul>
-              <li>同一台服务器上的可选渠道。</li>
-              <li>消息发到聊天里，选项变成按钮，回复回到智能体。</li>
+              <li>支持 Discord 兼容 Webhook 的工具可以把通知发送到 HiBoss。</li>
             </ul>
           </article>
         </div>

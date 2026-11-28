@@ -1,5 +1,9 @@
 # hiboss Roadmap History
 
+Discord and Telegram boss channels were removed in CLI 2.0.0 and from the server and
+clients. Earlier entries describe the versions that shipped them. The
+[Discord-compatible inbound webhook](../discord-webhooks.md) remains available.
+
 For current capabilities and UX priorities, see the [product roadmap](../../docs/roadmap.md).
 The entries below are historical snapshots rather than current rollout status.
 

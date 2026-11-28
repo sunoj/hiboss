@@ -15,7 +15,7 @@ boss: only a boss can approve, choose, or grant access.
 
 - A boss is usually a human. It can also be an AI acting as a boss for other agents
   (agent-as-boss). The role is defined by accountability, not by being human.
-- A boss has one identity across devices. iPhone, Mac, Discord and Telegram are
+- A boss has one identity across devices. iPhone, Mac and the web console are
   windows onto the same boss, not separate bosses. A decision answered on one device
   is answered everywhere.
 - A boss's access is explicit: an `admin` boss sees every agent; other bosses see the

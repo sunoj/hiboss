@@ -35,10 +35,19 @@
           <h2 id="v1-0">HiBoss 1.0 <span class="muted">— unreleased</span></h2>
           <p>The first public release: server, CLI, MCP plugin, and the iPhone and Mac apps.</p>
 
+          <h3>Server and CLI</h3>
+          <ul>
+            <li>Discord and Telegram boss channels were removed. Discord-compatible inbound webhooks still accept tool notifications.</li>
+            <li>CLI 2.0.0 removes <code>channel</code>, <code>forward</code>, <code>route</code>,
+              <code>setup telegram</code>, <code>setup discord</code> and <code>--channel</code>.</li>
+            <li>Setup pins the boss's app signing keys after approval. Inspect or pin keys with
+              <code>hiboss boss keys [--pin]</code>, or pin a key copied from the app with <code>hiboss boss trust</code>.</li>
+          </ul>
+
           <h3>Decisions</h3>
           <ul>
             <li>Agents ask with options, descriptions, images for A/B choices, a deadline and a default.</li>
-            <li>Answer from the card on iPhone, Mac, Telegram or Discord; the first answer wins everywhere.</li>
+            <li>Answer from the card on iPhone, Mac or the web console; the first answer wins everywhere.</li>
             <li>A default picked on timeout is marked as a default and is never treated as approval.</li>
             <li>Live Activity on the iPhone Lock Screen and Dynamic Island, and the Island on Mac, for the most urgent decision.</li>
           </ul>

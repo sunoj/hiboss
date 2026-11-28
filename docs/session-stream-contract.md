@@ -63,7 +63,7 @@ appearing empty. Say in your report how many rows that produced.
 
 Every path that inserts into `messages` with a `session_id` (or `target_session_id`) must
 append a corresponding event in the same batch. Find them all: agent→boss, boss→agent
-replies, agent→agent, channel-originated replies (Discord/Telegram webhooks), option
+replies, agent→agent, option
 resolutions, and the scheduled expiry sweep.
 
 **Miss one and the stream silently omits that message** — no error, no test failure, just an

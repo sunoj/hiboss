@@ -70,7 +70,7 @@ Three levels, most used first.
 | Level | Items | Shown to |
 |---|---|---|
 | Primary | **Today** (open-decision count), **Sessions**, **Messages** | Everyone |
-| Manage | **Agents** (agents, keys, channels, groups, join requests), **Delivery** (destinations, routing rules, providers), **Projects** | Everyone; write controls by role |
+| Manage | **Agents** (agents, keys, groups, join requests), **Delivery** (native notification destinations), **Projects** | Everyone; write controls by role |
 | System | **People & access**, **Audit**, **Server** | People & access: admin only. Audit and Server: everyone; the server scopes a non-admin's audit rows to its own actions and its granted agents. |
 | Account menu | Signed-in boss and role, **Devices**, language, appearance, Sign out | Everyone |
 
@@ -84,8 +84,8 @@ Messages is the searchable record. Everything in Manage and System is occasional
 | `/` | Today | `/` (Dashboard) |
 | `/messages`, `/messages/:id` | Messages and one message. An open ask renders as the decision detail. | `/messages` and its drawer |
 | `/sessions`, `/sessions/:id` | Sessions and one session transcript | `/sessions` and its drawer |
-| `/agents`, `/agents/:id` | Agents; tabs Agents, Groups, Join requests | `/agents`, `/groups`, `/channels` |
-| `/delivery` | Tabs Destinations, Rules, Providers | `/notifications`, `/routing` |
+| `/agents`, `/agents/:id` | Agents; tabs Agents, Groups, Join requests | `/agents`, `/groups` |
+| `/delivery` | Native notification destinations | `/notifications` |
 | `/projects` | Projects | `/projects` |
 | `/access` | People & access | `/bosses` |
 | `/devices` | Devices (from the account menu) | `/devices` |
@@ -93,7 +93,7 @@ Messages is the searchable record. Everything in Manage and System is occasional
 | `/server` | Server | `/system` |
 | `/connect` | Connect | `/connect` |
 
-Old paths (`/groups`, `/channels`, `/notifications`, `/routing`, `/bosses`, `/system`) redirect to
+Old paths (`/groups`, `/notifications`, `/bosses`, `/system`) redirect to
 the new screen and tab. Every detail has its own URL, so a row can be opened in a new tab, shared
 and reached by the browser's Back button; today's drawers have none of these.
 
@@ -203,8 +203,8 @@ most 68 characters wide.
 | Flat or by-session toggle | Kept as "Group by session" inside More filters | Same function, less chrome. |
 | Raw message ID in the drawer header; status, direction and mode badges on every row | Demoted to a Details disclosure on the message | Needed for support, not for reading. |
 | `/groups` | Merged into Agents as a tab | A group is a set of agents; its only actions are members and broadcast. |
-| `/channels` | Merged into the agent's detail, as its Channels section | A channel switch belongs to one agent. The list keeps the "no enabled channel" warning. |
-| `/notifications` and `/routing` | Merged into Delivery | Both answer "where does a message go". |
+| `/channels` and `/routing` | Removed with Discord and Telegram boss channels | HiBoss clients receive boss messages. |
+| `/notifications` | Redirects to Delivery | Manage native notification destinations. |
 | `/bosses` "Bosses & Access" | Renamed People & access | "Boss" is the product's word for the reader, who is one of the people listed. |
 | `/system` "System / Doctor" | Renamed Server; the toast after a check is removed | The result is on the page. |
 | `/devices` in the sidebar | Moved to the account menu | It lists the reader's own sign-ins. |

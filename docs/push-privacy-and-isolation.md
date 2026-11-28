@@ -1,5 +1,8 @@
 # Push Isolation & Privacy (self-hosted APNs)
 
+> Historical design analysis. Discord and Telegram boss channels were removed; the
+> channel trade-offs below describe the deployment at the time of the analysis.
+
 hiboss is **self-hosted, single-tenant** (see the architecture decisions): one operator
 = one Cloudflare Worker + one D1 + one Apple Developer team. This note explains how iOS
 push stays isolated per deployment and what "message encryption" does and doesn't buy us.

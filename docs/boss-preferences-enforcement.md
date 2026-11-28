@@ -7,7 +7,7 @@ Delivery reads the following preferences:
 - **Quiet hours.** On the legacy send path, `getAgentQuietHoursEnd`
   (`server/src/routes/quiet-hours.ts`) finds the latest quiet-hours end among the bosses who can
   see the agent; a `normal` or `low` agent-to-boss send is queued in `delivery_queue` until then,
-  including sends with no legacy channel config. Those sends use an internal API queue entry;
+  using an internal native-only queue entry;
   the cron drain delivers the same boss-agent callback and push an immediate send gets.
   On the destinations path, `destinationQuietEnd` (`server/src/delivery/destinations.ts`)
   defers each boss destination that honours quiet hours. Both read the flat
@@ -44,7 +44,7 @@ Note the design mock contradicts itself here: the Notifications pane says "criti
 always break through" while the Quiet Hours pane says "Silence normal & low; critical still
 alerts." Resolve this with the user before implementing.
 
-### Quiet-hours fan-out can double-deliver
+### Historical quiet-hours fan-out with removed channel configs
 
 Enqueueing every channel config (rather than the first) inserts multiple `delivery_queue`
 rows for one message. `scheduled.ts` selects by queue `id` and `markMessageDelivered` does

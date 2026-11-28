@@ -210,7 +210,7 @@
         <ol class="flow">
           <li><strong>Your agents</strong><p>Call the <code>hiboss</code> CLI, or the MCP plugin in Claude Code, to send, ask, post progress, publish panels and read the Box.</p></li>
           <li><strong>Your server</strong><p>A Cloudflare Worker with D1 and R2 in your own Cloudflare account. It stores messages, routes answers and records who said what.</p></li>
-          <li><strong>Your apps</strong><p>HiBoss for iPhone and Mac, plus Telegram or Discord if you like. Answer in one place and it is answered everywhere.</p></li>
+          <li><strong>Your apps</strong><p>HiBoss for iPhone and Mac, plus the web console. Answer in one place and it is answered everywhere.</p></li>
         </ol>
         <pre><code><span class="c"># An agent asks, and waits for your answer</span>
 hiboss ask --option "Ship" --option "Wait" --default "Wait" \
@@ -252,10 +252,9 @@ hiboss ask --option "Ship" --option "Wait" --default "Wait" \
             </ul>
           </article>
           <article class="card">
-            <h3>Telegram and Discord</h3>
+            <h3>Inbound webhooks</h3>
             <ul>
-              <li>Optional channels on the same server.</li>
-              <li>Messages arrive in your chat; choices become buttons; replies go back to the agent.</li>
+              <li>Tools that post to a Discord-compatible webhook can send notifications into HiBoss.</li>
             </ul>
           </article>
         </div>

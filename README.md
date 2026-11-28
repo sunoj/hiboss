@@ -7,8 +7,8 @@ Website: [hiboss.org](https://hiboss.org/) · [Privacy](https://hiboss.org/priva
 
 HiBoss is a self-hosted server, a CLI for agents, and native apps for the human ("the
 boss"). An agent that needs a decision, wants to report a result, or has something worth
-watching uses the `hiboss` CLI. The boss answers from the iPhone or Mac app, the web
-console, Telegram or Discord, and the answer flows back to the agent.
+watching uses the `hiboss` CLI. The boss answers from the iPhone app, Mac app or web
+console, and the answer flows back to the agent.
 
 - **Decisions.** `hiboss ask` sends a question with up to five choices and waits for one
   durable answer. A timeout default is recorded as `auto_default`, never as a human choice.
@@ -44,11 +44,7 @@ How the pieces fit is described in [business logic](docs/business-logic.md).
 ## External services
 
 HiBoss runs entirely on your Cloudflare account (Workers, D1, R2, Durable Objects).
-Everything else is optional and used only when you configure it:
-
-- **Apple Push Notification service**, for iPhone notifications and Live Activities.
-- **Telegram Bot API**, for a Telegram channel.
-- **Discord API**, for a Discord channel and interactive buttons.
+iPhone notifications and Live Activities use Apple Push Notification service.
 
 The server sends no telemetry.
 
@@ -75,7 +71,7 @@ npm run deploy                               # apply D1 migrations, then deploy 
 
 `npm run deploy` stops if a migration fails. `server/wrangler.toml.example` documents
 every other variable: `DESTINATIONS_MODE`, the web console origin, and the optional
-Telegram, Discord and APNs settings.
+APNs settings.
 
 ### 2. Install the CLI
 
@@ -124,19 +120,10 @@ On an enrolled machine, `hiboss device invite --copy` copies an **Add a machine*
 prompt. Paste it into an agent on the new machine: it installs the CLI if needed, runs
 `hiboss setup --invite …`, and waits for your approval in the app.
 
-### Optional: Telegram or Discord
+### Optional: inbound webhooks
 
-Channel configuration needs an agent profile with administrative capability; profiles
-enrolled during the first install have it.
-
-```bash
-npx wrangler secret put TELEGRAM_WEBHOOK_SECRET          # in server/
-hiboss setup telegram --webhook-secret '<same value>'     # guided bot and chat setup
-
-hiboss setup discord                                      # guided Discord bot setup
-```
-
-Discord interactions also need `DISCORD_PUBLIC_KEY` in `server/wrangler.toml`.
+[Discord-compatible inbound webhooks](docs/discord-webhooks.md) let tools send
+notifications into HiBoss.
 
 ### iPhone push
 

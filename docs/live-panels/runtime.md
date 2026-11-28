@@ -93,8 +93,7 @@ and 4.7 before shipping. [App Review Guidelines](https://developer.apple.com/app
 
 ## 3. Relay topology
 
-Use a new SQLite-backed `PanelRoom` Durable Object namespace, independent of the
-existing Discord gateway. Initial room identity is the explicit recipient `bossId`.
+Use a new SQLite-backed `PanelRoom` Durable Object namespace. Initial room identity is the explicit recipient `bossId`.
 Do not create a global room, use project names as room identity, or open one device
 connection per chart. An agent with several authorized recipients connects to their
 rooms separately; initial panels have one recipient room.

@@ -60,14 +60,14 @@ session, each group has a header row with the session name and its message count
 
 Detail: provenance line and time; title; content (embed cards, Markdown, copy blocks);
 attachments; options when the message is an ask (then the decision detail layout is used);
-reactions (seen, working on it, done) and Forward; the reply field; a Details disclosure with
-status, sent and updated times, priority, direction and mode, channel, expiry and the message ID.
+reactions (seen, working on it, done) and the reply field; a Details disclosure with
+status, sent and updated times, priority, direction and mode, expiry and the message ID.
 
-- **Actions.** Search, filter, open, reply, react, forward to a channel, answer.
+- **Actions.** Search, filter, open, reply, react, answer.
 - **States.** Filtered-empty with "Clear filters". An integration message has no reply field and
   says why. Peer (agent to agent) messages are read-only and labelled "Between agents". A failed
   reply keeps the draft and shows the error under the field.
-- **Roles.** Viewer: no reply field, reactions, Forward or options.
+- **Roles.** Viewer: no reply field, reactions or options.
 
 ## Sessions — `/sessions`, `/sessions/:id` (*mockup: sessions.html*)
 
@@ -97,19 +97,15 @@ target; "Leave a note instead", which leaves a session note that sends no notifi
 Tabs: **Agents**, **Groups**, **Join requests** (with the pending count).
 
 Agents list: search; rows with name, workflow role, projects, last seen, and badges for
-"Admin capability" and "Integration". A Signal banner under the list names each agent with no
-enabled channel.
+"Admin capability" and "Integration".
 
 Agent detail:
 
 1. Identity: name, workflow role, ID, last seen, created; the Admin capability switch.
 2. **Keys**: label, created, last used, and Revoke; revoked keys stay listed and greyed with
    their revocation date. "Create key" takes a label and shows the key once.
-3. **Sending defaults**: default priority, rate limit per minute, and priority routes (a priority
-   mapped to a channel, for example Critical → Discord; add and remove). One Save button for the
-   section, disabled until something changed.
-4. **Channels**: one switch per configured channel, saved on change, with the note that
-   credentials are set with the CLI.
+3. **Sending defaults**: default priority and rate limit per minute. One Save button for
+   the section, disabled until something changed.
 
 Groups tab: one card per group with its name, owner agent, description and member count;
 "Edit members" (add from a select, remove per member); "Broadcast" (group, priority, text, Send);
@@ -123,33 +119,17 @@ Reject. Approval shows the result once; keys reach the machine through its own p
   with creation and last use, and states that they are managed with the CLI.
 - **Roles.** Manager: sees granted agents; creates and revokes keys except for boss-linked or
   admin-capability agents, where the buttons are absent and a note explains it; no Admin
-  capability switch; no Join requests tab. Viewer: read-only; no key, defaults, channel, group or
+  capability switch; no Join requests tab. Viewer: read-only; no key, defaults, group or
   broadcast controls.
 
 ## Delivery — `/delivery`
 
 **Purpose.** Where the boss hears from agents.
 
-Tabs: **Destinations**, **Rules**, **Providers** (admin only).
-
-- **Destinations.** One row per destination: label, type (Telegram, Discord, Push device, Live
-  client), route count, the Enabled switch, minimum priority, "Honour quiet hours", Test, Delete.
-  "Add destination": provider, label, chat or channel ID, optional thread ID. When destination
-  delivery is not on, a neutral banner says the settings take effect once it is enabled and Test
-  is absent. Live clients cannot be tested and say so.
-- **Rules.** The routing rules table: owner agent, channel, pattern (monospace), target agent,
-  priority, enabled (read-only), Delete. Sortable by every column; default priority descending.
-  "Add rule": owner agent, channel, pattern, target agent, priority. An invalid regular
-  expression is reported on the field.
-- **Providers.** Name and type per provider; "Add provider" with write-only credentials (bot
-  token, optional Discord webhook URL) and the note that existing secrets are never displayed.
-
-- **Actions.** Add, enable, test and delete a destination; add and delete a rule; add a provider.
-- **States.** Empty: "No destinations yet" with "Add destination"; "No routing rules" with
-  "Add rule". No provider yet: non-admins read "An administrator must add a provider first."
-  A test result ("Test notification sent", or the failure) appears in the destination's row.
-- **Roles.** Manager: own destinations and rules for granted agents. Viewer: read-only with one
-  banner, "You have view-only access."
+- **Destinations.** One row per native destination with its label, type (APNs device or live
+  client), enabled status, minimum priority and quiet-hours setting. APNs probes require
+  destination delivery to be enabled.
+- **Actions.** Update, test or delete a destination. Viewers have read-only access.
 
 ## Projects — `/projects`
 
@@ -171,13 +151,13 @@ it cannot be undone.
 **Purpose.** Who can see and answer for which agents.
 
 1. Header with the one filled action, "Add a person".
-2. **People**: name, role (a select), linked Telegram and Discord accounts, Rotate token,
+2. **People**: name, role (a select), Rotate token,
    Archive or Restore. Rotating shows the new token once and states that every existing
    token of that person stops working.
 3. **Agent access**: a grid of people by agents; a checkbox grants or revokes at once. Admin rows
    are checked and disabled, with "Admins see every agent". Below 768 px each person becomes a
    card listing the agents.
-4. **Add a person**: name, role, optional Telegram and Discord user IDs; the token is shown once.
+4. **Add a person**: name, role; the token is shown once.
 
 - **States.** The last live admin cannot be demoted, archived or deleted: the controls are
   replaced by that sentence. A boss cannot archive itself. A failed grant returns the checkbox to
@@ -220,8 +200,7 @@ range and total. Below 768 px rows stack and details collapse behind a disclosur
    again".
 2. Checks as rows, each with its result in words: database, API and its latency, the signed-in
    boss and role, server time.
-3. Channel health: one row per configured channel with its state and a hint when unhealthy.
-4. Counts: active sessions, open decisions, channels.
+3. Counts: active sessions and open decisions.
 
 - **Actions.** Run the checks again.
 - **States.** A failed check names the failing part; it never turns the whole page into an error.

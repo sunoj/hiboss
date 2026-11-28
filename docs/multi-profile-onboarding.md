@@ -180,7 +180,7 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
   `X-Device-Proof`; without one it returns 403. Taken names are checked first, so a 409 does
   not spend the invite.
 - Every join request gets a 6-digit `verification_code`. The joining machine
-  prints it. Telegram, Discord, the APNs push (category `HIBOSS_JOIN_REQUEST`, key
+  prints it. The APNs push (category `HIBOSS_JOIN_REQUEST`, key
   `join_request_id`) and `GET /api/boss/join-requests` all show it next to the inviter label.
   An invite never skips approval.
 - `hiboss device invite [--copy]` prints a self-contained prompt for the new machine: install
@@ -235,5 +235,5 @@ bosses; `boss add` is removed.
 
 ## Not covered by this contract
 
-Binary distribution (installer, Homebrew), Telegram/Discord approval card layout beyond listing
+Binary distribution (installer, Homebrew), approval card layout beyond listing
 profile names, and camera QR scanning on macOS.

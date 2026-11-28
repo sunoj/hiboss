@@ -100,7 +100,6 @@ Classification of the repeat-capable files outside the stream routes:
 | `routes/messages.ts` | `POST /:id/poll` is a loop (long-poll, 1 s production interval); registered as `agent-reply-long-poll` |
 | `routes/message-helpers.ts` | Defines `delay`; no loop of its own |
 | `routes/delivery.ts` | `deliverWithRetry` is a bounded retry (at most 2 attempts) of one outbound send per message; unmetered |
-| `discord-gateway.ts` | Durable Object alarms for heartbeat and reconnect read DO storage only; D1 is read per inbound gateway event |
 | `panels/relay/` | Retry alarms are armed only while a control operation is pending; wall expiry fires once per panel expiry; both read by primary key |
 | `scheduled.ts`, `panels/lifecycle/repair.ts` | Cron steps (every 5 min, hourly sweep in minutes 0–4); registered as `cron-every-5-min` and `cron-hourly` |
 

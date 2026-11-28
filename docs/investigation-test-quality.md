@@ -179,6 +179,8 @@ Including six new calibration cases and the routing repair, this change removes 
 
 ## Webhook metadata and callback delivery oracles
 
+The following cases covered the removed Discord and Telegram boss channels.
+
 The Telegram and Discord attribution cases previously accepted null metadata because they only
 checked the absence of answered_by. They now also require the original message fields, source and
 provider authentication metadata. Both cases reject null metadata and a response that drops only

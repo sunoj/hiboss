@@ -37,7 +37,6 @@
           <li><a href="#approve">6. Approve the machine</a></li>
           <li><a href="#agents">7. Connect your agents</a></li>
           <li><a href="#more">More machines</a></li>
-          <li><a href="#channels">Telegram and Discord</a></li>
           <li><a href="#push">Push notifications</a></li>
           <li><a href="#update">Updating</a></li>
         </ol>
@@ -107,14 +106,6 @@ hiboss ask --option "Yes" --option "No" "Did this reach your phone?"</code></pre
 
         <h2 id="more">More machines</h2>
         <p>On a configured machine, run <code>hiboss device invite --copy</code> and paste the prompt into an agent on the new machine. It installs the CLI if needed, runs setup and waits for your approval in the app.</p>
-
-        <h2 id="channels">Telegram and Discord (optional)</h2>
-        <p>The apps are enough on their own. If you also want messages in a chat app, run a guided setup:</p>
-        <pre><code>hiboss setup telegram
-hiboss setup discord</code></pre>
-        <p>Or configure a channel directly, for example a Discord webhook:</p>
-        <pre><code>hiboss channel set discord --webhook-url &lt;WEBHOOK_URL&gt;</code></pre>
-        <p>When the Telegram wizard uses a webhook secret, it reminds you to store the same value on the server: <code>npx wrangler secret put TELEGRAM_WEBHOOK_SECRET</code>.</p>
 
         <h2 id="push">Push notifications</h2>
         <p>Push to the App Store iPhone app works out of the box. A server without its own Apple Push Notification service (APNs) key sends notifications through the HiBoss push relay at <code>push.hiboss.org</code>, which holds the app's APNs key.</p>

@@ -19,16 +19,15 @@ boss routes reject agent keys. A boss has one role:
 - `admin`: sees every agent, manages bosses, grants and enrolment;
 - `manager`: sees and writes for agents it was granted (`boss_agent_access`);
 - `viewer`: read-only on granted agents on every surface: the boss API, the boss-agent
-  inbox, and Telegram and Discord text, option buttons and reactions.
+  inbox, and the HiBoss clients.
 
 An agent's administrative capability is the separate flag `api_keys.is_admin`. It gates
-`/api/keys`, `/api/channels` and `/api/discord-gateway`. Workflow roles (`orchestrator`,
+`/api/keys` and `/api/integrations`. Workflow roles (`orchestrator`,
 `worker`, `reviewer`) never confer it.
 
 ```
 boss ──< boss_clients ──< boss_tokens, boss_signing_keys, boss_devices (APNs)
-  ├──< boss_external_accounts   (Telegram/Discord user → boss)
-  ├──< boss_destinations ──> channel_providers
+  ├──< boss_destinations
   └──< boss_agent_access >── api_keys (agents) ──< agent_keys
 agents ──< sessions ──> projects ──< project_aliases
 messages ──< message_deliveries ──> boss_destinations
@@ -143,11 +142,10 @@ Owner docs: [message format](message-format.md), [ask outcomes](ask-outcomes.md)
   an ask to a boss; a peer ask expires without one. Without a default, no answer is created.
   A later ask leaves earlier open asks waiting for their own answer or deadline. Ending a
   session, by any route, expires its asks without choosing defaults.
-- A forwarded copy of an ask is not a decision: it is not an open ask, and neither the
+- A historical forwarded copy of an ask is not a decision: it is not an open ask, and neither the
   copy nor a reply to it is the ask's answer or outcome.
 - `--action` commands are shown to the asking agent and never executed by HiBoss.
-- Viewers cannot answer or react on any surface, including channel option buttons and
-  reactions. Sends are idempotent per sender key.
+- Viewers cannot answer or react. Sends are idempotent per sender key.
 - Reactions are stored in message metadata, not as replies. Peer `--to` targets resolve
   by agent name, session label, nickname or prefix, as described in the CLI reference.
 
@@ -157,11 +155,9 @@ Owner docs: [delivery destinations](delivery-destinations.md),
 [message delivery](reference/message-delivery.md),
 [push privacy and isolation](push-privacy-and-isolation.md).
 
-`DESTINATIONS_MODE` (`off` by default, `shadow`, `on`) chooses between agent channel
-configs and per-boss destinations. Quiet hours delay `normal` and `low` messages only.
+`DESTINATIONS_MODE` (`off` by default, `shadow`, `on`) chooses between the native notifier and per-boss native destinations. Quiet hours delay `normal` and `low` messages only.
 Destination retries run at most three attempts. Native clients read messages over SSE;
 iOS push needs the server's APNs key to belong to the team that signs the app.
-Telegram and Discord inbound messages map to a boss through `boss_external_accounts`.
 
 ## Progress feed
 

@@ -35,7 +35,6 @@ What this design does not defend against:
   config that holds the bearer.
 - **A malicious server, for any client that does not pin keys.** The server remains the key
   directory, exactly as it is for boss keys.
-- **Discord and Telegram readers.** These channels cannot verify a signature. They display server-attested text.
 
 ## Server-owned metadata
 
@@ -147,10 +146,8 @@ as a URL; the attachment content is not signed.
 5. If the Worker is deployed before migration 0055, the server treats every agent as having
    no keys and sends keep working.
 
-Forwarded rows and boss-agent replies are not stored with the agent signature: the signature
-authorizes the write, and the row keeps an attribution its readers can check. A forward is a
-server-composed copy and carries `system` provenance. A boss-agent reply keeps the boss `api`
-attribution.
+The agent signature authorizes a boss-agent reply, and the stored reply keeps the boss `api`
+attribution. Historical forwarded copies carry `system` provenance.
 
 A signed message is immutable: a body edit (`PATCH /api/messages/:id` with `body`) returns 409
 when the agent is required to sign or the row carries an agent signature, including after a boss

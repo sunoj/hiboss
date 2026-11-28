@@ -66,7 +66,7 @@
         <p>Release builds of the Mac app check for updates with Sparkle. By default they check once a day against the update feed at <code>hiboss.org</code>, not your HiBoss server, and download updates from the project's GitHub Releases. The request carries the standard information of an update check, such as the app version, and no system profile. Updates are verified with an EdDSA signature before they install. You can turn off automatic checks in Settings → About. A build without an update feed never checks.</p>
 
         <h2 id="cli">The CLI and MCP plugin</h2>
-        <p>The <code>hiboss</code> CLI and the MCP plugin talk only to the HiBoss server you configure. The one exception is guided Telegram or Discord setup, which calls those services' APIs with the bot token you provide. The CLI stores its server address and agent keys in a local configuration file readable only by your user account.</p>
+        <p>The <code>hiboss</code> CLI and the MCP plugin talk only to the HiBoss server you configure. The CLI stores its server address and agent keys in a local configuration file readable only by your user account.</p>
 
         <h2 id="analytics">Analytics and tracking</h2>
         <p>The iPhone and Mac apps contain no advertising or third-party analytics SDK. They do not use app data for cross-app advertising tracking. A server you choose may use its own service providers; ask that server's operator about their practices. This website sets no cookies and loads no third-party scripts.</p>

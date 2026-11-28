@@ -4,6 +4,8 @@
 
 This document covers the public site in `site/`, the App Store screenshots and listing copy in
 `docs/design-marketing/app-store/`, and the promotional cards in `docs/design-marketing/promo/`.
+The store creative checker retains third-party brand exclusions, including the names of
+removed Discord and Telegram boss channels.
 The apps themselves follow `docs/design-v4.md`; nothing here changes them.
 
 ## Who it is for
@@ -35,7 +37,7 @@ Four proof points follow, in this order everywhere they appear:
 
 | # | Proof point | What backs it |
 |---|---|---|
-| 1 | One tap, where the question appears | Options on the Today card, notification actions, the Live Activity, the Mac Island, Telegram and Discord buttons; first answer wins (`docs/philosophy.md` §3.6, `README.md`) |
+| 1 | One tap, where the question appears | Options on the Today card, notification actions, the Live Activity, the Mac Island, and the web console; first answer wins (`docs/philosophy.md` §3.6, `README.md`) |
 | 2 | Silence is never approval | The card line "No answer in … picks “…”. That is not approval.", the "Default picked · not approval" banner, and `auto_default` in the CLI (`docs/reference/cli-reference.md`) |
 | 3 | Quiet until it needs you | Panels and progress posts send no notification (`docs/philosophy.md` §2) |
 | 4 | Your server, your data | MIT licence, Cloudflare Worker with D1 and R2 in the owner's account, no analytics SDK (`README.md`, `site/privacy/`) |

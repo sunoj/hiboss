@@ -65,26 +65,15 @@ session, not as user input. aid uses the same socket to report a settled task.
 - hiboss core users are Claude Code main agents orchestrating via aid CLI.
 - Sub-agents (codex, gemini, etc.) report to main agent via aid, not hiboss.
 
-## Channel Resolution Order
+## Boss delivery
 
-When a message is sent, the channel is resolved with this precedence:
-
-1. **CLI `--channel` flag** — explicit override, always wins
-2. **Server `channel_routing`** — per-priority routing (e.g. `normal=discord, high=telegram`), used when no `--channel` is given
-3. **Server channel config fallback** — picks the most recently configured channel if no routing matches
-
-The CLI no longer sends `config.channel` on every request (as of v0.10.1) — it only sends a channel when `--channel` is explicitly used.
-
-## Multi-Channel Delivery
-
-Critical/high priority messages are delivered to ALL configured channels simultaneously. Normal/low priority uses single channel per resolution order above.
+Bosses receive messages and reply in HiBoss for iOS, macOS or the web console.
+Notification priorities and quiet hours govern push delivery.
 
 ## Reactions
 
-Agents set reaction emojis via `hiboss react <id> <emoji>`: stored on every channel and forwarded
-to Discord or Telegram when the message has a copy there. Boss reactions come from the boss API,
-the Discord gateway and the Telegram webhook; each source adds or removes only its own actor's
-entries. The macOS and iOS clients show them as emoji chips. Conventions:
+Agents set reaction emojis via `hiboss react <id> <emoji>`. Boss reactions come through the boss API.
+The macOS and iOS clients show reactions as emoji chips. Conventions:
 - 👀 → message seen
 - 🔨 → working on it
 - ✅ → done/replied
@@ -98,6 +87,4 @@ an option as owned by a client.
 
 When a client replies with an exact option value, an atomic status update chooses
 the first winner. Other clients receive a `resolved` SSE event and withdraw their
-local UI. The same resolution path removes Discord buttons and Telegram inline
-keyboards, regardless of whether the winning selection came from the API, Discord,
-or Telegram. Expiry produces the same withdrawal behavior with status `expired`.
+local UI. Expiry produces the same withdrawal behavior with status `expired`.

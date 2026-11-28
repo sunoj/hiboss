@@ -53,9 +53,8 @@ Request:
   "body": "string (required)",
   "mode": "async | blocking",
   "priority": "critical | high | normal | low (default: agent's default_priority)",
-  "channel": "discord | telegram | api (optional, uses default)",
   "options": ["Option A", "Option B"],
-  "file_url": "string (optional, sends as photo/document on Telegram)",
+  "file_url": "string (optional, attachment URL)",
   "type": "string (default: 'text', e.g. task_update, approval_request, steer_command)",
   "to": "string (optional, target agent name or ID for agent-to-agent messaging)",
   "idempotency_key": "string (optional, prevents duplicate sends)",
@@ -77,7 +76,7 @@ Both must be URLs on this worker's attachments path (`<origin>/api/attachments/<
 uploaded through `POST /api/attachments/upload`); anything else is rejected with 400. They are
 stored with the message metadata and returned wherever `file_url` and `option_media` are
 (message history, session streams, boss message reads). Clients show the thumbnail first and
-fall back to the original when it is absent. Telegram and Discord delivery send the original.
+fall back to the original when it is absent.
 
 Response (201, or 200 if idempotency_key matches existing message):
 ```json
@@ -110,7 +109,7 @@ Response (200): `{ "messages": [Message], "total": number }`
 Get a single message with its reply chain. Response includes `replies: Message[]`.
 `?replies=decisions` returns only the replies that can answer the message, the same set
 `/poll` returns: `boss_to_agent` rows for an `agent_to_boss` ask, and rows written by the
-other agent for an `agent_to_agent` ask. The asker's own follow-ups and forward copies are
+other agent for an `agent_to_agent` ask. The asker's own follow-ups are
 left out. The CLI's final ask read uses it.
 
 ### POST /api/messages/:id/reply
@@ -127,20 +126,12 @@ that reply, so clients fold it into the original thread. Follow-ups never decide
 Update message status. Request: `{ "status": "read" }`.
 
 ### POST /api/messages/:id/react
-Set a reaction emoji. Request: `{ "emoji": "👀" }`. Response: `{ "ok": true }`, with
-`"forwarded": false` when the message's channel has no Telegram/Discord copy. The reaction is
-stored on every channel in `metadata.reactions` as
+Set a reaction emoji. Request: `{ "emoji": "👀" }`. Response: `{ "ok": true }`. The reaction
+is stored in `metadata.reactions` as
 `{ "emoji", "actor": "boss"|"agent", "actor_id", "created_at" }`, add-only and deduplicated per
 (actor, actor_id, emoji); a change is republished on the boss stream. Legacy entries
 `{emoji, boss_id}` and `{emoji, user}` still read as boss reactions. Metadata writers patch only
 their own keys database-side; stored metadata that is not a JSON object is treated as `{}`.
-
-### POST /api/messages/:id/forward
-Copy a message to another channel. Request: `{ "channel": "telegram"|"discord" }`. The copy has
-`type: 'forwarded'` and `reply_to` set to the original. It is stored `async`, without options or
-a deadline, so a forwarded ask is never a second decision: it is not a pending input, not the
-Telegram bare-text target, and not an ask to claim. `POST /api/boss/messages/:id/forward` stores
-the same copy.
 
 ### POST /api/messages/:id/poll
 Long-poll for reply to a blocking message. Query: `timeout` (default 300, max 300).
@@ -148,19 +139,7 @@ Long-poll for reply to a blocking message. Query: `timeout` (default 300, max 30
 ### GET /api/messages/stream
 SSE stream for real-time messages. Optional `?session=` param for session-level filtering.
 
-## Channel Webhook Endpoints
-
-### POST /api/webhooks/discord
-Discord message webhook (bot API mode). Creates boss_to_agent messages.
-
-### POST /api/webhooks/telegram
-Telegram bot webhook. Creates boss_to_agent messages.
-
-### POST /api/webhooks/discord-interactions
-Discord Interactions endpoint (Ed25519 verified). Handles `/msg` slash command and button clicks.
-
-### POST /api/webhooks/discord-interactions/register-commands
-Register Discord slash commands. Request: `{ "app_id": "string", "bot_token": "string" }`.
+## Inbound Webhook Endpoints
 
 ### POST /api/webhooks/{id}/{token}
 Discord Execute Webhook compatible (`{id}` is 17–20 digits; `/api/v{n}/webhooks/…` also works).
@@ -238,12 +217,6 @@ Delete a progress post owned by the agent or any post accessible to a boss.
 ### POST /api/keys
 Create API key. Request: `{ "name": "string" }`. Response: `{ "id", "name", "key" }` (key shown once).
 
-### GET /api/channels
-List channel configs for this agent.
-
-### PUT /api/channels/:channel
-Set channel config. Discord: `{ "channel_id", "bot_token" }`. Telegram: `{ "chat_id", "bot_token" }`.
-
 ## Agent Endpoints
 
 ### GET /api/agents/me
@@ -260,17 +233,6 @@ Set webhook callback URL.
 
 ### DELETE /api/agents/me/callback
 Remove webhook callback URL.
-
-## Routing Rules Endpoints
-
-### GET /api/routing-rules
-List routing rules.
-
-### POST /api/routing-rules
-Create rule. Request: `{ "channel", "pattern", "target_agent_id", "priority" }`.
-
-### DELETE /api/routing-rules/:id
-Delete a routing rule.
 
 ## Group Endpoints
 
@@ -301,7 +263,7 @@ Broadcast. Request: `{ "body", "priority" }`. Response: `{ "messages": [...], "c
 List bosses with agent access.
 
 ### POST /api/bosses
-Create boss. Request: `{ "name", "role", "telegram_user_id", "discord_user_id", "agent_id" }`.
+Create boss. Request: `{ "name", "role", "agent_id" }`.
 
 ### GET /api/bosses/:id
 Boss detail with agent access list.
@@ -428,10 +390,7 @@ Single-shot dashboard aggregate for the web console overview:
   "kpis": { "activeSessions": 5, "workingSessions": 3, "pendingDecisions": 4,
             "blockingPending": 2, "unread1h": 12 },
   "priorityDistribution": { "critical": 6, "high": 14, "normal": 28, "low": 9 },
-  "sessionStatus": { "working": 3, "waiting": 1, "blocked": 1, "idle": 0, "completed": 7 },
-  "channels": [ { "channel": "discord", "configured": true },
-                { "channel": "telegram", "configured": false },
-                { "channel": "api", "configured": true } ]
+  "sessionStatus": { "working": 3, "waiting": 1, "blocked": 1, "idle": 0, "completed": 7 }
 }
 ```
 Priority distribution and session status are over the last 24h; `activeSessions`
@@ -465,14 +424,14 @@ Unregisters a device token for the authenticated boss. Its Live Activity tokens 
 
 ### Resolution pushes
 Each time an agent ask (`agent_to_boss` with options, or blocking) moves to `replied` or `expired`
-— a boss reply from any client or channel, a boss-agent reply, a timeout default, a deadline or
+— a boss reply from any HiBoss client, a boss-agent reply, a timeout default, a deadline or
 stale-sweep expiry, or the end of its session — the server fans out once per ask after the
 change commits. The audience is every push device of the bosses who received the ask's push
 (admins and bosses with access to the agent, not archived). The push is silent and only removes,
 so quiet hours, priority and private-push preferences do not suppress it, and the device that
-answered is included. Failures are swallowed and never undo or delay the transition. Boss reply,
-inbox and Discord/Telegram interaction routes send the fan-out after the response (`waitUntil`);
-session close routes and the Discord message webhook send it before responding. A scheduled run sends the fan-out after
+answered is included. Failures are swallowed and never undo or delay the transition. Boss reply
+and inbox routes send the fan-out after the response (`waitUntil`). Session close routes
+send it before responding. A scheduled run sends the fan-out after
 its sweeps, for at most 50 closed asks (newest first) and 6 asks at a time; the rest get no push
 and are left to the app's launch reconciliation.
 
@@ -506,7 +465,7 @@ delta answers 409 and the client reads the full list again. A malformed cursor, 
 `updated_after` without `include_inactive=true`, answers 400.
 
 ### GET/PUT /api/boss/me/preferences
-Boss preferences (preferred_channel, quiet_hours, timezone, notify_priorities).
+Boss preferences (quiet_hours, timezone, notify_priorities).
 
 ## Session Endpoints
 

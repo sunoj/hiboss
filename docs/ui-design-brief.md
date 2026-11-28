@@ -1,5 +1,8 @@
 # hiboss 全案 UI 设计需求文档
 
+> Historical v1.6.9 design brief. Discord and Telegram boss channels were removed.
+> Bosses now receive messages and reply in HiBoss on iOS, macOS and the web console.
+
 > 交付对象：UI 设计师
 > 版本：基于 hiboss CLI v1.6.9 / server / mcp v1.3.0 / macOS "HiBoss Island" 现状整理
 > 设计范围：① 重设计现有 **macOS App**　② 新立项 **iOS 客户端**　③ 新立项 **Web 管理后台**

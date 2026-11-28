@@ -7,7 +7,7 @@ How to connect [aid](https://github.com/agent-tools-org/ai-dispatch) (multi-AI C
 aid v8.6+ has built-in hiboss support via `notify.rs`. When enabled, task completions trigger `hiboss send` with status, cost, and duration.
 
 ```
-aid task completes → notify_hiboss() → hiboss send "Task t-abc DONE: ..." → Discord/Telegram
+aid task completes → notify_hiboss() → hiboss send "Task t-abc DONE: ..." → HiBoss clients
 ```
 
 ## Setup
@@ -19,7 +19,6 @@ cd /path/to/hiboss/cli
 cargo build --release
 cp target/release/hiboss ~/.cargo/bin/
 hiboss setup --server https://your-hiboss-server.workers.dev --invite <invite> --profile aid
-hiboss channel set telegram --bot-token <TOKEN> --chat-id <CHAT_ID>
 ```
 
 ### 2. Enable in aid config
@@ -35,14 +34,6 @@ priority = "normal"
 ```
 
 Template variables: `{id}`, `{status}`, `{prompt_truncated}`, `{duration}`, `{cost}`.
-
-### 3. Configure channel routing (recommended)
-
-Route normal notifications to Discord, urgent ones to Telegram:
-
-```bash
-hiboss agent config --channel-routing "normal=discord,high=telegram,critical=telegram"
-```
 
 ## Integration Layers
 
@@ -89,7 +80,7 @@ cmd.arg("send")
 
 ### Layer 2: Interactive Approvals (aid-side changes only)
 
-Use repeatable `hiboss ask --action "LABEL=COMMAND"` flags for Telegram/Discord approvals:
+Use repeatable `hiboss ask --action "LABEL=COMMAND"` flags for approvals in HiBoss:
 
 Do not use the removed plural flags or comma-join choices. A comma is valid option
 text and is therefore never treated as a separator.
@@ -107,7 +98,8 @@ hiboss ask --action "Merge=aid merge t-123 --yes" \
 Approve?" --timeout 300
 ```
 
-Boss taps "Merge" in Telegram → `aid merge t-123 --yes` executes → result auto-sent back.
+When the boss chooses "Merge" in HiBoss, the CLI returns the action to the caller.
+The caller handles execution and reporting the result.
 
 **Best-of winner selection**:
 
@@ -135,8 +127,8 @@ fn notify_merge_ready(task: &Task) {
        .arg("--action").arg("Skip=echo skipped")
        .arg(&body)
        .arg("--timeout").arg("300");
-    // Fire and forget -- action result auto-sent by hiboss
-    let _ = cmd.spawn();
+    // Have the caller collect the CLI result before acting.
+    let _ = cmd.output();
 }
 ```
 
@@ -174,23 +166,16 @@ hiboss boss reply <msg-id> "Use option A"
 
 **Key design insight**: Agent-as-boss is for multiple independent Claude Code sessions communicating, not for managing aid's internal sub-processes. aid manages its own workers (codex, gemini, etc.) via PTY/filesystem. hiboss connects the independent sessions.
 
-## Channel Routing for aid
+## Notification priorities for aid
 
-Recommended routing for aid notifications:
+| aid Event | hiboss Priority |
+|-----------|-----------------|
+| Task success | normal |
+| Task failure | high |
+| Budget alert | critical |
+| Merge approval | normal (ask) |
 
-```bash
-hiboss agent config --channel-routing "normal=discord,high=telegram,critical=telegram"
-```
-
-| aid Event | hiboss Priority | Channel |
-|-----------|----------------|---------|
-| Task success | normal | Discord |
-| Task failure | high | Telegram |
-| Budget alert | critical | Telegram |
-| Merge approval | normal (ask) | Telegram (use `--channel telegram`) |
-
-**Tip**: `hiboss ask` uses normal priority by default. For interactive approvals that
-need quick boss response, use `--channel telegram` explicitly.
+HiBoss clients show these messages. Use `--priority high` for urgent approvals.
 
 ## Metadata Conventions
 
@@ -210,10 +195,10 @@ not a rendering engine. aid should format its own messages.
 | Feature | How aid Uses It | hiboss Command |
 |---------|----------------|----------------|
 | Typed messages | Categorize notifications | `--type aid_task_complete` |
-| Priority routing | Urgent = Telegram, normal = Discord | `--priority high` |
+| Notification priority | Mark urgent messages as high priority | `--priority high` |
 | File attachments | Send diffs, logs | `--file /tmp/diff.txt` |
-| Action buttons | Merge/retry/reject from chat | `--action "Merge=aid merge t-1"` |
-| Action feedback | Boss sees command result | Automatic after button press |
+| Action buttons | Merge/retry/reject in HiBoss | `--action "Merge=aid merge t-1"` |
+| Action feedback | Boss sees command result | Caller reports the result |
 | Quick-reply options | Best-of winner selection | `--option "codex" --option "opencode"` |
 | Session isolation | Per-session message scoping | Automatic via session_id |
 

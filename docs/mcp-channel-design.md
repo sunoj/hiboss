@@ -21,7 +21,7 @@ Claude Code ←stdio/MCP→ hiboss-mcp (local, Bun)
                               ↕ SSE (existing /api/messages/stream)
                          hiboss-server (Cloudflare Worker)
                               ↕ D1 + Channel Adapters
-                         Boss (Telegram/Discord)
+                         Boss (HiBoss clients)
 ```
 
 The MCP server is a **thin bridge** — it does NOT duplicate server logic.
@@ -56,7 +56,7 @@ mcp/
 
 ### Shutdown
 
-- stdin EOF/close → disconnect SSE, exit cleanly (same pattern as Telegram plugin)
+- stdin EOF/close → disconnect SSE, exit cleanly (historically based on the Telegram plugin pattern)
 - SIGTERM/SIGINT → graceful shutdown
 
 ### Inbound (SSE → MCP notification)

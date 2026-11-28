@@ -246,7 +246,7 @@ optional P2P. A public component marketplace, arbitrary TSX/HTML execution,
 arbitrary npm installation, simultaneous collaborative editing, automatic form
 approval, full telemetry retention, and remote desktop control are outside this plan.
 
-Discord, Telegram, and hardware surfaces receive a readable request summary and
+Hardware surfaces receive a readable request summary and
 a link to a capable client. This is an explicit channel representation, not an
 attempt to translate complex forms into legacy string options.
 

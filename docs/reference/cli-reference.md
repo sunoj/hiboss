@@ -6,16 +6,15 @@ hiboss setup --server https://hiboss-server.<user>.workers.dev --invite <invite>
 hiboss setup --profile claude --profile codex --label laptop  # one grouped approval
 hiboss setup --check                # GET /api/agents/me for each configured profile
 hiboss device invite                # mint an Add a machine invite using the active profile
-hiboss config set channel discord   # default channel
 hiboss setup hooks                  # configure Claude Code hooks (project)
 hiboss setup hooks --global         # configure every discovered Claude Code profile
 hiboss setup hooks --config-dir ~/.claude-m  # target one profile
 hiboss setup agents                 # refresh global Codex and Claude guidance
 hiboss setup hooks --global --remove # remove hiboss hooks from all discovered profiles
-hiboss setup telegram               # guided Telegram bot setup
-hiboss setup discord                # guided Discord bot setup
 hiboss whoami --json                # offline resolved identity, masked key
 ```
+
+Setup pins the boss’s app signing keys after approval. See [boss key pinning](../boss-key-pinning.md).
 
 Global Claude hook setup covers `$CLAUDE_CONFIG_DIR`, `~/.claude`, and each
 `~/.claude-*` directory containing `projects/`. It reports one
@@ -57,7 +56,6 @@ minutes, while new IDs may announce sooner. See [session notes](../session-notes
 ```bash
 hiboss send "Deployment complete."
 hiboss send --priority high "Build failed, need help."
-hiboss send --channel telegram "Quick update via TG."
 hiboss send --file-url "https://example.com/screenshot.png" "See attached"
 hiboss send --type task_update "Build v2.1 deployed"
 hiboss send --file ./screenshot.png "See attached"
@@ -139,7 +137,7 @@ original only; `--verbose` says why. Non-image files and `http(s)` URLs get no t
 `--option` or `--action` label. Repeat it for each described option. The first `=`
 separates the label and text; both are trimmed. Text must contain 1–200 characters,
 and labels must be unique. Invalid descriptions fail before any upload. Descriptions
-are stored in message metadata and appended as text for Telegram and Discord.
+are stored in message metadata.
 
 Catalog v2 form asks are blocking. Use `--rank` for 2–20 choices (optional
 `--top K`), `--review` for 1–50 items with 2–4 `--verdict` values (optional
@@ -195,15 +193,6 @@ hiboss agent config --default-priority high
 hiboss agent config --rate-limit 10          # msg/min
 hiboss agent config --rate-limit 0           # disable
 hiboss agent config --role orchestrator
-hiboss agent config --channel-routing "normal=discord,high=telegram"
-```
-
-## Routing Rules
-```bash
-hiboss route list
-hiboss route add --channel telegram --pattern "deploy.*" --target <agent-id>
-hiboss route add --channel discord --pattern "urgent" --target <agent-id> --priority 10
-hiboss route remove <rule-id>
 ```
 
 ## Agent Groups
@@ -228,17 +217,12 @@ hiboss integration rotate <webhook-id>
 hiboss integration revoke <webhook-id>
 ```
 
-## Discord Setup
-```bash
-hiboss channel discord-setup --app-id <id> --bot-token <token>
-hiboss channel set discord --webhook-url <url> --bot-token <token> --channel-id <id>
-```
-
 ## Boss Management
 ```bash
 hiboss boss list
 hiboss boss show <boss-id>
-hiboss boss update <boss-id> --discord-user-id 456
+hiboss boss keys [--pin]
+hiboss boss trust <key-text>
 hiboss boss grant <boss-id> <agent-id>
 hiboss boss revoke <boss-id> <agent-id>
 hiboss boss remove <boss-id>
@@ -265,7 +249,7 @@ hiboss ss set completed
 Follow up on your own question or a boss reply with `hiboss reply <id> "..."`.
 Acknowledge a boss answer with `hiboss reply <reply-id> "..."` or
 `hiboss react <reply-id> 👍`. These stay linked; a follow-up does not decide the question.
-Reactions are add-only and deduplicated by actor, actor ID, and emoji on every channel.
+Reactions are add-only and deduplicated by actor, actor ID, and emoji.
 
 ## Background SSE Daemon
 ```bash
@@ -276,7 +260,7 @@ hiboss daemon status
 
 ## Diagnostics
 ```bash
-hiboss doctor    # validate config, connectivity, channel setup, routing
+hiboss doctor    # validate config, connectivity and hook coverage
 ```
 
 ## CLI Config
@@ -312,7 +296,6 @@ A migrated v1 config contains `default`; MCP can select it with `HIBOSS_PROFILE=
   "server": "https://hiboss-server.xxx.workers.dev",
   "device_id": null,
   "default_profile": "claude",
-  "channel": "discord",
   "profiles": {
     "claude": { "key": "hb_xxxxxxxxxxxx", "agent_id": null, "name": "agent-claude@host" }
   }

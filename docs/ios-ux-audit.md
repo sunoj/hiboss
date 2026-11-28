@@ -1,5 +1,7 @@
 # iOS UX / Business Audit — 2026-07-24
 
+> Historical iOS audit. Telegram and Discord boss channels have since been removed.
+
 Read-only audit of the hiboss iOS client across four lenses — **信息完整度** (completeness),
 **准确度** (accuracy), **流程 UX** (flow), **中间状态** (intermediate-state handling) — over four
 areas (inbox/decision lifecycle, sessions/messages browsing, connection/onboarding/shell,

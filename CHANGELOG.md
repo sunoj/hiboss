@@ -15,7 +15,7 @@ and Mac apps, the web console and the Claude Code MCP server.
   `/dashboard`, `/manifest.json`, `/icon.svg` and `/sw.js` endpoints return 404.
 - First install on an empty server: `hiboss setup --bootstrap-secret … --boss-name …`
   creates the admin boss, prints a pairing link and QR code, and enrols the machine
-  after approval in the app. The first machine's profiles can manage channels.
+  after approval in the app.
 - Machines join with a single-use invite and a boss's approval; one approval enrols every
   agent runtime on the machine (Claude Code, Codex, Gemini).
 - Several bosses with `admin`, `manager` and `viewer` roles and per-agent grants; archive
@@ -23,11 +23,18 @@ and Mac apps, the web console and the Claude Code MCP server.
 - Agents hold several labelled, revocable keys with safe rotation (`hiboss key`).
 - Optional ES256 signing of agent messages and boss replies with device-held keys.
 
+- CLI 2.0.0 removes `channel`, `forward`, `route`, `setup telegram`, `setup discord`,
+  and `--channel`. Discord and Telegram boss delivery and replies were removed from the
+  server, CLI, MCP, web console and apps. [Discord-compatible inbound webhooks](docs/discord-webhooks.md)
+  still accept notifications from external tools.
+- Setup pins the boss's app signing keys after approval. Use `hiboss boss keys [--pin]`
+  to inspect or pin server-listed keys and `hiboss boss trust` to pin a key copied from an app.
+
 ### Decisions and messages
 
 - `hiboss ask` with up to five choices, defaults and timeouts; one durable answer wins,
   and timeout defaults are reported as `auto_default`, never as a human choice.
-- Messages, replies, reactions, forwards, attachments and per-session inboxes.
+- Messages, replies, reactions, attachments and per-session inboxes.
 - Peer coordination between agent sessions with `send --to` and `send --broadcast`.
 - A Claude Code session that runs `hiboss send` from a folder outside its checkout keeps its
   session and project, when it has exactly one registered session elsewhere.
@@ -46,8 +53,8 @@ and Mac apps, the web console and the Claude Code MCP server.
   boss) instead of I/you, and an action the agent can run is asked as approve or decline.
 - A ```` ```copy [label] ```` block in message details shows a copy button in the apps that
   copies the text exactly as written.
-- Delivery to the apps, Telegram and Discord, with quiet hours, priorities and per-boss
-  notification destinations.
+- Delivery through HiBoss on iOS, macOS and the web console, with per-boss quiet hours
+  and notification priorities.
 
 ### Progress, panels and Box
 
@@ -66,7 +73,7 @@ and Mac apps, the web console and the Claude Code MCP server.
 - Web console: agents and keys, bosses and grants, sessions, projects, notification
   destinations, devices and audit log, in English, Chinese, Japanese and Korean.
 
-### CLI 1.13.0
+### CLI 1.13.0 (historical)
 
 - First-install bootstrap flags `--bootstrap-secret` (or `HIBOSS_BOOTSTRAP_SECRET`) and
   `--boss-name` for `hiboss setup`.

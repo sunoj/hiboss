@@ -1,5 +1,9 @@
 # HiBoss System Whitepaper — Business Logic & Security Audit
 
+> Historical architecture and security review. The Discord and Telegram boss channels
+> described below were removed. Bosses now receive messages and reply in HiBoss on
+> iOS, macOS and the web console. The [Discord-compatible inbound webhook](discord-webhooks.md) remains available.
+
 Audited at commit `05a8dd0` (2026-07-22). Scope: server (Cloudflare Worker), CLI + hooks + daemon,
 MCP plugin, HibossKit, macOS, iOS, web console, ESP32 terminal. Method: four parallel read-only
 code audits (identity/authz, sessions/lifecycle, agent-side, boss-side clients), synthesized here.

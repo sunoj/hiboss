@@ -26,7 +26,7 @@ Every design decision assumes multiple agents. API keys carry agent names/identi
 No billing, rate limiting, SaaS features, or multi-tenant isolation. Focus on easy self-deployment (Cloudflare Workers free tier).
 
 ### No Built-in Email
-Email well-served by external CLIs (agentmail-cli, resend). Only Discord and Telegram as built-in channels.
+Email well-served by external CLIs (agentmail-cli, resend).
 
 ### Hook Resilience
 Hooks must NEVER produce errors. Always exit 0 with graceful fallbacks. Write TTL timestamps before checks to prevent retry storms.
@@ -37,8 +37,7 @@ Option messages use fan-out delivery with a single global resolution state:
 - Delivery is never claimed by one client; only selection is exclusive.
 - Selection uses an atomic conditional update, so exactly one client wins.
 - A resolved or expired parent disappears from every stream through a `resolved`
-  event, and external Discord/Telegram controls are withdrawn as best-effort side
-  effects.
+  event.
 - Option values are structured arrays. Never infer choice boundaries from commas.
 
 ### Observable One-Time Device Pairing
@@ -59,8 +58,12 @@ Search reveals full matching messages and includes supporting content. Drafts an
 expansion state are keyed by message ID. Notification-specific detail lookup is
 separate. See [the macOS workspace design](../../docs/macos-information-redesign.md).
 
-### Webhook Security (v1.1.0)
-Webhook endpoints validate request origin via optional secret tokens:
+### Webhook Security (v1.1.0, historical)
+
+The boss channels and authentication paths described in this section were removed.
+The [Discord-compatible inbound webhook](../discord-webhooks.md) remains available.
+
+The former webhook endpoints validate request origin via optional secret tokens:
 - `TELEGRAM_WEBHOOK_SECRET` — checked against `X-Telegram-Bot-Api-Secret-Token` header
 - `DISCORD_WEBHOOK_SECRET` — checked against `X-Webhook-Secret` header
 - Both are backwards compatible: if env var is not set, check is skipped

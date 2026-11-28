@@ -129,7 +129,7 @@ Rules:
   column headers with `scope`.
 - **Names.** Icon-only buttons have labels ("Switch between light and dark", "Account: Robin,
   admin"). A reaction button's name is its meaning ("React: seen"). A grid checkbox is named by
-  person and agent. A switch is named by channel and agent. Decorative tiles and dots are hidden.
+  person and agent. Decorative tiles and dots are hidden.
 - **Live regions.** New decisions are announced once, politely ("New decision from atlas-api").
   A resolved decision announces its outcome. Freshness ticks and countdowns are not announced;
   a deadline is announced at five minutes and at one minute.

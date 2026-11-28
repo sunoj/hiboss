@@ -15,7 +15,7 @@ its choices behind a "Choices" disclosure, so the stream never shows what was ch
 
 A **thread** is one agent message plus every boss message whose `reply_to` is that
 message's id and that is present in the same history list. A boss message whose parent
-is absent (unlinked Telegram or Discord text, or a parent outside the loaded page) is a
+is absent (a direct boss message without a parent, or a parent outside the loaded page) is a
 **standalone boss thread** and renders as today's "Me" row.
 
 - Replies keep server order. All replies render; none is dropped.
@@ -33,7 +33,7 @@ second fold remains in either app.
 | Case | Condition | Shown as |
 |---|---|---|
 | `open` | `canAnswer` (options, unresolved, not expired) | choices, countdown, composer |
-| `chosen(option, source)` | newest reply body equals an option, not `auto_default` | chosen option marked; "Answered on Telegram" when the source is another surface |
+| `chosen(option, source)` | newest reply body equals an option, not `auto_default` | chosen option marked; "Answered on iPhone" when the source is another surface |
 | `autoSelected(option)` | newest reply has `metadata.auto_default == true`, or parent `metadata.options_expired` | clock glyph, "Auto-selected when time ran out"; never worded as the boss's choice |
 | `replied(text, source)` | newest reply body matches no option | the reply quoted under the question |
 | `expired` | options, no reply, status `expired` | "Expired without an answer" |

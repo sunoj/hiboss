@@ -12,11 +12,8 @@ Signing protects message origin and integrity. It does not establish that the me
 | --- | --- | --- | --- |
 | Paired iOS device | Bearer token plus paired P-256 key | `JWS-ES256`, verified | Verify before exposing the body to the model |
 | Unpaired API or macOS token | Bearer token | `not_configured` | Accept with `api/not_configured` attribution |
-| Discord | Provider account and webhook authentication | `unsupported` | Accept with `discord/unsupported` attribution |
-| Telegram | Provider account and webhook authentication | `unsupported` | Accept with `telegram/unsupported` attribution |
 | Server automation | Internal system action | `not_applicable` | Accept with `system/not_applicable` attribution |
 
-Discord interaction webhook signatures authenticate Discord as the transport provider. They are not end-user message signatures and therefore do not change the `unsupported` state.
 
 ## Pairing
 
