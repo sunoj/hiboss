@@ -12,23 +12,14 @@
 
 	let name = $state('');
 	let role = $state<BossRole>('viewer');
-	let telegram = $state('');
-	let discord = $state('');
 	let open = $state(false);
 
 	function submit(e: Event) {
 		e.preventDefault();
 		const trimmed = name.trim();
 		if (!trimmed || busy) return;
-		const body: BossCreateRequest = { name: trimmed, role };
-		const tg = telegram.trim();
-		const dc = discord.trim();
-		if (tg) body.telegram_user_id = tg;
-		if (dc) body.discord_user_id = dc;
-		onCreate(body);
+		onCreate({ name: trimmed, role });
 		name = '';
-		telegram = '';
-		discord = '';
 		role = 'viewer';
 		open = false;
 	}
@@ -51,14 +42,6 @@
 					{/each}
 				</select>
 			</label>
-			<label>
-				<span>{t('form.telegramId')}</span>
-				<input bind:value={telegram} placeholder={t('common.optional')} disabled={busy} />
-			</label>
-			<label>
-				<span>{t('form.discordId')}</span>
-				<input bind:value={discord} placeholder={t('common.optional')} disabled={busy} />
-			</label>
 			<div class="actions">
 				<button type="submit" class="primary" disabled={busy || !name.trim()}>
 					{busy ? t('common.creating') : t('common.create')}
@@ -78,7 +61,7 @@
 		background: var(--hb-bg-hover);
 	}
 	.form {
-		grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+		grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
 	}
 	button:disabled {
 		opacity: 0.55;

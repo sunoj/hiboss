@@ -13,7 +13,6 @@ import {
 	type AgentsListResponse,
 	type AuditListResponse,
 	type AuditQuery,
-	type BossChannelConfig,
 	type BossMe,
 	type BossOverview,
 	type BossCreateRequest,
@@ -25,8 +24,6 @@ import {
 	type BroadcastGroupRequest,
 	type BroadcastGroupResponse,
 	type CreateGroupRequest,
-	type CreateRoutingRuleRequest,
-	type ForwardRequest,
 	type GroupMemberRequest,
 	type GroupWriteResponse,
 	type GroupsListResponse,
@@ -36,8 +33,6 @@ import {
 	type OkResponse,
 	type ReactRequest,
 	type ReplyRequest,
-	type RoutingRulesListResponse,
-	type RoutingRuleResponse,
 	type SessionsListResponse
 } from './types';
 
@@ -83,7 +78,8 @@ export class BossApiClient extends BossTransport {
 	}
 
 	async overview(): Promise<BossOverview> {
-		return this.request<BossOverview>('GET', '/api/boss/overview');
+		const data = await this.request<BossOverview>('GET', '/api/boss/overview');
+		return { ...data, channels: data.channels.filter(({ channel }) => channel === 'api') };
 	}
 
 	async messages(query: MessagesQuery = {}): Promise<MessagesListResponse> {
@@ -207,18 +203,6 @@ export class BossApiClient extends BossTransport {
 		);
 	}
 
-	async routingRules(): Promise<RoutingRulesListResponse> {
-		return this.request<RoutingRulesListResponse>('GET', '/api/boss/routing-rules');
-	}
-
-	async createRoutingRule(body: CreateRoutingRuleRequest): Promise<RoutingRuleResponse> {
-		return this.request<RoutingRuleResponse>('POST', '/api/boss/routing-rules', body);
-	}
-
-	async deleteRoutingRule(id: string): Promise<OkResponse> {
-		return this.request<OkResponse>('DELETE', `/api/boss/routing-rules/${encodeURIComponent(id)}`);
-	}
-
 	async updateAgentConfig(id: string, body: AgentConfigUpdateRequest): Promise<AgentConfigResponse> {
 		return this.request<AgentConfigResponse>(
 			'PATCH',
@@ -227,16 +211,9 @@ export class BossApiClient extends BossTransport {
 		);
 	}
 
-	async channels(): Promise<BossChannelConfig[]> {
-		return this.request<BossChannelConfig[]>('GET', '/api/boss/channels');
-	}
-
-	async updateChannel(id: string, enabled: boolean): Promise<BossChannelConfig & { warning?: string }> {
-		return this.request('PATCH', `/api/boss/channels/${encodeURIComponent(id)}`, { enabled });
-	}
-
 	async system(): Promise<BossSystemResponse> {
-		return this.request<BossSystemResponse>('GET', '/api/boss/system');
+		const data = await this.request<BossSystemResponse>('GET', '/api/boss/system');
+		return { ...data, channels: data.channels.filter(({ channel }) => channel === 'api') };
 	}
 
 	async audit(query: AuditQuery = {}): Promise<AuditListResponse> {
@@ -262,15 +239,6 @@ export class BossApiClient extends BossTransport {
 
 	async react(messageId: string, body: ReactRequest): Promise<unknown> {
 		return this.request('POST', `/api/boss/messages/${encodeURIComponent(messageId)}/react`, body);
-	}
-
-	async forward(messageId: string, body: ForwardRequest): Promise<MessageResponse> {
-		const raw = await this.request<Record<string, unknown>>(
-			'POST',
-			`/api/boss/messages/${encodeURIComponent(messageId)}/forward`,
-			body
-		);
-		return normalizeMessage(raw);
 	}
 
 	/** SSE URL helpers — wiring optional this task. */

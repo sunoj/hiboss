@@ -5,15 +5,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { t } from '$lib/i18n';
-	import {
-		AGENT_CHANNELS,
-		buildConfigUpdate,
-		defaultAgentConfig,
-		isAgentChannel,
-		rateLimitToInput,
-		routingEntriesFromMap,
-		type RoutingEntry
-	} from './agent-helpers';
+	import { buildConfigUpdate, defaultAgentConfig, rateLimitToInput } from './agent-helpers';
 
 	interface Props {
 		agentId: string;
@@ -26,41 +18,21 @@
 
 	let priority = $state<Priority>('normal');
 	let rateLimitRaw = $state('');
-	let routing = $state<RoutingEntry[]>([]);
 	let saving = $state(false);
 	let baseline = $state<AgentConfigResponse>(defaultAgentConfig());
 	const dirty = $derived(priority !== baseline.default_priority
-		|| rateLimitRaw !== rateLimitToInput(baseline.rate_limit)
-		|| JSON.stringify(routing) !== JSON.stringify(routingEntriesFromMap(baseline.channel_routing)));
+		|| rateLimitRaw !== rateLimitToInput(baseline.rate_limit));
 
 	function applyConfig(config: AgentConfigResponse) {
 		baseline = config;
 		priority = config.default_priority;
 		rateLimitRaw = rateLimitToInput(config.rate_limit);
-		routing = routingEntriesFromMap(config.channel_routing);
 	}
 
 	$effect(() => {
 		void agentId;
 		applyConfig(initial ?? defaultAgentConfig());
 	});
-
-	function addRoute() {
-		routing = [...routing, { key: '', channel: 'discord' }];
-	}
-
-	function removeRoute(index: number) {
-		routing = routing.filter((_, i) => i !== index);
-	}
-
-	function setRouteKey(index: number, key: string) {
-		routing = routing.map((row, i) => (i === index ? { ...row, key } : row));
-	}
-
-	function setRouteChannel(index: number, value: string) {
-		if (!isAgentChannel(value)) return;
-		routing = routing.map((row, i) => (i === index ? { ...row, channel: value } : row));
-	}
 
 	async function save() {
 		const client = auth.client;
@@ -70,8 +42,7 @@
 		}
 		const built = buildConfigUpdate({
 			default_priority: priority,
-			rateLimitRaw,
-			routing
+			rateLimitRaw
 		});
 		if (!built.ok) {
 			toasts.push(built.error, 'error');
@@ -83,9 +54,7 @@
 			const updated = await client.updateAgentConfig(agentId, {
 				...(built.body.default_priority !== baseline.default_priority
 					? { default_priority: built.body.default_priority } : {}),
-				...(built.body.rate_limit !== baseline.rate_limit ? { rate_limit: built.body.rate_limit } : {}),
-				...(JSON.stringify(routing) !== JSON.stringify(routingEntriesFromMap(baseline.channel_routing))
-					? { channel_routing: built.body.channel_routing } : {})
+				...(built.body.rate_limit !== baseline.rate_limit ? { rate_limit: built.body.rate_limit } : {})
 			});
 			applyConfig(updated);
 			onSaved?.(updated);
@@ -121,47 +90,6 @@
 				disabled={saving}
 			/>
 		</label>
-		<div class="field wide">
-			<span class="label">{t('form.channelRouting')}</span>
-			{#if routing.length === 0}
-				<p class="empty-routes">{t('form.noRoutes')}</p>
-			{:else}
-				<ul class="routes">
-					{#each routing as row, i (i)}
-						<li class="route">
-							<input
-								type="text"
-								placeholder="key"
-								value={row.key}
-								disabled={saving}
-								oninput={(e) => setRouteKey(i, e.currentTarget.value)}
-							/>
-							<select
-								value={row.channel}
-								disabled={saving}
-								onchange={(e) => setRouteChannel(i, e.currentTarget.value)}
-							>
-								{#each AGENT_CHANNELS as ch (ch)}
-									<option value={ch}>{ch}</option>
-								{/each}
-							</select>
-							<button
-								type="button"
-								class="ghost"
-								disabled={saving}
-								onclick={() => removeRoute(i)}
-								aria-label={t('form.removeRoute')}
-							>
-								✕
-							</button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-			<button type="button" class="ghost add" disabled={saving} onclick={addRoute}>
-				{t('form.addRoute')}
-			</button>
-		</div>
 	</div>
 
 	<button type="button" class="save" disabled={saving || !dirty} onclick={() => void save()}>
@@ -196,9 +124,6 @@
 		gap: 0.3rem;
 		min-width: 0;
 	}
-	.field.wide {
-		grid-column: 1 / -1;
-	}
 	.label {
 		font-size: 10px;
 		font-weight: 700;
@@ -207,9 +132,7 @@
 		color: var(--hb-text-dim);
 	}
 	.field input,
-	.field select,
-	.route input,
-	.route select {
+	.field select {
 		border: 1px solid var(--hb-border);
 		background: var(--hb-bg-input);
 		border-radius: var(--hb-radius-sm);
@@ -219,53 +142,9 @@
 		font-size: 12px;
 	}
 	.field input:disabled,
-	.field select:disabled,
-	.route input:disabled,
-	.route select:disabled {
+	.field select:disabled {
 		opacity: 0.65;
 		cursor: wait;
-	}
-	.empty-routes {
-		margin: 0;
-		font-size: 11px;
-		color: var(--hb-text-dim);
-		line-height: 1.35;
-	}
-	.routes {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-	}
-	.route {
-		display: grid;
-		grid-template-columns: 1fr 1fr auto;
-		gap: 0.35rem;
-		align-items: center;
-	}
-	.ghost {
-		border: 1px solid var(--hb-border);
-		background: var(--hb-bg-elevated);
-		border-radius: var(--hb-radius-sm);
-		padding: 0.35rem 0.55rem;
-		color: var(--hb-text-muted);
-		cursor: pointer;
-		font-size: 12px;
-	}
-	.ghost:hover:not(:disabled) {
-		background: var(--hb-bg-hover);
-		color: var(--hb-text);
-	}
-	.ghost:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-	.add {
-		margin-top: 0.4rem;
-		align-self: start;
-		width: fit-content;
 	}
 	.save {
 		width: 100%;
@@ -287,9 +166,6 @@
 	}
 	@media (max-width: 720px) {
 		.fields {
-			grid-template-columns: 1fr;
-		}
-		.route {
 			grid-template-columns: 1fr;
 		}
 	}

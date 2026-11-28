@@ -2,19 +2,26 @@
 // Exports NotificationsClient; depends on the shared authenticated client and ApiError.
 import type { BossApiClient } from '$lib/api/client';
 import { ApiError } from '$lib/api/types';
-import type { Destination, DestinationId, DestinationInput, DestinationPatch, Inventory, Provider, ProviderInput } from './types';
+import type { Destination, DestinationId, DestinationPatch, Inventory } from './types';
 export class NotificationsClient {
   constructor(private readonly connection: Pick<BossApiClient, 'baseUrl' | 'token'>) {}
-  inventory(): Promise<Inventory> { return this.request('GET', '/destinations'); }
-  create(input: DestinationInput): Promise<{ destination: Destination }> { return this.request('POST', '/destinations', input); }
+  async inventory(): Promise<Inventory> {
+    type ServerDestination = Omit<Destination, 'kind'> & { kind: string };
+    const { destinations, mode } = await this.request<{
+      destinations: ServerDestination[]; mode: Inventory['mode'];
+    }>('GET', '/destinations');
+    return {
+      mode,
+      destinations: destinations.filter((row): row is Destination =>
+        row.kind === 'apns' || row.kind === 'native_live')
+    };
+  }
   patch(id: DestinationId, input: DestinationPatch): Promise<{ destination: Destination }> {
     return this.request('PATCH', `/destinations/${encodeURIComponent(id)}`, input);
   }
-  remove(id: DestinationId): Promise<{ ok: true }> { return this.request('DELETE', `/destinations/${encodeURIComponent(id)}`); }
   test(id: DestinationId): Promise<{ ok: true; external_message_id: string | null }> {
     return this.request('POST', `/destinations/${encodeURIComponent(id)}/test`);
   }
-  createProvider(input: ProviderInput): Promise<{ provider: Provider }> { return this.request('POST', '/providers', input); }
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const response = await fetch(`${this.connection.baseUrl}/api/boss${path}`, {
       method, headers: { Authorization: `Bearer ${this.connection.token}`, Accept: 'application/json',

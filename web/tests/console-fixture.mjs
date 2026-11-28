@@ -49,8 +49,7 @@ const people = [
 export async function mockApi(page, { capabilities = false, patches = [] } = {}) {
 	const integration = { ...agent, id: 'monitor-01', name: 'Market monitor', kind: 'integration' };
 	let builder = capabilities ? {
-		...agent, kind: 'agent', admin: true, default_priority: 'high', rate_limit: 12,
-		channel_routing: { high: 'discord' }
+		...agent, kind: 'agent', admin: true, default_priority: 'high', rate_limit: 12
 	} : agent;
 	const delivered = capabilities ? { ...result, agent_id: integration.id, agent_name: integration.name, metadata: null } : result;
 	const openDecision = { ...decision, expires_at: new Date(Date.now() + 18 * 60000).toISOString() };
@@ -75,7 +74,6 @@ export async function mockApi(page, { capabilities = false, patches = [] } = {})
 			'/api/boss/sessions/release-session/notes': { notes: [] },
 			'/api/boss/agents': { agents: capabilities ? [builder, integration] : [builder] },
 			'/api/boss/join-requests': { requests: [] },
-			'/api/boss/channels': [],
 			'/api/boss/me': people[0],
 			'/api/boss/audit': { entries: [{
 				id: 'audit-1', created_at: now, actor_type: 'boss', actor_id: 'boss', action: 'agent.update',
@@ -83,17 +81,13 @@ export async function mockApi(page, { capabilities = false, patches = [] } = {})
 			}], total: 1 },
 			'/api/boss/system': {
 				server_time: now, db_ok: true, active_sessions: 1, pending_decisions: 1,
-				channels: [{ channel: 'discord', configured: true }]
+				channels: [{ channel: 'api', configured: true }]
 			},
 			'/api/boss/clients': { clients: [{
 				id: 'browser-1', label: 'Fixture browser', kind: 'web', created_at: now, last_seen_at: now,
 				revoked_at: null, has_push_device: false, has_signing_key: false, is_current: true
 			}] },
-			'/api/boss/destinations': { mode: 'off', destinations: [], providers: [] },
-			'/api/boss/routing-rules': { rules: [{
-				id: 'rule-1', owner_id: agent.id, target_agent_id: agent.id, channel: 'discord',
-				pattern: '^release', priority: 42, enabled: 1, created_at: now
-			}] },
+			'/api/boss/destinations': { mode: 'off', destinations: [] },
 			'/api/bosses': { bosses: people }
 		}[path];
 		return data ? route.fulfill({ json: data }) : route.fulfill({ status: 404, body: 'fixture route absent' });

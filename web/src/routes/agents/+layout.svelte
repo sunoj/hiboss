@@ -4,14 +4,12 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import type { JoinRequest } from '$lib/api/client';
 	import GroupsView from '../groups/GroupsView.svelte';
-	import ChannelsView from '../channels/ChannelsView.svelte';
 	import JoinRequests from './JoinRequests.svelte';
 	import { onMount } from 'svelte';
 	import { LoadState } from '$lib/stores/load-state.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
-	import type { BossChannelConfig } from '$lib/api/types';
 	import { t } from '$lib/i18n';
 	import { sortAgentsByLastUsed } from './agent-helpers';
 	import '$lib/design/console-split.css';
@@ -22,10 +20,8 @@
 	let { children } = $props();
 	let joins = $state<JoinRequest[] | null>(null);
 	let search = $state('');
-	let channels = $state<BossChannelConfig[] | null>(null);
-	const withoutChannels = $derived(channels && agents.filter((agent) =>
-		!channels?.some((channel) => channel.agent_id === agent.id && channel.configured && channel.enabled === 1)));
-	const tab = $derived(page.url.searchParams.get('tab'));
+	const requestedTab = $derived(page.url.searchParams.get('tab'));
+	const tab = $derived(requestedTab === 'groups' || (requestedTab === 'join' && joins) ? requestedTab : null);
 	const sorted = $derived(sortAgentsByLastUsed(agents.filter((agent) => [agent.name, agent.role,
 		...agent.project_slugs ?? []].some((value) => value?.toLowerCase().includes(search.trim().toLowerCase())))));
 
@@ -44,8 +40,6 @@
 	onMount(() => {
 		void load();
 		void loadJoins();
-		void auth.client?.channels().then((rows) => { channels = Array.isArray(rows) ? rows : null; })
-			.catch(() => undefined);
 	});
 </script>
 
@@ -61,8 +55,6 @@
 </nav>
 {#if tab === 'groups'}
 	<GroupsView />
-{:else if tab === 'channels'}
-	<ChannelsView />
 {:else if tab === 'join' && joins}
 	<JoinRequests requests={joins} onResolved={(id) => { joins = joins?.filter((row) => row.id !== id) ?? null; }} />
 {:else}
@@ -98,11 +90,6 @@
 				/>
 			</div>
 		</div>
-	{/if}
-	{#if withoutChannels?.length}
-		<p class="channel-warning">
-			{t('console.noEnabledChannels', { agents: withoutChannels.map(({ name }) => name).join(', ') })}
-		</p>
 	{/if}
 </section>
 {@render children()}
@@ -157,8 +144,6 @@ h1 {
 			flex-direction: column;
 		}
 	}
-	.channel-warning { background: var(--signal-soft); color: var(--signal);
-		border-radius: var(--r-m); padding: 12px 16px; }
 
 	input { min-height: var(--hit); margin-bottom: 12px; }
 </style>

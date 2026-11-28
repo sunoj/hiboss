@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BossRecord } from '$lib/api/types';
 import {
-	bindingSummary,
-	formatBinding,
 	hasAccess,
 	roleLabel,
 	roleTone,
@@ -14,8 +12,6 @@ function boss(partial: Partial<BossRecord> & Pick<BossRecord, 'id'>): BossRecord
 	return {
 		name: 'Boss',
 		role: 'manager',
-		telegram_user_id: null,
-		discord_user_id: null,
 		agent_id: null,
 		preferences: null,
 		created_at: '2026-07-21T00:00:00Z',
@@ -61,18 +57,6 @@ describe('role helpers', () => {
 		expect(roleLabel('custom')).toBe('custom');
 		expect(roleTone('admin')).toBe('admin');
 		expect(roleTone('weird')).toBe('unknown');
-	});
-});
-
-describe('bindings', () => {
-	it('formats empty and present ids', () => {
-		expect(formatBinding(null)).toBe('—');
-		expect(formatBinding('  ')).toBe('—');
-		expect(formatBinding('12345')).toBe('12345');
-		expect(bindingSummary(boss({ id: 'b', telegram_user_id: 'tg1', discord_user_id: null }))).toEqual({
-			telegram: 'tg1',
-			discord: '—'
-		});
 	});
 });
 

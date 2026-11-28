@@ -8,7 +8,6 @@
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import { apiErrorMessage } from '$lib/api/types';
 	import AgentDrawer from '../AgentDrawer.svelte';
-	import ChannelsView from '../../channels/ChannelsView.svelte';
 
 	const agent = $derived(agentDirectory.rows.find((row) => row.id === page.params.id));
 	let error = $state('');
@@ -27,7 +26,6 @@
 	{:else if agent}
 		{#key agent.id}
 			<AgentDrawer {agent} />
-			<ChannelsView agentId={agent.id} />
 		{/key}
 	{:else if agentDirectory.loaded}
 		<p>{t('page.noAgents')}</p>

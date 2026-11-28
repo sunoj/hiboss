@@ -4,7 +4,8 @@
 import type { Direction, MessageStatus, Priority } from '$lib/design/semantics';
 
 export type Mode = 'async' | 'blocking';
-export type Channel = 'discord' | 'telegram' | 'email' | 'api';
+// Historical message source recorded by the server.
+export type MessageChannel = 'discord' | 'telegram' | 'email' | 'api';
 export type BossRole = 'admin' | 'manager' | 'viewer';
 export type AuditActorType = 'boss' | 'agent' | 'system';
 
@@ -53,7 +54,7 @@ export interface MessageResponse {
 	agent_id: string;
 	direction: Direction;
 	mode: Mode;
-	channel: Channel | null;
+	channel: MessageChannel | null;
 	body: string;
 	status: MessageStatus;
 	reply_to: string | null;
@@ -110,8 +111,6 @@ export interface BossRecord {
 	id: string;
 	name: string;
 	role: BossRole;
-	telegram_user_id: string | null;
-	discord_user_id: string | null;
 	agent_id: string | null;
 	preferences: Record<string, unknown> | string | null;
 	archived_at?: string | null;
@@ -126,16 +125,12 @@ export interface BossesListResponse {
 export interface BossCreateRequest {
 	name: string;
 	role?: BossRole;
-	telegram_user_id?: string | null;
-	discord_user_id?: string | null;
 	agent_id?: string | null;
 }
 
 export interface BossUpdateRequest {
 	name?: string;
 	role?: BossRole;
-	telegram_user_id?: string | null;
-	discord_user_id?: string | null;
 	agent_id?: string | null;
 	preferences?: Record<string, unknown> | null;
 }
@@ -165,21 +160,6 @@ export interface GroupsListResponse {
 	groups: GroupResponse[];
 }
 
-export interface RoutingRuleResponse {
-	id: string;
-	owner_id: string;
-	channel: Channel;
-	pattern: string;
-	target_agent_id: string;
-	priority: number;
-	enabled: number;
-	created_at: string;
-}
-
-export interface RoutingRulesListResponse {
-	rules: RoutingRuleResponse[];
-}
-
 export interface CreateGroupRequest {
 	name: string;
 	description?: string;
@@ -200,37 +180,16 @@ export interface BroadcastGroupResponse {
 	count: number;
 }
 
-export interface CreateRoutingRuleRequest {
-	owner_agent_id: string;
-	channel: Channel;
-	pattern: string;
-	target_agent_id: string;
-	priority?: number;
-}
-
 export interface AgentConfigUpdateRequest {
 	admin?: boolean;
 	default_priority?: Priority;
 	rate_limit?: number | null;
-	channel_routing?: Record<string, Channel> | null;
 }
 
 export interface AgentConfigResponse {
 	admin?: boolean;
 	default_priority: Priority;
 	rate_limit: number | null;
-	channel_routing: Record<string, Channel> | null;
-}
-
-export interface BossChannelConfig {
-	[key: string]: string | number | boolean | null;
-	id: string;
-	agent_id: string;
-	agent_name: string;
-	channel: Channel;
-	configured: boolean;
-	enabled: number;
-	created_at: string;
 }
 
 export interface BossSystemResponse {
@@ -270,10 +229,6 @@ export interface ReplyRequest {
 
 export interface ReactRequest {
 	emoji: string;
-}
-
-export interface ForwardRequest {
-	channel: 'discord' | 'telegram';
 }
 
 export type StreamEvent =

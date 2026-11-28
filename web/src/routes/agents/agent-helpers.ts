@@ -5,14 +5,9 @@ import { t } from '$lib/i18n';
 import type {
 	AgentConfigResponse,
 	AgentConfigUpdateRequest,
-	AgentResponse,
-	Channel
+	AgentResponse
 } from '$lib/api/types';
 import { PRIORITIES, type Priority } from '$lib/design/semantics';
-
-export const AGENT_CHANNELS: readonly Channel[] = ['discord', 'telegram', 'email', 'api'];
-
-export type RoutingEntry = { key: string; channel: Channel };
 
 export function shortId(id: string): string {
 	if (id.length <= 8) return id;
@@ -47,20 +42,15 @@ export function sortAgentsByLastUsed(agents: AgentResponse[]): AgentResponse[] {
 	return [...agents].sort(compareLastUsedDesc);
 }
 
-export function isAgentChannel(value: string): value is Channel {
-	return (AGENT_CHANNELS as readonly string[]).includes(value);
-}
-
 /** Defaults when boss list has no config payload yet. */
 export function defaultAgentConfig(): AgentConfigResponse {
-	return { default_priority: 'normal', rate_limit: null, channel_routing: null };
+	return { default_priority: 'normal', rate_limit: null };
 }
 
 export function agentConfig(agent: AgentResponse): AgentConfigResponse {
 	return {
 		default_priority: agent.default_priority ?? 'normal',
-		rate_limit: agent.rate_limit ?? null,
-		channel_routing: agent.channel_routing ?? null
+		rate_limit: agent.rate_limit ?? null
 	};
 }
 
@@ -78,27 +68,9 @@ export function parseRateLimitInput(raw: string): number | null | undefined {
 	return n;
 }
 
-export function routingEntriesFromMap(
-	map: Record<string, Channel> | null | undefined
-): RoutingEntry[] {
-	if (!map) return [];
-	return Object.entries(map).map(([key, channel]) => ({ key, channel }));
-}
-
-export function routingMapFromEntries(entries: RoutingEntry[]): Record<string, Channel> | null {
-	const out: Record<string, Channel> = {};
-	for (const entry of entries) {
-		const key = entry.key.trim();
-		if (!key) continue;
-		out[key] = entry.channel;
-	}
-	return Object.keys(out).length > 0 ? out : null;
-}
-
 export function buildConfigUpdate(input: {
 	default_priority: Priority;
 	rateLimitRaw: string;
-	routing: RoutingEntry[];
 }): { ok: true; body: AgentConfigUpdateRequest } | { ok: false; error: string } {
 	if (!(PRIORITIES as readonly string[]).includes(input.default_priority)) {
 		return { ok: false, error: t('form.invalidPriority') };
@@ -107,17 +79,11 @@ export function buildConfigUpdate(input: {
 	if (rate_limit === undefined) {
 		return { ok: false, error: t('form.invalidRateLimit') };
 	}
-	for (const entry of input.routing) {
-		if (!isAgentChannel(entry.channel)) {
-			return { ok: false, error: t('form.invalidChannel') };
-		}
-	}
 	return {
 		ok: true,
 		body: {
 			default_priority: input.default_priority,
-			rate_limit,
-			channel_routing: routingMapFromEntries(input.routing)
+			rate_limit
 		}
 	};
 }

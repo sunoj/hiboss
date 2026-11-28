@@ -18,7 +18,6 @@
 	let replyText = $state('');
 	let replyError = $state<string | null>(null);
 	let busy = $state(false);
-	let forwardChannel = $state<'discord' | 'telegram'>('discord');
 
 	const REACTIONS = ['👀', '🔨', '✅'] as const;
 
@@ -68,13 +67,6 @@
 		});
 	}
 
-	async function sendForward() {
-		await withBusy(async () => {
-			const updated = await auth.client!.forward(messageId, { channel: forwardChannel });
-			toasts.push(t('form.forwarded', { channel: forwardChannel }), 'success');
-			onUpdated?.(updated);
-		});
-	}
 </script>
 
 {#if options.length > 0}
@@ -138,17 +130,6 @@
 	</div>
 </section>
 
-<section class="block">
-	<h3>{t('form.forward')}</h3>
-	<div class="forward">
-		<select bind:value={forwardChannel} disabled={busy}>
-			<option value="discord">Discord</option>
-			<option value="telegram">Telegram</option>
-		</select>
-		<button type="button" class="btn primary" disabled={busy} onclick={sendForward}>{t('form.forward')}</button>
-	</div>
-</section>
-
 <style>
 	.block {
 		padding-top: 0.35rem;
@@ -186,8 +167,7 @@
 		background: var(--hb-bg-hover);
 	}
 	.btn:disabled,
-	textarea:disabled,
-	select:disabled {
+	textarea:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
 	}
@@ -196,8 +176,7 @@
 		background: color-mix(in srgb, var(--hb-accent) 22%, var(--hb-bg-elevated));
 		font-weight: 600;
 	}
-	textarea,
-	select {
+	textarea {
 		width: 100%;
 		border: 1px solid var(--hb-border);
 		background: var(--hb-bg-input);
@@ -209,15 +188,6 @@
 		resize: vertical;
 		margin-bottom: 0.45rem;
 		box-sizing: border-box;
-	}
-	.forward {
-		display: flex;
-		gap: 0.45rem;
-		align-items: center;
-	}
-	.forward select {
-		margin: 0;
-		flex: 1;
 	}
 	.options-list {
 		display: flex;

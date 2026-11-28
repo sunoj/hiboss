@@ -5,13 +5,10 @@ import {
 	buildConfigUpdate,
 	compareLastUsedDesc,
 	defaultAgentConfig,
-	isAgentChannel,
 	lastUsedLabel,
 	parseRateLimitInput,
 	rateLimitToInput,
 	roleLabel,
-	routingEntriesFromMap,
-	routingMapFromEntries,
 	shortId,
 	sortAgentsByLastUsed
 } from './agent-helpers';
@@ -96,37 +93,17 @@ describe('parseRateLimitInput / rateLimitToInput', () => {
 	});
 });
 
-describe('routing map / entries', () => {
-	it('converts map to entries and back, dropping blank keys', () => {
-		expect(routingEntriesFromMap({ alerts: 'email', critical: 'discord' })).toEqual([
-			{ key: 'alerts', channel: 'email' },
-			{ key: 'critical', channel: 'discord' }
-		]);
-		expect(
-			routingMapFromEntries([
-				{ key: 'alerts', channel: 'email' },
-				{ key: '  ', channel: 'api' },
-				{ key: 'high', channel: 'telegram' }
-			])
-		).toEqual({ alerts: 'email', high: 'telegram' });
-		expect(routingMapFromEntries([])).toBeNull();
-		expect(routingEntriesFromMap(null)).toEqual([]);
-	});
-});
-
 describe('buildConfigUpdate', () => {
 	it('builds a valid update body', () => {
 		const res = buildConfigUpdate({
 			default_priority: 'high',
-			rateLimitRaw: '10',
-			routing: [{ key: 'alerts', channel: 'email' }]
+			rateLimitRaw: '10'
 		});
 		expect(res).toEqual({
 			ok: true,
 			body: {
 				default_priority: 'high',
-				rate_limit: 10,
-				channel_routing: { alerts: 'email' }
+				rate_limit: 10
 			}
 		});
 	});
@@ -134,22 +111,18 @@ describe('buildConfigUpdate', () => {
 	it('rejects bad rate limit', () => {
 		const res = buildConfigUpdate({
 			default_priority: 'normal',
-			rateLimitRaw: 'nope',
-			routing: []
+			rateLimitRaw: 'nope'
 		});
 		expect(res.ok).toBe(false);
 	});
 });
 
-describe('defaultAgentConfig / isAgentChannel', () => {
-	it('returns normal defaults and validates channels', () => {
+describe('defaultAgentConfig', () => {
+	it('returns normal defaults', () => {
 		expect(defaultAgentConfig()).toEqual({
 			default_priority: 'normal',
-			rate_limit: null,
-			channel_routing: null
+			rate_limit: null
 		});
-		expect(isAgentChannel('discord')).toBe(true);
-		expect(isAgentChannel('sms')).toBe(false);
 	});
 });
 
@@ -161,7 +134,7 @@ describe('agent sending defaults from the inventory', () => {
 		expect(agentConfig(row)).toEqual(defaultAgentConfig());
 	});
 	it('uses all supported server fields and preserves a zero rate limit', () => {
-		const config = { default_priority: 'high', rate_limit: 0, channel_routing: { high: 'discord' } } as const;
+		const config = { default_priority: 'high', rate_limit: 0 } as const;
 		expect(agentConfig({ ...row, ...config })).toEqual(config);
 	});
 });

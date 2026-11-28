@@ -1,4 +1,4 @@
-/** Pure helpers for Bosses & Access matrix and bindings. */
+/** Pure helpers for Bosses & Access matrix. */
 
 import type { BossRecord, BossRole } from '$lib/api/types';
 import { t } from '$lib/i18n';
@@ -46,19 +46,6 @@ export type RoleTone = 'admin' | 'manager' | 'viewer' | 'unknown';
 export function roleTone(role: BossRole | string): RoleTone {
 	if (role === 'admin' || role === 'manager' || role === 'viewer') return role;
 	return 'unknown';
-}
-
-export function formatBinding(id: string | null | undefined): string {
-	const v = id?.trim();
-	if (!v) return '—';
-	return v;
-}
-
-export function bindingSummary(boss: BossRecord): { telegram: string; discord: string } {
-	return {
-		telegram: formatBinding(boss.telegram_user_id),
-		discord: formatBinding(boss.discord_user_id)
-	};
 }
 
 export function shortId(id: string, max = 8): string {

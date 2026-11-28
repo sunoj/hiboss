@@ -27,7 +27,7 @@
 	<table>
 		<thead><tr>
 			<th scope="col">{t('form.name')}</th><th scope="col">{t('form.role')}</th>
-			<th scope="col">{t('console.linkedAccounts')}</th><th scope="col">{t('form.actions')}</th>
+			<th scope="col">{t('form.actions')}</th>
 		</tr></thead>
 		<tbody>
 	{#each bosses as boss (boss.id)}
@@ -41,10 +41,6 @@
 					{#each BOSS_ROLES as role}<option value={role}>{roleLabel(role)}</option>{/each}
 				</select>
 			{:else}<span class="badge" class:settled={boss.role === 'admin'}>{roleLabel(boss.role)}</span>{/if}
-			</td>
-			<td data-label={t('console.linkedAccounts')}>
-				{[boss.telegram_user_id && 'Telegram', boss.discord_user_id && 'Discord']
-					.filter(Boolean).join(', ') || t('devices.none')}
 			</td>
 			<td data-label={t('form.actions')}><div class="actions">
 				{#if boss.archived_at}
