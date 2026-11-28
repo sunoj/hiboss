@@ -260,35 +260,3 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertEqual(first.frame.minX, third.frame.minX, accuracy: 2)
     }
 }
-
-extension XCUIApplication {
-    func tapBoxChip(_ identifier: String) {
-        let chip = buttons[identifier]
-        let row = scrollViews["box-filters"]
-        XCTAssertTrue(row.appears(timeout: 5))
-        for _ in 0..<8 {
-            let frame = chip.exists ? chip.frame : .null
-            if !frame.isEmpty && row.frame.contains(frame) {
-                XCTAssertTrue(chip.isHittable, identifier)
-                chip.tap()
-                XCTAssertTrue(chip.isSelected, identifier)
-                return
-            }
-            if !frame.isEmpty && frame.midX < row.frame.midX { row.swipeRight() }
-            else { row.swipeLeft() }
-        }
-        XCTFail("Box chip did not scroll into view: \(identifier)")
-    }
-
-    func revealBoxTile(_ tile: XCUIElement) {
-        let grid = scrollViews["box-grid"]
-        XCTAssertTrue(grid.appears(timeout: 5))
-        for _ in 0..<12 {
-            let frame = tile.exists ? tile.frame : .null
-            if !frame.isEmpty && grid.frame.contains(frame) && tile.isHittable { return }
-            if !frame.isEmpty && frame.minY < grid.frame.minY { grid.swipeDown() }
-            else { grid.swipeUp() }
-        }
-        XCTFail("Box tile did not scroll into view: \(tile.identifier)")
-    }
-}

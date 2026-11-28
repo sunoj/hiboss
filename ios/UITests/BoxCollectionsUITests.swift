@@ -214,3 +214,41 @@ final class BoxCollectionsUITests: XCTestCase {
         add(attachment)
     }
 }
+
+extension XCUIApplication {
+    func tapBoxChip(_ identifier: String) {
+        let chip = buttons[identifier]
+        let row = scrollViews["box-filters"]
+        XCTAssertTrue(row.appears(timeout: 5))
+        for _ in 0..<8 {
+            let frame = chip.exists ? chip.frame : .null
+            if !frame.isEmpty && row.frame.contains(frame) {
+                XCTAssertTrue(chip.isHittable, identifier)
+                chip.tap()
+                XCTAssertTrue(chip.isSelected, identifier)
+                return
+            }
+            let direction: CGFloat = !frame.isEmpty && frame.midX < row.frame.midX ? 0.26 : -0.26
+            dragBoxContent(row, dx: direction, dy: 0)
+        }
+        XCTFail("Box chip did not scroll into view: \(identifier)")
+    }
+
+    func revealBoxTile(_ tile: XCUIElement) {
+        let grid = scrollViews["box-grid"]
+        XCTAssertTrue(grid.appears(timeout: 5))
+        for _ in 0..<12 {
+            let frame = tile.exists ? tile.frame : .null
+            if !frame.isEmpty && grid.frame.contains(frame) && tile.isHittable { return }
+            let direction: CGFloat = !frame.isEmpty && frame.midY < grid.frame.midY ? 0.24 : -0.24
+            dragBoxContent(grid, dx: 0, dy: direction)
+        }
+        XCTFail("Box tile did not scroll into view: \(tile.identifier)")
+    }
+
+    private func dragBoxContent(_ scroll: XCUIElement, dx: CGFloat, dy: CGFloat) {
+        let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5 + dx, dy: 0.5 + dy))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
+    }
+}
