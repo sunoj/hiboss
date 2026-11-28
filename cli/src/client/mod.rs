@@ -2,7 +2,7 @@
 // Exports: HiBossClient struct, core messaging + admin methods, upload and helpers.
 // Dependencies: reqwest, serde_json, thiserror, crate::types, std::error::Error.
 use crate::types::{
-    AgentsResponse, ChannelStatsResponse, CreateAgentResponse, ReactionsResponse,
+    AgentsResponse, CreateAgentResponse, ReactionsResponse,
     UploadResponse,
 };
 use reqwest::{Client, Method};
@@ -122,16 +122,6 @@ impl HiBossClient {
                 .json(&serde_json::json!({ "name": name }))
         ).await
     }
-    pub async fn list_channel_stats(
-        &self,
-        verbose: bool,
-    ) -> Result<ChannelStatsResponse, Box<dyn Error>> {
-        let mut req = self.request(Method::GET, "/api/channels/stats");
-        if verbose {
-            req = req.query(&[("verbose", "1")]);
-        }
-        Self::send_json(req).await
-    }
     pub async fn inbox_count(
         &self,
         priority: Option<&str>,
@@ -238,6 +228,7 @@ mod tests;
 mod sessions;
 pub mod notes;
 mod bosses;
+pub mod boss_keys;
 mod groups;
 mod integrations;
 mod messages;
