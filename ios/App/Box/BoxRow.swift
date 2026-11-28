@@ -45,7 +45,7 @@ struct BoxTile: View {
 
     @ViewBuilder private var tileTitle: some View {
         if textSize.isAccessibilitySize {
-            Text(verbatim: title)
+            Text(verbatim: title).lineLimit(3)
         } else {
             Text(verbatim: title).lineLimit(2, reservesSpace: true)
         }
@@ -89,7 +89,7 @@ struct BoxTile: View {
         case .text:
             Text(verbatim: item.text ?? item.note ?? item.kindLabel)
                 .font(.caption).foregroundStyle(Theme.ink2)
-                .lineLimit(textSize.isAccessibilitySize ? nil : 3)
+                .lineLimit(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Space.xs)
         case .link:
