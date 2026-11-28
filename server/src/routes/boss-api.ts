@@ -126,7 +126,6 @@ routes.get('/groups', async (c) => {
   return c.json({ groups: rows.results ?? [] });
 });
 
-/** GET /api/boss/routing-rules — list routing rules for accessible agents */
 /** GET /api/boss/audit — list audit log entries scoped to accessible agents */
 routes.get('/audit', async (c) => {
   const bossId = getBossId(c);

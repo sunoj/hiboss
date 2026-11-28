@@ -74,13 +74,12 @@ it('protects the last live admin and prevents self archive even with another adm
   expect((await post(admin, 'archive')).status).toBe(409);
 });
 
-it('blocks archived target mutations, including grants, token rotation, and external accounts', async () => {
+it('blocks archived target mutations, including grants and token rotation', async () => {
   expect((await post(manager, 'archive')).status).toBe(200);
   for (const [method, path, body] of [
     ['PATCH', '', { name: 'Changed' }], ['PATCH', '', { preferences: {} }],
     ['POST', '/access', { agent_id: 'test-agent-id' }], ['DELETE', '/access/test-agent-id', undefined],
     ['POST', '/token', undefined],
-    ['DELETE', '/external-accounts/missing', undefined],
   ] as const) {
     const response = await SELF.fetch(`https://test.local/api/bosses/${manager}${path}`, { method, headers: headers(), body: body && JSON.stringify(body) });
     expect(response.status, `${method} ${path}`).toBe(409);

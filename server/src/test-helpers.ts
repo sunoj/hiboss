@@ -157,6 +157,15 @@ export async function seedDatabase(): Promise<void> {
   await env.DB.batch(noteStatements.map(sql => env.DB.prepare(sql)));
   const readBudgetStatements = readBudgetMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
   await env.DB.batch(readBudgetStatements.map(sql => env.DB.prepare(sql)));
+  await seedFinalMigrations();
+  const keyHash = await hashApiKey(TEST_API_KEY);
+  await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+    .bind('test-agent-id', 'test-agent', keyHash)
+    .run();
+  seeded = true;
+}
+
+async function seedFinalMigrations(): Promise<void> {
   // Trigger bodies hold inner semicolons; this migration separates statements by blank lines.
   const sessionUpdateStatements = sessionUpdatesMigration.replace(/^--.*$/gm, '').split(/;\s*\n\s*\n/)
     .map(value => value.trim()).filter(Boolean);
@@ -164,11 +173,6 @@ export async function seedDatabase(): Promise<void> {
   const finalStatements = `${integrationWebhooksMigration}\n${removeChatChannelsMigration}`.replace(/^--.*$/gm, '').split(';')
     .map(value => value.trim()).filter(Boolean);
   await env.DB.batch(finalStatements.map(sql => env.DB.prepare(sql)));
-  const keyHash = await hashApiKey(TEST_API_KEY);
-  await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
-    .bind('test-agent-id', 'test-agent', keyHash)
-    .run();
-  seeded = true;
 }
 
 export function authHeaders(): Record<string, string> {
