@@ -20,10 +20,7 @@ struct SessionConversation: View {
         let presentation = layout
         VStack(alignment: .leading, spacing: Space.s) {
             if !presentation.needsYou.isEmpty {
-                Text("Needs you").font(.headline).accessibilityAddTraits(.isHeader)
-                ForEach(presentation.needsYou) { thread in
-                    pendingThread(thread)
-                }
+                SessionPinnedDecisions(threads: presentation.needsYou) { pendingThread($0) }
             }
             let rows = presentation.rows(notes: notesAPI == nil ? [] : notes)
             if !rows.isEmpty {
@@ -36,6 +33,8 @@ struct SessionConversation: View {
                         SessionThreadCard(card: card, store: store, notes: notes)
                     case let .note(note):
                         if let notesAPI { SessionNoteBubble(note: note, api: notesAPI) }
+                    case let .asked(thread):
+                        SessionAskedMarker(thread: thread)
                     }
                 }
             }

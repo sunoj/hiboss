@@ -126,6 +126,8 @@ final class SessionThreadsTests: XCTestCase {
             case let .card(card):
                 guard !groups.isEmpty else { return XCTFail("Card precedes its day heading") }
                 groups[groups.count - 1].append(card.id.rawValue)
+            case let .asked(thread):
+                groups[groups.count - 1].append("asked-" + thread.id.rawValue)
             }
         }
         XCTAssertEqual(days, [0, -1, -2].compactMap {

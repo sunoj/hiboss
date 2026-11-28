@@ -46,6 +46,7 @@ final class SessionBubblesUITests: XCTestCase {
     }
 
     func testPendingDecisionIsAnsweredInPlace() {
+        app.expandPinnedDecision("c1")
         let card = app.descendants(matching: .any)["transcript-decision-c1"]
         for _ in 0..<4 where !card.exists { app.swipeUp() }
         XCTAssertTrue(card.appears(timeout: 10), "the pending migration decision renders as a decision card")
@@ -68,6 +69,7 @@ final class SessionBubblesUITests: XCTestCase {
     }
 
     func testPendingDecisionUsesOneCardWithOptionsBeforeDefaultAndOnlyTheSessionComposer() {
+        app.expandPinnedDecision("c1")
         let card = app.descendants(matching: .any)["transcript-decision-c1"]
         for _ in 0..<4 where !card.exists { app.swipeUp() }
         XCTAssertTrue(card.appears(timeout: 10))
@@ -115,6 +117,7 @@ final class SessionBubblesUITests: XCTestCase {
     }
 
     func testResolvedThreadCardHasNoDefaultLine() {
+        app.expandPinnedDecision("c1")
         let card = app.descendants(matching: .any)["transcript-decision-c1"]
         for _ in 0..<4 where !card.exists { app.swipeUp() }
         XCTAssertTrue(card.appears(timeout: 10))
@@ -157,6 +160,7 @@ final class SessionBubblesUITests: XCTestCase {
                                  "HIBOSS_DEMO_TRANSCRIPT_NEWER_DELAY_MS": "15000"])
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
+        app.expandPinnedDecision("c1")
         let label = app.staticTexts["session-reply-target"]
         XCTAssertTrue(label.appears(timeout: 10))
         let original = label.label

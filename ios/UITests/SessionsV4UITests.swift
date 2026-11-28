@@ -80,6 +80,7 @@ final class SessionsV4UITests: XCTestCase {
         for _ in 0..<8 where !app.staticTexts["Mac mini"].isHittable { app.swipeDown() }
         XCTAssertTrue(app.staticTexts["Mac mini"].appears(timeout: 10))
         XCTAssertTrue(app.staticTexts["Preparing the release"].exists)
+        app.expandPinnedDecision("c1")
         let open = app.descendants(matching: .any)["transcript-decision-c1"]
         for _ in 0..<8 where !open.buttons["Approve"].isHittable { app.swipeUp() }
         XCTAssertTrue(open.buttons["Approve"].isHittable)
@@ -167,6 +168,7 @@ final class SessionsV4UITests: XCTestCase {
         let app = launch(extra: ["HIBOSS_DEMO_SESSION": "1"])
         XCTAssertTrue(app.buttons["Message history"].appears(timeout: 10))
         XCTAssertTrue(app.staticTexts["Refreshing. Showing earlier results."].disappears(timeout: 5))
+        app.expandPinnedDecision("c1")
         XCTAssertTrue(app.buttons["Approve"].exists)
     }
 
@@ -179,6 +181,7 @@ final class SessionsV4UITests: XCTestCase {
         XCTAssertTrue(field.isHittable)
         XCTAssertLessThanOrEqual(field.frame.maxX, app.frame.maxX)
         XCTAssertTrue(app.buttons["Message history"].isHittable)
+        app.expandPinnedDecision("c1")
         XCTAssertTrue(app.buttons["Approve"].exists)
         let facts = app.buttons["Session facts"]
         for _ in 0..<8 where !facts.isHittable { app.swipeDown() }

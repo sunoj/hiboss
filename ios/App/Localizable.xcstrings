@@ -41510,6 +41510,36 @@
         "ru": { "stringUnit": { "state": "translated", "value": "Нет панелей, подходящих под текущий фильтр." } },
         "ar": { "stringUnit": { "state": "translated", "value": "لا توجد لوحات تطابق عامل التصفية الحالي." } }
       }
+    },
+    "Asked “%@” · pinned above": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Asked “%@” · pinned above" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "提问“%@”· 已置顶" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "質問「%@」· 上に固定" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "질문 “%@” · 위에 고정됨" } },
+        "th": { "stringUnit": { "state": "translated", "value": "ถาม “%@” · ปักหมุดไว้ด้านบน" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Preguntó «%@» · fijado arriba" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "पूछा “%@” · ऊपर पिन किया गया" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Question « %@ » · épinglée en haut" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Perguntou “%@” · fixado acima" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Вопрос «%@» · закреплён вверху" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "سؤال «%@» · مثبّت في الأعلى" } }
+      }
+    },
+    "Shows the choices": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shows the choices" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "显示选项" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "選択肢を表示します" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "선택지를 표시합니다" } },
+        "th": { "stringUnit": { "state": "translated", "value": "แสดงตัวเลือก" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Muestra las opciones" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "विकल्प दिखाता है" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Affiche les choix" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mostra as opções" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Показывает варианты" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "يعرض الخيارات" } }
+      }
     }
   },
   "version": "1.0"

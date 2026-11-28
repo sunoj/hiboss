@@ -147,6 +147,16 @@ extension XCUIApplication {
     }
 }
 
+extension XCUIApplication {
+    /// A session pins its first open decision in full; later ones are rows until tapped.
+    func expandPinnedDecision(_ id: String) {
+        let row = buttons["needs-row-\(id)"]
+        guard row.appears(timeout: 5) else { return }
+        for _ in 0..<6 where !row.isHittable { swipeUp() }
+        row.tap()
+    }
+}
+
 extension XCUIElement {
     /// `waitForExistence` first checks about a second after it is called, so every call costs at
     /// least that long. These check at once, then every 0.1 s, with the same timeout semantics.

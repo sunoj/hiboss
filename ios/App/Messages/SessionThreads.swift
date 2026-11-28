@@ -76,12 +76,15 @@ extension SessionThreads {
         case day(Date)
         case card(Card)
         case note(SessionNote)
+        /// Where a pinned decision was asked: a one-line pointer to the pinned card.
+        case asked(MessageThread)
 
         var id: String {
             switch self {
             case let .day(date): return "day-\(date.timeIntervalSince1970)"
             case let .card(card): return "card-\(card.id.rawValue)"
             case let .note(note): return "note-\(note.id)"
+            case let .asked(thread): return "asked-\(thread.id.rawValue)"
             }
         }
     }
@@ -89,6 +92,7 @@ extension SessionThreads {
     func rows(notes: [SessionNote], calendar: Calendar = .current) -> [Row] {
         let entries: [(date: Date, row: Row)] = conversation.map { ($0.lastActivity, .card($0)) }
             + notes.map { (ISODate.parse($0.createdAt) ?? .distantPast, .note($0)) }
+            + needsYou.map { ($0.message.createdDate ?? .distantPast, .asked($0)) }
         let days = Dictionary(grouping: entries) { calendar.startOfDay(for: $0.date) }
         return days.keys.sorted(by: >).flatMap { day in
             let ordered = (days[day] ?? []).sorted {
