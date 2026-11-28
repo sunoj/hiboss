@@ -1,12 +1,12 @@
 // Router that implements agent-facing messaging endpoints atop the D1 schema.
 // Exports POST/GET/PATCH/poll handlers for /api/messages, plus reactions sub-router.
-// Depends on Hono, the auth middleware, channel adapters, and shared types.
+// Depends on Hono, the auth middleware, and shared types.
 
 import { parseStoredJSON as safeParse } from '../stored-json';
 import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
-import { apiAuth, createAuthValidator, getAgentId, getAgentKeyId } from '../middleware/auth';
-import { actionContent, agentRequiresSignature, authenticateAgentMessage } from '../message-security';
+import { apiAuth, createAuthValidator, getAgentId } from '../middleware/auth';
+import { agentRequiresSignature } from '../message-security';
 import type { Direction, Env, MessageRow, Status } from '../types';
 import { OPEN_MESSAGE_STATUS, RECEIPT_STATUS_SET_SQL } from '../message-status';
 import {

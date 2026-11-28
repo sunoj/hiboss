@@ -1,5 +1,5 @@
 // Integration tests for boss-scoped write contract and console read endpoints.
-// Covers groups, routing rules, agent config, channel projection, and system doctor.
+// Covers groups, agent config, and system doctor.
 // Depends on cloudflare:test env, shared test helpers, and boss token auth.
 
 import { testRequest, testJson } from '../test-request';
@@ -13,7 +13,6 @@ const MANAGER_TOKEN = 'hb_boss_writes_manager_0011223344556677';
 const VIEWER_TOKEN = 'hb_boss_writes_viewer_0011223344556677';
 const OTHER_AGENT_ID = 'boss-writes-other-agent';
 let groupId = '';
-let ruleId = '';
 
 beforeAll(async () => {
   await seedDatabase();
@@ -82,6 +81,11 @@ describe('boss write contract', () => {
     expect(manager.status).toBe(403);
   });
 
+
+  it('deletes a boss-created group', async () => {
+    const response = await testRequest('DELETE', `https://test.local/api/boss/groups/${groupId}`, bossHeaders());
+    expect(response.status).toBe(200);
+  });
 });
 
 async function seedAgent(id: string): Promise<void> {

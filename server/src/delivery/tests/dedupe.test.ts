@@ -10,12 +10,12 @@ import type { Env, MessageRow } from '../../types';
 const on: Env = { ...env, DESTINATIONS_MODE: 'on' };
 beforeAll(async () => {
   await seedDatabase();
-  for (const id of ['one', 'two']) await env.DB.prepare("INSERT INTO bosses (id, name, role) VALUES (?, ?, 'admin')").bind(id, id).run();
+  await env.DB.prepare("INSERT INTO bosses (id, name, role) VALUES ('one', 'One', 'admin')").run();
 });
 beforeEach(async () => {
   await env.DB.prepare('DELETE FROM message_deliveries').run();
   await env.DB.prepare('DELETE FROM boss_destinations').run();
-  await env.DB.prepare("UPDATE bosses SET preferences = NULL WHERE id IN ('one', 'two')").run();
+  await env.DB.prepare("UPDATE bosses SET preferences = NULL WHERE id = 'one'").run();
 });
 afterEach(() => vi.restoreAllMocks());
 async function setup(): Promise<MessageRow> {
@@ -58,12 +58,14 @@ it('collapses two destinations for the same device token', async () => {
   await dispatchDestinations(on, message);
   expect(spy).toHaveBeenCalledTimes(1);
 });
-it('shadow collapses records a shared device without sending', async () => {
+it('shadow records a shared device without sending', async () => {
   const message = await setup();
   const spy = vi.spyOn(adapters, 'sendDestination');
   await dispatchDestinations({ ...env, DESTINATIONS_MODE: 'shadow' }, message);
   expect(spy).not.toHaveBeenCalled();
-  expect(await env.DB.prepare("SELECT id FROM audit_log WHERE action = 'destination_shadow' AND resource_id = ?").bind(message.id).first()).toBeNull();
+  const rows = await env.DB.prepare('SELECT status, next_attempt_at FROM message_deliveries WHERE message_id = ?')
+    .bind(message.id).all();
+  expect(rows.results).toEqual(Array(2).fill({ status: 'queued', next_attempt_at: null }));
   await drainDestinationDeliveries(on);
   expect(spy).not.toHaveBeenCalled();
 });

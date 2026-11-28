@@ -44,7 +44,7 @@ describe('POST /api/bosses', () => {
 
   it('creates a boss with an explicit role', async () => {
     const data = await testJson(201, testRequest('POST', 'http://localhost/api/bosses', adminHeaders(),
-      { name: 'Viewer Boss', role: 'viewer' })) as any;
+      { name: 'Viewer Boss', role: 'viewer' })) as { role: string };
     expect(data.role).toBe('viewer');
   });
 

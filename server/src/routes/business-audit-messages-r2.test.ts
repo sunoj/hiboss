@@ -1,14 +1,12 @@
-// Round-two message regressions: forward copies of asks and agent-to-agent reply sessions.
-// Covers pending-input listing, Telegram auto-link targets, and reply session events.
-// Depends on SELF, seeded D1 fixtures, a mocked Telegram fetch and the forward helpers.
+// Round-two message regressions: agent-to-agent reply sessions.
+// Depends on seeded D1 fixtures and the message API.
 
 import { testRequest, testJson } from '../test-request';
 import { env } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent-keys';
 import { seedDatabase } from '../test-helpers';
-import type { Env, MessageRow } from '../types';
-import { fetchAllRequiredInputs } from './boss-required-inputs';
+import type { MessageRow } from '../types';
 
 const api = 'https://test.local/api';
 const unique = (name: string): string => `m2-${name}-${crypto.randomUUID().slice(0, 8)}`;

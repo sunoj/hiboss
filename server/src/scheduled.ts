@@ -1,6 +1,6 @@
 // Periodic sweeps for expiring options messages and draining quiet-hours delivery queue.
 // Exports the scheduled handler used by the Worker cron entrypoint.
-// Depends on D1, message expiry helpers, and the shared agent delivery helper.
+// Depends on D1, message expiry helpers, and the native delivery queue.
 
 import type { Env, MessageRow } from './types';
 import { SENT_MESSAGE_STATUS } from './message-status';
@@ -170,7 +170,6 @@ async function markQueueFailed(env: Env, queueId: string, error: string, nextRet
     .bind(error, nextRetryAt, queueId)
     .run();
 }
-
 
 function computeRetryAt(now: string, attempts: number): string {
   const backoffMs = Math.max(60_000, 2 ** Math.max(attempts - 1, 0) * 60_000);

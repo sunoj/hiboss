@@ -4,7 +4,7 @@
 import { parseStoredJSON as safeParse } from '../stored-json';
 import { accessDigest, listSessions, parseSessionCursor } from './session-list';
 import { Hono } from 'hono';
-import type { Env, MessageRow } from '../types';
+import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName, getBossTokenId } from '../middleware/auth';
 import { mapMessageRow, validateOption, priorityOptions } from './message-helpers';
 import { idPrefixRange } from './id-prefix';

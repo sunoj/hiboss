@@ -3,11 +3,11 @@
 // Depends on Hono, auth middleware, D1, and notify helpers.
 
 import { Hono } from 'hono';
-import type { Env, MessageRow, Priority, Status } from '../types';
+import type { Env, MessageRow, Status } from '../types';
 import { OPEN_MESSAGE_STATUS, RECEIPT_STATUS_SET_SQL } from '../message-status';
 import { apiAuth, getAgentId, getAgentKeyId } from '../middleware/auth';
 import { actionContent, authenticateAgentMessage, bearerApiMetadata } from '../message-security';
-import { mapMessageRow, parsePriorityFilter, priorityOptions, clampNumber, validateOption, replyTargetSession } from './message-helpers';
+import { mapMessageRow, parsePriorityFilter, clampNumber, validateOption, replyTargetSession } from './message-helpers';
 import { findMessageByIdPrefix } from './id-prefix';
 import { notifyAgentCallback } from '../notify';
 import { createMessageId } from '../session-events';

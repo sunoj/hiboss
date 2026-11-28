@@ -21,6 +21,11 @@ function check(sql: string): { status: number | null; output: string } {
 }
 
 describe('consolidated schema', () => {
+  it('preserves native deliveries and message history when migrating chat data', () => {
+    const result = spawnSync('python3', ['-B', 'scripts/remove-chat-channels.py'], { encoding: 'utf8' });
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+  });
+
   it('matches every migration on two fresh databases', () => {
     const result = check(schema);
     expect(result.status, result.output).toBe(0);

@@ -1,8 +1,6 @@
-// Round-two viewer regressions: a viewer is read-only on every writer, channel buttons included.
-// Covers Telegram/Discord option callbacks, channel reactions, receipt PATCH, progress delete,
-// client minting, and the rule that a channel callback never stores free text.
+// Verifies viewer permissions on message receipts, progress deletion, and client minting.
+// Exercises authenticated Worker routes and stored state.
 
-import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedBossToken, seedDatabase } from '../test-helpers';

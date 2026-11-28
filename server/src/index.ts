@@ -81,7 +81,10 @@ app.use(
 );
 
 // Wildcard auth middleware also matches unknown paths. Return 404 before authenticating those requests.
-app.use('/api/*', (c, next) => matchedRoutes(c).some(route => route.method !== 'ALL') ? next() : c.notFound());
+app.use('/api/*', async (c, next) => {
+  if (!matchedRoutes(c).some(route => route.method !== 'ALL')) return c.notFound();
+  await next();
+});
 
 app.route('/api/attachments', attachmentsRouter);
 app.route('/api/box', boxRouter);

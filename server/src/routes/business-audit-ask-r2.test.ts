@@ -1,13 +1,12 @@
-// Round-two ask integrity regressions across API, Telegram, and Discord writers.
-// Covers one-answer races, unlinked late text, and ignored inserts.
+// Round-two ask integrity regressions for the boss API.
+// Covers duplicate answers and ignored inserts.
 // Depends on seeded D1 fixtures, SELF routes, and the real default resolver.
 
 import { testRequest } from '../test-request';
-import { env, SELF } from 'cloudflare:test';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Env, MessageRow } from '../types';
+import { env } from 'cloudflare:test';
+import { beforeAll, describe, expect, it } from 'vitest';
+import type { MessageRow } from '../types';
 import { seedBossToken, seedDatabase } from '../test-helpers';
-import { expireMessageOptions } from './message-options';
 
 const base = 'https://test.local';
 const token = 'ask-r2-boss-token';
@@ -49,8 +48,6 @@ beforeAll(async () => {
   await seedDatabase();
   bossId = await seedBossToken('Ask R2 boss', 'manager', token, fresh());
 });
-
-afterEach(() => vi.unstubAllGlobals());
 
 describe('one answer per ask across writers', () => {
   it('returns 409 for a second boss API answer to an optionless blocking ask', async () => {

@@ -1,13 +1,9 @@
-// Reproduces six business lifecycle audit hypotheses with a legitimate control for each.
-// Covers join decisions, Discord reactions, reused sessions, and queued deliveries.
+// Checks join, session reuse, and destination deletion invariants.
 // Depends on the Worker API, seeded D1 tables, and delivery helpers.
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent-keys';
-import { resolveDestinations } from '../delivery/destinations';
-import { handleScheduled } from '../scheduled';
 import { insertPendingJoin, seedBossToken, seedDatabase } from '../test-helpers';
-import type { Env } from '../types';
 
 const api = 'https://test.local/api';
 const unique = (name: string): string => `lifecycle-${name}-${crypto.randomUUID()}`;

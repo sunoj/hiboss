@@ -1,6 +1,6 @@
 // End-to-end tests for join request creation, approval, rejection, and bootstrap flows.
-// Covers Telegram and Discord approval callbacks plus poll-token status delivery.
-// Depends on cloudflare:test, D1 fixtures, webhook secrets, and signed Discord payloads.
+// Covers boss approval and poll-token status delivery.
+// Depends on cloudflare:test and D1 fixtures.
 
 import { testRequest } from '../test-request';
 import { env, SELF } from 'cloudflare:test';
@@ -29,6 +29,17 @@ describe('Join flow', () => {
       .bind(res.request_id)
       .first<{ status: string; poll_token_hash: string }>();
     expect(stored).toEqual({ status: 'pending', poll_token_hash: await hashApiKey(res.poll_token) });
+  });
+
+  it('rejects duplicate approvals after the request is already approved', async () => {
+    const join = await createJoinRequest('join-flow-duplicate-approve');
+    await seedBossToken('join-flow-duplicate-admin', 'admin', 'join-flow-duplicate-admin-token');
+    const approve = () => testRequest('POST', `https://test.local/api/boss/join-requests/${join.request_id}/approve`,
+      { Authorization: 'Bearer join-flow-duplicate-admin-token' });
+    expect((await approve()).status).toBe(200);
+    const duplicate = await approve();
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.text()).toBe('join request already approved');
   });
 
   it('rejects a taken name when the request is created', async () => {

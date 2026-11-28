@@ -1,12 +1,12 @@
 // Regression probes for boss grants, viewer roles, and project lifecycle.
 // Exercises public Worker routes with isolated D1 fixtures.
-// Depends on Cloudflare SELF, shared seeding, agent keys, and Web Crypto.
+// Depends on shared D1 seeding and agent keys.
 
 import { testRequest } from '../test-request';
-import { env, SELF } from 'cloudflare:test';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { env } from 'cloudflare:test';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createAgent } from '../agent-keys';
-import { insertPendingJoin, seedBossToken, seedDatabase } from '../test-helpers';
+import { seedBossToken, seedDatabase } from '../test-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
@@ -35,20 +35,6 @@ async function sessionProject(id: string): Promise<string | null> {
   const row = await env.DB.prepare('SELECT project_id FROM sessions WHERE id = ?')
     .bind(id).first<{ project_id: string | null }>();
   return row?.project_id ?? null;
-}
-
-async function join(id: string): Promise<void> {
-  await insertPendingJoin(id, `audit-${id}`);
-}
-
-async function joinStatus(id: string): Promise<string | null> {
-  const row = await env.DB.prepare('SELECT status FROM join_requests WHERE id = ?')
-    .bind(id).first<{ status: string }>();
-  return row?.status ?? null;
-}
-
-function hex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 describe('Business audit access boundaries', () => {

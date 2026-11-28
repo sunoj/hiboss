@@ -2,45 +2,8 @@
 // Registers cases in messages.test.ts; depends on its shared database setup.
 import { env, SELF } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { authHeaders, getTestAgentId, createAgentAuth } from '../../test-helpers';
+import { authHeaders, getTestAgentId } from '../../test-helpers';
 import { hashApiKey } from '../../middleware/auth';
-
-describe('POST /api/messages/:id/forward', () => {
-  it('rejects invalid target channels', async () => {
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', 'Needs review', 'sent', 'normal')"
-    ).bind('forward-invalid-channel', getTestAgentId()).run();
-
-    const res = await SELF.fetch('https://test.local/api/messages/forward-invalid-channel/forward', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ channel: 'api' }),
-    });
-    expect(res.status).toBe(400);
-    expect(await res.text()).toContain('channel must be discord or telegram');
-  });
-
-  it('rejects forwarding when the caller does not own the message', async () => {
-    const otherHeaders = await createAgentAuth('forward-owner', 'hb_test_key_forward_owner_000000');
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'telegram', 'Private', 'sent', 'normal', ?)"
-    ).bind('forward-owner-only', 'forward-owner', getTestAgentId()).run();
-
-    const res = await SELF.fetch('https://test.local/api/messages/forward-owner-only/forward', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ channel: 'discord' }),
-    });
-    expect(res.status).toBe(403);
-
-    const ownerRes = await SELF.fetch('https://test.local/api/messages/forward-owner-only/forward', {
-      method: 'POST',
-      headers: otherHeaders,
-      body: JSON.stringify({ channel: 'discord' }),
-    });
-    expect(ownerRes.status).not.toBe(403);
-  });
-});
 
 describe('PATCH /api/messages/:id', () => {
   it('updates message status', async () => {
