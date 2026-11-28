@@ -1,4 +1,4 @@
-// Actionable Home attention list with project, requester, wait, and choices.
+// Today's attention list: the first decision as a focus card, the rest as one-line rows.
 // Exports: HomeAttentionSection, HomeAttentionRow, and DecisionCard.
 // Dependencies: SwiftUI, HibossKit MessageID, AttentionItem, DecisionOptions, DecisionTiming, Theme.
 
@@ -34,20 +34,23 @@ struct HomeAttentionSection: View {
             } else if reservesAllClearSpace && snapshot.count == 0 {
                 allClear.hidden().accessibilityHidden(true)
             } else {
-                ForEach(snapshot.groups, id: \.group) { group in
-                    VStack(alignment: .leading, spacing: Space.m) {
-                        ForEach(group.items) { item in
-                            HomeAttentionRow(
-                                item: item, submitting: replying[item.id],
-                                locksControls: !verifying.contains(item.id)
-                                    || verificationTimedOut.contains(item.id),
-                                verifying: verifying.contains(item.id),
-                                verificationTimedOut: verificationTimedOut.contains(item.id),
-                                answerability: answerability[item.id] ?? .checking,
-                                onChoose: { onChoose($0, item.id) }, onOpenSession: onOpenSession,
-                                onOpenDecision: onOpenDecision
-                            )
-                        }
+                // The first decision is answerable in place; the rest are rows that open the sheet.
+                let items = snapshot.groups.flatMap(\.items)
+                VStack(alignment: .leading, spacing: Space.m) {
+                    if let item = items.first {
+                        HomeAttentionRow(
+                            item: item, submitting: replying[item.id],
+                            locksControls: !verifying.contains(item.id)
+                                || verificationTimedOut.contains(item.id),
+                            verifying: verifying.contains(item.id),
+                            verificationTimedOut: verificationTimedOut.contains(item.id),
+                            answerability: answerability[item.id] ?? .checking,
+                            onChoose: { onChoose($0, item.id) }, onOpenSession: onOpenSession,
+                            onOpenDecision: onOpenDecision
+                        )
+                    }
+                    if items.count > 1 {
+                        TodayDecisionRows(items: Array(items.dropFirst()), onOpenDecision: onOpenDecision)
                     }
                 }
                 ForEach(snapshot.questionnaires) { request in
@@ -162,8 +165,7 @@ struct HomeAttentionRow: View {
             if let content = item.message.messageText.content,
                !content.isEmpty,
                content != item.message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
-                MediaMarkdownView(content).font(.subheadline).foregroundStyle(Theme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
+                FocusMessagePreview(content: content)
             }
         }
     }

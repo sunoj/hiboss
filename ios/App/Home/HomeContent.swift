@@ -107,8 +107,8 @@ struct HomeContent: View {
             }
             // A failure owns the space under the header: recovery must not sit below the results.
             if blocksCoverage { coverageStatus(placeholder: false) }
+            if !panels.tiles.isEmpty { TodayWatchingSummary(model: panels) }
             TodayResults(snapshot: today)
-            if !panels.tiles.isEmpty { HomePanelWall(model: panels) }
             if !blocksCoverage {
                 coverageStatus(placeholder: attention.count == 0 && panels.tiles.isEmpty
                     && today.working.isEmpty && today.delivered.isEmpty)

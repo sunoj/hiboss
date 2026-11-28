@@ -68,7 +68,7 @@ struct TodayResults: View {
                            agent: session.agentName, lookupName: session.agentName)
             VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(verbatim: session.statusText.isEmpty ? identity.project : session.statusText)
-                    .font(.hbSmall).foregroundStyle(Theme.ink).lineLimit(2)
+                    .font(.hbSmall).foregroundStyle(Theme.ink).lineLimit(1)
                 metaLine(identity, date: session.lastActivityDate, working: true)
             }
             Spacer(minLength: 0)
@@ -116,7 +116,7 @@ struct TodayResults: View {
             agent: message.displayName)
         return VStack(alignment: .leading, spacing: Space.xxs) {
             Text(verbatim: message.body).font(.hbSmall.weight(.semibold)).foregroundStyle(Theme.ink)
-                .lineLimit(3)
+                .lineLimit(1)
             MessageReactions(message: message)
             if let attachment = message.metadata?.attachment, attachment.kind == .file {
                 Text(verbatim: attachment.filename).font(.hbFootnote).foregroundStyle(Theme.ink2)

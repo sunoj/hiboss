@@ -134,6 +134,10 @@ final class HomeSimplificationUITests: XCTestCase {
             XCTAssertTrue(app.buttons[english ? "Fine grid" : "细网格"].isHittable)
             let timing = app.descendants(matching: .any)["decision-timing-c5"].firstMatch
             XCTAssertTrue(timing.label.contains(language == "en" ? "That is not approval" : "这不代表批准"))
+            // Later decisions are one-line rows; their choices are in the decision sheet.
+            let row = app.buttons["home-message-c1"]
+            for _ in 0..<8 where !row.isHittable { app.swipeUp() }
+            row.tap()
             for _ in 0..<8 where !app.buttons[reject].isHittable { app.swipeUp() }
             XCTAssertTrue(app.buttons[approve].isHittable)
             XCTAssertTrue(app.buttons[reject].isHittable)

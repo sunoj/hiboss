@@ -29,3 +29,6 @@ App/Settings/Notifications/QuietHoursSection.swift | hand-format | String(format
 App/Settings/SettingsWaitView.swift | unlocalized-var | Text(title) | LocalizedStringKey passed to SwiftUI.
 App/Settings/SettingsWaitView.swift | unlocalized-var | Button(actionTitle, | LocalizedStringKey passed to SwiftUI.
 App/Settings/Devices/DeviceRequestsView.swift | unlocalized-var | .accessibilityHint(request.canApprove | Both branches are localized Text values.
+
+# Content rendered as parsed inline Markdown, not a catalog key.
+App/Home/Today/FocusMessagePreview.swift | unlocalized-var | Text(preview) | preview is an AttributedString parsed from message content

@@ -50,6 +50,7 @@ final class HomePanelLayoutUITests: IntermediateCaptureCase {
         pullToRefresh(app)
         pause(2)
         capture("home-metrics-top")
+        openWatching()
         let construction = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '8,438,950'"))
             .firstMatch
         reveal(construction)

@@ -10,7 +10,7 @@ import XCTest
 
 @MainActor
 final class StableSurfaceRenderTests: XCTestCase {
-    func testWorkingChipRendersTheGreenSemanticColor() throws {
+    func testWorkingCountRendersTheLiveColor() throws {
         let now = Date()
         let message = HistoryMessage(id: "work", body: "Working", direction: "agent_to_boss",
                                      status: "delivered", priority: "normal", mode: "async",
@@ -23,10 +23,10 @@ final class StableSurfaceRenderTests: XCTestCase {
         renderer.proposedSize = ProposedViewSize(width: 390, height: nil)
         let image = try XCTUnwrap(renderer.cgImage)
         let pixels = try rgbaPixels(image)
-        let green = stride(from: 0, to: pixels.count, by: 4).filter {
-            Int(pixels[$0 + 1]) > Int(pixels[$0]) + 30 && Int(pixels[$0 + 1]) > Int(pixels[$0 + 2]) + 30
+        let blue = stride(from: 0, to: pixels.count, by: 4).filter {
+            Int(pixels[$0 + 2]) > Int(pixels[$0]) + 30 && Int(pixels[$0 + 2]) > Int(pixels[$0 + 1]) + 30
         }.count
-        XCTAssertGreaterThan(green, 5, "The working chip must render green, including its dot")
+        XCTAssertGreaterThan(blue, 5, "The working count must render in the Live colour")
     }
 
     func testHomeCachedStatusDoesNotMoveAllClear() async {

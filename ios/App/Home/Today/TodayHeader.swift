@@ -1,4 +1,4 @@
-// Today date and status chips; HomeView owns the navigation title and Settings action.
+// Today date, one summary line of counts and the connection chip; HomeView owns the title.
 // Exports TodayHeader and TodayHeaderLayout; counts come directly from the shared snapshot.
 // Dependencies: SwiftUI, HibossKit TodaySnapshot, and Theme.
 
@@ -14,20 +14,25 @@ struct TodayHeader: View {
     /// A short container moves the date into the navigation subtitle (see TodayHeaderLayout).
     var showsDate = true
     let onSettings: () -> Void
-    @Environment(\.layoutDirection) private var layoutDirection
     @State private var refreshVisible = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.m) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             if showsDate {
                 Text(now, format: .dateTime.weekday(.wide).day().month(.wide))
                     .font(.footnote).foregroundStyle(Theme.ink3)
             }
-            // Never truncate: one row, then one row with tighter chips, then wrapped rows.
+            // One line when it fits; the connection chip drops below the counts otherwise.
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: Space.xs) { chips(inset: Space.s) }
-                HStack(spacing: Space.xs) { chips(inset: Space.xs) }
-                DecisionOptionFlow(layoutDirection: layoutDirection) { chips(inset: Space.xs) }
+                HStack(spacing: Space.s) {
+                    summary
+                    Spacer(minLength: Space.xs)
+                    healthChip
+                }
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    summary
+                    healthChip
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -41,44 +46,57 @@ struct TodayHeader: View {
         }
     }
 
-    @ViewBuilder private func chips(inset: CGFloat) -> some View {
+    /// "3 need you · 2 working": each count is its own text, coloured by its meaning.
+    @ViewBuilder private var summary: some View {
+        let parts = summaryParts
+        if !parts.isEmpty {
+            HStack(spacing: Space.xxs) {
+                ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                    if index > 0 { Text(verbatim: "·").foregroundStyle(Theme.ink3).accessibilityHidden(true) }
+                    part
+                }
+            }
+            .font(.hbSmall.weight(.semibold))
+            .lineLimit(1)
+        }
+    }
+
+    private var summaryParts: [Text] {
+        var parts: [Text] = []
         if !inputsLoaded {
-            chip(Text("Loading"), color: Theme.ink3, inset: inset)
+            parts.append(Text("Loading").foregroundColor(Theme.ink3))
         } else if requestCount > 0 {
-            chip(Text("\(String(requestCount)) need you"), color: Theme.warn, inset: inset)
+            parts.append(Text("\(String(requestCount)) need you").foregroundColor(Theme.warn))
         }
         if !snapshot.working.isEmpty {
-            chip(Text("\(String(snapshot.working.count)) working"), color: Theme.positive, inset: inset)
+            parts.append(Text("\(String(snapshot.working.count)) working").foregroundColor(Theme.live))
         }
+        return parts
+    }
+
+    @ViewBuilder private var healthChip: some View {
         if refreshVisible {
-            chip(Text("Refreshing…"), color: Theme.live, inset: inset, reservesHealthWidth: true)
+            chip(Text("Refreshing…"), color: Theme.live)
         } else if case .live(let checkedAt) = snapshot.health, snapshot.coverageComplete {
             chip(Text("Live") + Text(verbatim: " · ") + Text(verbatim: RelativeTime.short(from: checkedAt,
                                                                                      now: now)),
-                 color: Theme.positive, inset: inset, reservesHealthWidth: true)
+                 color: Theme.positive)
         } else {
             switch snapshot.health {
-            case .connecting:
-                chip(Text("Connecting…"), color: Theme.ink3, inset: inset, reservesHealthWidth: true)
-            case .offline:
-                chip(Text("Not connected"), color: Theme.warn, inset: inset, reservesHealthWidth: true)
-            case .loading, .live:
-                chip(Text("Checking coverage"), color: Theme.ink3, inset: inset, reservesHealthWidth: true)
+            case .connecting: chip(Text("Connecting…"), color: Theme.ink3)
+            case .offline: chip(Text("Not connected"), color: Theme.warn)
+            case .loading, .live: chip(Text("Checking coverage"), color: Theme.ink3)
             }
         }
     }
 
-    private func chip(_ label: Text, color: Color, inset: CGFloat,
-                      reservesHealthWidth: Bool = false) -> some View {
+    private func chip(_ label: Text, color: Color) -> some View {
         HStack(spacing: Space.xs) {
             Circle().fill(color).frame(width: Space.xs, height: Space.xs).accessibilityHidden(true)
-            ZStack(alignment: .leading) {
-                // Holds the routine Live ↔ Refreshing flip steady; rarer states may reflow the row.
-                if reservesHealthWidth { Text("Refreshing…").lineLimit(1).hidden() }
-                label.fixedSize(horizontal: false, vertical: true)
-            }.font(.footnote).foregroundStyle(Theme.ink2)
+            label.fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, inset).padding(.vertical, Space.xs)
+        .font(.footnote).foregroundStyle(Theme.ink2)
+        .padding(.horizontal, Space.s).padding(.vertical, Space.xs)
         .background(Theme.surface, in: Capsule())
     }
 }

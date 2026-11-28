@@ -1,18 +1,34 @@
 // iOS dashboard wall with shared summary cards and native panel detail navigation.
-// Exports: HomePanelWall, shown by Home only when at least one tile exists in any state.
+// Exports: HomePanelWall and WatchingScreen, the wall pushed from Today's Watching summary.
 // Exports HomePanelDetail for Home's persistent sheet, including notification routes.
 // Dependencies: SwiftUI, HibossKit PanelsModel, PanelDashboardCard, and PanelRenderer.
 
 import HibossKit
 import SwiftUI
 
+/// The full wall pushed from Today's Watching summary.
+struct WatchingScreen: View {
+    @ObservedObject var model: PanelsModel
+
+    var body: some View {
+        ScrollView {
+            HomePanelWall(model: model, showsTitle: false).padding(.vertical, Space.s)
+        }
+        .background(Theme.paper)
+        .navigationTitle("Watching")
+        .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await model.load() }
+    }
+}
+
 struct HomePanelWall: View {
     @ObservedObject var model: PanelsModel
+    var showsTitle = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.m) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Watching").hbSectionHeader()
+                if showsTitle { Text("Watching").hbSectionHeader() }
                 Spacer()
                 if model.isDemoMode {
                     Text("Sample data").font(.hbCaption).foregroundStyle(Theme.ink2)

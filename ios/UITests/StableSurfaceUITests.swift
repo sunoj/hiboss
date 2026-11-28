@@ -51,7 +51,7 @@ final class StableSurfaceUITests: IntermediateCaptureCase {
 
     func testHomeChoicesKeepTheirFramesDuringRefresh() {
         launch(["HIBOSS_DEMO_REFRESH_DELAY_MS": "60000"])
-        let choice = app.buttons[reject].firstMatch
+        let choice = app.buttons[fineGrid].firstMatch
         XCTAssertTrue(choice.appears(timeout: 10))
         pause(6)
         let frame = choice.frame
@@ -115,6 +115,7 @@ final class StableSurfaceUITests: IntermediateCaptureCase {
     func testEmptyPanelFilterKeepsRefreshEnabledDuringRead() {
         launch(["HIBOSS_DEMO_NATIVE_PANEL": "1", "HIBOSS_DEMO_REQUESTS_EMPTY": "1",
                 "HIBOSS_DEMO_REFRESH_DELAY_MS": "4000"])
+        openWatching()
         let picker = app.descendants(matching: .any)["panel-wall-filter"].firstMatch
         reveal(picker)
         if app.segmentedControls["panel-wall-filter"].exists {

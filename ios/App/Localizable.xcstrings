@@ -41420,6 +41420,96 @@
           }
         }
       }
+    },
+    "Show full message": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show full message" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "显示完整消息" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "メッセージ全体を表示" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "전체 메시지 보기" } },
+        "th": { "stringUnit": { "state": "translated", "value": "แสดงข้อความทั้งหมด" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mostrar mensaje completo" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "पूरा संदेश दिखाएँ" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Afficher le message complet" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mostrar mensagem completa" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Показать сообщение целиком" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "عرض الرسالة كاملة" } }
+      }
+    },
+    "Form": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Form" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "表单" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "フォーム" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "양식" } },
+        "th": { "stringUnit": { "state": "translated", "value": "แบบฟอร์ม" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Formulario" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "फ़ॉर्म" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Formulaire" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Formulário" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Форма" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "نموذج" } }
+      }
+    },
+    "%lld choices": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld choices" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld 个选项" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "選択肢 %lld 件" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "선택지 %lld개" } },
+        "th": { "stringUnit": { "state": "translated", "value": "%lld ตัวเลือก" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld opciones" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "%lld विकल्प" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "%lld choix" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "%lld opções" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Вариантов: %lld" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "خيارات: %lld" } }
+      }
+    },
+    "%lld choices with pictures": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld choices with pictures" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld 个带图选项" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "画像付きの選択肢 %lld 件" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이미지가 있는 선택지 %lld개" } },
+        "th": { "stringUnit": { "state": "translated", "value": "%lld ตัวเลือกพร้อมรูปภาพ" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld opciones con imágenes" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "चित्रों वाले %lld विकल्प" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "%lld choix avec images" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "%lld opções com imagens" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Вариантов с изображениями: %lld" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "خيارات مع صور: %lld" } }
+      }
+    },
+    "All %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "All %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "全部 %@" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "すべて（%@）" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "전체 %@" } },
+        "th": { "stringUnit": { "state": "translated", "value": "ทั้งหมด (%@)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Todos (%@)" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "सभी (%@)" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Tout (%@)" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Todos (%@)" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Все (%@)" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "الكل (%@)" } }
+      }
+    },
+    "No panels match the current filter.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No panels match the current filter." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有符合当前筛选条件的面板。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "現在のフィルタに一致するパネルはありません。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "현재 필터와 일치하는 패널이 없습니다." } },
+        "th": { "stringUnit": { "state": "translated", "value": "ไม่มีแผงที่ตรงกับตัวกรองปัจจุบัน" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Ningún panel coincide con el filtro actual." } },
+        "hi": { "stringUnit": { "state": "translated", "value": "वर्तमान फ़िल्टर से कोई पैनल मेल नहीं खाता।" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Aucun panneau ne correspond au filtre actuel." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Nenhum painel corresponde ao filtro atual." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Нет панелей, подходящих под текущий фильтр." } },
+        "ar": { "stringUnit": { "state": "translated", "value": "لا توجد لوحات تطابق عامل التصفية الحالي." } }
+      }
     }
   },
   "version": "1.0"

@@ -48,6 +48,7 @@ struct HomeView: View {
                 }
             }
             .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
+            .navigationDestination(for: WatchingRoute.self) { _ in WatchingScreen(model: panels) }
             .navigationDestination(for: SessionRoute.self) {
                 SessionMessagesView(route: $0, api: sessionAPI, store: inbox, panels: panels)
             }

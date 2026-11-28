@@ -156,6 +156,9 @@ final class MediaViewerUITests: XCTestCase {
 
     func testTodayDecisionMarkdownImageOpensWithoutOpeningDetail() {
         launch(["HIBOSS_DEMO_OPTION_MEDIA": "pending", "HIBOSS_DEMO_MARKDOWN_IMAGES": "1"])
+        // The focus card clamps its details; the full Markdown, images included, is one tap away.
+        let details = app.buttons["today-focus-details"].firstMatch
+        if details.appears(timeout: 10) { details.tap() }
         let image = app.buttons["markdown-media-open"]
         XCTAssertTrue(image.appears(timeout: 10))
         image.tap()

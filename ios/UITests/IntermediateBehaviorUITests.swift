@@ -21,13 +21,15 @@ final class IntermediateBehaviorUITests: IntermediateCaptureCase {
 
     func testReplyOnlyDisablesItsOwnDecision() {
         launch(["HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
-        let reject = app.buttons[reject].firstMatch
-        XCTAssertTrue(reject.appears(timeout: 8))
-        reject.tap()
-        XCTAssertFalse(reject.isEnabled)
-        XCTAssertFalse(app.buttons[approve].firstMatch.isEnabled)
-        XCTAssertTrue(app.buttons[fineGrid].firstMatch.isEnabled)
-        XCTAssertTrue(app.buttons["home-message-c1"].isEnabled)
+        // Only the focus card answers in place; the other decisions are rows that stay usable.
+        let coarse = app.buttons[coarseGrid].firstMatch
+        XCTAssertTrue(coarse.appears(timeout: 8))
+        coarse.tap()
+        XCTAssertFalse(coarse.isEnabled)
+        XCTAssertFalse(app.buttons[fineGrid].firstMatch.isEnabled)
+        let row = app.buttons["home-message-c1"]
+        reveal(row)
+        XCTAssertTrue(row.isEnabled)
     }
 
     func testTypedReplyKeepsDraftAfterFailure() {

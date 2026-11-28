@@ -7,6 +7,8 @@ import SwiftUI
 struct CountdownText: View {
     let deadline: Date
     var tint: Color = Theme.ink2
+    /// A row's trailing clock drops the word "left"; the colour already says it is a deadline.
+    var bare = false
 
     /// Under two minutes the clock reads as a live emergency, not metadata.
     private let urgentWindow: TimeInterval = 120
@@ -16,7 +18,8 @@ struct CountdownText: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = deadline.timeIntervalSince(context.date)
-            Text(verbatim: remaining <= 0 ? String(localized: "Expired") : String(localized: "\(format(remaining)) left"))
+            Text(verbatim: remaining <= 0 ? String(localized: "Expired")
+                 : bare ? format(remaining) : String(localized: "\(format(remaining)) left"))
                 .monospacedDigit()
                 .fontWeight(remaining > 0 && remaining <= warnWindow ? .semibold : .regular)
                 .foregroundStyle(color(for: remaining))

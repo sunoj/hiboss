@@ -12,6 +12,15 @@ class IntermediateCaptureCase: XCTestCase {
     var approve: String { variant.contains("zh") ? "批准" : "Approve" }
     var reject: String { variant.contains("zh") ? "拒绝" : "Reject" }
     var fineGrid: String { variant.contains("zh") ? "细网格" : "Fine grid" }
+    var coarseGrid: String { variant.contains("zh") ? "粗网格" : "Coarse grid" }
+
+    /// Opens the full panel wall from Today's Watching summary.
+    func openWatching() {
+        let all = app.buttons["today-watching-all"].firstMatch
+        reveal(all)
+        all.tap()
+        XCTAssertTrue(app.navigationBars.firstMatch.appears(timeout: 5))
+    }
 
     override func setUpWithError() throws {
         continueAfterFailure = false

@@ -85,15 +85,15 @@ final class HomeDecisionDetailUITests: XCTestCase {
     func testFullQuestionAtAccessibilitySizeOnHomeAndDetail() {
         launch(arguments: Self.accessibilityXXXL)
         let row = app.buttons["home-message-c1"]
+        for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         XCTAssertTrue(row.appears(timeout: 10))
         XCTAssertTrue(row.label.contains(Self.c1Question))
-        let reply = app.buttons["批准"]
-        assertSideBySide("批准", "拒绝", allowsWrapping: true)
         keepScreenshot("accessibility-home-question")
-        XCTAssertGreaterThan(row.frame.height, reply.frame.height * 4, "Home question must not truncate")
+        // A one-line row wraps its question at accessibility sizes instead of truncating it.
+        XCTAssertGreaterThan(row.frame.height, 44 * 3, "Home question must not truncate")
 
-        for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         row.tap()
+        let reply = app.buttons["批准"]
         let detailQuestion = app.staticTexts["message-question"]
         XCTAssertTrue(detailQuestion.appears(timeout: 5))
         XCTAssertEqual(detailQuestion.label, Self.c1Question)
@@ -151,9 +151,9 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["由你决定"].appears(timeout: 10))
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         XCTAssertTrue(row.appears(timeout: 10))
-        XCTAssertTrue(timing("c3").label.contains("已等待"))
-        XCTAssertFalse(timing("c3").label.contains("自动选择"))
-        XCTAssertNotEqual(app.buttons["提供"].value as? String, "默认")
+        // Today's one-line row names the missing deadline; it never promises an automatic choice.
+        XCTAssertTrue(row.label.contains("无截止时间"))
+        XCTAssertFalse(row.label.contains("自动选择"))
         row.tap()
         XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         XCTAssertTrue(timing("c3").label.contains("已等待"))
