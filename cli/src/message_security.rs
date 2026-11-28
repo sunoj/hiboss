@@ -155,9 +155,9 @@ fn verify_signature(
         return Err(fail(message, "signing key identifier mismatch"));
     }
     let boss_id = object(provenance.get("actor")).and_then(|actor| string(actor, "id")).unwrap_or_default();
-    let public_key = crate::boss_pins::trusted_key(boss_id, key_id, public_key).map_err(|detail| fail(message, detail))?;
     let compact = required(message, signature, "signed_message")?;
     let (header, payload, input, raw_signature) = parse_jws(message, compact)?;
+    let public_key = crate::boss_pins::trusted_key(boss_id, key_id, public_key, payload.issued_at).map_err(|d| fail(message, d))?;
     validate_header(message, &header, key_id)?;
     UnparsedPublicKey::new(&ECDSA_P256_SHA256_FIXED, public_key)
         .verify(input.as_bytes(), &raw_signature)

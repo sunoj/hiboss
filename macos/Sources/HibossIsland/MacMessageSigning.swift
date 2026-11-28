@@ -19,8 +19,9 @@ enum MacMessageSigning {
     }
 
     /// Keeps the stored signer in step with the token: a key bound to another token would be refused.
-    static func replace(with signer: SecureEnclaveMessageSigner?, in store: any MessageSignerStoring) {
-        if let signer { try? store.write(signer) } else { try? store.delete() }
+    /// Throws when the Keychain refuses, so a credential change never keeps a stale signer.
+    static func replace(with signer: SecureEnclaveMessageSigner?, in store: any MessageSignerStoring) throws {
+        if let signer { try store.write(signer) } else { try store.delete() }
     }
 
     /// Every boss write from this Mac goes through a client that signs with the stored key.

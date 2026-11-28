@@ -35,8 +35,14 @@ describe('MCP message verification', () => {
     try {
       await expect(verifyMessage(message)).resolves.toMatchObject({ kind: 'verified' });
       await expect(verifyMessage(await signedMessage('Approve', 'Approve'))).rejects.toThrow('not pinned');
-      setPinsForTest([{ boss_id: 'boss-1', keys: [], revoked: [{ key_id: signature.key_id }] }]);
+      setPinsForTest([{ boss_id: 'boss-1', keys: [], revoked: [{ key_id: signature.key_id,
+        revoked_at: '2026-01-01T00:00:00Z', public_key: signature.public_key }] }]);
       await expect(verifyMessage(message)).rejects.toThrow('revoked');
+      setPinsForTest([{ boss_id: 'boss-1', keys: [], revoked: [{ key_id: signature.key_id,
+        revoked_at: '2026-11-28 00:00:00', public_key: signature.public_key }] }]);
+      await expect(verifyMessage(message)).resolves.toMatchObject({ kind: 'verified' });
+      setPinsForTest([], true);
+      await expect(verifyMessage(await signedMessage('Approve', 'Approve'))).rejects.toThrow('not pinned');
     } finally {
       setPinsForTest(undefined);
     }

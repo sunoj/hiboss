@@ -93,8 +93,9 @@ async function verifySignature(
   if (signature.scheme !== SIGNATURE_SCHEME) throw failure(message, 'unsupported signature scheme');
   const keyId = requiredString(message, signature, 'key_id');
   const bossId = String(asRecord(provenance.actor)?.id ?? '');
+  const issuedAt = Number(parseJws(message, requiredString(message, signature, 'signed_message')).payload.issued_at ?? 0);
   let offered = requiredString(message, signature, 'public_key');
-  try { offered = trustedKey(bossId, keyId, offered); } catch (error) { throw failure(message, (error as Error).message); }
+  try { offered = trustedKey(bossId, keyId, offered, issuedAt); } catch (error) { throw failure(message, (error as Error).message); }
   const publicKey = decode(message, offered);
   const derivedKeyId = new Uint8Array(await crypto.subtle.digest('SHA-256', arrayBuffer(publicKey)));
   if (!equalBytes(decode(message, keyId), derivedKeyId)) {

@@ -203,7 +203,7 @@ final class AppSettings: ObservableObject {
             }
             try keychain.write(accepted.bossToken)
             // A typed token was never bound to this Mac's key.
-            if !isStoredConnection { MacMessageSigning.replace(with: nil, in: signerStore) }
+            if !isStoredConnection { try MacMessageSigning.replace(with: nil, in: signerStore) }
             defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
             bossToken = accepted.bossToken
             clientExchangeNotice = notice
@@ -223,7 +223,7 @@ final class AppSettings: ObservableObject {
             let config = try adopt(grant, server: payload.serverURL)
             // The server bound this key to the new token; replies from this Mac are now signed.
             if let key, let keyID = grant.signingKeyID, !keyID.isEmpty {
-                MacMessageSigning.replace(with: key.bind(bossID: grant.bossID, keyID: keyID), in: signerStore)
+                try MacMessageSigning.replace(with: key.bind(bossID: grant.bossID, keyID: keyID), in: signerStore)
             }
             return .success(config)
         } catch {
@@ -241,7 +241,7 @@ final class AppSettings: ObservableObject {
         let accepted = ConnectionConfig(serverURL: server, bossToken: grant.token)
         try keychain.write(accepted.bossToken)
         // A new token has no key yet; pairing stores the one bound to it right after this.
-        MacMessageSigning.replace(with: nil, in: signerStore)
+        try MacMessageSigning.replace(with: nil, in: signerStore)
         defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
         serverAddress = accepted.serverURL.absoluteString
         bossToken = accepted.bossToken
@@ -260,7 +260,7 @@ final class AppSettings: ObservableObject {
         guard activeClientConfig == current else { throw CancellationError() }
         let accepted = ConnectionConfig(serverURL: current.serverURL, bossToken: token)
         try keychain.write(token)
-        MacMessageSigning.replace(with: nil, in: signerStore)
+        try MacMessageSigning.replace(with: nil, in: signerStore)
         bossToken = token
         serverAddress = current.serverURL.absoluteString
         clientExchangeNotice = nil

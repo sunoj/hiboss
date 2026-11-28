@@ -32,13 +32,28 @@ fn a_pinned_key_verifies_and_an_unpinned_one_is_refused_once_anything_is_pinned(
 }
 
 #[test]
-fn a_revoked_key_is_refused_even_with_a_valid_signature() {
+fn a_revoked_key_still_verifies_what_it_signed_before_the_revocation() {
+    // The fixture signs at 2026-09-01 (issued_at 1_788_454_800).
     let message = signed_message_for_pins();
     let (key_id, public_key) = key_of(&message);
-    let mut revoked = pins(&key_id, &public_key);
-    revoked.revoke(&key_id, "2026-11-28T00:00:00Z");
-    set_pins(Some(vec![revoked]));
+    let mut later = pins(&key_id, &public_key);
+    later.revoke(&key_id, "2026-11-28 00:00:00", None);
+    set_pins(Some(vec![later]));
+    assert!(verify_message(&message).is_ok(), "signed before the revocation: history stays readable");
+    let mut earlier = pins(&key_id, &public_key);
+    earlier.revoke(&key_id, "2026-01-01T00:00:00Z", None);
+    set_pins(Some(vec![earlier]));
     assert!(verify_message(&message).expect_err("revoked").to_string().contains("revoked"));
+    set_pins(None);
+}
+
+#[test]
+fn a_damaged_pin_store_never_falls_back_to_the_offered_key() {
+    set_pins(Some(Vec::new()));
+    crate::boss_pins::tests_support::set_damaged(true);
+    let error = verify_message(&signed_message_for_pins()).expect_err("unreadable pins count as pinned");
+    assert!(error.to_string().contains("not pinned"), "{error}");
+    crate::boss_pins::tests_support::set_damaged(false);
     set_pins(None);
 }
 

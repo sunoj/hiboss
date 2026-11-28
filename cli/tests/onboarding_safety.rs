@@ -55,8 +55,9 @@ fn minted_invite_enrolls_a_second_machine_and_delivers_keys_once() {
     assert_private_config(&machine);
     assert_no_secrets(&enrolled, &["synthetic-key-aid", "synthetic-key-codex"]);
     let requests = server.requests();
-    assert_eq!(requests.len(), 4);
-    assert_eq!(requests[3].path, "/api/agents/me/boss-keys", "setup pins the boss keys after approval");
+    assert_eq!(requests.len(), 5);
+    let pins = requests.iter().filter(|request| request.path == "/api/agents/me/boss-keys").count();
+    assert_eq!(pins, 2, "setup pins the boss keys each enrolled profile can see");
 }
 
 fn invite_and_join_server() -> Http {
