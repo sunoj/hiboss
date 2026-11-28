@@ -46,7 +46,34 @@ fn accepts_discord_with_explicit_unsupported_attribution() {
     ));
 }
 
+#[test]
+fn form_answers_must_be_the_signed_answers() {
+    let answers = json!({"order": ["b", "a"]});
+    let signed = signed_form(Some(answers.clone()), Some(answers.clone()));
+    assert!(verify_message(&signed).is_ok(), "stored answers equal the signed answers");
+    let swapped = signed_form(Some(answers.clone()), Some(json!({"order": ["a", "b"]})));
+    assert!(verify_message(&swapped).is_err(), "answers changed after signing");
+    let float = signed_form(Some(json!({"score": 1.0})), Some(json!({"score": 1})));
+    assert!(verify_message(&float).is_ok(), "1.0 signed and 1 stored are the same answer");
+    let unsigned = signed_form(None, Some(answers));
+    assert!(verify_message(&unsigned).is_err(), "answers added to a reply that signed none");
+}
+
+fn signed_form(signed: Option<serde_json::Value>, stored: Option<serde_json::Value>) -> Message {
+    let mut message = signed_message_with("Submitted", "Submitted", signed);
+    if let (Some(metadata), Some(stored)) = (message.metadata.as_mut(), stored) {
+        metadata.insert("answers".to_owned(), stored);
+    }
+    message
+}
+
 fn signed_message(signed_body: &str, outer_body: &str) -> Message {
+    signed_message_with(signed_body, outer_body, None)
+}
+
+fn signed_message_with(
+    signed_body: &str, outer_body: &str, answers: Option<serde_json::Value>,
+) -> Message {
     let rng = SystemRandom::new();
     let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
         .expect("test key");
@@ -58,7 +85,7 @@ fn signed_message(signed_body: &str, outer_body: &str) -> Message {
     let header = encode_json(&json!({
         "alg": "ES256", "kid": key_id, "typ": "hiboss-message+jws"
     }));
-    let payload = encode_json(&json!({
+    let mut payload = json!({
         "version": 1,
         "purpose": "hiboss.boss-message",
         "message_id": "12345678-1234-1234-1234-123456789abc",
@@ -66,7 +93,9 @@ fn signed_message(signed_body: &str, outer_body: &str) -> Message {
         "boss_id": "boss-1",
         "action": { "kind": "reply", "message_id": "parent-1" },
         "body": signed_body
-    }));
+    });
+    if let Some(answers) = answers { payload["answers"] = answers; }
+    let payload = encode_json(&payload);
     let input = format!("{header}.{payload}");
     let signature = key.sign(&rng, input.as_bytes()).expect("sign");
     let compact = format!("{input}.{}", encode(signature.as_ref()));

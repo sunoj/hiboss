@@ -12,6 +12,7 @@ pub mod help;
 pub mod helpers;
 pub mod hiboss_dir;
 pub mod message_security;
+mod signed_answers;
 pub mod runtime;
 pub mod session;
 pub mod signing;

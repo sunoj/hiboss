@@ -152,6 +152,20 @@ function validatePayload(
   if (action.message_id !== message.reply_to) throw failure(message, 'signed reply target mismatch');
   const actor = asRecord(provenance.actor);
   if (payload.boss_id !== actor?.id) throw failure(message, 'signed boss identity mismatch');
+  if (canonicalJson(message.metadata?.answers) !== canonicalJson(payload.answers)) {
+    throw failure(message, 'signed answers mismatch');
+  }
+}
+
+/** Key-sorted JSON, as the server compares answers; undefined stays undefined. */
+function canonicalJson(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item) ?? 'null').join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child) ?? 'null'}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 export async function importPublicKey(message: VerifiableMessage, value: Uint8Array): Promise<CryptoKey> {

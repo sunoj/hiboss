@@ -132,7 +132,9 @@ fn notice_text(message: &Value, id: &str) -> String {
 pub(crate) async fn deliver(data: &str, inbox: Option<&Inbox>, session_id: Option<&str>) -> bool {
     // The spool holds bodies the hook injects into the agent context, so it is only ever
     // appended as a private file in the validated state directory.
-    let _ = session::append_state(session::DAEMON_PENDING, &format!("{data}\n"));
+    if let Some(line) = spool_line(data) {
+        let _ = session::append_state(session::DAEMON_PENDING, &format!("{line}\n"));
+    }
     let (Some(inbox), Ok(message)) = (inbox, serde_json::from_str::<Value>(data)) else {
         return false;
     };
@@ -144,6 +146,18 @@ pub(crate) async fn deliver(data: &str, inbox: Option<&Inbox>, session_id: Optio
         Err(err) => {
             eprintln!("hiboss: session wake not delivered: {err}");
             is_gone(&err)
+        }
+    }
+}
+
+/// The line the hook may inject for this stream event: only a message whose provenance
+/// verifies, the same check `watch` and `bot` apply, so the spool never carries a forged body.
+fn spool_line(data: &str) -> Option<String> {
+    match crate::message_security::parse_verified_message(data) {
+        Ok(_) => Some(data.to_owned()),
+        Err(error) => {
+            eprintln!("hiboss: blocked unverified message: {error}");
+            None
         }
     }
 }

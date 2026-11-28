@@ -19,6 +19,14 @@ describe('MCP message verification', () => {
       .rejects.toThrow('body mismatch');
   });
 
+  it('rejects form answers changed after signing', async () => {
+    const signed = await signedMessage('Submitted', 'Submitted', { order: ['b', 'a'] });
+    await expect(verifyMessage(withAnswers(signed, { order: ['b', 'a'] }))).resolves.toMatchObject({ kind: 'verified' });
+    await expect(verifyMessage(withAnswers(signed, { order: ['a', 'b'] }))).rejects.toThrow('answers mismatch');
+    const plain = await signedMessage('Submitted', 'Submitted');
+    await expect(verifyMessage(withAnswers(plain, { order: ['a'] }))).rejects.toThrow('answers mismatch');
+  });
+
   it('accepts Discord with explicit unsupported attribution', async () => {
     await expect(verifyMessage({
       id: 'discord-1',
@@ -36,7 +44,14 @@ describe('MCP message verification', () => {
   });
 });
 
-async function signedMessage(signedBody: string, body: string): Promise<Record<string, unknown>> {
+function withAnswers(message: Record<string, unknown>, answers: unknown): Record<string, unknown> {
+  const metadata = message.metadata as Record<string, unknown>;
+  return { ...message, metadata: { ...metadata, answers } };
+}
+
+async function signedMessage(
+  signedBody: string, body: string, answers?: unknown,
+): Promise<Record<string, unknown>> {
   const keys = await crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
   );
@@ -52,6 +67,7 @@ async function signedMessage(signedBody: string, body: string): Promise<Record<s
     boss_id: 'boss-1',
     action: { kind: 'reply', message_id: 'parent-1' },
     body: signedBody,
+    ...(answers === undefined ? {} : { answers }),
   });
   const input = `${header}.${payload}`;
   const signature = await crypto.subtle.sign(

@@ -57,6 +57,9 @@ struct SignedPayload {
     boss_id: String,
     action: SignedAction,
     body: String,
+    /// A form answer's typed values; `ask` returns them, so they must be the signed ones.
+    #[serde(default)]
+    answers: Option<Value>,
 }
 
 pub fn verify_message(message: &Message) -> Result<MessageAssurance, MessageVerificationError> {
@@ -208,6 +211,10 @@ fn validate_payload(
     }
     if message.reply_to.as_deref() != Some(payload.action.message_id.as_str()) {
         return Err(fail(message, "signed reply target mismatch"));
+    }
+    let stored_answers = message.metadata.as_ref().and_then(|metadata| metadata.get("answers"));
+    if !crate::signed_answers::same_answers(stored_answers, payload.answers.as_ref()) {
+        return Err(fail(message, "signed answers mismatch"));
     }
     let actor_id = object(provenance.get("actor")).and_then(|actor| string(actor, "id"));
     if actor_id != Some(payload.boss_id.as_str()) {

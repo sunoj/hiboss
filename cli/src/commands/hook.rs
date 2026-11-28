@@ -91,6 +91,8 @@ fn print_pending_messages(context: &mut impl Write) -> std::io::Result<()> {
     let mut seen = std::collections::HashSet::new();
     let pending: Vec<serde_json::Value> = session::drain_pending_messages()
         .iter()
+        // A line spooled before the daemon verified its stream is checked here as well.
+        .filter(|line| crate::message_security::parse_verified_message(line).is_ok())
         .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
         .filter(|msg| msg["id"].as_str().is_none_or(|id| id.is_empty() || seen.insert(id.to_owned())))
         .collect();
