@@ -26,7 +26,7 @@ async function send(mode?: string): Promise<string> {
     method: 'POST', headers: authHeaders(),
     body: JSON.stringify({ body: 'hello', channel: 'discord', options: ['A', 'B'],
       metadata: { option_descriptions: [{ label: 'B', text: 'Keep current' }] } }),
-  }), { ...env, DESTINATIONS_MODE: mode } as Env, ctx);
+  }), { ...env, DESTINATIONS_MODE: mode, PUSH_RELAY_URL: 'off' } as Env, ctx);
   await waitOnExecutionContext(ctx);
   expect(response.status).toBe(201);
   return (await response.json() as { id: string }).id;
