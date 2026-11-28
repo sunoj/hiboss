@@ -14,7 +14,7 @@ public enum ConnectionState: Equatable {
         switch self {
         case .disconnected: kitL("Disconnected")
         case .connecting: kitL("Connecting")
-        case .connected: kitL("Listening")
+        case .connected: kitL("Live")
         case .failed: kitL("Connection failed")
         }
     }

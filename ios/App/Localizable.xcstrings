@@ -41328,6 +41328,21 @@
         "ru": { "stringUnit": { "state": "translated", "value": "Агенты проверяют ваши ответы этим ключом. Сравните отпечаток с тем, что выводит `hiboss setup`, или вставьте скопированный ключ в `hiboss boss trust`." } },
         "ar": { "stringUnit": { "state": "translated", "value": "يتحقق الوكلاء من ردودك بهذا المفتاح. قارن البصمة بما يطبعه `hiboss setup` أو الصق المفتاح المنسوخ في `hiboss boss trust`." } }
       }
+    },
+    "Address": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Address" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "地址" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "アドレス" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "주소" } },
+        "th": { "stringUnit": { "state": "translated", "value": "ที่อยู่" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Dirección" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "पता" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Adresse" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Endereço" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Адрес" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "العنوان" } }
+      }
     }
   },
   "version": "1.0"
