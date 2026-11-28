@@ -155,6 +155,16 @@ extension XCUIApplication {
         for _ in 0..<6 where !row.isHittable { swipeUp() }
         row.tap()
     }
+
+    /// Sessions › History › All messages: the full message list (it replaced the Messages segment).
+    func openAllMessages() {
+        let history = buttons["sessions-history"].firstMatch
+        XCTAssertTrue(history.waitForExistence(timeout: 10))
+        history.tap()
+        let all = buttons["history-all-messages"].firstMatch
+        XCTAssertTrue(all.waitForExistence(timeout: 5))
+        all.tap()
+    }
 }
 
 extension XCUIElement {

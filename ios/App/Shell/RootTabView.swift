@@ -37,7 +37,6 @@ struct RootTabView: View {
     @State private var tab = Self.launchTab
     @State private var homePath = NavigationPath()
     @State private var activityPath = NavigationPath()
-    @State private var activitySection = ActivitySection.sessions
     @State private var decisionID: MessageID?
     @State private var showingDecision = false
     @State private var columnDecision: MessageID?
@@ -167,7 +166,7 @@ struct RootTabView: View {
 
     private var activityTabView: some View {
         SessionsColumns(inbox: inbox, connection: connection, panels: panels, sessionAPI: sessionStreamAPI,
-                        listWidth: listWidth, path: $activityPath, section: $activitySection)
+                        listWidth: listWidth, path: $activityPath)
         .tabItem { Label("Sessions", systemImage: "bubble.left.and.bubble.right") }
         .tag(Self.activityTab)
     }
@@ -239,7 +238,6 @@ struct RootTabView: View {
         await Task.yield()
         guard !Task.isCancelled else { return }
         tab = Self.activityTab
-        activitySection = .messages
         activityPath = NavigationPath([route.messageID])
         router.finishOpening(route.messageID)
     }
@@ -277,17 +275,14 @@ struct RootTabView: View {
             break
         case .open(let id):
             tab = Self.activityTab
-            activitySection = .messages
             activityPath = NavigationPath([id])
         case .notification(let id), .notificationPreview(let id):
             router.openDemoNotification(id)
         case .session(let id, let label):
             tab = Self.activityTab
-            activitySection = .sessions
             activityPath = NavigationPath([SessionRoute(id: id, label: label)])
         case .resolved:
             tab = Self.activityTab
-            activitySection = .messages
             activityPath = NavigationPath([ResolvedRoute()])
         case .panel(let id):
             router.open(panel: PushPanelRequest(panelID: id, requestID: "demo-request"))

@@ -49,12 +49,7 @@ class IntermediateCaptureCase: XCTestCase {
     }
 
     func selectMessages() {
-        let picker = app.segmentedControls.firstMatch
-        if picker.exists { picker.buttons.element(boundBy: 1).tap() }
-        else {
-            app.buttons["activity-section"].tap()
-            app.buttons[variant.contains("zh") ? "消息" : "Messages"].firstMatch.tap()
-        }
+        app.openAllMessages()
     }
 
     func reveal(_ element: XCUIElement, upward: Bool = true) {

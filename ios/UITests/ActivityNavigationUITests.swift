@@ -29,12 +29,12 @@ final class ActivityNavigationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["prod-release"].appears(timeout: 5))
         screenshot("activity-transcript")
         app.navigationBars.buttons.firstMatch.tap()
-        app.segmentedControls.buttons["Messages"].tap()
+        app.openAllMessages()
         XCTAssertTrue(app.cells.firstMatch.appears(timeout: 5))
         screenshot("activity-messages")
         app.tabBars.buttons["Today"].tap()
         app.tabBars.buttons["Sessions"].tap()
-        XCTAssertTrue(app.segmentedControls.buttons["Messages"].isSelected)
+        XCTAssertTrue(app.navigationBars["Messages"].exists, "the tab keeps its pushed list")
     }
 
     func testHomeSessionMenuOpensTranscriptWithoutOpeningDetail() {

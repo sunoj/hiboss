@@ -1,23 +1,25 @@
-// Sessions browser retaining native session rows and message history.
-// Exports: ActivityView, ActivitySection and ActivitySectionPicker; the shell owns selection for deep links.
+// Sessions list grouped Needs you / Working / Idle, with History (messages, completed) in the toolbar.
+// Exports: ActivityView, HistoryRoute and AllMessagesRoute; the shell owns the path for deep links.
 // Dependencies: SwiftUI, HibossKit SessionDirectory/SessionGrouping, InboxStore, and SessionRow.
 
 import HibossKit
 import SwiftUI
 
-enum ActivitySection: Hashable {
-    case sessions
-    case messages
-}
+/// The Sessions history list: all messages and completed decisions.
+struct HistoryRoute: Hashable {}
+/// Every message, newest first, pushed from History.
+struct AllMessagesRoute: Hashable {}
 
 struct ActivityView: View {
     @ObservedObject var store: InboxStore
-    @Binding var section: ActivitySection
     @ObservedObject var connection: ConnectionStore
 
     @Environment(\.projectSessions) private var inventory
 
     @State private var search = ""
+    @State private var showsAllIdle = false
+    /// Idle sessions shown before "Show more"; idle is the longest and least urgent group.
+    private static let idleLimit = 3
 
     private var matchingMessages: [HistoryMessage] {
         store.history.filter {
@@ -33,15 +35,7 @@ struct ActivityView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ActivitySectionPicker(section: $section)
-                .padding(.horizontal, Space.m)
-                .padding(.vertical, Space.xs)
-            switch section {
-            case .sessions: sessions
-            case .messages: MessagesView(store: store, search: search)
-            }
-        }
+        sessions
         .navigationTitle("Sessions")
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
@@ -49,13 +43,18 @@ struct ActivityView: View {
         .background(Theme.paper)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: store.connectionState) }
+            ToolbarItem(placement: .topBarTrailing) {
+                RouteLink(value: HistoryRoute()) { Image(systemName: "clock.arrow.circlepath") }
+                    .accessibilityLabel("History")
+                    .accessibilityIdentifier("sessions-history")
+            }
         }
     }
 
     /// An empty bucket shows nothing: a lone "Needs you" header with no rows reads as a fault.
     @ViewBuilder
     private func sessionSection(
-        _ title: Text, sessions: [TodaySession]
+        _ title: Text, sessions: [TodaySession], limit: Int? = nil
     ) -> some View {
         let matches = sessions.filter { session in
             search.isEmpty || [session.localizedLabel, session.branch, session.agentName, session.statusText,
@@ -63,15 +62,27 @@ struct ActivityView: View {
                 .compactMap { $0 }.joined(separator: " ").localizedCaseInsensitiveContains(search)
         }
         if !matches.isEmpty {
+            let shown = limit.map { Array(matches.prefix($0)) } ?? matches
             Section {
-                ForEach(matches) { session in
+                ForEach(shown) { session in
                     RouteLink(value: SessionRoute(id: session.id, label: session.localizedLabel)) {
                         SessionRow(session: session)
                     }
                     .accessibilityIdentifier("activity-session-\(session.id)")
                     .accessibilityHint("Opens the session")
                 }
-            } header: { title.hbSectionHeader().textCase(nil) }
+                if shown.count < matches.count {
+                    Button("Show \(String(matches.count - shown.count)) more") { showsAllIdle = true }
+                        .frame(minHeight: ControlMetric.minTap)
+                        .accessibilityIdentifier("sessions-show-more")
+                }
+            } header: {
+                HStack {
+                    title.hbSectionHeader().textCase(nil)
+                    Spacer()
+                    Text(verbatim: String(matches.count)).font(.hbFootnote).foregroundStyle(Theme.ink3)
+                }
+            }
         }
     }
 
@@ -92,7 +103,8 @@ struct ActivityView: View {
             List {
                 sessionSection(Text("Needs you"), sessions: directory.needsYou)
                 sessionSection(Text("Working"), sessions: directory.working)
-                sessionSection(Text("Idle"), sessions: directory.idle)
+                sessionSection(Text("Idle"), sessions: directory.idle,
+                               limit: search.isEmpty && !showsAllIdle ? Self.idleLimit : nil)
                 if !search.isEmpty {
                     Section("Messages") {
                         ForEach(matchingMessages) { message in
@@ -109,34 +121,4 @@ struct ActivityView: View {
         }
         .refreshable { await store.refresh() }
     }
-}
-
-// Shared segment control sits above the content, matching the native navigation title layout.
-struct ActivitySectionPicker: View {
-    @Binding var section: ActivitySection
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    var body: some View {
-        Group {
-            if typeSize.isAccessibilitySize {
-                picker.pickerStyle(.menu)
-            } else {
-                picker.pickerStyle(.segmented)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: ControlMetric.minTap)
-        .accessibilityIdentifier("activity-section")
-        .listRowInsets(EdgeInsets())
-        .listRowBackground(Theme.paper)
-        .listRowSeparator(.hidden)
-    }
-
-    private var picker: some View {
-        Picker("Sessions", selection: $section) {
-            Text("Sessions").tag(ActivitySection.sessions)
-            Text("Messages").tag(ActivitySection.messages)
-        }
-        .labelsHidden()
-    }
-
 }

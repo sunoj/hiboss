@@ -13,7 +13,7 @@ final class AgentAvatarUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleInterfaceStyle", "Light"]
         app.launchConfiguredDemo()
         app.tabBars.buttons["Sessions"].tap()
-        app.buttons["Messages"].tap()
+        app.openAllMessages()
         let name = app.staticTexts["worker-design"].firstMatch
         XCTAssertTrue(name.appears(timeout: 10))
         let avatar = CGRect(x: name.frame.minX - 52, y: name.frame.minY, width: 40, height: 40)

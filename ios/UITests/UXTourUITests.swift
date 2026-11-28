@@ -204,13 +204,7 @@ final class UXTourUITests: XCTestCase {
     }
 
     private func selectMessages() {
-        let segment = app.segmentedControls.buttons.element(boundBy: 1)
-        if segment.exists {
-            segment.tap()
-        } else {
-            app.buttons["activity-section"].firstMatch.tap()
-            app.buttons.matching(NSPredicate(format: "label == 'Messages' OR label == '消息'")).firstMatch.tap()
-        }
+        app.openAllMessages()
     }
 
     private func openFirstHomeItem(prefix: String) {

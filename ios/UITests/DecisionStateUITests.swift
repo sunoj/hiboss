@@ -136,7 +136,7 @@ final class DecisionStateUITests: XCTestCase {
         let activity = app.tabBars.buttons["Sessions"]
         XCTAssertTrue(activity.appears(timeout: 10))
         activity.tap()
-        app.segmentedControls.buttons["Messages"].tap()
+        app.openAllMessages()
         XCTAssertTrue(app.cells.firstMatch.appears(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["list-stale-banner"].exists)
         Thread.sleep(forTimeInterval: 5)

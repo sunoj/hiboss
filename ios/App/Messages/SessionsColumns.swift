@@ -12,7 +12,6 @@ struct SessionsColumns: View {
     let sessionAPI: (any SessionStreamServing)?
     let listWidth: CGFloat?
     @Binding var path: NavigationPath
-    @Binding var section: ActivitySection
     /// The first item in the path, highlighted in the list while two columns show.
     @State private var selected: AnyHashable?
 
@@ -22,7 +21,7 @@ struct SessionsColumns: View {
         TwoColumnSplit(listWidth: listWidth) {
             // Split, the list never pushes: its rows select into the detail column's path.
             NavigationStack(path: isSplit ? .constant(NavigationPath()) : $path) {
-                destinations(ActivityView(store: inbox, section: $section, connection: connection)
+                destinations(ActivityView(store: inbox, connection: connection)
                     .listColumnIgnoresRail())
             }
             .environment(\.routeSelection, isSplit ? RouteSelection(selected: selected, select: select) : nil)
@@ -53,6 +52,10 @@ struct SessionsColumns: View {
             }
             .navigationDestination(for: ResolvedRoute.self) {
                 tracked(ResolvedDecisionsView(store: inbox), value: $0)
+            }
+            .navigationDestination(for: HistoryRoute.self) { tracked(SessionsHistoryView(), value: $0) }
+            .navigationDestination(for: AllMessagesRoute.self) {
+                tracked(MessagesView(store: inbox).navigationTitle("Messages"), value: $0)
             }
     }
 

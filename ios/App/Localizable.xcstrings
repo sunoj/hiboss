@@ -41540,6 +41540,51 @@
         "ru": { "stringUnit": { "state": "translated", "value": "Показывает варианты" } },
         "ar": { "stringUnit": { "state": "translated", "value": "يعرض الخيارات" } }
       }
+    },
+    "History": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "History" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "历史" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "履歴" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "기록" } },
+        "th": { "stringUnit": { "state": "translated", "value": "ประวัติ" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Historial" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "इतिहास" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Historique" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Histórico" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "История" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "السجل" } }
+      }
+    },
+    "All messages": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "All messages" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "全部消息" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "すべてのメッセージ" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "모든 메시지" } },
+        "th": { "stringUnit": { "state": "translated", "value": "ข้อความทั้งหมด" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Todos los mensajes" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "सभी संदेश" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Tous les messages" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Todas as mensagens" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Все сообщения" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "كل الرسائل" } }
+      }
+    },
+    "Show %@ more": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show %@ more" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "再显示 %@ 个" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "さらに %@ 件表示" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "%@개 더 보기" } },
+        "th": { "stringUnit": { "state": "translated", "value": "แสดงเพิ่มอีก %@ รายการ" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mostrar %@ más" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "%@ और दिखाएँ" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Afficher %@ de plus" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mostrar mais %@" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Показать ещё %@" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "عرض %@ أخرى" } }
+      }
     }
   },
   "version": "1.0"

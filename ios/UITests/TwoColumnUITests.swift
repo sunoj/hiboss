@@ -124,7 +124,7 @@ final class TwoColumnUITests: XCTestCase {
         XCTAssertFalse(app.navigationBars["Loading…"].exists)
         XCTAssertTrue(sessionsTab.isSelected)
         XCTAssertFalse(element("sessions-detail-placeholder").exists)
-        XCTAssertTrue(element("activity-section").isHittable, "the list stays beside the message")
+        XCTAssertTrue(element("sessions-history").isHittable, "the list stays beside the message")
         shot("two-column-message-notification")
     }
 
