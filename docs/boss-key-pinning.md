@@ -130,8 +130,14 @@ also binds `agent_id` and `session_id`.
 5. Enforcement (block unsigned) ships only after every client signs every write, so a pinned
    agent is never locked out of its own boss.
 
+## Labels
+
+The session hook labels a message `[boss]` by its direction. A group broadcast from an agent is
+stored as `boss_to_agent` with an agent actor, so it reads as the boss. The label comes from the
+verified actor kind instead: `[boss]` only for a boss actor whose signature verifies.
+
 ## Separate fixes that do not wait for pinning
 
-- The `daemon` SSE path writes boss messages to the spool without verifying them, and the
-  session hook injects them as `[boss] …`.
-- The CLI and MCP do not verify signed `answers`; they read the server-written `metadata.answers`.
+Landed in `fix(cli,mcp): verify spooled boss messages and bind form answers to the signature`:
+the `daemon` spool is verified before the hook injects it, and a form reply's stored `answers`
+must equal the signed ones in the CLI and MCP.
