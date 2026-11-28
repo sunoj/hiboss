@@ -3,13 +3,13 @@
   <channel>
     <title>HiBoss Island</title>
     <item>
-      <title>Version 1.2.1</title>
-      <pubDate>Fri, 27 Nov 2026 10:20:03 +0000</pubDate>
-      <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
-      <sparkle:version>202611271717</sparkle:version>
+      <title>Version 1.3.0</title>
+      <pubDate>Sat, 28 Nov 2026 14:04:15 +0000</pubDate>
+      <sparkle:shortVersionString>1.3.0</sparkle:shortVersionString>
+      <sparkle:version>202611282103</sparkle:version>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[ Answering a ranking or review is clearer: Submit is a full-width button that says why it is not ready yet, and a sent answer is confirmed with "Answer sent" before the question closes. ]]></description>
-      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.2.1/HiBoss-Island-1.2.1.zip" sparkle:edSignature="LX5DHYRBRVN0BO5hTq1L5hQMGuU7LTxzxsm3zUVfulE578/2cInVaHfY6ePvl/T1R9Hye+pZAL0Xq1iKJNs/CA==" length="8389576" type="application/zip" />
+      <description><![CDATA[ Signs your replies with a key kept in the Mac's Secure Enclave after pairing with a code, and shows its fingerprint in Settings › Connection. Removes the Discord and Telegram routing settings; per-priority alert sounds move to Presentation. The connection reads Live instead of Listening. ]]></description>
+      <enclosure url="https://github.com/sunoj/hiboss/releases/download/macos-v1.3.0/HiBoss-Island-1.3.0.zip" sparkle:edSignature="Ss0iEsRuOqwU542UhSFxFstT0IIPoTcKUZ7g4/NAqmOGrKaMzOaT8ZHZ3Yxvb1L4XvYHBbd5E8mpTtKj2ynGDg==" length="8371365" type="application/zip" />
     </item>
   </channel>
 </rss>
