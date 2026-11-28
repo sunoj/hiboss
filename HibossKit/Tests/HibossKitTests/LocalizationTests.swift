@@ -58,6 +58,6 @@ final class LocalizationTests: XCTestCase {
 
     func testConnectionStateLabelsMatchCatalog() {
         XCTAssertEqual(ConnectionState.disconnected.label, kitL("Disconnected"))
-        XCTAssertEqual(ConnectionState.connected.label, kitL("Listening"))
+        XCTAssertEqual(ConnectionState.connected.label, kitL("Live"))
     }
 }

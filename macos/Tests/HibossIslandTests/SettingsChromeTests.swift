@@ -16,11 +16,11 @@ final class SettingsChromeTests: XCTestCase {
         XCTAssertEqual(Set(states.map { SettingsConnectionStatus($0).title }).count, states.count)
     }
 
-    func testOnlyConnectedReadsAsListeningAndLive() {
-        let listening = ConnectionState.connected.label
+    func testOnlyConnectedReadsAsLive() {
+        let live = ConnectionState.connected.label
         for state in states where state != .connected {
             let status = SettingsConnectionStatus(state)
-            XCTAssertNotEqual(status.title, listening, "\(state)")
+            XCTAssertNotEqual(status.title, live, "\(state)")
             XCTAssertFalse(status.isLive, "\(state)")
         }
         XCTAssertTrue(SettingsConnectionStatus(.connected).isLive)
