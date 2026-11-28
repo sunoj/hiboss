@@ -10,7 +10,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 const FOREIGN: &str = "session does not belong to calling agent";
-const SPOOLED: &str = r#"{"id":"msg-boss-0001","direction":"boss_to_agent","agent_name":"boss","body":"ship it"}"#;
+// The daemon spools only messages whose provenance verifies.
+const SPOOLED: &str = r#"{"id":"msg-boss-0001","direction":"boss_to_agent","agent_name":"boss","body":"ship it","metadata":{"source":"api","provenance":{"version":1,"source":"api","actor":{"kind":"boss","id":"boss-1"},"signature":{"status":"not_configured"}}}}"#;
 
 /// Rejects `foreign-session` with `rejection`; the first stream GET delivers one SSE message.
 fn server(rejection: Response) -> Http {

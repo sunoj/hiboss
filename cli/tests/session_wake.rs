@@ -36,7 +36,10 @@ fn sse(messages: &[Value]) -> String {
 
 fn reply(id: &str, target: &str) -> Value {
     json!({"id": id, "direction": "boss_to_agent", "target_session_id": target,
-        "reply_to": "msg-ask-0001", "agent_name": "boss", "body": "BODY-NOT-PUSHED", "metadata": {}})
+        "reply_to": "msg-ask-0001", "agent_name": "boss", "body": "BODY-NOT-PUSHED",
+        // The daemon spools only messages whose provenance verifies.
+        "metadata": {"source": "api", "provenance": {"version": 1, "source": "api",
+            "actor": {"kind": "boss", "id": "boss-1"}, "signature": {"status": "not_configured"}}}})
 }
 
 /// Lets the daemon run several more reconnects so a second push would have arrived.
