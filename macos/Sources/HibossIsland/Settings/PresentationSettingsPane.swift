@@ -1,7 +1,8 @@
 // Presentation pane for local option-surface preferences.
 // Exports: PresentationSettingsPane.
-// Dependencies: SwiftUI, AppSettings, and SoundPlaying.
+// Dependencies: SwiftUI, HibossKit MessagePriority, AppSettings, and SoundPlaying.
 
+import HibossKit
 import SwiftUI
 
 struct PresentationSettingsPane: View {
@@ -19,6 +20,16 @@ struct PresentationSettingsPane: View {
                 }
                 .disabled(!settings.playsSound)
                 .onChange(of: settings.alertSound) { soundPlayer.play($1) }
+                // One sound per priority; these were beside the removed channel matrix.
+                ForEach(MessagePriority.allCases, id: \.self) { priority in
+                    Picker(priority.localizedTitle, selection: soundBinding(for: priority)) {
+                        ForEach(OptionSound.allCases) { sound in
+                            Text(sound.label).tag(sound)
+                        }
+                    }
+                    .disabled(!settings.playsSound)
+                    .accessibilityIdentifier("settings.sound.\(priority.rawValue)")
+                }
             } header: {
                 Text(L("Alerts"))
             } footer: {
@@ -27,5 +38,14 @@ struct PresentationSettingsPane: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func soundBinding(for priority: MessagePriority) -> Binding<OptionSound> {
+        Binding {
+            settings.sound(for: priority)
+        } set: { sound in
+            settings.setSound(sound, for: priority)
+            soundPlayer.play(sound)
+        }
     }
 }
