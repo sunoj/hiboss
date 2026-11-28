@@ -67,6 +67,11 @@ fn signed_form(signed: Option<serde_json::Value>, stored: Option<serde_json::Val
     message
 }
 
+/// A signed boss reply with a fresh key, for the pin tests.
+pub(crate) fn signed_message_for_pins() -> Message {
+    signed_message("Approved", "Approved")
+}
+
 fn signed_message(signed_body: &str, outer_body: &str) -> Message {
     signed_message_with(signed_body, outer_body, None)
 }

@@ -6,6 +6,7 @@ use crate::{client::HiBossClient, config::Config, helpers::short_id};
 #[path = "boss_args.rs"]
 mod args;
 mod archive;
+mod keys;
 pub use args::*;
 use colored::Colorize;
 use serde_json::{Map, Value};
@@ -28,6 +29,8 @@ pub async fn run(
         BossCommand::Preferences(payload) => run_preferences(payload, client).await,
         BossCommand::Inbox(payload) => run_inbox(payload, client).await,
         BossCommand::Reply(payload) => run_reply(payload, client).await,
+        BossCommand::Keys(payload) => keys::run_keys(payload.pin, client).await,
+        BossCommand::Trust(payload) => keys::run_trust(&payload.text),
     }
 }
 

@@ -3,7 +3,7 @@
 // Dependencies: ring, serde_json, reqwest; see docs/agent-message-signing.md.
 
 mod enroll;
-mod jws;
+pub(crate) mod jws;
 mod payload;
 mod store;
 #[cfg(test)]

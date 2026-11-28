@@ -154,6 +154,8 @@ fn verify_signature(
     if claimed_key_id != digest(&SHA256, &public_key).as_ref() {
         return Err(fail(message, "signing key identifier mismatch"));
     }
+    let boss_id = object(provenance.get("actor")).and_then(|actor| string(actor, "id")).unwrap_or_default();
+    let public_key = crate::boss_pins::trusted_key(boss_id, key_id, public_key).map_err(|detail| fail(message, detail))?;
     let compact = required(message, signature, "signed_message")?;
     let (header, payload, input, raw_signature) = parse_jws(message, compact)?;
     validate_header(message, &header, key_id)?;

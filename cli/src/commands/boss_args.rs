@@ -20,6 +20,20 @@ pub enum BossCommand {
     Inbox(BossInboxArgs),
     /// Reply to a sub-agent message as boss
     Reply(BossReplyArgs),
+    /// List the boss signing keys and which are pinned on this machine (--pin pins them)
+    Keys(BossKeysArgs),
+    /// Pin a boss key from the text the HiBoss app shows (hiboss-boss-key:…)
+    Trust(BossTrustArgs),
+}
+#[derive(Debug, Args)]
+pub struct BossKeysArgs {
+    /// Pin every current iOS and macOS key and apply revocations
+    #[arg(long)]
+    pub pin: bool,
+}
+#[derive(Debug, Args)]
+pub struct BossTrustArgs {
+    pub text: String,
 }
 #[derive(Debug, Args)]
 pub struct BossRemoveArgs {

@@ -4,6 +4,8 @@
 
 pub mod agent_provenance;
 pub mod attribution;
+pub mod boss_key_text;
+pub mod boss_pins;
 pub mod box_types;
 pub mod client;
 pub mod commands;
@@ -24,3 +26,5 @@ pub mod types;
 mod tests;
 #[cfg(test)]
 mod message_security_tests;
+#[cfg(test)]
+mod boss_pins_tests;
