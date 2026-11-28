@@ -1,5 +1,5 @@
 // Logic tests for the native macOS Settings scene.
-// Covers: pane order, routing toggles, quiet-hours validation, and sound mapping.
+// Covers: pane order, quiet-hours validation, and sound mapping.
 // Dependencies: XCTest, HibossKit preferences, AppSettings, and isolated defaults.
 
 import Foundation
@@ -29,7 +29,6 @@ final class SettingsLogicTests: XCTestCase {
             L("Connection"),
             L("Devices"),
             L("Notifications"),
-            L("Channels & Routing"),
             L("Quiet Hours"),
             L("Presentation"),
             L("System & Doctor"),
@@ -40,71 +39,13 @@ final class SettingsLogicTests: XCTestCase {
     func testSelectsConnectionWhenRequestedPaneIsUnavailable() {
         XCTAssertEqual(SettingsPreferencesLogic.selectedPane(nil), .connection)
         XCTAssertEqual(
-            SettingsPreferencesLogic.selectedPane(.routing, available: [.connection]),
+            SettingsPreferencesLogic.selectedPane(.quietHours, available: [.connection]),
             .connection
         )
     }
 
     func testSelectsRequestedPaneWhenAvailable() {
         XCTAssertEqual(SettingsPreferencesLogic.selectedPane(.quietHours), .quietHours)
-    }
-
-    func testRoutingFallsBackToTheDesignDefaultWhenServerHasNoMatrix() {
-        let routing = SettingsPreferencesLogic.routing(from: BossPreferences())
-
-        XCTAssertEqual(routing[.critical], [.discord, .telegram, .api])
-        XCTAssertEqual(routing[.high], [.telegram])
-        XCTAssertEqual(routing[.normal], [.discord])
-        XCTAssertEqual(routing[.low], [.discord])
-    }
-
-    func testRoutingUsesTheServerMatrixWhenPresent() {
-        let preferences = BossPreferences(routing: [.normal: [.api]])
-
-        XCTAssertEqual(SettingsPreferencesLogic.routing(from: preferences)[.normal], [.api])
-    }
-
-    func testTurningAChannelOffForOnePriorityDoesNotDisturbOtherPriorities() {
-        let routing: [MessagePriority: [NotificationChannel]] = [
-            .critical: [.discord, .api],
-            .normal: [.telegram],
-        ]
-
-        let next = SettingsPreferencesLogic.toggledRouting(
-            routing,
-            priority: .critical,
-            channel: .api
-        )
-
-        XCTAssertEqual(next[.critical], [.discord])
-        XCTAssertEqual(next[.normal], [.telegram])
-    }
-
-    func testTurningAChannelOnForOnePriorityDoesNotDisturbOtherPriorities() {
-        let routing: [MessagePriority: [NotificationChannel]] = [
-            .critical: [.discord],
-            .normal: [.telegram],
-        ]
-
-        let next = SettingsPreferencesLogic.toggledRouting(
-            routing,
-            priority: .critical,
-            channel: .api
-        )
-
-        XCTAssertEqual(next[.critical], [.discord, .api])
-        XCTAssertEqual(next[.normal], [.telegram])
-    }
-
-    func testUpdatingRoutingPreservesQuietHours() {
-        let quietHours = SettingsPreferencesLogic.defaultQuietHours(timezone: "UTC")
-        let preferences = BossPreferences(quietHours: quietHours)
-        let routing: [MessagePriority: [NotificationChannel]] = [.low: [.api]]
-
-        let mapped = SettingsPreferencesLogic.preferences(preferences, byUpdating: routing)
-
-        XCTAssertEqual(mapped.routing?[.low], [.api])
-        XCTAssertEqual(mapped.quietHours, quietHours)
     }
 
     func testQuietHoursFallsBackToDefaultWhenServerHasNone() {
@@ -222,14 +163,14 @@ final class SettingsLogicTests: XCTestCase {
         )
     }
 
-    func testUpdatingQuietHoursPreservesRouting() {
-        let routing: [MessagePriority: [NotificationChannel]] = [.critical: [.api]]
-        let preferences = BossPreferences(routing: routing)
+    func testUpdatingQuietHoursPreservesAlertPreferences() {
+        let preferences = BossPreferences(privatePush: true, decisionAlerts: false)
         let quietHours = SettingsPreferencesLogic.defaultQuietHours(timezone: "UTC")
 
         let mapped = SettingsPreferencesLogic.preferences(preferences, byUpdating: quietHours)
 
-        XCTAssertEqual(mapped.routing?[.critical], [.api])
+        XCTAssertEqual(mapped.privatePush, true)
+        XCTAssertEqual(mapped.decisionAlerts, false)
         XCTAssertEqual(mapped.quietHours, quietHours)
     }
 
@@ -252,7 +193,7 @@ final class SettingsLogicTests: XCTestCase {
     func testPerPrioritySoundDefaultsAreClientSideOnly() throws {
         let defaults = isolatedDefaults()
         let settings = AppSettings(defaults: defaults, keychain: StubTokenStore())
-        let preferences = BossPreferences(routing: [.critical: [.api]])
+        let preferences = BossPreferences(privatePush: true)
 
         settings.setSound(.submarine, for: .critical)
         let encoded = try JSONEncoder().encode(preferences)

@@ -1,4 +1,4 @@
-// Loads and edits the boss notification preferences (routing, quiet hours, push tiering).
+// Loads and edits the boss notification preferences (quiet hours, push tiering).
 // Exports: PreferencesStore driving the Settings preference editor UI.
 // Dependencies: HibossKit HibossAPI/BossPreferences.
 
@@ -36,16 +36,10 @@ final class PreferencesStore: ObservableObject {
 
     var isDirty: Bool { prefs != saved }
 
-    /// Demo-harness preferences so the routing UI is exercisable without a server.
+    /// Demo-harness preferences so notification settings work without a server.
     func loadDemo() {
         api = DemoSettingsPreferencesAPI()
         let sample = BossPreferences(
-            routing: [
-                .critical: [.discord, .telegram],
-                .high: [.telegram],
-                .normal: [.discord],
-                .low: [],
-            ],
             quietHours: QuietHours(
                 enabled: true, start: "22:00", end: "08:00",
                 timezone: TimeZone.current.identifier,
@@ -120,24 +114,6 @@ final class PreferencesStore: ObservableObject {
             if AccountAuthorization.shared.reject(error) { return }
             state = .failed(error.localizedDescription)
         }
-    }
-
-    // MARK: Routing
-
-    func channels(for priority: HibossKit.MessagePriority) -> Set<NotificationChannel> {
-        Set(prefs.routing?[priority] ?? [])
-    }
-
-    func toggle(_ channel: NotificationChannel, for priority: HibossKit.MessagePriority) {
-        var routing = prefs.routing ?? [:]
-        var selected = routing[priority] ?? []
-        if let index = selected.firstIndex(of: channel) {
-            selected.remove(at: index)
-        } else {
-            selected.append(channel)
-        }
-        routing[priority] = selected
-        prefs.routing = routing
     }
 
     // MARK: Push tiering

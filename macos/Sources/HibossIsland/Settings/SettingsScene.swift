@@ -90,12 +90,6 @@ struct SettingsScene: View {
         case .notifications:
             NotificationsSettingsPane(settings: settings, preferencesStore: preferencesStore,
                 notifications: notifications)
-        case .routing:
-            ChannelsRoutingSettingsPane(
-                settings: settings,
-                preferencesStore: preferencesStore,
-                soundPlayer: soundPlayer
-            )
         case .quietHours:
             QuietHoursSettingsPane(preferencesStore: preferencesStore)
         case .presentation:

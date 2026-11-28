@@ -11,7 +11,6 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case connection
     case devices
     case notifications
-    case routing
     case quietHours
     case presentation
     case systemDoctor
@@ -25,7 +24,6 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .connection: L("Connection")
         case .devices: L("Devices")
         case .notifications: L("Notifications")
-        case .routing: L("Channels & Routing")
         case .quietHours: L("Quiet Hours")
         case .presentation: L("Presentation")
         case .systemDoctor: L("System & Doctor")
@@ -39,7 +37,6 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .connection: L("Connect this Mac to the boss daemon.")
         case .devices: L("Manage devices connected to your account.")
         case .notifications: L("Choose how questions surface on this Mac.")
-        case .routing: L("Route each priority to server-backed channels.")
         case .quietHours: L("Silence lower-priority alerts on your schedule.")
         case .presentation: L("Tune the local option surface and sounds.")
         case .systemDoctor: L("Inspect daemon, stream, and preference health.")
@@ -53,7 +50,6 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .connection: "link"
         case .devices: "laptopcomputer.and.iphone"
         case .notifications: "bell"
-        case .routing: "point.3.connected.trianglepath.dotted"
         case .quietHours: "moon"
         case .presentation: "rectangle.on.rectangle"
         case .systemDoctor: "stethoscope"
@@ -94,8 +90,6 @@ private func localizedTimeField(_ label: String) -> String {
 }
 
 enum SettingsPreferencesLogic {
-    static let priorities: [MessagePriority] = [.critical, .high, .normal, .low]
-    static let channels: [NotificationChannel] = [.discord, .telegram, .api]
     static let weekDays: [QuietHoursDay] = [
         QuietHoursDay(index: 1, label: "M"),
         QuietHoursDay(index: 2, label: "T"),
@@ -106,48 +100,12 @@ enum SettingsPreferencesLogic {
         QuietHoursDay(index: 7, label: "S"),
     ]
 
-    static let defaultRouting: [MessagePriority: [NotificationChannel]] = [
-        .critical: [.discord, .telegram, .api],
-        .high: [.telegram],
-        .normal: [.discord],
-        .low: [.discord],
-    ]
-
     static func selectedPane(
         _ requested: SettingsPane?,
         available: [SettingsPane] = SettingsPane.allCases
     ) -> SettingsPane {
         guard let requested, available.contains(requested) else { return .connection }
         return requested
-    }
-
-    static func routing(
-        from preferences: BossPreferences
-    ) -> [MessagePriority: [NotificationChannel]] {
-        preferences.routing ?? defaultRouting
-    }
-
-    static func toggledRouting(
-        _ routing: [MessagePriority: [NotificationChannel]],
-        priority: MessagePriority,
-        channel: NotificationChannel
-    ) -> [MessagePriority: [NotificationChannel]] {
-        var next = routing
-        var channels = Set(next[priority] ?? [])
-        if channels.contains(channel) {
-            channels.remove(channel)
-        } else {
-            channels.insert(channel)
-        }
-        next[priority] = Self.channels.filter { channels.contains($0) }
-        return next
-    }
-
-    static func preferences(
-        _ preferences: BossPreferences,
-        byUpdating routing: [MessagePriority: [NotificationChannel]]
-    ) -> BossPreferences {
-        BossPreferences(routing: routing, quietHours: preferences.quietHours)
     }
 
     static func quietHours(from preferences: BossPreferences) -> QuietHours {
@@ -196,7 +154,9 @@ enum SettingsPreferencesLogic {
         _ preferences: BossPreferences,
         byUpdating quietHours: QuietHours
     ) -> BossPreferences {
-        BossPreferences(routing: routing(from: preferences), quietHours: quietHours)
+        var updated = preferences
+        updated.quietHours = quietHours
+        return updated
     }
 
     static func validationMessage(for preferences: BossPreferences) -> String? {

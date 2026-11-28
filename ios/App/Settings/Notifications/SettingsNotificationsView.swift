@@ -84,7 +84,6 @@ struct SettingsDeliveryView: View {
     var body: some View {
         Form {
             PushTieringSection(store: store)
-            RoutingSection(store: store)
             PreferencesFeedbackSection(store: store, api: api)
         }
         .formStyle(.grouped)

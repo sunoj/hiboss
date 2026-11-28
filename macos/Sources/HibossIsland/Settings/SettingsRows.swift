@@ -1,8 +1,7 @@
-// Native Settings chrome: not-applied notice, footer status, and label helpers.
-// Exports: SettingsNotAppliedNotice, SettingsFooterStatus, routing label extensions.
-// Dependencies: SwiftUI, HibossKit, and DesignTokens priority/live accents.
+// Native Settings chrome: not-applied notice, footer status, and quiet-hours formatting.
+// Exports: SettingsNotAppliedNotice, SettingsFooterStatus, QuietHoursClockFormatting.
+// Dependencies: SwiftUI and DesignTokens live accents.
 
-import HibossKit
 import SwiftUI
 
 /// States plainly that a pane's settings are stored but not yet acted on.
@@ -88,29 +87,6 @@ enum QuietHoursClockFormatting {
         case 6: L("Saturday")
         case 7: L("Sunday")
         default: L("Day \(dayIndex)")
-        }
-    }
-}
-
-extension MessagePriority {
-    var settingsLabel: String { localizedTitle }
-
-    var settingsColor: Color {
-        switch self {
-        case .critical: DesignTokens.Priority.critical
-        case .high: DesignTokens.Priority.high
-        case .normal: DesignTokens.Priority.normal
-        case .low: DesignTokens.Priority.low
-        }
-    }
-}
-
-extension NotificationChannel {
-    var settingsLabel: String {
-        switch self {
-        case .discord: "Discord" // i18n-exempt: service brand name
-        case .telegram: "Telegram" // i18n-exempt: service brand name
-        case .api: "API" // i18n-exempt: technical term kept as-is in every language
         }
     }
 }

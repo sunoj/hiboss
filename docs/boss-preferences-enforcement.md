@@ -1,10 +1,8 @@
-# Boss preferences at delivery time: quiet hours enforced, routing deferred
+# Boss preferences at delivery time
 
-**Status: quiet hours are enforced; the per-priority `routing` matrix is not.**
-
-The macOS client writes `routing` and `quiet_hours` into the free-form
-`bosses.preferences` JSON blob via the pre-existing `GET/PUT /api/boss/me/preferences`.
-Delivery reads part of that blob:
+The native clients write notification preferences into the free-form
+`bosses.preferences` JSON blob via `GET/PUT /api/boss/me/preferences`.
+Delivery reads the following preferences:
 
 - **Quiet hours.** On the legacy send path, `getAgentQuietHoursEnd`
   (`server/src/routes/quiet-hours.ts`) finds the latest quiet-hours end among the bosses who can
@@ -23,49 +21,20 @@ Delivery reads part of that blob:
   the server's current quiet-hours rule.
 - **Push presentation.** `prepareBossPush` (`server/src/push/boss-payload.ts`) reads
   `decision_alerts`, `private_push` and the push-tier overrides per device.
-- **Routing.** Nothing reads the `routing` matrix. The Settings pane that owns it says so on
-  screen (`SettingsNotAppliedNotice`).
+- **Native delivery.** The per-priority `routing` matrix was removed with the Discord and
+  Telegram boss channels. Boss notifications are delivered through HiBoss clients. Native clients
+  ignore any stored `routing` key and omit it from preference updates.
 
-A routing implementation was written and then removed before merge after an adversarial
-audit returned BLOCK. The rest of this document records why, so the next attempt starts from
-the findings rather than rediscovering them. Findings 3–6 were written about that attempt's
-quiet-hours design; the enforcement above is the separate, narrower one that shipped.
+## Quiet-hours design findings
 
-## Why the first attempt failed
-
-The approach hooked preference resolution into `POST /api/messages`, resolving a boss's
-routing matrix at the moment an *agent* sends a message. That is the wrong layer, and most
-of the findings below follow from it.
-
-### 1. Mis-scoped: per-boss policy applied per-agent-message (architectural)
-
-`resolveBossRoutingChannels` selected every boss matching
-`role = 'admin' OR agent_id = ? OR boss_agent_access`, then **unioned** their routing.
-Consequences: an admin boss's partial matrix changed delivery for a boss who had configured
-nothing, and one boss's explicit mute suppressed another boss's push.
-
-Delivery is currently expressed in terms of an *agent's* `channel_configs`; "which boss
-receives this message, and on which of their channels" is not modelled. Until that is,
-per-boss notification policy has nowhere correct to live. **Fix this before anything else
-— the remaining items are comparatively mechanical.**
-
-### 2. `api` is not a real channel
-
-`channel_configs` writes accept only `discord` and `telegram`; `email` had no delivery adapter
-and was removed as a channel (`migrations/0058_drop_email_channels.sql`).
-The design's API column therefore had no backing row: selecting `api` alone left
-`messages.channel = NULL`, and *deselecting* it disabled `notifyBossAgents`, killing
-boss-agent callbacks and iOS/APNs push. Native-client delivery needs to be a first-class
-preference independent of `channel_configs`.
-
-### 3. Stored legacy `quiet_hours` preferences
+### Stored legacy `quiet_hours` preferences
 
 The retired embedded dashboard wrote `quiet_hours: { start, end }`, and stored preferences
 can still use this shape. `getAgentQuietHoursEnd` continues to read
 `$.quiet_hours.start/end`. Validators must account for existing records even though the
 embedded browser UI is no longer served.
 
-### 4. `high` priority would silently start being deferred
+### `high` priority would silently start being deferred
 
 Today `isUrgent = critical || high` and quiet hours apply only when `!isUrgent`, so `high`
 is never deferred. Routing boss quiet hours through all priorities with only `critical`
@@ -75,25 +44,16 @@ Note the design mock contradicts itself here: the Notifications pane says "criti
 always break through" while the Quiet Hours pane says "Silence normal & low; critical still
 alerts." Resolve this with the user before implementing.
 
-### 5. Quiet-hours fan-out can double-deliver
+### Quiet-hours fan-out can double-deliver
 
 Enqueueing every channel config (rather than the first) inserts multiple `delivery_queue`
 rows for one message. `scheduled.ts` selects by queue `id` and `markMessageDelivered` does
 not check prior delivery; there is no unique constraint on `(message_id, channel)`.
 
-### 6. Overnight quiet windows check the wrong day
+### Overnight quiet windows check the wrong day
 
 `days` is matched against the *current* local weekday. For a window like
 `22:00 → 08:00 days:[Mon]`, the 01:00 Tuesday continuation is not recognised as part of
 Monday's window. Semantics must key off the window's start day.
-
-## What to keep from the attempt
-
-The typed preference schema was sound and is worth restoring from git history:
-per-priority `routing` (`discord | telegram | api`) and
-`quiet_hours { enabled, start, end, timezone, days, critical_bypass }`.
-`HibossKit/Sources/HibossKit/BossPreferences.swift` already models exactly this and
-round-trips unknown channels and priorities intact, so an older client cannot erase a
-channel it does not understand — preserve that property in any server-side validator.
 
 Per-priority **alert sound** is client-side only and must never be sent to the server.

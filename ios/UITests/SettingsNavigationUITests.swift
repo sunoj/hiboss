@@ -176,13 +176,6 @@ final class SettingsNavigationUITests: XCTestCase {
         app.buttons["settings-push-critical"].tap()
         XCTAssertTrue(app.buttons["Off"].appears(timeout: 5))
         app.buttons["Off"].tap()
-        let channels = app.buttons["settings-channel-low"]
-        for _ in 0..<5 where !channels.isHittable { app.swipeUp() }
-        XCTAssertTrue(channels.label.contains("None"))
-        channels.tap()
-        XCTAssertTrue(app.buttons["Telegram"].appears(timeout: 5))
-        app.buttons["Telegram"].tap()
-        XCTAssertTrue(channels.label.contains("Telegram"))
         XCTAssertTrue(app.buttons["settings-preferences-save"].appears(timeout: 5))
         app.buttons["settings-preferences-save"].tap()
         XCTAssertTrue(app.buttons["settings-preferences-save"].disappears(timeout: 5))
@@ -194,7 +187,7 @@ final class SettingsNavigationUITests: XCTestCase {
         for _ in 0..<5 where !details.isHittable { app.swipeUp() }
         details.tap()
         XCTAssertTrue(app.buttons["settings-push-critical"].label.contains("Off"))
-        XCTAssertTrue(app.buttons["settings-channel-low"].label.contains("Telegram"))
+        XCTAssertFalse(app.buttons["settings-channel-low"].exists)
     }
 
     private func shot(_ name: String) {

@@ -8,7 +8,7 @@ import XCTest
 final class BossPreferencesStoreTests: XCTestCase {
     @MainActor
     func testLoadSuccessPublishesPreferences() async {
-        let expected = BossPreferences(routing: [.critical: [.api]])
+        let expected = BossPreferences(privatePush: true)
         let api = StubPreferencesAPI(fetchResult: .success(expected), updateResult: .success(expected))
         let store = BossPreferencesStore(api: api)
 
@@ -44,8 +44,8 @@ final class BossPreferencesStoreTests: XCTestCase {
 
     @MainActor
     func testSaveSuccessPublishesMergedPreferences() async {
-        let submitted = BossPreferences(routing: [.high: [.telegram]])
-        let merged = BossPreferences(routing: [.critical: [.api], .high: [.telegram]])
+        let submitted = BossPreferences(decisionAlerts: false)
+        let merged = BossPreferences(privatePush: true, decisionAlerts: false)
         let api = StubPreferencesAPI(fetchResult: .success(submitted), updateResult: .success(merged))
         let store = BossPreferencesStore(api: api, initialPreferences: submitted)
 
@@ -59,7 +59,7 @@ final class BossPreferencesStoreTests: XCTestCase {
 
     @MainActor
     func testSaveFailurePublishesFailedState() async {
-        let initial = BossPreferences(routing: [.normal: [.discord]])
+        let initial = BossPreferences(privatePush: false)
         let api = StubPreferencesAPI(fetchResult: .success(initial), updateResult: .failure(.save))
         let store = BossPreferencesStore(api: api, initialPreferences: initial)
 
@@ -71,7 +71,7 @@ final class BossPreferencesStoreTests: XCTestCase {
 
     @MainActor
     func testSaveCancellationResetsIdleState() async {
-        let initial = BossPreferences(routing: [.normal: [.discord]])
+        let initial = BossPreferences(privatePush: false)
         let api = StubPreferencesAPI(fetchResult: .failure(.load), updateResult: .cancelled)
         let store = BossPreferencesStore(api: api, initialPreferences: initial)
 

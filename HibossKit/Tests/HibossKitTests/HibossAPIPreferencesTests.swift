@@ -27,7 +27,6 @@ final class HibossAPIPreferencesTests: XCTestCase {
 
         let preferences = try await api.fetchPreferences()
 
-        XCTAssertEqual(preferences.routing?[.critical], [.api])
         XCTAssertNil(preferences.quietHours)
     }
 
@@ -38,21 +37,28 @@ final class HibossAPIPreferencesTests: XCTestCase {
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
             let body = try HTTPTestSupport.bodyData(from: request)
             let preferences = try JSONDecoder().decode(BossPreferences.self, from: body)
-            XCTAssertEqual(preferences.routing?[.high], [.telegram])
+            XCTAssertEqual(preferences.decisionAlerts, false)
+            let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+            XCTAssertNil(object["routing"])
             return try HTTPTestSupport.response(
                 for: request,
-                json: #"{"routing":{"critical":["api"],"high":["telegram"]}}"#
+                json: #"{"routing":{"critical":["api"]},"decision_alerts":false,"private_push":true}"#
             )
         }
         let api = HibossAPI(config: try config(),
             session: HTTPTestSupport.session(for: PreferencesURLProtocol.self))
 
+        var fetchedWithLegacyRouting = try JSONDecoder().decode(
+            BossPreferences.self,
+            from: Data(#"{"routing":{"high":["telegram"]}}"#.utf8)
+        )
+        fetchedWithLegacyRouting.decisionAlerts = false
         let preferences = try await api.updatePreferences(
-            BossPreferences(routing: [.high: [.telegram]])
+            fetchedWithLegacyRouting
         )
 
-        XCTAssertEqual(preferences.routing?[.critical], [.api])
-        XCTAssertEqual(preferences.routing?[.high], [.telegram])
+        XCTAssertEqual(preferences.decisionAlerts, false)
+        XCTAssertEqual(preferences.privatePush, true)
     }
 
     private func config() throws -> ConnectionConfig {

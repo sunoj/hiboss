@@ -1,12 +1,12 @@
 // Coverage for boss notification preference Codable contracts.
-// Exports: BossPreferencesTests validating routing and quiet hours payloads.
+// Exports: BossPreferencesTests validating notification preferences.
 // Dependencies: XCTest and HibossKit preference domain models.
 
 import XCTest
 @testable import HibossKit
 
 final class BossPreferencesTests: XCTestCase {
-    func testDecodesFullPayload() throws {
+    func testDecodesPreferencesWithLegacyRouting() throws {
         let preferences = try decodePreferences(
             """
             {
@@ -29,10 +29,6 @@ final class BossPreferencesTests: XCTestCase {
             """
         )
 
-        XCTAssertEqual(preferences.routing?[.critical], [.discord, .telegram, .api])
-        XCTAssertEqual(preferences.routing?[.high], [.telegram])
-        XCTAssertEqual(preferences.routing?[.normal], [.discord])
-        XCTAssertEqual(preferences.routing?[.low], [])
         XCTAssertEqual(
             preferences.quietHours,
             QuietHours(
@@ -76,50 +72,18 @@ final class BossPreferencesTests: XCTestCase {
     func testDecodesEmptyPayload() throws {
         let preferences = try decodePreferences("{}")
 
-        XCTAssertNil(preferences.routing)
         XCTAssertNil(preferences.quietHours)
     }
 
     func testDecodesNullQuietHours() throws {
         let preferences = try decodePreferences(
-            #"{"routing":{"critical":["discord"]},"quiet_hours":null}"#
+            #"{"routing":true,"quiet_hours":null}"#
         )
 
-        XCTAssertEqual(preferences.routing?[.critical], [.discord])
         XCTAssertNil(preferences.quietHours)
     }
 
-    func testSkipsUnknownChannelString() throws {
-        let preferences = try decodePreferences(
-            #"{"routing":{"critical":["discord","sms","api"]}}"#
-        )
-
-        XCTAssertEqual(preferences.routing?[.critical], [.discord, .api])
-    }
-
-    func testPreservesUnknownRoutingPayloadWhenEncodingTypedEdits() throws {
-        var preferences = try decodePreferences(
-            """
-            {
-              "routing": {
-                "critical": ["discord", "slack"],
-                "normal": ["discord"],
-                "urgent": ["slack"]
-              }
-            }
-            """
-        )
-
-        preferences.routing?[.normal] = [.api]
-
-        let object = try encodedJSONObject(preferences)
-        let routing = try XCTUnwrap(object["routing"] as? [String: [String]])
-        XCTAssertTrue(routing["critical"]?.contains("slack") ?? false)
-        XCTAssertEqual(routing["normal"], ["api"])
-        XCTAssertEqual(routing["urgent"], ["slack"])
-    }
-
-    func testDecodesAbsentRouting() throws {
+    func testDecodesDisabledQuietHours() throws {
         let preferences = try decodePreferences(
             """
             {
@@ -135,18 +99,11 @@ final class BossPreferencesTests: XCTestCase {
             """
         )
 
-        XCTAssertNil(preferences.routing)
         XCTAssertEqual(preferences.quietHours?.enabled, false)
     }
 
     func testEncodesRoundTrip() throws {
         let preferences = BossPreferences(
-            routing: [
-                .critical: [.discord, .telegram, .api],
-                .high: [.telegram],
-                .normal: [.discord],
-                .low: [],
-            ],
             quietHours: QuietHours(
                 enabled: true,
                 start: "23:00",
@@ -166,11 +123,5 @@ final class BossPreferencesTests: XCTestCase {
 
     private func decodePreferences(_ json: String) throws -> BossPreferences {
         try JSONDecoder().decode(BossPreferences.self, from: Data(json.utf8))
-    }
-
-    private func encodedJSONObject(_ preferences: BossPreferences) throws -> [String: Any] {
-        let data = try JSONEncoder().encode(preferences)
-        let object = try JSONSerialization.jsonObject(with: data)
-        return try XCTUnwrap(object as? [String: Any])
     }
 }

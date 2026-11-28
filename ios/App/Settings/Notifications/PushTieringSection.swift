@@ -106,3 +106,25 @@ private extension PushRule {
         )
     }
 }
+
+private struct PriorityMenuLabel: View {
+    let priority: HibossKit.MessagePriority
+    let summary: String
+
+    var body: some View {
+        LabeledContent {
+            HStack(alignment: .firstTextBaseline) {
+                Text(verbatim: summary)
+                    .foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2).foregroundStyle(Theme.ink3)
+            }
+        } label: {
+            HStack {
+                Circle().fill(MessagePriority(raw: priority.rawValue).color).frame(width: 8, height: 8)
+                Text(verbatim: priority.localizedTitle).foregroundStyle(Theme.ink)
+            }
+        }
+    }
+}

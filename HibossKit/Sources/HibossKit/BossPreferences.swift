@@ -1,14 +1,8 @@
-// Domain contracts for boss notification routing and quiet hours.
-// Exports: BossPreferences, NotificationChannel, MessagePriority, and QuietHours.
+// Domain contracts for boss notification preferences.
+// Exports: BossPreferences, MessagePriority, QuietHours, and push rules.
 // Dependencies: Foundation Codable for API request and response payloads.
 
 import Foundation
-
-public enum NotificationChannel: String, Codable, Equatable, Sendable, CaseIterable {
-    case discord
-    case telegram
-    case api
-}
 
 public enum MessagePriority: String, Codable, Equatable, Sendable, CaseIterable, Hashable {
     case critical
@@ -95,7 +89,6 @@ public struct PushRule: Codable, Equatable, Sendable {
 }
 
 public struct BossPreferences: Codable, Equatable, Sendable {
-    public var routing: [MessagePriority: [NotificationChannel]]?
     public var quietHours: QuietHours?
     /// Per-priority push tiering overrides for status messages (nil = server defaults).
     public var push: [MessagePriority: PushRule]?
@@ -104,10 +97,8 @@ public struct BossPreferences: Codable, Equatable, Sendable {
     public var privatePush: Bool?
     /// When false, decision requests follow normal push tiering and skip Live Activities.
     public var decisionAlerts: Bool?
-    private let preservedRouting: [String: [String]]?
 
     enum CodingKeys: String, CodingKey {
-        case routing
         case quietHours = "quiet_hours"
         case quietStart = "quiet_hours_start"
         case quietEnd = "quiet_hours_end"
@@ -118,26 +109,20 @@ public struct BossPreferences: Codable, Equatable, Sendable {
     }
 
     public init(
-        routing: [MessagePriority: [NotificationChannel]]? = nil,
         quietHours: QuietHours? = nil,
         push: [MessagePriority: PushRule]? = nil,
         privatePush: Bool? = nil,
         decisionAlerts: Bool? = nil
     ) {
-        self.routing = routing
         self.quietHours = quietHours
         self.push = push
         self.privatePush = privatePush
         self.decisionAlerts = decisionAlerts
-        self.preservedRouting = nil
     }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         quietHours = try Self.decodeQuietHours(values: values)
-        let decodedRouting = try Self.decodeRouting(from: values)
-        routing = decodedRouting.typed
-        preservedRouting = decodedRouting.raw
         push = try Self.decodePush(from: values)
         privatePush = try values.decodeIfPresent(Bool.self, forKey: .privatePush)
         decisionAlerts = try values.decodeIfPresent(Bool.self, forKey: .decisionAlerts)
@@ -146,16 +131,9 @@ public struct BossPreferences: Codable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
         try values.encodeIfPresent(quietHours, forKey: .quietHours)
-        try encodeRouting(into: &values)
         try encodePush(into: &values)
         try values.encodeIfPresent(privatePush, forKey: .privatePush)
         try values.encodeIfPresent(decisionAlerts, forKey: .decisionAlerts)
-    }
-
-    public static func == (lhs: BossPreferences, rhs: BossPreferences) -> Bool {
-        lhs.routing == rhs.routing && lhs.quietHours == rhs.quietHours
-            && lhs.push == rhs.push && lhs.privatePush == rhs.privatePush
-            && lhs.decisionAlerts == rhs.decisionAlerts
     }
 
     private static func decodeQuietHours(
@@ -190,39 +168,5 @@ public struct BossPreferences: Codable, Equatable, Sendable {
         guard let push else { return }
         let raw = Dictionary(uniqueKeysWithValues: push.map { ($0.key.rawValue, $0.value) })
         try values.encode(raw, forKey: .push)
-    }
-
-    private static func decodeRouting(
-        from values: KeyedDecodingContainer<CodingKeys>
-    ) throws -> (typed: [MessagePriority: [NotificationChannel]]?, raw: [String: [String]]?) {
-        guard let rawRouting = try values.decodeIfPresent([String: [String]].self, forKey: .routing) else {
-            return (nil, nil)
-        }
-        var routing: [MessagePriority: [NotificationChannel]] = [:]
-        for (rawPriority, rawChannels) in rawRouting {
-            guard let priority = MessagePriority(rawValue: rawPriority) else { continue }
-            routing[priority] = rawChannels.compactMap(NotificationChannel.init(rawValue:))
-        }
-        return (routing, rawRouting)
-    }
-
-    private func encodeRouting(
-        into values: inout KeyedEncodingContainer<CodingKeys>
-    ) throws {
-        guard let routing else { return }
-        var rawRouting = preservedRouting?.filter { MessagePriority(rawValue: $0.key) == nil } ?? [:]
-        for (priority, channels) in routing {
-            rawRouting[priority.rawValue] = mergedChannels(for: priority, channels: channels)
-        }
-        try values.encode(rawRouting, forKey: .routing)
-    }
-
-    private func mergedChannels(
-        for priority: MessagePriority,
-        channels: [NotificationChannel]
-    ) -> [String] {
-        let rawChannels = preservedRouting?[priority.rawValue] ?? []
-        let unknownChannels = rawChannels.filter { NotificationChannel(rawValue: $0) == nil }
-        return channels.map(\.rawValue) + unknownChannels
     }
 }
