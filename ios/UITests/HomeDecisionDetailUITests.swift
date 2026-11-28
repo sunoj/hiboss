@@ -214,9 +214,11 @@ final class HomeDecisionDetailUITests: XCTestCase {
         let notice = timing("c5")
         if !large {
             XCTAssertTrue(notice.exists)
-            let gap = notice.frame.minY - facts.frame.maxY
-            // The notice text is inset 16 points inside its background card.
-            XCTAssertEqual(gap, 28, accuracy: 2, "Visible blocks use one 12-point Space.s gap")
+            // v5: the default line sits under the last choice, plain text, one Space.s gap below it.
+            let lastChoice = app.scrollViews["decision-detail"].buttons["Fine grid"].firstMatch
+            XCTAssertGreaterThan(notice.frame.minY, facts.frame.maxY)
+            XCTAssertEqual(notice.frame.minY - lastChoice.frame.maxY, 12, accuracy: 2,
+                           "Visible blocks use one 12-point Space.s gap")
         }
         keepScreenshot("round2-detail-\(style)-\(large ? "AX" : "standard")")
     }
