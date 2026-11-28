@@ -142,15 +142,21 @@ struct ProgressFeedView: View {
     }
 
     private var retryButton: some View {
-        Button("Retry") { Task { await store.retryRefresh() } }
-            .font(.footnote.weight(.semibold))
-            .buttonStyle(.borderless)
-            .disabled(store.isRefreshing)
+        Button {
+            Task { await store.retryRefresh() }
+        } label: {
+            Text("Retry")
+                .font(.footnote.weight(.semibold))
+                .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .disabled(store.isRefreshing)
     }
 
     @ViewBuilder
     private var feedTail: some View {
-        if let error = store.paginationError {
+        if store.loadError == nil, let error = store.paginationError {
             HStack {
                 Text(verbatim: error).font(.footnote).foregroundStyle(Theme.ink2)
                 Spacer()
@@ -202,7 +208,8 @@ struct ProgressFeedView: View {
                                           ?? .fallback(slug), size: AvatarSize.compact)
                     } else {
                         Image(systemName: selectedTag == nil
-                              ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                              ? "line.3.horizontal.decrease.circle"
+                              : "line.3.horizontal.decrease.circle.fill")
                     }
                 }
             }

@@ -62,9 +62,9 @@ struct ProgressPostCard: View {
             ProjectAvatarView(project: post.projectIdentity, size: AvatarSize.row)
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                    projectName
+                    projectName.fixedSize(horizontal: true, vertical: false)
                     Spacer(minLength: 0)
-                    byline
+                    byline.fixedSize(horizontal: true, vertical: false)
                 }
                 VStack(alignment: .leading, spacing: Space.xxs) {
                     projectName
