@@ -64,7 +64,8 @@ final class IntermediateStateUITests: IntermediateCaptureCase {
 
     func testReplies() {
         launch(["HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
-        let choice = app.buttons[reject].firstMatch
+        // Today answers only its focus card in place.
+        let choice = app.buttons[fineGrid].firstMatch
         reveal(choice)
         choice.tap()
         holdAndCapture("home-reply")
@@ -73,6 +74,7 @@ final class IntermediateStateUITests: IntermediateCaptureCase {
         app.buttons[reject].firstMatch.tap()
         holdAndCapture("detail-reply")
         launch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_REPLY_DELAY_MS": "60000"])
+        app.expandPinnedDecision("c1")
         let transcriptChoice = app.buttons[reject].firstMatch
         for _ in 0..<5 where !transcriptChoice.isHittable { app.swipeDown() }
         XCTAssertTrue(transcriptChoice.appears(timeout: 8))

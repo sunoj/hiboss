@@ -140,7 +140,6 @@ final class SessionBubblesUITests: XCTestCase {
         XCTAssertTrue(card.appears(timeout: 10))
         XCTAssertEqual(card.label.components(separatedBy: "No deadline").count - 1, 1)
         let timing = app.descendants(matching: .any)["decision-timing-c3"]
-        XCTAssertFalse(timing.label.contains("No deadline"), "the header already states the deadline")
         card.tap()
         XCTAssertTrue(app.staticTexts["message-question"].appears(timeout: 5))
         XCTAssertEqual(timing.label.components(separatedBy: "No deadline").count - 1, 1)

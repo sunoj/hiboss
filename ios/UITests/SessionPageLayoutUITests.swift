@@ -60,6 +60,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_TRANSCRIPT_UNAVAILABLE": "1"])
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
+        app.expandPinnedDecision("c1")
         revealHistoryNote(app)
         XCTAssertTrue(app.staticTexts["session-history-note"].appears(timeout: 10))
         XCTAssertEqual(app.staticTexts["session-history-note"].label,
@@ -130,6 +131,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1",
                                  "HIBOSS_DEMO_SESSION_AGENT": "orchestrator-01"])
         app.launchConfiguredDemo()
+        app.expandPinnedDecision("c1")
         let card = app.descendants(matching: .any)["transcript-decision-c1"]
         XCTAssertTrue(card.appears(timeout: 10))
         XCTAssertFalse(card.staticTexts["orchestrator-01"].exists)

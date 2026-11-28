@@ -35,8 +35,11 @@ struct ActivityView: View {
     }
 
     var body: some View {
-        // The stack keeps the list from driving the navigation bar, so the large title stays.
-        VStack(spacing: 0) { sessions }
+        // A fixed view above the list, as the segment was, keeps the large title on a cold open.
+        VStack(spacing: 0) {
+            Color.clear.frame(height: Space.xs).accessibilityHidden(true)
+            sessions
+        }
         .navigationTitle("Sessions")
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
