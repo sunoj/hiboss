@@ -9,10 +9,10 @@ skip TwoColumnUITests           # skips on iPhone; iPad landscape layout
 skip UXTourUITests              # screenshot tour, run by ux-tour.sh
 ActivityNavigationUITests/testHomeSessionMenuOpensTranscriptWithoutOpeningDetail
 AgentAvatarUITests/testDemoRegisteredAvatarInMessageList
-BoxCardSwipeUITests/testListRetainsTrailingDeleteAndLeadingLikeShare
-BoxCollectionsUITests/testLeadingSwipeAndContextMenuToggleLike
+BoxCardSwipeUITests/testGridContextMenuKeepsDeleteLikeAndShare
+BoxCollectionsUITests/testContextMenuTogglesLike
 BoxUITests/testVideoDetailSharesOriginalDownloadedFile
-BoxV2UITests/testRowsUseTheSameHeightWithAndWithoutSummary
+BoxV2UITests/testTilesUseTheSameHeightWithAndWithoutSummary
 BrandIconUITests/testScannedPairingCodePrefillsServerURLBeforeRedemption
 DecisionStateUITests/testResolvedDecisionShowsAnsweringDevice
 FirstRunUITests/testPlainHTTPPairLinkShowsTheHTTPSMessage

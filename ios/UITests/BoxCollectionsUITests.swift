@@ -39,8 +39,9 @@ final class BoxCollectionsUITests: XCTestCase {
         XCTAssertTrue(shortcut.isHittable)
         XCTAssertTrue(shortcut.label.contains("3 items"))
         shortcut.tap()
+        XCTAssertTrue(app.buttons["box-collection-menu"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 5))
-        XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
+        XCTAssertTrue(app.buttons["box-item-demo-agent-text"].disappears(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.buttons["box-collections"].isHittable)
         app.buttons["box-collections"].tap()
@@ -49,8 +50,9 @@ final class BoxCollectionsUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Collections"].exists)
         capture("collections-grid")
         design.tap()
+        XCTAssertTrue(app.buttons["box-collection-menu"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 5))
-        XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
+        XCTAssertTrue(app.buttons["box-item-demo-agent-text"].disappears(timeout: 5))
         capture("collections-scoped-list")
         app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
@@ -137,12 +139,12 @@ final class BoxCollectionsUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Collections"].appears(timeout: 5))
     }
 
-    func testLeadingSwipeAndContextMenuToggleLike() {
+    func testContextMenuTogglesLike() {
         let row = app.buttons["box-item-demo-agent-text"]
         row.press(forDuration: 1)
         app.buttons["Like"].tap()
         XCTAssertTrue(row.label.contains("Liked"))
-        row.swipeRight()
+        row.press(forDuration: 1)
         app.buttons["Unlike"].tap()
         XCTAssertFalse(row.label.contains("Liked"))
     }
