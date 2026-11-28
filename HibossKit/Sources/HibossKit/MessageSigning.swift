@@ -105,7 +105,7 @@ public struct PendingSecureEnclaveSigner: Sendable {
 }
 
 public struct SecureEnclaveMessageSigner: BossMessageSignatureProvider, Codable, Sendable {
-    private let keyRepresentation: Data
+    let keyRepresentation: Data
     public let keyID: String
     public let bossID: String
     public let clientKind: SigningClientKind
@@ -194,7 +194,7 @@ private struct SignedPayload: Encodable {
     }
 }
 
-private extension Data {
+extension Data {
     func base64URLEncodedString() -> String {
         base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")

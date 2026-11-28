@@ -41253,6 +41253,81 @@
         "ru": { "stringUnit": { "state": "translated", "value": "Показать ещё %@" } },
         "ar": { "stringUnit": { "state": "translated", "value": "عرض %@ أخرى" } }
       }
+    },
+    "Fingerprint": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fingerprint" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "指纹" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "フィンガープリント" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "지문" } },
+        "th": { "stringUnit": { "state": "translated", "value": "ลายนิ้วมือกุญแจ" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Huella" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "फ़िंगरप्रिंट" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Empreinte" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Impressão digital" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Отпечаток" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "البصمة" } }
+      }
+    },
+    "Copy key for agents": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copy key for agents" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "复制给 agent 的公钥" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "エージェント用に鍵をコピー" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "에이전트용 키 복사" } },
+        "th": { "stringUnit": { "state": "translated", "value": "คัดลอกกุญแจสำหรับเอเจนต์" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Copiar clave para agentes" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "एजेंट के लिए कुंजी कॉपी करें" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Copier la clé pour les agents" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Copiar chave para agentes" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Скопировать ключ для агентов" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "نسخ المفتاح للوكلاء" } }
+      }
+    },
+    "This iPhone has no signing key. Pair it with a code to sign its replies.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This iPhone has no signing key. Pair it with a code to sign its replies." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这台 iPhone 没有签名密钥。用配对码配对后，它的回复才会签名。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この iPhone には署名鍵がありません。コードでペアリングすると返信に署名します。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이 iPhone에는 서명 키가 없습니다. 코드로 페어링하면 답장에 서명합니다." } },
+        "th": { "stringUnit": { "state": "translated", "value": "iPhone เครื่องนี้ไม่มีกุญแจลงนาม จับคู่ด้วยรหัสเพื่อลงนามคำตอบ" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Este iPhone no tiene clave de firma. Vincúlalo con un código para firmar sus respuestas." } },
+        "hi": { "stringUnit": { "state": "translated", "value": "इस iPhone में साइनिंग कुंजी नहीं है। उत्तरों पर हस्ताक्षर के लिए इसे कोड से जोड़ें।" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Cet iPhone n’a pas de clé de signature. Associez-le avec un code pour signer ses réponses." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Este iPhone não tem chave de assinatura. Pareie-o com um código para assinar as respostas." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "У этого iPhone нет ключа подписи. Свяжите его по коду, чтобы подписывать ответы." } },
+        "ar": { "stringUnit": { "state": "translated", "value": "لا يحتوي هذا iPhone على مفتاح توقيع. اقرنه برمز لتوقيع ردوده." } }
+      }
+    },
+    "Signing key": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Signing key" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "签名密钥" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "署名鍵" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "서명 키" } },
+        "th": { "stringUnit": { "state": "translated", "value": "กุญแจลงนาม" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Clave de firma" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "साइनिंग कुंजी" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Clé de signature" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Chave de assinatura" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Ключ подписи" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "مفتاح التوقيع" } }
+      }
+    },
+    "Agents verify your replies with this key. Compare the fingerprint with the one `hiboss setup` prints, or paste the copied key into `hiboss boss trust`.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Agents verify your replies with this key. Compare the fingerprint with the one `hiboss setup` prints, or paste the copied key into `hiboss boss trust`." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "agent 用这把公钥验证你的回复。请把指纹和 `hiboss setup` 打印的核对一下，或把复制的公钥粘贴给 `hiboss boss trust`。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "エージェントはこの鍵で返信を検証します。`hiboss setup` が表示するフィンガープリントと照合するか、コピーした鍵を `hiboss boss trust` に貼り付けてください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "에이전트는 이 키로 답장을 검증합니다. `hiboss setup`이 출력하는 지문과 비교하거나, 복사한 키를 `hiboss boss trust`에 붙여 넣으세요." } },
+        "th": { "stringUnit": { "state": "translated", "value": "เอเจนต์ใช้กุญแจนี้ตรวจสอบคำตอบของคุณ เทียบลายนิ้วมือกับที่ `hiboss setup` แสดง หรือวางกุญแจที่คัดลอกใน `hiboss boss trust`" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Los agentes verifican tus respuestas con esta clave. Compara la huella con la que muestra `hiboss setup` o pega la clave copiada en `hiboss boss trust`." } },
+        "hi": { "stringUnit": { "state": "translated", "value": "एजेंट इस कुंजी से आपके उत्तर सत्यापित करते हैं। फ़िंगरप्रिंट को `hiboss setup` के दिखाए से मिलाएँ, या कॉपी की गई कुंजी `hiboss boss trust` में चिपकाएँ।" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Les agents vérifient vos réponses avec cette clé. Comparez l’empreinte à celle qu’affiche `hiboss setup`, ou collez la clé copiée dans `hiboss boss trust`." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Os agentes verificam suas respostas com esta chave. Compare a impressão com a que `hiboss setup` mostra ou cole a chave copiada em `hiboss boss trust`." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Агенты проверяют ваши ответы этим ключом. Сравните отпечаток с тем, что выводит `hiboss setup`, или вставьте скопированный ключ в `hiboss boss trust`." } },
+        "ar": { "stringUnit": { "state": "translated", "value": "يتحقق الوكلاء من ردودك بهذا المفتاح. قارن البصمة بما يطبعه `hiboss setup` أو الصق المفتاح المنسوخ في `hiboss boss trust`." } }
+      }
     }
   },
   "version": "1.0"

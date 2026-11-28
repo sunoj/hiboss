@@ -110,6 +110,7 @@
 		378F3465844A2E1089A6C2EA /* NotificationDeepLinkUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4DF74B50F6D1F70BD328B16 /* NotificationDeepLinkUITests.swift */; };
 		37B98A22DF9AE35A9DA25537 /* ServerAddressPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEDEE12D7E0FEAE9D3E3DAAD /* ServerAddressPolicy.swift */; };
 		38B4E5E3C3C61AA905A57CEA /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE62ABDE04F54AE003C1D74 /* AppRouter.swift */; };
+		39426932BE36DC1F5C86741B /* SettingsSigningKeySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE290789C8677079C1FE5789 /* SettingsSigningKeySection.swift */; };
 		3974262D89B95C0DCFA2CA65 /* MediaFileKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DCB6B2D5AF5FA33E0181292 /* MediaFileKind.swift */; };
 		3BF5041D4A969F796DF10DF9 /* DemoSessionNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6806F4A6BBB395A1A57A2E8C /* DemoSessionNotes.swift */; };
 		3C296CE199636D84EC588519 /* AnswerabilityFastPathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F65358EB01C7805F4FEEB8 /* AnswerabilityFastPathTests.swift */; };
@@ -796,6 +797,7 @@
 		CC1A81AE4F75D3E97C4FC112 /* RequiredInputCoverageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequiredInputCoverageTests.swift; sourceTree = "<group>"; };
 		CC4EC097917C2D6475C4FAEA /* SessionNotePhoto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionNotePhoto.swift; sourceTree = "<group>"; };
 		CCDC745C836E39A5B0650834 /* ProgressFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressFeedView.swift; sourceTree = "<group>"; };
+		CE290789C8677079C1FE5789 /* SettingsSigningKeySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSigningKeySection.swift; sourceTree = "<group>"; };
 		CE2EE7B992EA93B6B4C9584E /* OrientationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationPolicy.swift; sourceTree = "<group>"; };
 		CE512B87AB4778E24208134F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CED65559D80B8E922CF4288D /* HiBossShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HiBossShare.entitlements; sourceTree = "<group>"; };
@@ -1645,6 +1647,7 @@
 				D1ED047E9ECEE105277DF943 /* CopyFeedback.swift */,
 				5EA25430EC732363C6D0701A /* SettingsAboutView.swift */,
 				ECF34D42B48D32512996915C /* SettingsConnectionView.swift */,
+				CE290789C8677079C1FE5789 /* SettingsSigningKeySection.swift */,
 				FC8C85DD59D113BDF201E19A /* SettingsView.swift */,
 				ABB4E3820B5E3A813D8E219A /* SettingsWaitView.swift */,
 			);
@@ -2324,6 +2327,7 @@
 				A650E538E702AE41464BFE29 /* SettingsDevicesView.swift in Sources */,
 				1E514D21B05575F70980E5D7 /* SettingsNotificationsView.swift in Sources */,
 				64CA68BB2EF7627A2ADF7057 /* SettingsPermissionSection.swift in Sources */,
+				39426932BE36DC1F5C86741B /* SettingsSigningKeySection.swift in Sources */,
 				45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */,
 				EC70A904F831907BFBB833D1 /* SettingsWaitView.swift in Sources */,
 				268610D4509E15B840A95278 /* ShareAttachment.swift in Sources */,

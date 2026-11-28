@@ -37700,6 +37700,36 @@
           }
         }
       }
+    },
+    "Signing key": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Signing key" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "签名密钥" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "署名鍵" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "서명 키" } },
+        "th": { "stringUnit": { "state": "translated", "value": "กุญแจลงนาม" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Clave de firma" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "साइनिंग कुंजी" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Clé de signature" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Chave de assinatura" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Ключ подписи" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "مفتاح التوقيع" } }
+      }
+    },
+    "None: pair with a code to sign replies": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "None: pair with a code to sign replies" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无：用配对码配对后才会签名回复" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "なし：コードでペアリングすると返信に署名します" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "없음: 코드로 페어링하면 답장에 서명합니다" } },
+        "th": { "stringUnit": { "state": "translated", "value": "ไม่มี: จับคู่ด้วยรหัสเพื่อลงนามคำตอบ" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Ninguna: vincula con un código para firmar respuestas" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "कोई नहीं: उत्तरों पर हस्ताक्षर के लिए कोड से जोड़ें" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Aucune : associez avec un code pour signer les réponses" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Nenhuma: pareie com um código para assinar respostas" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Нет: свяжите по коду, чтобы подписывать ответы" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "لا يوجد: اقرن برمز لتوقيع الردود" } }
+      }
     }
   },
   "version": "1.0"

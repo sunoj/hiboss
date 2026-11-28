@@ -38,7 +38,7 @@ final class ConnectionStore: ObservableObject {
     private let pairingRedeemer: any ConnectionPairingRedeeming
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
     private let onSignOut: @MainActor (HibossAPI?) -> Void
-    private var messageSigner: SecureEnclaveMessageSigner?
+    private(set) var messageSigner: SecureEnclaveMessageSigner?
     private var authorizationObservation: AnyCancellable?
 
     init(

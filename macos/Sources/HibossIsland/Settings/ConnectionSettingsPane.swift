@@ -40,6 +40,13 @@ struct ConnectionSettingsPane: View {
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
+                // What agent machines pin; empty until the Mac pairs with a code.
+                LabeledContent(L("Signing key")) {
+                    Text(verbatim: MacMessageSigning.current()?.fingerprint ?? L("None: pair with a code to sign replies"))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
                 Button(L("Reconnect"), action: reconnect)
                     .disabled(isConnecting)
             } header: {

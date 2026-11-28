@@ -13,6 +13,7 @@ struct SettingsConnectionView: View {
     var body: some View {
         Form {
             connectionSection
+            SettingsSigningKeySection(signer: connection.messageSigner)
             guidanceSection
         }
         .formStyle(.grouped)
