@@ -216,7 +216,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
             XCTAssertTrue(notice.exists)
             // v5: the default line sits under the last choice, plain text, one Space.s gap below it.
             let lastChoice = app.descendants(matching: .any).matching(identifier: "decision-detail").firstMatch
-                .buttons["Fine grid"].firstMatch
+                .buttons["细网格"].firstMatch
             XCTAssertGreaterThan(notice.frame.minY, facts.frame.maxY)
             XCTAssertEqual(notice.frame.minY - lastChoice.frame.maxY, 12, accuracy: 2,
                            "Visible blocks use one 12-point Space.s gap")
