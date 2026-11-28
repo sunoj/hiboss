@@ -38,7 +38,7 @@ final class ProgressProjectPickerUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_TAB": "progress"])
         app.launchArguments = ["-AppleLanguages", "(en)"]
         app.launchConfiguredDemo()
-        let first = app.images["wide landscape screenshot"]
+        let first = app.images["wide landscape screenshot"].firstMatch
         XCTAssertTrue(first.appears(timeout: 10))
         let today = app.staticTexts["Today"].firstMatch
         let yesterday = app.staticTexts["Yesterday"].firstMatch
