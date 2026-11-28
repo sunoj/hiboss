@@ -1,4 +1,4 @@
-// Connection details and recovery, preserving the authenticated stream reconnect action.
+// Settings › Connection: one state card (state, meaning, the server's reason and Reconnect), the server address, the signing key.
 // Exports: SettingsConnectionView and SettingsConnectionSummary.
 // Dependencies: SwiftUI, HibossKit ConnectionState, ConnectionStore, Theme.
 
@@ -12,69 +12,73 @@ struct SettingsConnectionView: View {
 
     var body: some View {
         Form {
-            connectionSection
+            stateSection
+            serverSection
             SettingsSigningKeySection(signer: connection.messageSigner)
-            guidanceSection
         }
         .formStyle(.grouped)
         .contentMargins(.horizontal, Space.m, for: .scrollContent)
         .navigationTitle("Connection")
         .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .bottom) { reconnectButton }
     }
 
-    private var connectionSection: some View {
+    private var configured: Bool { connection.isConfigured || isDemoMode }
+
+    /// One card: the state in words, what it means, and on failure the server's reason and one action.
+    private var stateSection: some View {
         Section {
-            LabeledContent("Server") {
-                Text(verbatim: connection.config?.serverURL.absoluteString
-                     ?? (isDemoMode ? DemoDevices.serverURL.absoluteString : "—"))
-                    .textSelection(.enabled)
-            }
-            LabeledContent("Status") {
-                if connection.isConfigured || isDemoMode {
-                    Text(verbatim: connectionState.label)
+            VStack(alignment: .leading, spacing: Space.s) {
+                HStack(spacing: Space.s) {
+                    Circle().fill(stateColor).frame(width: Space.s, height: Space.s).accessibilityHidden(true)
+                    Text(verbatim: configured ? connectionState.label : String(localized: "Not connected"))
+                        .font(.title2.bold())
+                        .accessibilityIdentifier("settings-connection-state")
+                }
+                if connectionState == .connecting {
+                    SettingsWaitView(title: "Connecting to your server…", actionTitle: "Reconnect",
+                                     action: onReconnect)
                 } else {
-                    Text("Not connected").foregroundStyle(Theme.ink2)
+                    Text(verbatim: SettingsConnectionSummary.guidance(connectionState, configured: configured))
+                        .font(.subheadline).foregroundStyle(Theme.ink2)
+                }
+                if configured, let detail = connectionState.detail {
+                    Label { Text(verbatim: detail) } icon: { Image(systemName: "exclamationmark.triangle") }
+                        .font(.subheadline).foregroundStyle(Theme.warn)
+                }
+                if connection.isConfigured, case .failed = connectionState {
+                    Button("Reconnect", action: onReconnect).hbButton(.primary)
+                }
+                if !configured {
+                    Text("Sign in from the welcome screen to connect this phone.")
+                        .font(.subheadline).foregroundStyle(Theme.ink2)
                 }
             }
-        } header: {
-            Text("Connection")
+            .padding(.vertical, Space.xs)
         } footer: {
             if let notice = connection.clientExchangeNotice {
                 Label { Text(verbatim: notice) } icon: { Image(systemName: "exclamationmark.triangle") }
             }
-            if let detail = connectionState.detail {
-                Text(verbatim: detail).foregroundStyle(Theme.negative)
-            }
         }
-
     }
 
-    private var guidanceSection: some View {
-        Section {
-            if connectionState == .connecting {
-                SettingsWaitView(title: "Connecting to your server…", actionTitle: "Reconnect",
-                                 action: onReconnect)
-            } else {
-                Text(verbatim: SettingsConnectionSummary.guidance(
-                    connectionState, configured: connection.isConfigured || isDemoMode))
-            }
-            if !connection.isConfigured, !isDemoMode {
-                Text("Sign in from the welcome screen to connect this phone.")
+    private var serverSection: some View {
+        Section("Server") {
+            LabeledContent("Address") {
+                Text(verbatim: connection.config?.serverURL.absoluteString
+                     ?? (isDemoMode ? DemoDevices.serverURL.absoluteString : "—"))
+                    .textSelection(.enabled)
             }
         }
     }
 
-    @ViewBuilder
-    private var reconnectButton: some View {
-        if connection.isConfigured, case .failed = connectionState {
-            Button("Reconnect", action: onReconnect)
-                .hbButton(.primary)
-                .padding(Space.m)
-                .background(Theme.paper)
+    private var stateColor: Color {
+        guard configured else { return Theme.ink3 }
+        switch connectionState {
+        case .connected: return Theme.positive
+        case .failed: return Theme.warn
+        case .connecting, .disconnected: return Theme.ink3
         }
     }
-
 }
 
 struct SettingsConnectionSummary: View {

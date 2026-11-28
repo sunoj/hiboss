@@ -151,7 +151,7 @@ final class SessionsV4UITests: XCTestCase {
         XCTAssertTrue(outgoing.isHittable)
     }
 
-    func testBoxListRowsFitScreenWithoutOverlap() {
+    func testBoxGridTilesFitScreenWithoutOverlap() {
         let app = launch()
         XCTAssertTrue(app.tabBars.buttons["Box"].appears(timeout: 10))
         app.tabBars.buttons["Box"].tap()
@@ -160,8 +160,8 @@ final class SessionsV4UITests: XCTestCase {
         XCTAssertTrue(image.appears(timeout: 10))
         XCTAssertGreaterThanOrEqual(agent.frame.minX, app.frame.minX)
         XCTAssertLessThanOrEqual(image.frame.maxX, app.frame.maxX)
-        XCTAssertLessThanOrEqual(agent.frame.maxY, image.frame.minY)
-        XCTAssertEqual(agent.frame.minX, image.frame.minX, accuracy: 2)
+        XCTAssertLessThanOrEqual(agent.frame.maxX, image.frame.minX)
+        XCTAssertEqual(agent.frame.minY, image.frame.minY, accuracy: 2)
     }
 
     func testFastTranscriptLoadLeavesLoadingState() {
@@ -225,12 +225,10 @@ final class SessionsV4UITests: XCTestCase {
         let app = launch()
         XCTAssertTrue(app.tabBars.buttons["Box"].appears(timeout: 10))
         app.tabBars.buttons["Box"].tap()
-        app.buttons["box-author-menu"].tap()
-        app.buttons["Agents"].tap()
+        app.tapBoxChip("box-author-agents")
         XCTAssertTrue(app.buttons["box-item-demo-agent-text"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-image"].exists)
-        app.buttons["box-author-menu"].tap()
-        app.buttons["Me"].tap()
+        app.tapBoxChip("box-author-mine")
         XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
         let search = app.searchFields.firstMatch

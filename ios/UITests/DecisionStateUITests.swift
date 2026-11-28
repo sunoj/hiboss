@@ -154,11 +154,19 @@ final class DecisionStateUITests: XCTestCase {
         let progress = app.tabBars.buttons["Progress"]
         XCTAssertTrue(progress.appears(timeout: 10))
         progress.tap()
-        XCTAssertTrue(app.cells.firstMatch.appears(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["list-stale-banner"].exists)
+        let post = app.images["wide landscape screenshot"].firstMatch
+        let notice = app.staticTexts["list-stale-banner"]
+        XCTAssertTrue(post.appears(timeout: 5))
+        XCTAssertFalse(notice.exists)
         Thread.sleep(forTimeInterval: 5)
         pullToRefresh(app)
-        XCTAssertTrue(app.descendants(matching: .any)["list-stale-banner"].appears(timeout: 5))
-        XCTAssertTrue(app.cells.firstMatch.exists, "earlier posts stay visible")
+        XCTAssertTrue(notice.appears(timeout: 5))
+        XCTAssertTrue(notice.label.hasPrefix("Couldn't refresh · showing posts loaded "))
+        XCTAssertTrue(post.exists, "earlier posts stay visible")
+        XCTAssertLessThan(notice.frame.maxY, post.frame.minY)
+        let retry = app.buttons["Retry"].firstMatch
+        XCTAssertTrue(retry.isHittable)
+        retry.tap()
+        XCTAssertTrue(post.exists)
     }
 }

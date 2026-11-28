@@ -19,8 +19,6 @@ enum BoxFilter: String, CaseIterable {
         }
     }
 
-    var isMedia: Bool { self == .image || self == .video }
-
     func matches(_ item: BoxItem, search: String, author: BoxAuthorFilter = .all,
                  liked: Bool = false) -> Bool {
         let kindMatches = self == .all || item.kind.rawValue == rawValue
@@ -37,8 +35,8 @@ enum BoxAuthorFilter: String, CaseIterable {
     var title: String {
         switch self {
         case .all: String(localized: "All")
-        case .mine: String(localized: "Me")
-        case .agents: String(localized: "Agents")
+        case .mine: String(localized: "From me")
+        case .agents: String(localized: "From agents")
         }
     }
 
@@ -47,36 +45,29 @@ enum BoxAuthorFilter: String, CaseIterable {
     }
 }
 
-enum BoxListStyle: String, CaseIterable {
-    case list, cards
-
-    var title: String {
-        self == .list ? String(localized: "List") : String(localized: "Cards")
-    }
-}
-
 struct BoxFilterChips: View {
     @Binding var selection: BoxFilter
+    @Binding var author: BoxAuthorFilter
     @Binding var liked: Bool
 
     var body: some View {
         ScrollView(.horizontal) {
             HStack(spacing: Space.xs) {
-                likedChip
-                .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
-                .accessibilityAddTraits(liked ? .isSelected : [])
-                .accessibilityIdentifier("box-filter-liked")
-                ForEach(BoxFilter.allCases, id: \.self) { filter in
-                    chip(filter)
-                    .accessibilityAddTraits(selection == filter ? .isSelected : [])
-                    .accessibilityIdentifier("box-filter-\(filter.rawValue)")
+                chip(.all)
+                ForEach([BoxAuthorFilter.mine, .agents], id: \.self) { option in authorChip(option) }
+                ForEach([BoxFilter.image, .link, .text, .file, .video], id: \.self) { option in
+                    chip(option)
                 }
+                likedChip
+                    .accessibilityAddTraits(liked ? .isSelected : [])
+                    .accessibilityIdentifier("box-filter-liked")
             }
             .padding(.horizontal, Space.m)
         }
         .defaultScrollAnchor(.leading)
         .scrollIndicators(.hidden)
         .padding(.vertical, Space.xs)
+        .accessibilityIdentifier("box-filters")
     }
 
     private var likedChip: some View {
@@ -87,10 +78,30 @@ struct BoxFilterChips: View {
     }
 
     private func chip(_ filter: BoxFilter) -> some View {
-        Button { selection = filter } label: {
+        let selected = selection == filter && (filter != .all || author == .all && !liked)
+        return Button {
+            selection = filter
+            if filter == .all {
+                author = .all
+                liked = false
+            }
+        } label: {
             Text(verbatim: filter.title)
-                .modifier(BoxChipStyle(selected: selection == filter))
-        }.buttonStyle(.plain)
+                .modifier(BoxChipStyle(selected: selected))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier("box-filter-\(filter.rawValue)")
+    }
+
+    private func authorChip(_ option: BoxAuthorFilter) -> some View {
+        Button { author = author == option ? .all : option } label: {
+            Text(verbatim: option.title)
+                .modifier(BoxChipStyle(selected: author == option))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(author == option ? .isSelected : [])
+        .accessibilityIdentifier("box-author-\(option.rawValue)")
     }
 }
 

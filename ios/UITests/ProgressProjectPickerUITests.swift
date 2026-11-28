@@ -31,4 +31,29 @@ final class ProgressProjectPickerUITests: XCTestCase {
         filter.tap()
         XCTAssertTrue(app.buttons["All projects"].isSelected)
     }
+
+    func testTagFiltersTheTimelineAndAllTagsRestoresPosts() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.configureDemoLaunch(["HIBOSS_TAB": "progress"])
+        app.launchArguments = ["-AppleLanguages", "(en)"]
+        app.launchConfiguredDemo()
+        let first = app.images["wide landscape screenshot"].firstMatch
+        XCTAssertTrue(first.appears(timeout: 10))
+        let today = app.staticTexts["Today"].firstMatch
+        let yesterday = app.staticTexts["Yesterday"].firstMatch
+        XCTAssertTrue(today.exists)
+        XCTAssertTrue(yesterday.exists)
+        XCTAssertLessThan(today.frame.maxY, first.frame.minY)
+        XCTAssertGreaterThan(yesterday.frame.minY, first.frame.maxY)
+        let filter = app.buttons["Filter by project"]
+        filter.tap()
+        app.buttons["#hotfix"].tap()
+        XCTAssertTrue(app.images["retry latency chart"].appears(timeout: 5))
+        XCTAssertFalse(first.exists)
+        filter.tap()
+        XCTAssertTrue(app.buttons["#hotfix"].isSelected)
+        app.buttons["All tags"].tap()
+        XCTAssertTrue(first.appears(timeout: 5))
+    }
 }

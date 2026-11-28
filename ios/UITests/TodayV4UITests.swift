@@ -210,11 +210,15 @@ final class TodayV4UITests: XCTestCase {
         app.tabBars.buttons["Box"].tap()
         XCTAssertTrue(app.buttons["box-item-demo-text"].appears(timeout: 10))
         polishShot(app, "\(appearance)-box")
-        app.buttons["box-item-demo-text"].tap()
+        let text = app.buttons["box-item-demo-text"]
+        app.revealBoxTile(text)
+        text.tap()
         XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         polishShot(app, "\(appearance)-box-details")
         app.navigationBars.buttons.firstMatch.tap()
-        app.buttons["box-item-demo-image"].tap()
+        let image = app.buttons["box-item-demo-image"]
+        app.revealBoxTile(image)
+        image.tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 10))
         polishShot(app, "\(appearance)-box-media")
         app.buttons["media-viewer-close"].tap()

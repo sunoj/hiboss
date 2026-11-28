@@ -1,4 +1,4 @@
-// Captures Box list, cards, grid, unified detail and viewer in localized appearance variants.
+// Captures the Box grid, tile menu, unified detail and viewer in localized appearance variants.
 // Exports BoxV2CaptureUITests with retained screenshot attachments and geometry assertions.
 // Dependencies: XCTest and launchConfiguredDemo on the assigned iPhone simulator.
 
@@ -25,17 +25,25 @@ final class BoxV2CaptureUITests: XCTestCase {
         app.tabBars.buttons.element(boundBy: 2).tap()
         let locale = language == "en" ? "en" : "zh"
         let prefix = "\(locale)-box-v2-\(appearance.lowercased())\(large ? "-ax" : "")"
-        setStyle(app, language == "en" ? "List" : "列表")
-        XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
-        XCTAssertLessThanOrEqual(app.buttons["box-item-demo-agent-text"].frame.maxX, app.frame.maxX)
+        let agent = app.buttons["box-item-demo-agent-text"]
+        let image = app.buttons["box-item-demo-image"]
+        app.revealBoxTile(agent)
+        XCTAssertLessThanOrEqual(agent.frame.maxX, app.frame.maxX)
+        if large {
+            app.revealBoxTile(image)
+            XCTAssertEqual(agent.frame.minX, image.frame.minX, accuracy: 2)
+            XCTAssertLessThanOrEqual(agent.frame.maxY, image.frame.minY)
+            app.revealBoxTile(agent)
+        }
         if language == "zh-Hans" {
             XCTAssertFalse(app.buttons["box-item-demo-agent-text"].label.contains("秒钟"))
         }
-        shot(app, "\(prefix)-list")
-        setStyle(app, language == "en" ? "Cards" : "卡片")
-        shot(app, "\(prefix)-cards")
-        setStyle(app, language == "en" ? "List" : "列表")
-        app.buttons["box-item-demo-agent-text"].tap()
+        shot(app, "\(prefix)-grid")
+        agent.press(forDuration: 1)
+        XCTAssertTrue(app.buttons[language == "en" ? "Delete" : "删除"].appears(timeout: 5))
+        shot(app, "\(prefix)-tile-menu")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+        agent.tap()
         XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         shot(app, "\(prefix)-detail")
         if large { captureDetailActions(app, prefix: prefix, language: language) }
@@ -44,15 +52,16 @@ final class BoxV2CaptureUITests: XCTestCase {
         shot(app, "\(prefix)-delete-confirmation")
         app.alerts.buttons[language == "en" ? "Cancel" : "取消"].tap()
         app.navigationBars.buttons.firstMatch.tap()
-        captureMediaAndMenus(app, prefix: prefix, language: language)
+        captureMedia(app, prefix: prefix)
         app.terminate()
     }
 
-    private func captureMediaAndMenus(_ app: XCUIApplication, prefix: String, language: String) {
-        tapFilter(app, identifier: "box-filter-image")
-        XCTAssertTrue(app.buttons["box-item-demo-grid-2"].appears(timeout: 10))
-        shot(app, "\(prefix)-grid")
-        app.buttons["box-item-demo-image"].tap()
+    private func captureMedia(_ app: XCUIApplication, prefix: String) {
+        app.tapBoxChip("box-filter-image")
+        let image = app.buttons["box-item-demo-image"]
+        app.revealBoxTile(image)
+        shot(app, "\(prefix)-images")
+        image.tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 10))
         XCTAssertTrue(app.images["media-viewer-image"].appears(timeout: 10))
         for id in ["media-viewer-copy", "media-viewer-info", "media-viewer-delete"] {
@@ -61,32 +70,6 @@ final class BoxV2CaptureUITests: XCTestCase {
         }
         shot(app, "\(prefix)-viewer")
         app.buttons["media-viewer-close"].tap()
-        assertMenuTarget(app, identifier: "box-author-menu", option: language == "en" ? "All" : "全部",
-                         captureName: "\(prefix)-author-menu")
-        assertMenuTarget(app, identifier: "box-style-menu", option: language == "en" ? "List" : "列表",
-                         captureName: "\(prefix)-style-menu")
-    }
-
-    private func tapFilter(_ app: XCUIApplication, identifier: String) {
-        let chip = app.buttons[identifier]
-        XCTAssertTrue(chip.appears(timeout: 5))
-        let row = app.scrollViews.containing(.button, identifier: "box-filter-all").firstMatch
-        XCTAssertTrue(row.exists)
-        for _ in 0..<5 {
-            if row.frame.contains(chip.frame) && chip.isHittable { break }
-            if chip.frame.midX < row.frame.minX {
-                row.swipeRight()
-            } else {
-                row.swipeLeft()
-            }
-        }
-        XCTAssertTrue(chip.isHittable, identifier)
-        chip.tap()
-    }
-
-    private func setStyle(_ app: XCUIApplication, _ label: String) {
-        app.buttons["box-style-menu"].tap()
-        app.buttons[label].tap()
     }
 
     private func captureDetailActions(_ app: XCUIApplication, prefix: String, language: String) {
@@ -110,20 +93,6 @@ final class BoxV2CaptureUITests: XCTestCase {
         XCTAssertTrue(delete.appears(timeout: 3))
         XCTAssertTrue(delete.isHittable)
         return delete
-    }
-
-    private func assertMenuTarget(
-        _ app: XCUIApplication, identifier: String, option: String, captureName: String
-    ) {
-        // A native toolbar Menu owns its hit area; open it once and pick the option.
-        let button = app.buttons[identifier]
-        XCTAssertTrue(button.isHittable, identifier)
-        let choice = app.buttons.matching(NSPredicate(
-            format: "label == %@ AND identifier != %@", option, "box-filter-all")).firstMatch
-        button.tap()
-        XCTAssertTrue(choice.appears(timeout: 3), identifier)
-        shot(app, captureName)
-        choice.tap()
     }
 
     private func shot(_ app: XCUIApplication, _ name: String) {
@@ -155,13 +124,13 @@ extension BoxV2UITests {
 
     private func assertMediaTiles(filter: String, tiles: [(String, String)]) {
         setFilter(filter)
-        let grid = app.descendants(matching: .any)["box-photo-grid"]
-        let expectedWidth = (app.frame.width - 48) / 3
+        let grid = app.descendants(matching: .any)["box-grid"]
+        let expectedWidth = (app.frame.width - 44) / 2
         let frames = tiles.map { tile in
             let button = grid.buttons["box-item-\(tile.0)"]
             XCTAssertTrue(button.appears(timeout: 5))
             XCTAssertEqual(button.frame.width, expectedWidth, accuracy: 2, tile.0)
-            XCTAssertEqual(button.frame.height, expectedWidth, accuracy: 2, tile.0)
+            XCTAssertGreaterThanOrEqual(button.frame.height, 44, tile.0)
             return (button.frame, tile.1)
         }
         for (index, frame) in frames.enumerated() {
@@ -169,23 +138,20 @@ extension BoxV2UITests {
                 XCTAssertFalse(frame.0.intersects(other.0), "\(frame.1) overlaps \(other.1)")
             }
         }
-        for (frame, title) in frames {
-            tapInsideEdges(of: frame, size: expectedWidth, title: title)
+        for (id, title) in tiles {
+            let tile = grid.buttons["box-item-\(id)"]
+            tapInsideEdges(of: tile, title: title)
             XCTAssertTrue(grid.appears(timeout: 5))
         }
     }
 
-    private func tapInsideEdges(of frame: CGRect, size: CGFloat, title: String) {
-        let cell = CGRect(x: frame.midX - size / 2, y: frame.midY - size / 2,
-                          width: size, height: size)
-        for point in [
-            CGPoint(x: cell.minX + 2, y: cell.midY),
-            CGPoint(x: cell.maxX - 2, y: cell.midY),
-            CGPoint(x: cell.midX, y: cell.minY + 2),
-            CGPoint(x: cell.midX, y: cell.maxY - 2),
+    private func tapInsideEdges(of tile: XCUIElement, title: String) {
+        for edge in [
+            CGVector(dx: 0.01, dy: 0.5), CGVector(dx: 0.99, dy: 0.5),
+            CGVector(dx: 0.5, dy: 0.01), CGVector(dx: 0.5, dy: 0.99),
         ] {
-            app.coordinate(withNormalizedOffset: CGVector(
-                dx: point.x / app.frame.width, dy: point.y / app.frame.height)).tap()
+            app.revealBoxTile(tile)
+            tile.coordinate(withNormalizedOffset: edge).tap()
             XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 5))
             XCTAssertTrue(app.staticTexts[title].appears(timeout: 5), title)
             app.buttons["media-viewer-close"].tap()
@@ -206,10 +172,10 @@ final class BoxCardSwipeUITests: XCTestCase {
     }
 
     func testCardsIgnoreHorizontalSwipesAndKeepContextActions() {
-        openBox(style: "Cards")
+        openBox()
         let card = app.buttons["box-item-demo-agent-text"]
         let neighbor = app.buttons["box-item-demo-image"]
-        assertSwipesKeepGrid(card, neighbor: neighbor, gridID: "box-cards")
+        assertSwipesKeepGrid(card, neighbor: neighbor, gridID: "box-grid")
         card.tap()
         XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
@@ -219,38 +185,34 @@ final class BoxCardSwipeUITests: XCTestCase {
         }
     }
 
-    func testMediaGridIgnoresHorizontalSwipesInListStyle() {
-        openBox(style: "List")
-        app.buttons["box-filter-image"].tap()
+    func testMediaGridIgnoresHorizontalSwipes() {
+        openBox()
+        app.tapBoxChip("box-filter-image")
         let card = app.buttons["box-item-demo-image"]
         let neighbor = app.buttons["box-item-demo-grid-1"]
         XCTAssertTrue(neighbor.appears(timeout: 5))
-        assertSwipesKeepGrid(card, neighbor: neighbor, gridID: "box-photo-grid")
+        assertSwipesKeepGrid(card, neighbor: neighbor, gridID: "box-grid")
         card.tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 5))
     }
 
-    func testListRetainsTrailingDeleteAndLeadingLikeShare() {
-        openBox(style: "List")
-        let row = app.buttons["box-item-demo-agent-text"]
-        row.swipeLeft()
-        XCTAssertTrue(app.buttons["Delete"].appears(timeout: 3))
-        row.swipeRight()
-        row.swipeRight()
-        XCTAssertTrue(app.buttons["Share"].appears(timeout: 3))
-        XCTAssertTrue(app.buttons["Like"].exists)
+    func testGridContextMenuKeepsDeleteLikeAndShare() {
+        openBox()
+        let tile = app.buttons["box-item-demo-agent-text"]
+        tile.press(forDuration: 1)
+        for action in ["Delete", "Share", "Like"] {
+            XCTAssertTrue(app.buttons[action].appears(timeout: 3))
+        }
     }
 
     func testMixedCardsLight() { captureCards(appearance: "Light") }
     func testMixedCardsDark() { captureCards(appearance: "Dark") }
 
-    private func openBox(style: String) {
+    private func openBox() {
         app.launchConfiguredDemo()
         XCTAssertTrue(app.tabBars.buttons["Box"].appears(timeout: 10))
         app.tabBars.buttons["Box"].tap()
         XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
-        app.buttons["box-style-menu"].tap()
-        app.buttons[style].tap()
         XCTAssertTrue(app.buttons["box-filter-all"].isSelected)
     }
 
@@ -265,6 +227,7 @@ final class BoxCardSwipeUITests: XCTestCase {
             start.press(forDuration: 0.1, thenDragTo: end)
             let detailOpened = app.scrollViews["box-detail"].exists
                 || app.buttons["media-viewer-close"].exists
+            XCTAssertFalse(detailOpened, "A horizontal drag must not activate a card")
             let list = app.descendants(matching: .any)[gridID]
             let revealedActions = ["Delete", "Share", "Like"].flatMap { title in
                 app.buttons.matching(NSPredicate(format: "label == %@", title)).allElementsBoundByIndex
@@ -274,7 +237,6 @@ final class BoxCardSwipeUITests: XCTestCase {
             screenshot.lifetime = .keepAlways
             add(screenshot)
             XCTAssertTrue(revealedActions.isEmpty, "Swipe actions revealed inside the list")
-            XCTAssertFalse(detailOpened, "A horizontal drag must not activate a card")
             XCTAssertEqual(card.frame.minX, original.minX, accuracy: 1)
             XCTAssertEqual(card.frame.minY, original.minY, accuracy: 1)
             XCTAssertEqual(neighbor.frame.minX, adjacent.minX, accuracy: 1)
@@ -286,23 +248,18 @@ final class BoxCardSwipeUITests: XCTestCase {
 
     private func captureCards(appearance: String) {
         app.launchArguments += ["-AppleInterfaceStyle", appearance]
-        openBox(style: "Cards")
+        openBox()
         let link = app.buttons["box-item-demo-link"]
         let text = app.buttons["box-item-demo-text"]
         for _ in 0..<3 where !link.isHittable { app.swipeUp() }
         XCTAssertTrue(link.isHittable)
         XCTAssertTrue(text.isHittable)
         XCTAssertEqual(link.frame.minY, text.frame.minY, accuracy: 1)
-        XCTAssertEqual(link.frame.height, 260, accuracy: 1)
         XCTAssertEqual(text.frame.height, link.frame.height, accuracy: 1)
         XCTAssertTrue(link.label.contains("docs.example.com"))
-        XCTAssertEqual(link.staticTexts["API style guide"].frame.minY, link.frame.minY + 66, accuracy: 2)
-        XCTAssertEqual(text.staticTexts["A passage to keep"].frame.minY, text.frame.minY + 12, accuracy: 2)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "box-mixed-cards-\(appearance.lowercased())"
         attachment.lifetime = .keepAlways
         add(attachment)
-        app.buttons["box-style-menu"].tap()
-        app.buttons["List"].tap()
     }
 }

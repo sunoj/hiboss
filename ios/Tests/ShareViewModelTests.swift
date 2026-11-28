@@ -54,6 +54,18 @@ final class ShareViewModelTests: XCTestCase {
         XCTAssertEqual(calls.map { $0.upload.url }, ["https://maps.app.goo.gl/abc123"])
     }
 
+    func testManualEntrySavesAFileURLAsText() async {
+        let api = ShareUploadRecorder()
+        let model = ShareViewModel(api: api, manualEntry: true)
+        XCTAssertEqual(model.state, .ready)
+        model.typedText = "file:///reference.txt"
+        await model.save()
+        let calls = await api.calls
+        XCTAssertEqual(calls.map { $0.upload.text }, ["file:///reference.txt"])
+        XCTAssertNil(calls.first?.upload.media)
+        XCTAssertEqual(model.state, .done)
+    }
+
     func testRefusedTypedTextStaysEditableAndTheEditSaves() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

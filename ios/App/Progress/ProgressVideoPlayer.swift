@@ -53,6 +53,7 @@ struct ProgressVideoCell: View {
         Theme.surface2
             .overlay { poster }
             .overlay { activePlayer }
+            .overlay(alignment: .topTrailing) { playMark.padding(Space.xs) }
             .overlay(alignment: .bottomLeading) { muteButton }
             .overlay(alignment: .bottomTrailing) { durationPill }
             .clipped()
@@ -68,6 +69,16 @@ struct ProgressVideoCell: View {
             .accessibilityHint(String(localized: "Open full screen"))
             .accessibilityAction(.default, onExpand)
             .accessibilityIdentifier("progress-video")
+    }
+
+    private var playMark: some View {
+        Image(systemName: "play.fill")
+            .font(.title3)
+            .foregroundStyle(Theme.ink)
+            .frame(width: ControlMetric.minTap, height: ControlMetric.minTap)
+            .background(.regularMaterial, in: Circle())
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     @ViewBuilder
@@ -97,11 +108,11 @@ struct ProgressVideoCell: View {
         Button { unmuted.toggle() } label: {
             Image(systemName: unmuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
                 .font(.body)
-                .frame(minWidth: 44, minHeight: 44)
+                .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
                 .background(.regularMaterial, in: Circle())
         }
         .buttonStyle(.plain)
-        .padding(8)
+        .padding(Space.xs)
         .accessibilityLabel(unmuted ? String(localized: "Mute") : String(localized: "Unmute"))
     }
 
@@ -111,10 +122,10 @@ struct ProgressVideoCell: View {
             Text(verbatim: ProgressMediaLayout.durationLabel(milliseconds: ms))
                 .font(.caption)
                 .monospacedDigit()
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, Space.xs)
+                .padding(.vertical, Space.xxs)
                 .background(.regularMaterial, in: Capsule())
-                .padding(8)
+                .padding(Space.xs)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }

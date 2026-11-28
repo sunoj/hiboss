@@ -115,6 +115,7 @@ final class BoxStore: ObservableObject {
             try await api.deleteBoxItem(id: item.id, purge: false)
             deleted.insert(item.id)
             items.removeAll { $0.id == item.id }
+            if !item.collectionIDs.isEmpty { await loadCollections() }
         } catch {
             deleteError = error.localizedDescription
         }

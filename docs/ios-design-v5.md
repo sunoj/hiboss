@@ -9,8 +9,8 @@ follows macOS v5 (`docs/macos-design-v5.md`) so both apps read the same way.
 
 - Watching (live panels) stays a section of Today; "All" opens the full wall. No fifth tab.
 - Progress stays a tab.
-- Sessions has a History button (All messages, Completed, Device requests) in place of the
-  Sessions/Messages segment. Search on Sessions covers messages.
+- Sessions has a History button (All messages, Completed) in place of the Sessions/Messages
+  segment; device requests stay in Settings › Devices. Search on Sessions covers messages.
 - A session thread keeps its open decision pinned at the top, as one compact card. Where the
   decision was asked, the thread shows a one-line marker; once settled, the marker becomes the
   outcome line.
@@ -28,14 +28,14 @@ Each package lands on its own branch and merges only when the app is coherent wi
 | # | Package | Change | Status |
 |---|---|---|---|
 | 1 | Today | One summary line and a connection chip; the first decision is a focus card with a clamped preview, the rest are one-line rows that open the decision sheet; Watching moves above Working as compact cards with an "All" link; one-line Delivered rows | done |
-| 2 | Session thread | The first pinned decision is the full card with a Signal keyline; later ones are one-line rows that expand in place; the thread marks where each was asked | in progress |
-| 3 | Sessions | 64 pt rows grouped Needs you / Working / Idle, Idle collapses after three, History button replaces the segment | planned |
-| 4 | Decision sheet | One layout for every entry point: provenance, deadline, question, details, picture choices, the default line, custom answer, Open session | planned |
+| 2 | Session thread | The first pinned decision is the full card with a Signal keyline; later ones are one-line rows that expand in place; the thread marks where each was asked | done |
+| 3 | Sessions | 64 pt rows grouped Needs you / Working / Idle, Idle collapses after three, History button replaces the segment | done |
+| 4 | Decision sheet | One layout for every entry point: provenance, deadline, question, details, picture choices, the default line, custom answer, Open session | done (no attachment button: attachment input is not built yet) |
 | 5 | Live Activity | Priority colours from the app palette, 12 pt minimum text, the first two options plus "+N more", sending/slow/failed, end states that say a default is not approval, compact and minimal presentations that say something waits | done |
-| 6 | Box | Filter chips, two-column grid with thumbnails, collections row, "Added by" | planned |
-| 7 | Progress | Day-grouped timeline; a refresh failure is one line above the cached posts | planned |
-| 8 | Settings › Connection | The state in words with its freshness; on failure the server's reason and one next action | planned |
-| 9 | iPad | List column and a detail column capped at reading width | planned |
+| 6 | Box | Filter chips, two-column grid with thumbnails, collections row, "Added by" | in progress |
+| 7 | Progress | Day-grouped timeline; a refresh failure is one line above the cached posts | in progress |
+| 8 | Settings › Connection | One state card: the state in words (Live, Connecting, Disconnected, Connection failed), what it means, and on failure the server's reason with Reconnect; then the server address and the signing key. The shared connected label reads Live instead of Listening | done |
+| 9 | iPad | Met by existing behaviour: two columns from 900 pt, the list at 40% up to 420 pt, the detail capped at the 640 pt reading width; TwoColumnUITests pass on a landscape iPad | done |
 
 ## Out of scope
 

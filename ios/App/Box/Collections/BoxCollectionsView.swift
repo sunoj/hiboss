@@ -3,6 +3,59 @@
 import HibossKit
 import SwiftUI
 
+struct BoxCollectionStrip: View {
+    @ObservedObject var store: BoxStore
+    @ObservedObject var media: BoxMediaStore
+    @ScaledMetric(relativeTo: .subheadline) private var cardWidth = 128.0
+    @Environment(\.dynamicTypeSize) private var textSize
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.xxs) {
+            HStack {
+                Text("Collections").font(.headline).accessibilityAddTraits(.isHeader)
+                Spacer(minLength: Space.xs)
+                NavigationLink {
+                    BoxCollectionsView(store: store, media: media)
+                } label: {
+                    Text("All \(store.collections.count)")
+                        .frame(minWidth: ControlMetric.minTap, minHeight: ControlMetric.minTap)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityIdentifier("box-collections")
+            }
+            if !store.collections.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing: Space.xs) {
+                        ForEach(store.collections) { collection in
+                            NavigationLink {
+                                BoxCollectionList(store: store, collection: collection)
+                            } label: {
+                                card(collection)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("box-collection-shortcut-\(collection.id)")
+                        }
+                    }
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+    }
+
+    private func card(_ collection: BoxCollection) -> some View {
+        VStack(alignment: .leading, spacing: Space.xxs) {
+            Text(verbatim: collection.name).font(.subheadline.weight(.semibold))
+                .lineLimit(textSize.isAccessibilitySize ? nil : 1)
+            Text("\(collection.itemCount) items").font(.caption).foregroundStyle(Theme.ink2)
+        }
+        .padding(Space.s)
+        .frame(width: cardWidth, alignment: .leading)
+        .frame(minHeight: ControlMetric.minTap)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium))
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct BoxCollectionsView: View {
     @ObservedObject var store: BoxStore
     @ObservedObject var media: BoxMediaStore

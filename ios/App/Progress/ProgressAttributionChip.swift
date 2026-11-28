@@ -8,11 +8,12 @@ import SwiftUI
 struct ProgressAttributionChip: View {
     let agentLabel: String?
     let model: String?
+    var compact = false
 
     var body: some View {
-        if let caption {
+        if let caption = compact ? agentLabel ?? model : caption {
             HStack(spacing: Space.xxs) {
-                monogram
+                if !compact { monogram }
                 Text(verbatim: caption)
                     .font(.caption)
                     .foregroundStyle(Theme.ink2)

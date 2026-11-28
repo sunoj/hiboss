@@ -13,6 +13,27 @@ protocol BoxNoteServing: BoxServing {
 
 extension HibossAPI: BoxNoteServing {}
 
+struct BoxAddSheet: View {
+    @StateObject private var model: ShareViewModel
+    @Environment(\.dismiss) private var dismiss
+    private let api: (any BoxServing)?
+    let complete: () -> Void
+
+    init(api: (any BoxServing)?, complete: @escaping () -> Void) {
+        self.api = api
+        self.complete = complete
+        _model = StateObject(wrappedValue: ShareViewModel(api: api as? any BoxUploading, manualEntry: true))
+    }
+
+    var body: some View {
+        ShareSheet(model: model, cancel: { dismiss() }, complete: complete, reload: {}, manualEntry: true)
+            .task {
+                if let projects = api as? any ProgressServing { await model.loadProjects(using: projects) }
+            }
+            .interactiveDismissDisabled(model.isBusy || model.state == .done)
+    }
+}
+
 struct BoxDeleteConfirmation: ViewModifier {
     @Binding var item: BoxItem?
     @ObservedObject var store: BoxStore

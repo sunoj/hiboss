@@ -230,7 +230,7 @@ final class MediaViewerUITests: XCTestCase {
     func testBoxPagingStaysOnEachPageWhileDownloadsFinish() {
         launch(["HIBOSS_DEMO_BOX_V2": "1", "HIBOSS_DEMO_BOX_MEDIA_DELAY_MS": "1200"])
         app.tabBars.buttons["Box"].tap()
-        app.buttons["box-filter-image"].tap()
+        app.tapBoxChip("box-filter-image")
         let image = app.buttons["box-item-demo-grid-1"]
         XCTAssertTrue(image.appears(timeout: 10))
         image.tap()
@@ -277,7 +277,7 @@ final class MediaViewerUITests: XCTestCase {
     func testBoxDownloadCompletionKeepsSelectionAndZoomedPansDoNotPage() {
         launch(["HIBOSS_DEMO_BOX_V2": "1", "HIBOSS_DEMO_BOX_MEDIA_DELAY_MS": "15000"])
         app.tabBars.buttons["Box"].tap()
-        app.buttons["box-filter-image"].tap()
+        app.tapBoxChip("box-filter-image")
         let image = app.buttons["box-item-demo-grid-1"]
         XCTAssertTrue(image.appears(timeout: 10))
         image.tap()
