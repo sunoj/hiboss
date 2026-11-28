@@ -13,19 +13,15 @@ final class BoxCollectionsUITests: XCTestCase {
         app.launchConfiguredDemo()
         app.tabBars.buttons["Box"].tap()
         XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
-        app.buttons["box-style-menu"].tap()
-        app.buttons["List"].tap()
     }
 
     func testLikedFilterDetailAndViewerHeart() {
-        XCTAssertTrue(app.buttons["box-filter-liked"].isHittable)
-        XCTAssertLessThan(app.buttons["box-filter-liked"].frame.minX,
-                          app.buttons["box-filter-all"].frame.minX)
-        app.buttons["box-filter-liked"].tap()
-        XCTAssertTrue(app.buttons["box-filter-liked"].isSelected)
+        app.tapBoxChip("box-filter-liked")
         XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
         capture("collections-liked-filter")
-        app.buttons["box-item-demo-text"].tap()
+        let text = app.buttons["box-item-demo-text"]
+        app.revealBoxTile(text)
+        text.tap()
         XCTAssertEqual(app.buttons["box-like"].label, "Unlike")
         app.buttons["box-like"].tap()
         XCTAssertEqual(app.buttons["box-like"].label, "Like")
@@ -39,15 +35,24 @@ final class BoxCollectionsUITests: XCTestCase {
     }
 
     func testGridScopedListAndImmediateMembershipChecklist() {
-        XCTAssertTrue(app.navigationBars.buttons["box-collections"].isHittable)
+        let shortcut = app.buttons["box-collection-shortcut-demo-design"]
+        XCTAssertTrue(shortcut.isHittable)
+        XCTAssertTrue(shortcut.label.contains("3 items"))
+        shortcut.tap()
+        XCTAssertTrue(app.buttons["box-collection-menu"].appears(timeout: 5))
+        XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 5))
+        XCTAssertTrue(app.buttons["box-item-demo-agent-text"].disappears(timeout: 5))
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.buttons["box-collections"].isHittable)
         app.buttons["box-collections"].tap()
         let design = app.buttons["box-collection-demo-design"]
         XCTAssertTrue(design.appears(timeout: 5))
         XCTAssertTrue(app.navigationBars["Collections"].exists)
         capture("collections-grid")
         design.tap()
+        XCTAssertTrue(app.buttons["box-collection-menu"].appears(timeout: 5))
         XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 5))
-        XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
+        XCTAssertTrue(app.buttons["box-item-demo-agent-text"].disappears(timeout: 5))
         capture("collections-scoped-list")
         app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
@@ -134,12 +139,12 @@ final class BoxCollectionsUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Collections"].appears(timeout: 5))
     }
 
-    func testLeadingSwipeAndContextMenuToggleLike() {
+    func testContextMenuTogglesLike() {
         let row = app.buttons["box-item-demo-agent-text"]
         row.press(forDuration: 1)
         app.buttons["Like"].tap()
         XCTAssertTrue(row.label.contains("Liked"))
-        row.swipeRight()
+        row.press(forDuration: 1)
         app.buttons["Unlike"].tap()
         XCTAssertFalse(row.label.contains("Liked"))
     }
@@ -175,8 +180,7 @@ final class BoxCollectionsUITests: XCTestCase {
         app.launchConfiguredDemo()
         app.tabBars.buttons.element(boundBy: 2).tap()
         XCTAssertTrue(app.buttons["box-collections"].appears(timeout: 10))
-        app.buttons["box-filter-liked"].tap()
-        XCTAssertTrue(app.buttons["box-filter-liked"].isSelected)
+        app.tapBoxChip("box-filter-liked")
         capture("\(prefix)-liked-list")
         app.buttons["box-collections"].tap()
         XCTAssertTrue(app.buttons["box-collection-demo-design"].appears(timeout: 5))
@@ -186,7 +190,9 @@ final class BoxCollectionsUITests: XCTestCase {
         capture("\(prefix)-scoped-list")
         app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
-        app.buttons["box-item-demo-text"].tap()
+        let text = app.buttons["box-item-demo-text"]
+        app.revealBoxTile(text)
+        text.tap()
         app.buttons[english ? "Add to Collection…" : "加入集合…"].tap()
         XCTAssertTrue(app.buttons["box-membership-demo-design"].appears(timeout: 5))
         assertSelected(app.buttons["box-membership-demo-design"], false)
@@ -206,5 +212,52 @@ final class BoxCollectionsUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+}
+
+extension XCUIApplication {
+    func tapBoxChip(_ identifier: String) {
+        let chip = buttons[identifier]
+        let row = scrollViews["box-filters"]
+        XCTAssertTrue(row.appears(timeout: 5))
+        for _ in 0..<8 {
+            let frame = chip.exists ? chip.frame : .null
+            if !frame.isEmpty && row.frame.contains(frame) {
+                XCTAssertTrue(chip.isHittable, identifier)
+                chip.tap()
+                XCTAssertTrue(chip.isSelected, identifier)
+                return
+            }
+            let direction: CGFloat = !frame.isEmpty && frame.midX < row.frame.midX ? 0.26 : -0.26
+            dragBoxContent(row, dx: direction, dy: 0)
+        }
+        XCTFail("Box chip did not scroll into view: \(identifier)")
+    }
+
+    func revealBoxTile(_ tile: XCUIElement) {
+        let grid = scrollViews["box-grid"]
+        XCTAssertTrue(grid.appears(timeout: 5))
+        for _ in 0..<12 {
+            let frame = tile.exists ? tile.frame : .null
+            let viewport = boxViewport(grid)
+            if !frame.isEmpty && viewport.contains(frame) && tile.isHittable { return }
+            let direction: CGFloat = !frame.isEmpty && frame.midY < viewport.midY ? 0.24 : -0.24
+            dragBoxContent(grid, dx: 0, dy: direction)
+        }
+        XCTFail("Box tile did not scroll into view: \(tile.identifier)")
+    }
+
+    private func boxViewport(_ grid: XCUIElement) -> CGRect {
+        let frame = grid.frame
+        let tabBar = tabBars.firstMatch
+        guard tabBar.exists else { return frame }
+        let bottom = min(frame.maxY, tabBar.frame.minY)
+        return CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: max(0, bottom - frame.minY))
+    }
+
+    private func dragBoxContent(_ scroll: XCUIElement, dx: CGFloat, dy: CGFloat) {
+        let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5 + dx, dy: 0.5 + dy))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
 }

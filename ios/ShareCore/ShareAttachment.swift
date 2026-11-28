@@ -24,9 +24,9 @@ struct ShareAttachment: Identifiable, Sendable {
         return identifiers.compactMap { UTType($0) }.first { $0.conforms(to: .item) }
     }
 
-    static func text(_ value: String) -> ShareAttachment {
+    static func text(_ value: String, allowsFileURL: Bool = true) -> ShareAttachment {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let url = URL(string: trimmed), url.isFileURL {
+        if allowsFileURL, let url = URL(string: trimmed), url.isFileURL {
             return ShareAttachment(kind: .file, title: url.lastPathComponent,
                 text: url.lastPathComponent, url: nil, media: BoxUpload.Media(fileURL: url,
                     contentType: UTType(filenameExtension: url.pathExtension)?.preferredMIMEType

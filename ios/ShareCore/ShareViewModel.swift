@@ -21,6 +21,7 @@ final class ShareViewModel: ObservableObject {
     @Published var project = ""
 
     private let api: (any BoxUploading)?
+    private let manualEntry: Bool
     private let prepare: @Sendable (BoxUpload.Media, BoxItem.Kind) async throws -> BoxUpload.Media
     private let thumbnail: @Sendable (BoxUpload.Media, BoxItem.Kind) async -> BoxUpload.Media?
     private var prepared: [UUID: BoxUpload.Media] = [:]
@@ -28,7 +29,7 @@ final class ShareViewModel: ObservableObject {
     private var pending: [UUID: BoxUpload] = [:]
 
     init(
-        api: (any BoxUploading)?, attachments: [ShareAttachment] = [],
+        api: (any BoxUploading)?, attachments: [ShareAttachment] = [], manualEntry: Bool = false,
         prepare: @escaping @Sendable (BoxUpload.Media, BoxItem.Kind) async throws -> BoxUpload.Media = {
             try await ShareMediaPreparer.prepare($0, kind: $1)
         },
@@ -37,11 +38,13 @@ final class ShareViewModel: ObservableObject {
         }
     ) {
         self.api = api
+        self.manualEntry = manualEntry
         self.attachments = attachments
         self.prepare = prepare
         self.thumbnail = thumbnail
         if api == nil { state = .disconnected }
-        else if !attachments.isEmpty { state = .ready }
+        else if manualEntry || !attachments.isEmpty { state = .ready }
+        needsText = manualEntry
     }
 
     var isBusy: Bool { [.loading, .compressing, .uploading].contains(state) }
@@ -78,7 +81,7 @@ final class ShareViewModel: ObservableObject {
             guard !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 return fail(ShareError.emptyText)
             }
-            attachments = [ShareAttachment.text(typedText)]
+            attachments = [ShareAttachment.text(typedText, allowsFileURL: !manualEntry)]
         }
         guard !attachments.isEmpty else { return }
         progress = Double(completed.count) / Double(attachments.count)

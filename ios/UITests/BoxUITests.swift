@@ -17,26 +17,40 @@ final class BoxUITests: XCTestCase {
         app.tabBars.buttons["Box"].tap()
     }
 
-    func testAgentProvenanceAppearsInRowAndDetailWhileBossItemsHaveNoBadge() {
+    func testAgentProvenanceAppearsInTileAndDetailWhileBossTilesSayYou() {
         let agent = app.buttons["box-item-demo-agent-text"]
         XCTAssertTrue(agent.appears(timeout: 10))
-        XCTAssertTrue(agent.label.contains("Agents · Researcher"))
+        XCTAssertTrue(agent.label.contains("Added by Researcher"))
         XCTAssertTrue(app.buttons["box-item-demo-image"].exists)
-        XCTAssertFalse(app.buttons["box-item-demo-image"].staticTexts
-            .matching(NSPredicate(format: "label BEGINSWITH 'Agents'")).firstMatch.exists)
+        XCTAssertTrue(app.buttons["box-item-demo-image"].label.contains("You"))
         screenshot("box-agent-provenance-list")
         agent.tap()
         XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(
             format: "label CONTAINS %@", "Agents · Researcher")).firstMatch.appears(timeout: 5))
         screenshot("box-agent-provenance-detail")
         app.navigationBars.buttons.firstMatch.tap()
-        app.buttons["box-item-demo-text"].tap()
+        let text = app.buttons["box-item-demo-text"]
+        app.revealBoxTile(text)
+        text.tap()
         XCTAssertTrue(app.staticTexts["A passage to keep"].firstMatch.appears(timeout: 5))
         XCTAssertFalse(app.staticTexts.matching(
             NSPredicate(format: "label BEGINSWITH 'Agents'")).firstMatch.exists)
     }
 
-    func testBoxListOpensImageVideoAndSelectableTextThenDeletes() {
+    func testAddSavesNewTextAndReturnsToBox() {
+        let add = app.buttons["box-add"]
+        XCTAssertTrue(add.appears(timeout: 5))
+        add.tap()
+        let draft = app.descendants(matching: .any)["share-typed-text"].firstMatch
+        XCTAssertTrue(draft.appears(timeout: 5))
+        draft.tap()
+        draft.typeText("New Box reference")
+        app.buttons["share-save"].tap()
+        let item = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "New Box reference")).firstMatch
+        XCTAssertTrue(item.appears(timeout: 10))
+    }
+
+    func testBoxGridOpensImageVideoAndSelectableTextThenDeletes() {
         XCTAssertEqual(app.tabBars.buttons.count, 4)
         let image = app.buttons["box-item-demo-image"]
         XCTAssertTrue(image.appears(timeout: 10))
@@ -48,18 +62,19 @@ final class BoxUITests: XCTestCase {
         screenshot("box-image-viewer")
         app.buttons["Close"].tap()
         let text = app.buttons["box-item-demo-text"]
-        XCTAssertTrue(text.appears(timeout: 5))
+        app.revealBoxTile(text)
         text.tap()
         XCTAssertTrue(app.staticTexts["A passage to keep"].firstMatch.appears(timeout: 5))
         app.staticTexts["A passage to keep"].firstMatch.press(forDuration: 1)
         XCTAssertTrue(app.menuItems["Copy"].appears(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
         let video = app.buttons["box-item-demo-video"]
-        XCTAssertTrue(video.appears(timeout: 5))
+        app.revealBoxTile(video)
         video.tap()
         XCTAssertTrue(app.descendants(matching: .any)["media-viewer-video"].appears(timeout: 10))
         screenshot("box-video-viewer")
         app.buttons["Close"].tap()
+        app.revealBoxTile(text)
         text.press(forDuration: 1)
         app.buttons["Delete"].tap()
         XCTAssertTrue(app.alerts["Delete A passage to keep?"].appears(timeout: 5))
@@ -86,7 +101,7 @@ final class BoxUITests: XCTestCase {
         let file = app.buttons["box-item-demo-file"]
         for _ in 0..<4 where !file.isHittable { app.swipeUp() }
         XCTAssertTrue(file.appears(timeout: 5))
-        XCTAssertTrue(file.staticTexts["Reference.txt"].exists)
+        XCTAssertTrue(file.label.contains("Reference.txt"))
         XCTAssertTrue(file.label.contains("23 bytes"))
         screenshot("box-file-row")
         file.tap()
@@ -131,7 +146,9 @@ final class BoxUITests: XCTestCase {
 
 extension BoxUITests {
     func testTextDetailSharesTextAndCapturesDetail() {
-        app.buttons["box-item-demo-text"].tap()
+        let text = app.buttons["box-item-demo-text"]
+        app.revealBoxTile(text)
+        text.tap()
         XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         screenshot("box-detail-text")
         let share = app.buttons["box-detail-share"]
@@ -145,7 +162,9 @@ extension BoxUITests {
     }
 
     func testLinkDetailSharesURLAndCapturesDetail() {
-        app.buttons["box-item-demo-link"].tap()
+        let link = app.buttons["box-item-demo-link"]
+        app.revealBoxTile(link)
+        link.tap()
         XCTAssertTrue(app.scrollViews["box-detail"].appears(timeout: 5))
         screenshot("box-detail-link")
         app.buttons["box-detail-share"].tap()
@@ -217,7 +236,9 @@ extension BoxUITests {
     func testVideoDetailSharesOriginalDownloadedFile() { assertMediaDetailSharesFile("video") }
 
     private func assertMediaDetailSharesFile(_ kind: String) {
-        app.buttons["box-item-demo-\(kind)"].tap()
+        let item = app.buttons["box-item-demo-\(kind)"]
+        app.revealBoxTile(item)
+        item.tap()
         XCTAssertTrue(app.buttons["media-viewer-info"].appears(timeout: 10))
         app.buttons["media-viewer-info"].tap()
         XCTAssertTrue(app.buttons["box-detail-share"].appears(timeout: 5))

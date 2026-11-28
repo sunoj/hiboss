@@ -9,6 +9,7 @@ struct ShareSheet: View {
     let cancel: () -> Void
     let complete: () -> Void
     let reload: () -> Void
+    var manualEntry = false
     @State private var showsProgress = false
     @State private var slow = false
     @State private var saveTask: Task<Void, Never>?
@@ -25,7 +26,7 @@ struct ShareSheet: View {
                                 .lineLimit(2...6).disabled(model.typedTextSent)
                                 .accessibilityIdentifier("share-typed-text")
                         } header: { Text("Preview") } footer: {
-                            Text("The app shared empty text. Paste what to save.")
+                            if !manualEntry { Text("The app shared empty text. Paste what to save.") }
                         }
                     } else {
                         Section("Preview") {
@@ -58,6 +59,7 @@ struct ShareSheet: View {
                         saveTask?.cancel()
                         cancel()
                     }
+                    .disabled(manualEntry && model.state == .done)
                 }
             }
             .safeAreaInset(edge: .bottom) { action }
@@ -110,6 +112,7 @@ struct ShareSheet: View {
             .buttonStyle(.borderedProminent).controlSize(.large)
             .frame(maxWidth: .infinity).padding()
             .disabled(model.isBusy
+                || manualEntry && model.typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || model.attachments.isEmpty && !model.needsText && model.state != .failure)
             .accessibilityIdentifier("share-save")
         }
