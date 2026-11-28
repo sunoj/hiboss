@@ -140,21 +140,18 @@ extension BoxV2UITests {
         }
         for (id, title) in tiles {
             let tile = grid.buttons["box-item-\(id)"]
-            app.revealBoxTile(tile)
-            tapInsideEdges(of: tile.frame, title: title)
+            tapInsideEdges(of: tile, title: title)
             XCTAssertTrue(grid.appears(timeout: 5))
         }
     }
 
-    private func tapInsideEdges(of cell: CGRect, title: String) {
-        for point in [
-            CGPoint(x: cell.minX + 2, y: cell.midY),
-            CGPoint(x: cell.maxX - 2, y: cell.midY),
-            CGPoint(x: cell.midX, y: cell.minY + 2),
-            CGPoint(x: cell.midX, y: cell.maxY - 2),
+    private func tapInsideEdges(of tile: XCUIElement, title: String) {
+        for edge in [
+            CGVector(dx: 0.01, dy: 0.5), CGVector(dx: 0.99, dy: 0.5),
+            CGVector(dx: 0.5, dy: 0.01), CGVector(dx: 0.5, dy: 0.99),
         ] {
-            app.coordinate(withNormalizedOffset: CGVector(
-                dx: point.x / app.frame.width, dy: point.y / app.frame.height)).tap()
+            app.revealBoxTile(tile)
+            tile.coordinate(withNormalizedOffset: edge).tap()
             XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 5))
             XCTAssertTrue(app.staticTexts[title].appears(timeout: 5), title)
             app.buttons["media-viewer-close"].tap()

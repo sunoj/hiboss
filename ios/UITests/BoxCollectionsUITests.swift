@@ -239,11 +239,20 @@ extension XCUIApplication {
         XCTAssertTrue(grid.appears(timeout: 5))
         for _ in 0..<12 {
             let frame = tile.exists ? tile.frame : .null
-            if !frame.isEmpty && grid.frame.contains(frame) && tile.isHittable { return }
-            let direction: CGFloat = !frame.isEmpty && frame.midY < grid.frame.midY ? 0.24 : -0.24
+            let viewport = boxViewport(grid)
+            if !frame.isEmpty && viewport.contains(frame) && tile.isHittable { return }
+            let direction: CGFloat = !frame.isEmpty && frame.midY < viewport.midY ? 0.24 : -0.24
             dragBoxContent(grid, dx: 0, dy: direction)
         }
         XCTFail("Box tile did not scroll into view: \(tile.identifier)")
+    }
+
+    private func boxViewport(_ grid: XCUIElement) -> CGRect {
+        let frame = grid.frame
+        let tabBar = tabBars.firstMatch
+        guard tabBar.exists else { return frame }
+        let bottom = min(frame.maxY, tabBar.frame.minY)
+        return CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: max(0, bottom - frame.minY))
     }
 
     private func dragBoxContent(_ scroll: XCUIElement, dx: CGFloat, dy: CGFloat) {
