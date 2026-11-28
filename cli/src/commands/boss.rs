@@ -38,17 +38,15 @@ async fn run_list(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
         return Ok(());
     };
     println!(
-        "{:<10} {:<20} {:<12} {:<16} {:<16} {:<10} {}",
-        "ID", "Name", "Role", "Telegram", "Discord", "Archived", "Agents"
+        "{:<10} {:<20} {:<12} {:<10} {}",
+        "ID", "Name", "Role", "Archived", "Agents"
     );
     for b in list {
         println!(
-            "{:<10} {:<20} {:<12} {:<16} {:<16} {:<10} {}",
+            "{:<10} {:<20} {:<12} {:<10} {}",
             short_id(b["id"].as_str().unwrap_or("")),
             b["name"].as_str().unwrap_or("-"),
             color_role(b["role"].as_str().unwrap_or("viewer")),
-            b["telegram_user_id"].as_str().unwrap_or("-"),
-            b["discord_user_id"].as_str().unwrap_or("-"),
             archive::archived_date(b),
             format_agents(b)
         );
@@ -66,8 +64,6 @@ async fn run_update(args: &BossUpdateArgs, client: &HiBossClient) -> Result<(), 
     let mut updates = Map::new();
     insert_optional(&mut updates, "name", &args.name);
     insert_optional(&mut updates, "role", &args.role);
-    insert_optional(&mut updates, "telegram_user_id", &args.telegram_user_id);
-    insert_optional(&mut updates, "discord_user_id", &args.discord_user_id);
     insert_optional(&mut updates, "agent_id", &args.agent_id);
     if updates.is_empty() {
         eprintln!("No updates provided.");
@@ -221,14 +217,6 @@ fn print_boss_details(boss: &Value) {
     println!(
         "Role: {}",
         color_role(boss["role"].as_str().unwrap_or("viewer"))
-    );
-    println!(
-        "Telegram: {}",
-        boss["telegram_user_id"].as_str().unwrap_or("-")
-    );
-    println!(
-        "Discord: {}",
-        boss["discord_user_id"].as_str().unwrap_or("-")
     );
     if let Some(id) = boss["agent_id"].as_str() {
         println!("Agent: {}", short_id(id));

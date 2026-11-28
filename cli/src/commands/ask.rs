@@ -26,8 +26,6 @@ pub struct AskArgs {
         help = "Print a JSON result with reply, auto_default, local_default, or timeout outcome"
     )]
     pub json: bool,
-    #[arg(long, help = "Override channel (skips server-side channel_routing)")]
-    pub channel: Option<String>,
     #[arg(
         long = "option",
         action = ArgAction::Append,
@@ -279,7 +277,6 @@ pub(crate) async fn prepare_request(
         mode: "blocking".to_owned(),
         timeout: Some(args.timeout),
         priority: args.priority.clone(),
-        channel: args.channel.clone(),
         metadata,
         options: choices.options.clone(),
         file_url,

@@ -14,7 +14,6 @@ use std::fs;
 fn healthy(request: &Request) -> Response {
     let body = match request.path.as_str() {
         "/api/agents/me" => json!({"name":"test", "channel_routing":{}}),
-        "/api/channels" => json!({"channels":[]}),
         "/api/channels/stats" => json!({"channels":[], "recent_errors":[], "direction_counts":[]}),
         _ => json!({}),
     };

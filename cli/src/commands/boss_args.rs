@@ -32,10 +32,6 @@ pub struct BossUpdateArgs {
     pub name: Option<String>,
     #[arg(long)]
     pub role: Option<String>,
-    #[arg(long = "telegram-user-id")]
-    pub telegram_user_id: Option<String>,
-    #[arg(long = "discord-user-id")]
-    pub discord_user_id: Option<String>,
     /// Link/unlink this boss to an agent
     #[arg(long = "agent-id")]
     pub agent_id: Option<String>,

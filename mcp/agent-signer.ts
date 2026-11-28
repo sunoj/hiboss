@@ -76,7 +76,7 @@ export async function signSend(server: string, bearer: string, request: Body, en
   });
 }
 
-/** Signs a reply or forward: only the action and the body are signed. */
+/** Signs a reply: only the action and the body are signed. */
 export async function signAction(bearer: string, request: Body, action: Body,
   env: NodeJS.ProcessEnv = process.env): Promise<Body> {
   const signer = await loadAgentSigner(bearer, env);

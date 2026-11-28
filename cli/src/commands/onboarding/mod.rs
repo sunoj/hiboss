@@ -96,7 +96,7 @@ fn show_code(code: Option<&str>) -> Result<(), Box<dyn Error>> {
         .filter(|code| code.len() == 6 && code.bytes().all(|byte| byte.is_ascii_digit()))
         .ok_or("Pending approval did not include a six-digit verification code")?;
     println!("\nVERIFICATION CODE: {code}\n");
-    println!("Approve this code in HiBoss on iPhone/Mac or in Telegram. Waiting for the boss...");
+    println!("Approve this code in HiBoss on iPhone/Mac. Waiting for the boss...");
     io::stdout().flush()?;
     Ok(())
 }

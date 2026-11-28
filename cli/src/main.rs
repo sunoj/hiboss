@@ -5,9 +5,9 @@
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
-    agent, ask, boss, bot, box_cmd, channel, config as config_cmd, daemon, doctor, edit, forward, group, integration,
-    device, hook, inbox, key, onboarding, panel, progress, react, read, reply, request, route, send, setup, ss,
-    status, watch, whoami, SubcommandArgs,
+    SubcommandArgs, agent, ask, boss, bot, box_cmd, config as config_cmd, daemon, device, doctor,
+    edit, group, hook, inbox, integration, key, onboarding, panel, progress, react, read, reply,
+    request, send, setup, ss, status, watch, whoami,
 };
 use hiboss::config;
 use hiboss::help;
@@ -38,8 +38,6 @@ enum Commands {
     Reply(reply::ReplyArgs),
     #[command(about = "Edit the body of a previously sent message")]
     Edit(edit::Edit),
-    #[command(about = "Forward a message to another channel")]
-    Forward(forward::Forward),
     #[command(about = "Check the status of a sent message")]
     Status(status::StatusArgs),
     #[command(about = "Manage agent identities")]
@@ -56,16 +54,12 @@ enum Commands {
     Config(SubcommandArgs<config_cmd::ConfigCommand>),
     #[command(about = "Run Claude Code hook events")]
     Hook(hook::HookArgs),
-    #[command(about = "Set up runtime profiles or configure integrations")]
+    #[command(about = "Set up runtime profiles or install agent guidance and hooks")]
     Setup(setup::SetupArgs),
     #[command(about = "Validate local configuration and connectivity")]
     Doctor(doctor::DoctorArgs),
     #[command(about = "Show the active local credential identity")]
     Whoami(whoami::WhoamiArgs),
-    #[command(about = "Configure messaging channels (Discord, Telegram)")]
-    Channel(SubcommandArgs<channel::ChannelCommand>),
-    #[command(about = "Manage routing rules for incoming messages")]
-    Route(SubcommandArgs<route::RouteCommand>),
     #[command(about = "Manage agent groups for broadcast messaging")]
     Group(SubcommandArgs<group::GroupCommand>),
     #[command(about = "Manage Discord-compatible webhook integrations (admin agents)")]
@@ -153,20 +147,17 @@ async fn run_remote(
         Commands::React(args) => react::run(args, &config, &client).await?,
         Commands::Reply(args) => reply::run(args, &config, &client).await?,
         Commands::Edit(args) => edit::run(args, &config, &client).await?,
-        Commands::Forward(args) => forward::run(args, &config, &client).await?,
         Commands::Status(args) => status::run(args, &config, &client).await?,
         Commands::Agent(args) => agent::run(&args.command, &config, &client).await?,
         Commands::Key(args) => key::run(args, &config).await?,
-        Commands::Channel(args) => channel::run(args, &config, &client).await?,
         Commands::Bot(args) => bot::run(args, &config, &client).await?,
         Commands::Watch(args) => watch::run(args, &config, &client).await?,
-        Commands::Route(args) => route::run(args, &config, &client).await?,
         Commands::Group(args) => group::run(args, &config, &client).await?,
         Commands::Integration(args) => integration::run(args, &client).await?,
         Commands::Boss(args) => boss::run(args, &config, &client).await?,
         Commands::Device(args) => device::run(args, config).await?,
         Commands::Ss(args) => ss::run(args, &config, &client).await?,
-        Commands::Setup(args) => setup::run_with_client(args, &config, &client).await?,
+        Commands::Setup(_) => unreachable!(),
         Commands::Progress(args) => progress::run(args, &config, &client).await?,
         Commands::Box(args) => box_cmd::run(args, &config, &client).await?,
         Commands::Project(args) => progress::progress_team::run(args, &config, &client).await?,
@@ -188,7 +179,7 @@ async fn run_offline(command: &Commands) -> Result<bool, Box<dyn Error>> {
         Commands::Ask(_) if RuntimeIdentity::detect().is_dispatched() => return Err(DispatchedAsk.into()),
         Commands::Hook(args) => hook::run(args).await?,
         Commands::Setup(args) if args.command.is_none() => onboarding::run(args).await?,
-        Commands::Setup(args) if !setup::needs_client(args) => setup::run(args)?,
+        Commands::Setup(args) => setup::run(args)?,
         Commands::Panel(args) => match &args.command {
             panel::PanelCommand::Guide => {
                 println!("{}", hiboss::commands::setup_agents::PANEL_GUIDE)

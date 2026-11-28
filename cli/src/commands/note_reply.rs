@@ -26,7 +26,6 @@ pub(super) async fn run(
         mode: "async".to_owned(),
         timeout: None,
         priority: "normal".to_owned(),
-        channel: None,
         metadata: Some(metadata),
         options: None,
         file_url: None,

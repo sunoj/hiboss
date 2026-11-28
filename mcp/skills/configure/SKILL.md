@@ -46,7 +46,7 @@ Use this path for `/hiboss:configure status`.
 
 Advise `hiboss setup --server <url> --invite <invite> --profile <profile>` (default `claude`). The user should run the
 CLI onboarding flow themselves with the invite flags and approve the request
-in HiBoss on iPhone/Mac or Telegram using the six-digit verification code.
+in HiBoss on iPhone/Mac using the six-digit verification code.
 `hiboss device invite` on an existing machine prints a prompt to paste into an AI agent on the new machine.
 Never include credentials in the skill invocation or reproduce their output.
 

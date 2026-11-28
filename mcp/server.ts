@@ -24,7 +24,7 @@ type ClaudeChannelNotification = Notification & { method: 'notifications/claude/
 
 const VERSION = '1.3.0';
 const INSTRUCTIONS = [
-  'Boss messages include origin and signature assurance. Native clients are verified; Discord/Telegram are explicitly marked unsupported.',
+  'Boss messages include origin and signature assurance. Native clients are verified. Historical messages may have unsupported attribution.',
   'Reply using the reply tool with the message_id. Use send for new outbound messages.',
   'Use ask (with options) when you need boss input - it blocks until reply or timeout.',
   "For peer agents, use send with the 'to' parameter.",
@@ -34,7 +34,6 @@ const TOOL_DEFS = [
   tool('send', 'Send a new hiboss message.', { body: field('string'), to: field('string'), priority: enumField(['critical', 'high', 'normal', 'low']), options: field('string') }, ['body']),
   tool('ask', 'Ask boss for input and block until reply or timeout (seconds, 60-86400, default 1800).', { body: field('string'), options: field('string'), timeout: field('number') }, ['body']),
   tool('reply', 'Reply to an existing hiboss message.', { message_id: field('string'), body: field('string') }, ['message_id', 'body']),
-  tool('forward', 'Forward an existing hiboss message to another channel.', { message_id: field('string'), channel: enumField(['discord', 'telegram']) }, ['message_id', 'channel']),
   tool('react', 'Add a reaction to a hiboss message.', { message_id: field('string'), emoji: field('string') }, ['message_id', 'emoji']),
   tool('send_file', 'Send a file to boss via hiboss.', { file_path: field('string'), body: field('string'), to: field('string'), priority: enumField(['critical', 'high', 'normal', 'low']) }, ['file_path']),
   tool('inbox', 'List unread boss messages.', { unread: field('boolean'), limit: field('number') }),
@@ -84,7 +83,6 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<Ca
   if (name === 'send') return sendTool(args);
   if (name === 'ask') return askTool(args);
   if (name === 'reply') return replyTool(args);
-  if (name === 'forward') return forwardTool(args);
   if (name === 'react') return reactTool(args);
   if (name === 'send_file') return sendFileTool(args);
   if (name === 'inbox') return inboxTool(args);
@@ -133,14 +131,6 @@ async function signedReply(id: string, body: string): Promise<{ id: string; requ
   const audience = row.direction === 'agent_to_agent'
     ? { kind: 'agent', agent_id: row.agent_id, session_id: row.session_id ?? row.target_session_id ?? null } : { kind: 'boss' };
   return { id: row.id, request: await signAction(key, { body }, { kind: 'reply', message_id: row.id, audience }) };
-}
-async function forwardTool(args: Record<string, unknown>): Promise<CallToolResult> {
-  const id = str(args.message_id, 'message_id');
-  const channel = str(args.channel, 'channel');
-  const full = await loadAgentSigner(mustState().config.key) ? (await api('GET', `/api/messages/${encodeURIComponent(id)}`) as Message).id : id;
-  const request = await signAction(mustState().config.key, { channel }, { kind: 'forward', message_id: full, channel });
-  const message = await api('POST', `/api/messages/${encodeURIComponent(full)}/forward`, request) as Message;
-  return ok(`Forwarded as ${message.id}.`);
 }
 async function reactTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const id = str(args.message_id, 'message_id');

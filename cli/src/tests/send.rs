@@ -11,7 +11,6 @@ use serde_json::Value;
 fn args_with_content(content: Option<&str>) -> SendArgs {
     SendArgs {
         priority: "normal".to_owned(),
-        channel: None,
         file_url: None,
         file: None,
         verbose: false,

@@ -57,16 +57,6 @@ impl HiBossClient {
         let signed = self.signed_body(request, json!({ "kind": "reply", "message_id": parent.id, "audience": audience }))?;
         Ok((parent.id, signed))
     }
-
-    pub(crate) async fn signed_forward(&self, id: &str, channel: &str) -> Result<(String, Value), Box<dyn Error>> {
-        let request = json!({ "channel": channel });
-        if self.signer()?.is_none() {
-            return Ok((id.to_owned(), request));
-        }
-        let full = self.get_message(id).await?.id;
-        let signed = self.signed_body(request, json!({ "kind": "forward", "message_id": full, "channel": channel }))?;
-        Ok((full, signed))
-    }
 }
 
 /// Mirrors the server: a reply to a peer message goes back to its sender, otherwise to the boss.

@@ -14,7 +14,7 @@ pub const COMMAND_GROUPS: &[(&str, &[&str])] = &[
     (
         "Talk to your boss",
         &[
-            "send", "ask", "reply", "inbox", "read", "note", "box", "react", "edit", "forward", "status",
+            "send", "ask", "reply", "inbox", "read", "note", "box", "react", "edit", "status",
         ],
     ),
     ("Show work", &["panel", "request", "progress", "project"]),
@@ -22,7 +22,7 @@ pub const COMMAND_GROUPS: &[(&str, &[&str])] = &[
     ("Run in the background", &["watch", "bot", "daemon", "hook"]),
     (
         "Administer the server",
-        &["key", "boss", "channel", "route"],
+        &["key", "boss", "integration"],
     ),
 ];
 

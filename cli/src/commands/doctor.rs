@@ -30,13 +30,13 @@ pub async fn run(args: &DoctorArgs, config: &Config) -> Result<(), Box<dyn Error
         report.issues += 1;
     }
     let credential = resolve_credentials(config)?;
-    print_local_checks(config, &credential.server, &credential.key, &mut report);
+    print_local_checks(&credential.server, &credential.key, &mut report);
     let client = HiBossClient::new(&credential.server, &credential.key);
     run_remote_checks(args, &client, &mut report).await;
     finish(report)
 }
 
-fn print_local_checks(config: &Config, server: &str, key: &str, report: &mut DoctorReport) {
+fn print_local_checks(server: &str, key: &str, report: &mut DoctorReport) {
     let path = config_path();
     let exists = if std::env::var_os("HIBOSS_SERVER").is_some() {
         false // Rule 1 must not stat the config file.
@@ -58,16 +58,6 @@ fn print_local_checks(config: &Config, server: &str, key: &str, report: &mut Doc
 
     println!("Server: {} {}", server, "OK".green());
     println!("Key: {} {}", mask_key(key), "OK".green());
-
-    let channel = config
-        .channel
-        .as_deref()
-        .filter(|value| !value.trim().is_empty());
-    if let Some(name) = channel {
-        println!("Channel: {} {}", name, "OK".green());
-    } else {
-        println!("Channel: {} {}", "NOT SET", "WARN".yellow());
-    }
 }
 
 async fn run_remote_checks(args: &DoctorArgs, client: &HiBossClient, report: &mut DoctorReport) {
@@ -75,20 +65,6 @@ async fn run_remote_checks(args: &DoctorArgs, client: &HiBossClient, report: &mu
         Ok(agent) => print_agent_info(&agent),
         Err(err) => {
             println!("Agent: {} ({})", "FAIL".red(), err);
-            report.issues += 1;
-        }
-    }
-
-    match client.list_channels().await {
-        Ok(channels) => print_channels(
-            &channels
-                .channels
-                .iter()
-                .map(|info| info.channel.as_str())
-                .collect::<Vec<_>>(),
-        ),
-        Err(err) => {
-            println!("Channels: {} ({})", "FAIL".red(), err);
             report.issues += 1;
         }
     }
@@ -106,33 +82,6 @@ async fn run_remote_checks(args: &DoctorArgs, client: &HiBossClient, report: &mu
 fn print_agent_info(agent: &serde_json::Value) {
     let name = agent["name"].as_str().unwrap_or("-");
     println!("Agent: {} {}", name, "OK".green());
-    if let Some(routing) = agent["channel_routing"].as_object() {
-        if routing.is_empty() {
-            println!(
-                "Routing: {} (messages need --channel or config.channel fallback)",
-                "none".yellow()
-            );
-            return;
-        }
-        let pairs: Vec<String> = routing
-            .iter()
-            .map(|(key, value)| format!("{key}→{}", value.as_str().unwrap_or("?")))
-            .collect();
-        println!("Routing: {} {}", pairs.join(", "), "OK".green());
-        return;
-    }
-    println!(
-        "Routing: {} (messages need --channel or config.channel fallback)",
-        "none".yellow()
-    );
-}
-
-fn print_channels(channels: &[&str]) {
-    if channels.is_empty() {
-        println!("Channels: NONE");
-    } else {
-        println!("Channels: {}", channels.join(", "));
-    }
 }
 
 fn print_channel_health(stats: &ChannelStatsResponse, verbose: bool) -> u32 {

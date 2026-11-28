@@ -79,7 +79,6 @@ fn adding_a_profile_skips_existing_profiles_and_preserves_their_credentials() {
     );
     assert_eq!(config["profiles"]["aid"]["name"], "synthetic-aid@old-host");
     assert_eq!(config["profiles"]["codex"]["key"], "synthetic-key-codex");
-    assert_eq!(config["channel"], "discord");
     let requests = server.requests();
     assert_eq!(
         requests[0].body["profiles"]

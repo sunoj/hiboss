@@ -31,11 +31,7 @@ pub struct AgentConfigArgs {
     /// Set rate limit (messages per minute, 0 = unlimited)
     #[arg(long = "rate-limit")]
     pub rate_limit: Option<u32>,
-    /// Set per-priority channel routing (e.g. "normal=discord,high=telegram").
-    /// Server uses this when CLI omits --channel. Set "none" to clear.
-    #[arg(long = "channel-routing")]
-    pub channel_routing: Option<String>,
-    /// Set avatar image (local file path or URL). Used in Discord webhook mode.
+    /// Set avatar image (local file path or URL).
     /// Set "none" to clear.
     #[arg(long = "avatar")]
     pub avatar: Option<String>,
@@ -68,7 +64,6 @@ pub async fn run(
 async fn run_config(args: &AgentConfigArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let info = if args.default_priority.is_none()
         && args.rate_limit.is_none()
-        && args.channel_routing.is_none()
         && args.avatar.is_none()
         && args.role.is_none()
         && args.session_info.is_none()
@@ -109,7 +104,6 @@ fn config_fields(args: &AgentConfigArgs) -> serde_json::Map<String, Value> {
         );
     }
     for (key, raw) in [
-        ("channel_routing", &args.channel_routing),
         ("role", &args.role),
         ("session_info", &args.session_info),
     ] {
@@ -125,15 +119,6 @@ fn config_setting(key: &str, value: &str) -> Option<Value> {
         return Some(Value::Null);
     }
     Some(match key {
-        "channel_routing" => Value::Object(
-            value
-                .split(',')
-                .filter_map(|pair| {
-                    let (key, value) = pair.split_once('=')?;
-                    Some((key.trim().into(), value.trim().into()))
-                })
-                .collect(),
-        ),
         "session_info" => match serde_json::from_str(value) {
             Ok(parsed) => parsed,
             Err(_) => {
@@ -155,7 +140,6 @@ fn print_config(info: &Value) {
         _ => "unlimited".to_string(),
     };
     println!("rate_limit: {} msg/min", rl);
-    print_channel_routing(&info["channel_routing"]);
     println!("avatar: {}", info["avatar_url"].as_str().unwrap_or("none"));
     println!("role: {}", info["role"].as_str().unwrap_or("none"));
     if let Some(si) = info.get("session_info") {
@@ -201,18 +185,5 @@ fn print_agents(resp: crate::types::AgentsResponse) {
             branch.blue(),
             last.dimmed()
         );
-    }
-}
-
-fn print_channel_routing(value: &serde_json::Value) {
-    match value {
-        serde_json::Value::Object(map) if !map.is_empty() => {
-            let pairs: Vec<String> = map
-                .iter()
-                .map(|(k, v)| format!("{}={}", k, v.as_str().unwrap_or("?")))
-                .collect();
-            println!("channel_routing: {}", pairs.join(", "));
-        }
-        _ => println!("channel_routing: none"),
     }
 }

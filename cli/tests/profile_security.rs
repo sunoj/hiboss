@@ -108,7 +108,7 @@ fn blank_ephemeral_variables_fail_and_rotation_never_touches_disk() {
     ];
     for args in [
         vec!["key", "rotate"],
-        vec!["config", "set", "channel", "api"],
+        vec!["config", "set", "server", "https://changed.invalid"],
     ] {
         let output = sandbox.run(&args, &env);
         assert!(!output.status.success());

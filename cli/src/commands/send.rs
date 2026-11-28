@@ -23,8 +23,6 @@ use std::{collections::HashMap, error::Error, time::Duration};
 pub struct SendArgs {
     #[arg(long, short = 'p', default_value = "normal")]
     pub priority: String,
-    #[arg(long, help = "Override channel (skips server-side channel_routing)")]
-    pub channel: Option<String>,
     #[arg(long, help = "URL of file/image to attach")]
     pub file_url: Option<String>,
     #[arg(long, help = "Local file to upload and attach (images also get a 1280 px display copy)")]
@@ -128,9 +126,6 @@ pub(crate) async fn send_request(
     client: &HiBossClient,
     tools: &Tools,
 ) -> Result<SendRequest, Box<dyn Error>> {
-    // Only send channel when explicitly specified via --channel.
-    // When omitted, server uses channel_routing (per-priority) to decide.
-    let channel = args.channel.clone();
     // Build task_context metadata from --task, --files, --branch flags
     let mut metadata = build_metadata(args)?;
     let file_url = if let Some(ref path) = args.file {
@@ -148,7 +143,6 @@ pub(crate) async fn send_request(
         mode: "async".to_owned(),
         timeout: None,
         priority: args.priority.clone(),
-        channel,
         metadata,
         options: None,
         file_url,
@@ -220,7 +214,6 @@ pub(crate) fn broadcast_request(
         mode: "async".to_owned(),
         timeout: None,
         priority: args.priority.clone(),
-        channel: None,
         metadata: metadata.cloned(),
         options: None,
         file_url: None,

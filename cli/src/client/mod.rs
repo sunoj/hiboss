@@ -2,7 +2,7 @@
 // Exports: HiBossClient struct, core messaging + admin methods, upload and helpers.
 // Dependencies: reqwest, serde_json, thiserror, crate::types, std::error::Error.
 use crate::types::{
-    AgentsResponse, ChannelStatsResponse, ChannelsResponse, CreateAgentResponse, ReactionsResponse,
+    AgentsResponse, ChannelStatsResponse, CreateAgentResponse, ReactionsResponse,
     UploadResponse,
 };
 use reqwest::{Client, Method};
@@ -28,7 +28,6 @@ macro_rules! client_endpoints {
     };
 }
 
-mod discord_registration;
 pub(crate) fn mime_from_ext(filename: &str) -> String {
     let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
     match ext.as_str() {
@@ -91,9 +90,6 @@ pub struct HiBossClient {
 impl HiBossClient {
     client_endpoints! {
         list_agents() -> AgentsResponse = GET "/api/agents";
-        set_channel(channel: &str, config: &Value) -> Value =
-            PUT &format!("/api/channels/{}", channel), config;
-        list_channels() -> ChannelsResponse = GET "/api/channels";
         get_agent_config() -> Value = GET "/api/agents/me";
         update_agent_config(config: &Value) -> Value = PUT "/api/agents/me/config", config;
         get_reactions(id: &str) -> ReactionsResponse = GET &format!("/api/messages/{}/reactions", id);
@@ -250,7 +246,6 @@ mod panels;
 mod progress;
 pub(crate) mod box_items;
 mod projects;
-mod routing;
 
 pub use panels::{PanelConnectionTicket, PanelPublishResponse};
 

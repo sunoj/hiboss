@@ -44,7 +44,7 @@ pub fn sign_send(signer: &AgentSigner, request: &mut Map<String, Value>, audienc
     attach(signer, request, content)
 }
 
-/// Signs a reply, forward or boss reply: only the action and the body are signed.
+/// Signs an agent or boss reply: only the action and the body are signed.
 pub fn sign_action(
     signer: &AgentSigner,
     request: &mut Map<String, Value>,

@@ -56,7 +56,7 @@ fn bare_invocation_requests_help() {
     );
     assert_eq!(err.exit_code(), 2);
     for path in [
-        "agent", "device", "config", "channel", "route", "group", "boss", "daemon",
+        "agent", "device", "config", "integration", "group", "boss", "daemon",
         "progress", "box", "project", "panel", "request", "progress team",
         "project aliases", "progress team aliases",
     ] {

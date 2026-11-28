@@ -63,7 +63,7 @@ pub fn saved_config(sandbox: &Sandbox) -> Value {
 
 pub fn existing_config(sandbox: &Sandbox, server: &str) {
     sandbox.write_config(&json!({"version":2, "server":server, "device_id":"synthetic-existing-device",
-        "default_profile":"aid", "channel":"discord", "profiles":{
+        "default_profile":"aid", "profiles":{
             "aid":{"key":EXISTING_KEY, "agent_id":"synthetic-existing-agent", "name":"synthetic-aid@old-host"}
         }}).to_string());
 }

@@ -10,7 +10,7 @@ use std::error::Error;
 pub struct ReadArgs {
     #[arg(value_name = "id")]
     pub id: String,
-    #[arg(long, help = "Fetch and show reactions from the channel")]
+    #[arg(long, help = "Fetch and show message reactions")]
     pub reactions: bool,
 }
 

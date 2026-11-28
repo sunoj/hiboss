@@ -1,4 +1,4 @@
-// Purpose: Manage hiboss CLI configuration entries (server, key, channel).
+// Purpose: Manage hiboss CLI configuration entries (server and key).
 // Exports: ConfigCommand, SetArgs, GetArgs, ConfigKey, and run().
 // Dependencies: clap, crate::config, std::error::Error.
 
@@ -31,7 +31,6 @@ pub struct GetArgs {
 pub enum ConfigKey {
     Server,
     Key,
-    Channel,
 }
 
 impl ConfigKey {
@@ -39,7 +38,6 @@ impl ConfigKey {
         match self {
             ConfigKey::Server => config.server = Some(value),
             ConfigKey::Key => config.key = Some(value),
-            ConfigKey::Channel => config.channel = Some(value),
         }
     }
 
@@ -53,7 +51,6 @@ impl ConfigKey {
                 .filter(|server| !server.trim().is_empty())
                 .or_else(|| config.server.clone()),
             ConfigKey::Key => config.key.as_deref().map(super::whoami::mask_key),
-            ConfigKey::Channel => config.channel.clone(),
         }
     }
 }
@@ -82,7 +79,6 @@ pub async fn run(command: &ConfigCommand, config: &mut Config) -> Result<(), Box
                     .map(super::whoami::mask_key)
                     .unwrap_or_else(|| "-".into())
             );
-            println!("channel = {}", config.channel.as_deref().unwrap_or("-"));
         }
     }
     Ok(())
