@@ -66,14 +66,14 @@ struct MainView: View {
         self.notificationNavigation = notificationNavigation
         self.joinRequests = joinRequests
         let provider: BoxBrowserStore.Provider = boxProvider ?? {
-            settings.activeClientConfig.map { HibossAPI(config: $0) }
+            settings.activeClientConfig.map { MacMessageSigning.api($0) }
         }
         _box = StateObject(wrappedValue: boxStore ?? BoxBrowserStore(apiProvider: provider))
         _boxMedia = StateObject(wrappedValue: boxMedia ?? BoxBrowserMedia(apiProvider: provider, cache: .standard))
         _sessionBox = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
         _progress = StateObject(wrappedValue: progressStore ?? ProgressFeedStore(
             apiProvider: progressProvider ?? {
-                settings.activeClientConfig.map { HibossAPI(config: $0) }
+                settings.activeClientConfig.map { MacMessageSigning.api($0) }
             }))
         _panels = StateObject(wrappedValue: panelsModel ?? PanelsModel(configurationProvider: {
             guard let config = settings.activeClientConfig else {

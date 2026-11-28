@@ -143,7 +143,7 @@ struct SettingsScene: View {
     }
 
     private func reconnectStreams(_ config: ConnectionConfig) {
-        let api = HibossAPI(config: config)
+        let api = MacMessageSigning.api(config)
         requiredInputs.connect(api)
         flow.connect(api: api)
         notifications.connect(api: api)

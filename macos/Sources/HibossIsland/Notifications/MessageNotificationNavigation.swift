@@ -112,7 +112,7 @@ struct NotificationMessageDetail: View {
         await settings.loadToken()
         do {
             let config = try settings.connectionConfig().get()
-            let detail = try await HibossAPI(config: config).fetchMessage(messageID)
+            let detail = try await MacMessageSigning.api(config).fetchMessage(messageID)
             try Task.checkCancellation()
             message = detail.message
             replies = detail.replies

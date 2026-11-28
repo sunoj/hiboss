@@ -96,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         notifications = MessageNotificationStore(center: notificationCenter,
             preferences: { preferences.preferences })
         joinRequests = JoinRequestsModel {
-            (try? settings.connectionConfig().get()).map { HibossAPI(config: $0) }
+            (try? settings.connectionConfig().get()).map { MacMessageSigning.api($0) }
         }
         overview = OverviewStore(identity: settings.identity)
         self.panels = panels ?? PanelsModel(configurationProvider: { [settings] in
@@ -169,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     /// Starts every stream for a config that was just stored; preferences come from the server.
     func didPair(_ config: ConnectionConfig) {
-        let api = HibossAPI(config: config)
+        let api = MacMessageSigning.api(config)
         requiredInputs.connect(api)
         flow.connect(api: api)
         notifications.connect(api: api)
@@ -244,7 +244,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @objc private func reconnect() {
         Task { [weak self] in
             guard let self, case let .success(config) = await settings.connect() else { return }
-            let api = HibossAPI(config: config)
+            let api = MacMessageSigning.api(config)
             requiredInputs.connect(api)
             flow.connect(api: api)
             notifications.connect(api: api)

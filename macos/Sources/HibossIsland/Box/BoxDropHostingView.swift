@@ -50,7 +50,7 @@ final class BoxDropHostingView: NSHostingView<IslandView>, NSPopoverDelegate {
         let store = BoxDropStore { [settings] upload, key in
             if api == nil {
                 let config = try settings.activeClientConfig ?? settings.connectionConfig().get()
-                api = HibossAPI(config: config)
+                api = MacMessageSigning.api(config)
             }
             _ = try await api?.createBoxItem(upload, idempotencyKey: key, progress: { _ in })
         }

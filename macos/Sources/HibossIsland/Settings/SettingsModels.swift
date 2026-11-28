@@ -209,6 +209,6 @@ final class SettingsPreferencesService: BossPreferencesServing, @unchecked Senda
             guard !AccountAuthorization.shared.hasRejectedAccount else { throw CancellationError() }
             return try settings.connectionConfig().get()
         }
-        return HibossAPI(config: config)
+        return MacMessageSigning.api(config)
     }
 }
