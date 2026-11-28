@@ -139,9 +139,6 @@ struct MessageDetailView: View {
 
     private func pendingDecision(for message: HistoryMessage, timing: DecisionTiming) -> some View {
         VStack(alignment: .leading, spacing: Space.s) {
-            DecisionTimingView(timing: timing, messageID: message.id)
-                .padding(Space.m).frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.signalSoft, in: RoundedRectangle(cornerRadius: Radius.medium))
             OptionMediaComparison(
                 options: message.options,
                 media: message.metadata?.optionMedia ?? [], metadata: message.metadata
@@ -160,8 +157,12 @@ struct MessageDetailView: View {
                         submit($0, for: message.id)
                     }
                 }
-                replyField(for: message)
             }
+            // Under the choices, as on Today: what no answer leads to, in one plain line.
+            DecisionTimingView(timing: timing, messageID: message.id)
+                .font(.footnote).foregroundStyle(Theme.ink2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if message.metadata?.form == nil { replyField(for: message) }
             if store.replyGate.verificationTimedOut.contains(message.id) {
                 Text("This is taking longer than expected.").font(.footnote).foregroundStyle(Theme.ink2)
             } else if submitting != nil && !store.replyGate.verifying.contains(message.id) {
@@ -189,26 +190,28 @@ struct MessageDetailView: View {
         }
     }
 
+    /// One field: the draft and its send button share a height, so they read as one control.
     private func replyField(for message: HistoryMessage) -> some View {
-        HStack(alignment: .bottom, spacing: Space.xs) {
+        let blank = replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let locked = store.replyGate.locksControls(for: message.id)
+        return HStack(alignment: .bottom, spacing: Space.xs) {
             TextField("Reply…", text: draftBinding, axis: .vertical)
                 .accessibilityIdentifier("message-reply-draft")
-                .padding(.horizontal, Space.m)
                 .padding(.vertical, Space.xs)
-                .frame(minHeight: ControlMetric.fullWidth + Space.m)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium,
-                                                               style: .continuous))
+                .frame(minHeight: ControlMetric.minTap)
             Button { submit(replyDraft, for: message.id) } label: {
-                Text("Send").opacity(submitting == nil ? 1 : 0)
-                    .frame(minHeight: ControlMetric.fullWidth)
+                Image(systemName: "arrow.up").font(.body.weight(.semibold))
+                    .opacity(submitting == nil ? 1 : 0)
                     .overlay { if submitting != nil { DelayedProgressView() } }
-                    .accessibilityLabel("Send")
+                    .frame(width: ControlMetric.minTap, height: ControlMetric.minTap)
+                    .foregroundStyle(blank || locked ? Theme.ink3 : Theme.onAccent)
+                    .background(blank || locked ? Theme.surface2 : Theme.primaryAction, in: Circle())
             }
-            .hbButton(.secondary, alignment: .center)
-            .fixedSize(horizontal: true, vertical: false)
-            .disabled(store.replyGate.locksControls(for: message.id)
-                      || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityLabel("Send")
+            .disabled(locked || blank)
         }
+        .padding(.leading, Space.m).padding(.trailing, Space.xxs).padding(.vertical, Space.xxs)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
     }
 
     private func decisionFooter(for message: HistoryMessage) -> Text? {

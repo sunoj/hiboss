@@ -20,6 +20,14 @@ struct DecisionProvenance: View {
                     Text(verbatim: branch).font(.subheadline.bold())
                         .lineLimit(1).truncationMode(.middle)
                 }
+                Spacer(minLength: Space.xs)
+                // An open question's deadline sits where the eye lands first; the default line
+                // under the choices says what happens when it passes.
+                if message.direction == "agent_to_boss", let deadline = message.expirationDate, deadline > .now {
+                    CountdownText(deadline: deadline, tint: Theme.warn)
+                        .font(.footnote.weight(.semibold)).lineLimit(1).fixedSize()
+                        .accessibilityIdentifier("decision-deadline")
+                }
             }
             HStack {
                 if let agent = message.agentName ?? session?.agentName { Text(verbatim: agent) }
