@@ -1,73 +1,115 @@
-// Native Box reference row with authenticated, downsampled thumbnails and semantic kind labels.
-// Exports BoxRow and BoxThumbnail for list rows, content cards and the photo grid.
+// Box grid tiles with authenticated thumbnails and localized item metadata.
+// Exports BoxTile and BoxThumbnail for the browser and collection covers.
 // Dependencies: SwiftUI, HibossKit, BoxMediaStore and Theme.
 
 import HibossKit
 import SwiftUI
 
-struct BoxRow: View {
+struct BoxTile: View {
     @Environment(\.dynamicTypeSize) private var textSize
     let item: BoxItem
     @ObservedObject var media: BoxMediaStore
 
-    var grid = false
-
-    private var layout: AnyLayout {
-        grid || textSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: Space.s))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: Space.s))
-    }
-
     var body: some View {
-        layout {
-            if !grid || item.kind != .text {
-                BoxThumbnail(item: item, media: media)
-                    .frame(width: grid ? nil : AvatarSize.row,
-                           height: grid ? (item.hasMedia ? AvatarSize.row * 3 : ControlMetric.minTap)
-                               : AvatarSize.row)
-            }
-            VStack(alignment: .leading, spacing: Space.xxs) {
-                Text(verbatim: item.boxTitle).font(.body).foregroundStyle(Theme.ink)
-                    .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? (item.hasMedia ? 2 : 4) : 1))
-                    .fixedSize(horizontal: false, vertical: true)
-                if grid, let summary = item.summary, !summary.isEmpty {
-                    Text(verbatim: summary).font(.callout)
-                        .foregroundStyle(item.kind == .link ? Theme.link : Theme.ink2)
-                        .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? (item.hasMedia ? 1 : 2) : 1))
-                }
-                metadata
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .multilineTextAlignment(.leading)
-        .padding(grid ? Space.s : .zero)
-        .frame(maxWidth: .infinity, minHeight: grid ? nil : ControlMetric.minTap, alignment: .leading)
-        .frame(maxHeight: grid ? .infinity : nil, alignment: .topLeading)
-        .background(grid ? Theme.surface : Color.clear, in: RoundedRectangle(cornerRadius: Radius.medium))
-        .contentShape(Rectangle())
-        .alignmentGuide(.listRowSeparatorLeading) { dimensions in
-            grid || textSize.isAccessibilitySize ? 0 : dimensions[.leading] + AvatarSize.row + Space.s
-        }
-    }
-
-    private var metadata: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Space.xxs) {
-            if item.liked {
-                Image(systemName: "heart.fill").font(.caption)
-                    .foregroundStyle(.secondary).accessibilityLabel("Liked")
-            }
+        VStack(alignment: .leading, spacing: Space.xs) {
+            preview
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: AvatarSize.row * 2)
+                .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Radius.small))
+                .accessibilityHidden(true)
+            tileTitle.font(.subheadline.weight(.semibold))
+            badge
             if let date = ISOTimestamp.date(from: item.createdAt) {
                 RecordedTimeText(date: date) { time in
-                    Text(verbatim: [item.kindLabel, item.sizeLabel, time, item.authorLabel, item.project]
-                        .compactMap { $0 }.joined(separator: " · "))
-                }.font(.caption).foregroundStyle(Theme.ink2)
-                    .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? 2 : 1))
-            } else {
-                Text(verbatim: item.metadata).font(.caption).foregroundStyle(Theme.ink2)
-                    .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? 2 : 1))
+                    Text(verbatim: [time, item.project].compactMap { $0 }.joined(separator: " · "))
+                }
+                .font(.caption)
+                .foregroundStyle(Theme.ink2)
+                .lineLimit(textSize.isAccessibilitySize ? nil : 1)
+            } else if let project = item.project {
+                Text(verbatim: project).font(.caption).foregroundStyle(Theme.ink2)
             }
+        }
+        .multilineTextAlignment(.leading)
+        .padding(Space.s)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Radius.medium))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: accessibilitySummary))
+    }
+
+    private var title: String {
+        item.boxTitle.split(whereSeparator: \.isNewline).first.map(String.init) ?? item.boxTitle
+    }
+
+    @ViewBuilder private var tileTitle: some View {
+        if textSize.isAccessibilitySize {
+            Text(verbatim: title)
+        } else {
+            Text(verbatim: title).lineLimit(2, reservesSpace: true)
         }
     }
 
+    private var provenance: String {
+        guard case let .agent(_, name) = item.author else { return String(localized: "You") }
+        if let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+            return String(localized: "Added by \(name)")
+        }
+        return String(localized: "Added by an agent")
+    }
+
+    private var badge: some View {
+        HStack(spacing: Space.xxs) {
+            provenanceText
+            if item.liked { Image(systemName: "heart.fill").font(.caption) }
+        }
+        .foregroundStyle(Theme.ink2)
+    }
+
+    private var provenanceText: some View {
+        Text(verbatim: provenance)
+            .font(.caption2.weight(.medium))
+            .lineLimit(textSize.isAccessibilitySize ? nil : 1)
+            .padding(.horizontal, Space.xxs)
+            .padding(.vertical, Space.xxs)
+            .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Radius.small))
+    }
+
+    private var accessibilitySummary: String {
+        [title, item.kindLabel, item.kind == .link ? item.summary : nil, item.sizeLabel,
+         provenance, item.liked ? String(localized: "Liked") : nil, item.relativeTime, item.project]
+            .compactMap { $0 }.formatted(.list(type: .and))
+    }
+
+    @ViewBuilder private var preview: some View {
+        switch item.kind {
+        case .image, .video:
+            BoxThumbnail(item: item, media: media).frame(height: AvatarSize.row * 2)
+        case .text:
+            Text(verbatim: item.text ?? item.note ?? item.kindLabel)
+                .font(.caption).foregroundStyle(Theme.ink2)
+                .lineLimit(textSize.isAccessibilitySize ? nil : 3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Space.xs)
+        case .link:
+            previewLabel(item.summary ?? item.kindLabel)
+        case .file:
+            let kind = item.fileExtension.isEmpty ? item.formatLabel : item.fileExtension
+            previewLabel([kind, item.sizeLabel].compactMap { $0 }.joined(separator: " · "))
+        }
+    }
+
+    private func previewLabel(_ value: String) -> some View {
+        Label {
+            Text(verbatim: value).lineLimit(textSize.isAccessibilitySize ? nil : 2)
+        } icon: {
+            Image(systemName: item.symbol)
+        }
+        .font(.caption)
+        .foregroundStyle(Theme.ink2)
+        .padding(Space.xs)
+    }
 }
 
 struct BoxThumbnail: View {

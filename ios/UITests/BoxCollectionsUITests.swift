@@ -13,19 +13,15 @@ final class BoxCollectionsUITests: XCTestCase {
         app.launchConfiguredDemo()
         app.tabBars.buttons["Box"].tap()
         XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
-        app.buttons["box-style-menu"].tap()
-        app.buttons["List"].tap()
     }
 
     func testLikedFilterDetailAndViewerHeart() {
-        XCTAssertTrue(app.buttons["box-filter-liked"].isHittable)
-        XCTAssertLessThan(app.buttons["box-filter-liked"].frame.minX,
-                          app.buttons["box-filter-all"].frame.minX)
-        app.buttons["box-filter-liked"].tap()
-        XCTAssertTrue(app.buttons["box-filter-liked"].isSelected)
+        app.tapBoxChip("box-filter-liked")
         XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
         capture("collections-liked-filter")
-        app.buttons["box-item-demo-text"].tap()
+        let text = app.buttons["box-item-demo-text"]
+        app.revealBoxTile(text)
+        text.tap()
         XCTAssertEqual(app.buttons["box-like"].label, "Unlike")
         app.buttons["box-like"].tap()
         XCTAssertEqual(app.buttons["box-like"].label, "Like")
@@ -39,7 +35,14 @@ final class BoxCollectionsUITests: XCTestCase {
     }
 
     func testGridScopedListAndImmediateMembershipChecklist() {
-        XCTAssertTrue(app.navigationBars.buttons["box-collections"].isHittable)
+        let shortcut = app.buttons["box-collection-shortcut-demo-design"]
+        XCTAssertTrue(shortcut.isHittable)
+        XCTAssertTrue(shortcut.label.contains("3 items"))
+        shortcut.tap()
+        XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 5))
+        XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.buttons["box-collections"].isHittable)
         app.buttons["box-collections"].tap()
         let design = app.buttons["box-collection-demo-design"]
         XCTAssertTrue(design.appears(timeout: 5))
@@ -175,8 +178,7 @@ final class BoxCollectionsUITests: XCTestCase {
         app.launchConfiguredDemo()
         app.tabBars.buttons.element(boundBy: 2).tap()
         XCTAssertTrue(app.buttons["box-collections"].appears(timeout: 10))
-        app.buttons["box-filter-liked"].tap()
-        XCTAssertTrue(app.buttons["box-filter-liked"].isSelected)
+        app.tapBoxChip("box-filter-liked")
         capture("\(prefix)-liked-list")
         app.buttons["box-collections"].tap()
         XCTAssertTrue(app.buttons["box-collection-demo-design"].appears(timeout: 5))
@@ -186,7 +188,9 @@ final class BoxCollectionsUITests: XCTestCase {
         capture("\(prefix)-scoped-list")
         app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
-        app.buttons["box-item-demo-text"].tap()
+        let text = app.buttons["box-item-demo-text"]
+        app.revealBoxTile(text)
+        text.tap()
         app.buttons[english ? "Add to Collection…" : "加入集合…"].tap()
         XCTAssertTrue(app.buttons["box-membership-demo-design"].appears(timeout: 5))
         assertSelected(app.buttons["box-membership-demo-design"], false)

@@ -8,12 +8,13 @@ import HibossKit
 import PDFKit
 import UIKit
 
-actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing, BoxThumbnailServing {
+actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing, BoxThumbnailServing, BoxUploading {
     static let shared = DemoBoxAPI()
     var failsLikes = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_LIKE_FAILURE"] == "1"
     var collectionNames = ["demo-design": "Design references", "demo-reading": "Reading"]
     var items = DemoBoxAPI.fixtures
     private var failedMedia: Set<String> = []
+    private var uploads: [String: BoxItem] = [:]
     private static let referenceText = "A saved reference file."
 
     static var fixtures: [BoxItem] {
@@ -163,6 +164,20 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing, BoxThumbnailServing {
 
     func deleteBoxItem(id: String, purge _: Bool) async throws {
         items.removeAll { $0.id == id }
+    }
+
+    func createBoxItem(
+        _ upload: BoxUpload, idempotencyKey: String, progress: @escaping @Sendable (Double) -> Void
+    ) async throws -> BoxItem {
+        if let existing = uploads[idempotencyKey] { return existing }
+        let item = BoxItem(id: UUID().uuidString, bossID: "demo-boss", bossName: "Demo",
+                           kind: upload.url == nil ? .text : .link,
+                           text: upload.text, url: upload.url, note: upload.note, project: upload.project,
+                           createdAt: Date().ISO8601Format())
+        items.insert(item, at: 0)
+        uploads[idempotencyKey] = item
+        progress(1)
+        return item
     }
 
     func patchBoxItem(id: String, patch: BoxPatch) async throws -> BoxItem {

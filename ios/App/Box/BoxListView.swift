@@ -1,4 +1,4 @@
-// Box browser with remembered list/cards styles, combined filters and confirmed row actions.
+// Box browser with combined filters, collection shortcuts and confirmed item actions.
 // Exports BoxListView; existing content viewers also support a reference-selection sheet.
 // Dependencies: SwiftUI, HibossKit, BoxStore, BoxMediaStore and ListStateView.
 
@@ -12,7 +12,7 @@ struct BoxListView: View {
     @State private var search = ""
     @State private var filter = BoxFilter.all
     @State private var author = BoxAuthorFilter.all
-    @AppStorage("box-list-style") private var style = BoxListStyle.list
+    @State private var adding = false
     @State private var openedMedia: BoxMediaSelection?
     @State private var openedDetail: BoxItem?
     @State private var pendingDelete: BoxItem?
@@ -30,32 +30,60 @@ struct BoxListView: View {
     }
 
     var body: some View {
-        ListStateView(
-            isLoading: !store.didLoad || store.isRefreshing, error: store.error,
-            isEmpty: store.items.isEmpty, emptyIcon: "archivebox",
-            emptyTitle: String(localized: "Your Box is empty"),
-            emptyDetail: String(localized: "Shared links, text and media appear here."),
-            loadingTitle: String(localized: "Loading Box…"), hasLoaded: store.didLoad,
-            onRetry: { await store.refresh() }
-        ) { list }
+        content
         .background(Theme.paper)
         .toolbarTitleDisplayMode(onSelect == nil ? .inlineLarge : .automatic)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
                     prompt: "Search notes, links and files")
         .task {
             if !store.didLoad { await store.refresh() }
-            await store.loadCollections()
-            if !search.isEmpty || filter != .all { await store.loadSearchPages() }
+            if !search.isEmpty || hasFilters { await store.loadSearchPages() }
         }
+        .task { await store.loadCollections() }
         .task(id: search + filter.rawValue + author.rawValue + String(liked)) {
-            if !search.isEmpty || filter != .all || author != .all || liked { await store.loadSearchPages() }
+            if !search.isEmpty || hasFilters { await store.loadSearchPages() }
         }
-        .refreshable {
-            await store.refresh()
-            await store.loadCollections()
-            if !search.isEmpty || filter != .all || author != .all || liked { await store.loadSearchPages() }
+        .refreshable { await refresh() }
+        .toolbar {
+            if isMainBox {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Save to Box", systemImage: "plus") { adding = true }
+                        .accessibilityIdentifier("box-add")
+                }
+            }
         }
+        .sheet(isPresented: $adding) {
+            BoxAddSheet(api: store.api) {
+                adding = false
+                Task { await refresh() }
+            }
+        }
+        .modifier(BoxDeleteConfirmation(item: $pendingDelete, store: store, media: media))
+    }
+
+    private var isMainBox: Bool { onSelect == nil && store.collectionID == nil }
+
+    private var hasFilters: Bool { filter != .all || author != .all || liked }
+
+    private func refresh() async {
+        await store.refresh()
+        await store.loadCollections()
+        if store.error == nil && (!search.isEmpty || hasFilters) { await store.loadSearchPages() }
+    }
+
+    private var content: some View {
+        ListStateView(
+            isLoading: !store.didLoad || store.isRefreshing, error: store.error,
+            isEmpty: store.items.isEmpty && (!isMainBox || !store.didLoad || store.error != nil),
+            emptyIcon: "archivebox",
+            emptyTitle: String(localized: "Your Box is empty"),
+            emptyDetail: String(localized: "Shared links, text and media appear here."),
+            loadingTitle: String(localized: "Loading Box…"),
+            hasLoaded: store.didLoad && (store.error == nil || !store.items.isEmpty),
+            onRetry: { await store.refresh() }
+        ) { browser }
         .closesOnRouteTakeover {
+            adding = false
             openedMedia = nil
             collectionItem = nil
             shareItem = nil
@@ -71,39 +99,56 @@ struct BoxListView: View {
         )) {
             if let openedDetail { BoxDetail(original: openedDetail, store: store, media: media) }
         }
-        .modifier(BoxDeleteConfirmation(item: $pendingDelete, store: store, media: media))
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await media.retryFailedLoads() } }
         }
-        .toolbar { controls }
     }
 
-    private var list: some View {
+    private var browser: some View {
         VStack(spacing: Space.xxs) {
-            BoxFilterChips(selection: $filter, liked: $liked)
+            BoxFilterChips(selection: $filter, author: $author, liked: $liked)
             BoxOrganizationError(store: store)
-            if matches.isEmpty && !store.isLoadingMore { ContentUnavailableView.search(text: search) }
-            BoxResultsView(items: matches, filter: filter, style: style, row: { item in
-                actionableRow(item)
-                    .contextMenu {
-                        if onSelect == nil {
-                            BoxLikeButton(item: item, store: store)
-                            Button("Share", systemImage: "square.and.arrow.up") { share(item) }
-                            Button("Add to Collection…", systemImage: "rectangle.stack") {
-                                collectionItem = item
-                            }
-                            Button("Delete", role: .destructive) { pendingDelete = item }
-                                .disabled(store.deleting.contains(item.id))
-                        }
-                    }
-                    .overlay {
-                        if store.deleting.contains(item.id) {
-                            PendingStateView(title: String(localized: "Deleting item…"),
-                                             onSettings: openSettings).background(.regularMaterial)
-                        }
-                    }
-            }, footer: { pagination })
+            BoxResultsView(items: matches) {
+                if isMainBox { BoxCollectionStrip(store: store, media: media) }
+                if matches.isEmpty && !store.isLoadingMore { emptyResults }
+            } row: { item in
+                tile(item)
+            } footer: {
+                pagination
+            }
         }
+    }
+
+    @ViewBuilder private var emptyResults: some View {
+        if hasFilters || !search.isEmpty {
+            ContentUnavailableView.search(text: search)
+        } else {
+            ContentUnavailableView("Your Box is empty", systemImage: "archivebox",
+                                   description: Text("Shared links, text and media appear here."))
+        }
+    }
+
+    private func tile(_ item: BoxItem) -> some View {
+        Button { open(item) } label: { BoxTile(item: item, media: media) }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("box-item-\(item.id)")
+            .contextMenu {
+                if onSelect == nil {
+                    BoxLikeButton(item: item, store: store)
+                    Button("Share", systemImage: "square.and.arrow.up") { shareItem = item }
+                    Button("Add to Collection…", systemImage: "rectangle.stack") {
+                        collectionItem = item
+                    }
+                    Button("Delete", role: .destructive) { pendingDelete = item }
+                        .disabled(store.deleting.contains(item.id))
+                }
+            }
+            .overlay {
+                if store.deleting.contains(item.id) {
+                    PendingStateView(title: String(localized: "Deleting item…"),
+                                     onSettings: openSettings).background(.regularMaterial)
+                }
+            }
     }
 
     private var matches: [BoxItem] {
@@ -111,96 +156,11 @@ struct BoxListView: View {
             (store.collectionID == nil || $0.collectionIDs.contains(store.collectionID ?? "")) }
     }
 
-    @ViewBuilder private func actionableRow(_ item: BoxItem) -> some View {
-        if onSelect == nil && style == .list && !filter.isMedia {
-            row(item)
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button("Delete", role: .destructive) { pendingDelete = item }
-                        .disabled(store.deleting.contains(item.id))
-                }
-                .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                    BoxLikeButton(item: item, store: store)
-                    Button("Share", systemImage: "square.and.arrow.up") { share(item) }
-                }
-        } else {
-            row(item)
-        }
-    }
-
-    private func share(_ item: BoxItem) {
-        shareItem = item
-    }
-
-    @ViewBuilder private func row(_ item: BoxItem) -> some View {
-        if style == .cards || filter.isMedia {
-            rowLabel(item)
-                .contentShape(Rectangle())
-                .onTapGesture { open(item) }
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isButton)
-                .accessibilityIdentifier("box-item-\(item.id)")
-        } else {
-            Button { open(item) } label: { rowLabel(item) }
-                .buttonStyle(.plain).contentShape(Rectangle())
-                .accessibilityIdentifier("box-item-\(item.id)")
-        }
-    }
-
     private func open(_ item: BoxItem) {
         if let onSelect { onSelect(item) }
         else if item.kind == .image || item.kind == .video {
             openedMedia = BoxMediaSelection(item: item, items: matches)
         } else { openedDetail = item }
-    }
-
-    @ViewBuilder private func rowLabel(_ item: BoxItem) -> some View {
-        if filter.isMedia {
-            BoxThumbnail(item: item, media: media).aspectRatio(1, contentMode: .fit)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text(verbatim: item.boxTitle + " · " + item.metadata))
-        } else { BoxRow(item: item, media: media, grid: style == .cards) }
-    }
-
-    @ToolbarContentBuilder private var controls: some ToolbarContent {
-        Group {
-            if onSelect == nil && store.collectionID == nil {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        BoxCollectionsView(store: store, media: media)
-                    } label: { Image(systemName: "rectangle.stack") }
-                    .accessibilityLabel("Collections")
-                    .accessibilityIdentifier("box-collections")
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("Author", selection: $author) {
-                        ForEach(BoxAuthorFilter.allCases, id: \.self) { option in
-                            Text(verbatim: option.title).tag(option)
-                                .accessibilityIdentifier("box-author-\(option.rawValue)")
-                        }
-                    }
-                } label: { Image(systemName: "person.crop.circle") }
-                    .accessibilityLabel("Author")
-                    .accessibilityValue(Text(verbatim: author.title))
-                    .accessibilityIdentifier("box-author-menu")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("List style", selection: $style) {
-                        ForEach(BoxListStyle.allCases, id: \.self) { option in
-                            Text(verbatim: option.title).tag(option)
-                                .accessibilityIdentifier("box-style-\(option.rawValue)")
-                        }
-                    }
-                } label: {
-                    Image(systemName: style == .list ? "list.bullet" : "square.grid.2x2")
-                }
-                    .accessibilityLabel("List style")
-                    .accessibilityValue(Text(verbatim: style.title))
-                    .accessibilityIdentifier("box-style-menu")
-            }
-        }
     }
 
     @ViewBuilder private var pagination: some View {

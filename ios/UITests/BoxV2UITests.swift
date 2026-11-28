@@ -1,4 +1,4 @@
-// Covers remembered styles, combined filters, media paging, unified detail and confirmed row actions.
+// Covers grid layout, combined filters, media paging, unified detail and confirmed row actions.
 // Exports BoxV2UITests, using the same demo service boundaries as the production Box browser.
 // Dependencies: XCTest, DemoLaunchSupport and MediaViewerTestSupport.
 
@@ -16,11 +16,9 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Box"].appears(timeout: 10))
         app.tabBars.buttons["Box"].tap()
         XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
-        setStyle("List")
     }
 
-    func testCardsHaveContentEqualColumnsAndStyleSurvivesRelaunch() {
-        setStyle("Cards")
+    func testTilesHaveContentAndEqualColumnsAcrossRelaunch() {
         let agent = app.buttons["box-item-demo-agent-text"]
         let image = app.buttons["box-item-demo-image"]
         XCTAssertTrue(image.appears(timeout: 5))
@@ -30,13 +28,14 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertLessThanOrEqual(agent.frame.maxX, image.frame.minX)
         let text = app.buttons["box-item-demo-text"]
         let link = app.buttons["box-item-demo-link"]
+        app.revealBoxTile(text)
         XCTAssertTrue(text.label.contains("A passage to keep"))
         XCTAssertTrue(link.label.contains("docs.example.com"))
         app.terminate()
         app.launchConfiguredDemo()
         app.tabBars.buttons["Box"].tap()
-        XCTAssertEqual(app.buttons["box-style-menu"].value as? String, "Cards")
-        setStyle("List")
+        XCTAssertTrue(image.appears(timeout: 5))
+        XCTAssertLessThanOrEqual(agent.frame.maxX, image.frame.minX)
     }
 
     func testTextDetailShowsContentOnceOmitsEmptyFieldsAndKeepsActionsInToolbar() {
@@ -57,39 +56,39 @@ final class BoxV2UITests: XCTestCase {
         app.alerts.buttons["Cancel"].tap()
     }
 
-    func testRowsUseTheSameHeightWithAndWithoutSummary() {
+    func testTilesUseTheSameHeightWithAndWithoutSummary() {
         let agent = app.buttons["box-item-demo-agent-text"]
         let image = app.buttons["box-item-demo-image"]
         let text = app.buttons["box-item-demo-text"]
         XCTAssertTrue(image.appears(timeout: 5))
         XCTAssertEqual(agent.frame.height, image.frame.height, accuracy: 2)
         XCTAssertEqual(image.frame.height, text.frame.height, accuracy: 2)
-        XCTAssertEqual(agent.frame.minX, image.frame.minX, accuracy: 2)
-        XCTAssertLessThanOrEqual(agent.frame.maxY, image.frame.minY)
+        XCTAssertEqual(agent.frame.minY, image.frame.minY, accuracy: 2)
+        XCTAssertLessThanOrEqual(agent.frame.maxX, image.frame.minX)
+        XCTAssertLessThanOrEqual(agent.frame.maxY, text.frame.minY)
     }
 
-    func testImageGridHasThreeSquareColumnsInEitherStyleAndCombinesAuthorFilters() {
+    func testImageGridHasTwoColumnsAndCombinesAuthorFilters() {
         setFilter("image")
-        assertThreeColumns()
-        setStyle("Cards")
-        assertThreeColumns()
-        setAuthor("Agents")
+        assertTwoColumns()
+        setAuthor("agents")
         XCTAssertTrue(app.buttons["box-item-demo-grid-3"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-image"].exists)
         setFilter("text")
         XCTAssertTrue(app.buttons["box-item-demo-agent-text"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-text"].exists)
-        setAuthor("Me")
+        setAuthor("mine")
         XCTAssertTrue(app.buttons["box-item-demo-text"].appears(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
         XCTAssertTrue(app.buttons["box-filter-text"].isSelected)
-        setStyle("List")
     }
 
     func testViewerPagesFilteredSetShowsActionsAndInfoThenConfirmsDeletion() {
         setFilter("image")
-        setAuthor("Me")
-        app.buttons["box-item-demo-grid-1"].tap()
+        setAuthor("mine")
+        let tile = app.buttons["box-item-demo-grid-1"]
+        app.revealBoxTile(tile)
+        tile.tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 10))
         XCTAssertEqual(app.staticTexts["media-viewer-counter"].label, "2 / 3")
         XCTAssertTrue(app.staticTexts["Visual reference 1"].exists)
@@ -114,14 +113,14 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertFalse(app.buttons["box-item-demo-image"].exists)
     }
 
-    func testVideosUseThreeSquareColumnsEvenWhenCardsAreSelected() {
+    func testVideosUseTwoColumns() {
         setFilter("video")
-        setStyle("Cards")
         let first = app.buttons["box-item-demo-video"]
         let second = app.buttons["box-item-demo-grid-4"]
         XCTAssertTrue(second.appears(timeout: 5))
         let tile = first.frame.height
-        XCTAssertEqual(tile, 118, accuracy: 2)
+        XCTAssertGreaterThanOrEqual(tile, 44)
+        XCTAssertEqual(first.frame.width, second.frame.width, accuracy: 2)
         XCTAssertEqual(second.frame.height, tile, accuracy: 2)
         XCTAssertEqual(second.frame.minY, first.frame.minY, accuracy: 2)
         XCTAssertGreaterThan(second.frame.midX, first.frame.midX)
@@ -129,18 +128,17 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["media-viewer-video"].appears(timeout: 10))
         XCTAssertEqual(app.staticTexts["media-viewer-counter"].label, "1 / 2")
         app.buttons["media-viewer-close"].tap()
-        setStyle("List")
     }
 
-    func testSwipeDeleteConfirmsAndLeadingShareUsesNativeSheet() {
+    func testTileMenuDeleteConfirmsAndShareUsesNativeSheet() {
         let row = app.buttons["box-item-demo-agent-text"]
         XCTAssertTrue(row.appears(timeout: 5))
-        row.swipeLeft()
+        row.press(forDuration: 1)
         app.buttons["Delete"].tap()
         XCTAssertTrue(app.alerts["Delete Agent research notes?"].appears(timeout: 5))
         app.alerts.buttons["Cancel"].tap()
         XCTAssertTrue(row.exists)
-        row.swipeRight()
+        row.press(forDuration: 1)
         app.buttons["Share"].tap()
         XCTAssertTrue(app.cells["Copy"].appears(timeout: 5))
     }
@@ -153,7 +151,9 @@ final class BoxV2UITests: XCTestCase {
         app.tabBars.buttons["Box"].tap()
         setFilter("image")
         XCTAssertTrue(app.buttons["box-item-demo-grid-1"].appears(timeout: 10))
-        app.buttons["box-item-demo-grid-1"].tap()
+        let tile = app.buttons["box-item-demo-grid-1"]
+        app.revealBoxTile(tile)
+        tile.tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].appears(timeout: 10))
         XCTAssertEqual(app.staticTexts["media-viewer-counter"].label, "2 / 4")
         let retry = app.buttons["Retry"].firstMatch
@@ -186,7 +186,7 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertTrue(app.buttons["media-viewer-close"].exists)
         app.buttons["media-viewer-delete"].tap()
         app.alerts.buttons["Delete"].tap()
-        XCTAssertTrue(app.buttons["box-style-menu"].appears(timeout: 5))
+        XCTAssertTrue(app.scrollViews["box-grid"].appears(timeout: 5))
         XCTAssertFalse(file.exists)
     }
 
@@ -224,34 +224,8 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertFalse(app.buttons["Open"].exists)
     }
 
-    private func setStyle(_ title: String) {
-        let menu = app.buttons["box-style-menu"]
-        XCTAssertTrue(menu.appears(timeout: 5))
-        menu.tap()
-        let choice = app.buttons[title]
-        XCTAssertTrue(choice.appears(timeout: 5))
-        choice.tap()
-        XCTAssertEqual(menu.value as? String, title)
-    }
-
     func setFilter(_ rawValue: String) {
-        if rawValue == "video" {
-            XCTAssertTrue(app.buttons["box-item-demo-video"].appears(timeout: 10))
-        } else if rawValue == "image" {
-            XCTAssertTrue(app.buttons["box-item-demo-image"].appears(timeout: 10))
-        }
-        let filter = app.buttons["box-filter-\(rawValue)"]
-        XCTAssertTrue(filter.appears(timeout: 5))
-        let chips = app.scrollViews.containing(.button, identifier: "box-filter-liked").firstMatch
-        for _ in 0..<3 where !filter.isHittable {
-            if rawValue == "all" { chips.swipeRight() } else { chips.swipeLeft() }
-        }
-        XCTAssertTrue(filter.isHittable)
-        filter.tap()
-        XCTAssertTrue(filter.isSelected)
-        if rawValue == "image" || rawValue == "video" {
-            XCTAssertTrue(app.descendants(matching: .any)["box-photo-grid"].appears(timeout: 5))
-        }
+        app.tapBoxChip("box-filter-\(rawValue)")
     }
 
     private func assertDetailValue(_ expected: String) {
@@ -268,25 +242,48 @@ final class BoxV2UITests: XCTestCase {
         XCTAssertTrue(value.exists, app.debugDescription)
     }
 
-    private func setAuthor(_ title: String) {
-        app.buttons["box-author-menu"].tap()
-        app.buttons[title].tap()
+    private func setAuthor(_ author: String) {
+        app.tapBoxChip("box-author-\(author)")
     }
 
-    private func assertThreeColumns() {
-        let grid = app.descendants(matching: .any)["box-photo-grid"]
-        XCTAssertTrue(grid.appears(timeout: 5))
+    private func assertTwoColumns() {
+        let grid = app.scrollViews["box-grid"]
         let first = grid.buttons["box-item-demo-image"]
         let second = grid.buttons["box-item-demo-grid-1"]
         let third = grid.buttons["box-item-demo-grid-2"]
-        XCTAssertTrue(third.appears(timeout: 5))
-        let tile = first.frame.height
-        XCTAssertEqual(tile, 118, accuracy: 2)
-        XCTAssertEqual(second.frame.height, tile, accuracy: 2)
-        XCTAssertEqual(third.frame.height, tile, accuracy: 2)
-        XCTAssertEqual(third.frame.minY, first.frame.minY, accuracy: 2)
-        XCTAssertEqual(second.frame.midX - first.frame.midX, tile + 8, accuracy: 2)
-        XCTAssertEqual(third.frame.midX - second.frame.midX, tile + 8, accuracy: 2)
-        XCTAssertLessThanOrEqual(third.frame.midX, app.frame.maxX)
+        XCTAssertTrue(first.appears(timeout: 5))
+        XCTAssertTrue(second.exists)
+        XCTAssertEqual(first.frame.width, second.frame.width, accuracy: 2)
+        XCTAssertEqual(first.frame.minY, second.frame.minY, accuracy: 2)
+        XCTAssertLessThanOrEqual(first.frame.maxX, second.frame.minX)
+        app.revealBoxTile(third)
+        XCTAssertEqual(first.frame.minX, third.frame.minX, accuracy: 2)
+    }
+}
+
+extension XCUIApplication {
+    func tapBoxChip(_ identifier: String) {
+        let chip = buttons[identifier]
+        let row = scrollViews["box-filters"]
+        XCTAssertTrue(row.appears(timeout: 5))
+        for _ in 0..<8 {
+            if chip.isHittable && row.frame.contains(chip.frame) { break }
+            if chip.exists && chip.frame.midX < row.frame.midX { row.swipeRight() }
+            else { row.swipeLeft() }
+        }
+        XCTAssertTrue(chip.isHittable, identifier)
+        chip.tap()
+        XCTAssertTrue(chip.isSelected, identifier)
+    }
+
+    func revealBoxTile(_ tile: XCUIElement) {
+        let grid = scrollViews["box-grid"]
+        XCTAssertTrue(grid.appears(timeout: 5))
+        for _ in 0..<12 {
+            if tile.isHittable && grid.frame.contains(tile.frame) { break }
+            if tile.exists && tile.frame.minY < grid.frame.minY { grid.swipeDown() }
+            else { grid.swipeUp() }
+        }
+        XCTAssertTrue(tile.isHittable, tile.identifier)
     }
 }
